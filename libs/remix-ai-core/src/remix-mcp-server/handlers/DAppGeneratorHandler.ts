@@ -478,12 +478,188 @@ export interface UpdateDAppArgs {
   chainId?: number | string
   hasImage?: boolean
   workspaceName?: string
+  bindingChange?: {
+    type: 'add' | 'replace'
+    contractAddress: string
+    contractName?: string
+    replaceContractId?: string
+  }
+  bindingChangeConfirmed?: boolean
 }
 
 interface ResolvedQuickDappContractInfo {
   address: string
   chainId: string | number
   contracts: QuickDappContractBinding[]
+}
+
+interface ResolvedQuickDappBindingChange {
+  type: 'add' | 'replace'
+  selection: QuickDappContractSelection
+  changedContract: QuickDappContractBinding
+  replacedContractId?: string
+}
+
+interface PendingQuickDappBindingUpdate extends ResolvedQuickDappBindingChange {
+  workspaceName: string
+  targetMode: 'workspace' | 'inline'
+}
+
+const QUICKDAPP_BINDING_STAGE_ROOT = '.states/quickdapp-binding-update'
+const pendingQuickDappBindingUpdates = new Map<string, PendingQuickDappBindingUpdate>()
+
+const getNestedFilePath = (currentPath: string, filePath: string): string => {
+  const normalizedCurrent = currentPath.replace(/^\/+|\/+$/g, '')
+  const normalizedFile = filePath.replace(/^\/+/, '')
+  if (normalizedFile === normalizedCurrent || normalizedFile.startsWith(`${normalizedCurrent}/`)) {
+    return normalizedFile
+  }
+  return `${normalizedCurrent}/${normalizedFile}`
+}
+
+const readQuickDappBindingStageFiles = async (
+  plugin: Plugin,
+  targetMode: 'workspace' | 'inline',
+  currentPath = QUICKDAPP_BINDING_STAGE_ROOT
+): Promise<Array<{ path: string, content: string }>> => {
+  const stagedFiles: Array<{ path: string, content: string }> = []
+  const contents = await plugin.call('fileManager' as any, 'readdir', currentPath) as Record<string, any>
+
+  for (const [filePath, fileData] of Object.entries(contents || {})) {
+    const nestedPath = getNestedFilePath(currentPath, filePath)
+    if (fileData?.isDirectory) {
+      stagedFiles.push(...await readQuickDappBindingStageFiles(plugin, targetMode, nestedPath))
+      continue
+    }
+
+    const relativePath = nestedPath.substring(QUICKDAPP_BINDING_STAGE_ROOT.length).replace(/^\/+/, '')
+    const targetPath = `/${relativePath}`
+    const allowed = targetMode === 'inline'
+      ? targetPath === '/frontend/index.html' || targetPath.startsWith('/frontend/src/')
+      : targetPath === '/index.html' || targetPath.startsWith('/src/')
+    if (!allowed) {
+      throw new Error(`Binding update staged an unsupported source path: ${targetPath}`)
+    }
+
+    const content = await plugin.call('fileManager' as any, 'readFile', nestedPath)
+    if (typeof content !== 'string') {
+      throw new Error(`Binding update staged invalid content for ${targetPath}`)
+    }
+    stagedFiles.push({ path: targetPath, content })
+  }
+
+  return stagedFiles
+}
+
+const removeQuickDappBindingStage = async (plugin: Plugin): Promise<void> => {
+  try {
+    const exists = await plugin.call('fileManager' as any, 'exists', QUICKDAPP_BINDING_STAGE_ROOT)
+    if (exists) await plugin.call('fileManager' as any, 'remove', QUICKDAPP_BINDING_STAGE_ROOT)
+  } catch (_) {
+    // Stale staging data does not affect the active DApp source or config.
+  }
+}
+
+const prepareQuickDappBindingStage = async (plugin: Plugin, sourceFiles: string[]): Promise<void> => {
+  await removeQuickDappBindingStage(plugin)
+  try { await plugin.call('fileManager' as any, 'mkdir', '.states') } catch (_) {}
+  try { await plugin.call('fileManager' as any, 'mkdir', QUICKDAPP_BINDING_STAGE_ROOT) } catch (_) {}
+
+  const directories = new Set<string>()
+  for (const sourceFile of sourceFiles) {
+    const parts = sourceFile.replace(/^\/+/, '').split('/').slice(0, -1)
+    let current = QUICKDAPP_BINDING_STAGE_ROOT
+    for (const part of parts) {
+      current = `${current}/${part}`
+      directories.add(current)
+    }
+  }
+  for (const directory of directories) {
+    try { await plugin.call('fileManager' as any, 'mkdir', directory) } catch (_) {}
+  }
+}
+
+const applyQuickDappBindingUpdate = async (
+  plugin: Plugin,
+  pending: PendingQuickDappBindingUpdate,
+  configPath: string,
+  nextConfig: any
+): Promise<void> => {
+  const stagedFiles = await readQuickDappBindingStageFiles(plugin, pending.targetMode)
+  if (stagedFiles.length === 0) {
+    throw new Error('No source files were staged for the confirmed contract binding update')
+  }
+
+  const originalConfig = await plugin.call('fileManager' as any, 'readFile', configPath)
+  if (typeof originalConfig !== 'string') {
+    throw new Error('Could not snapshot dapp.config.json before applying the binding update')
+  }
+
+  const sourceSnapshots: Array<{ path: string, existed: boolean, content: string }> = []
+  let configWritten = false
+  let createdPinPath = ''
+
+  try {
+    for (const stagedFile of stagedFiles) {
+      const existed = await plugin.call('fileManager' as any, 'exists', stagedFile.path) as boolean
+      const content = existed
+        ? await plugin.call('fileManager' as any, 'readFile', stagedFile.path) as string
+        : ''
+      sourceSnapshots.push({ path: stagedFile.path, existed, content })
+      await plugin.call('fileManager' as any, 'writeFile', stagedFile.path, stagedFile.content)
+    }
+
+    configWritten = true
+    await plugin.call('fileManager' as any, 'writeFile', configPath, JSON.stringify(nextConfig, null, 2))
+
+    const changedContract = pending.changedContract
+    const pinPath = `.deploys/pinned-contracts/${changedContract.chainId}/${changedContract.address}.json`
+    const pinExists = await plugin.call('fileManager' as any, 'exists', pinPath) as boolean
+    if (!pinExists) {
+      try { await plugin.call('fileManager' as any, 'mkdir', '.deploys') } catch (_) {}
+      try { await plugin.call('fileManager' as any, 'mkdir', '.deploys/pinned-contracts') } catch (_) {}
+      try { await plugin.call('fileManager' as any, 'mkdir', `.deploys/pinned-contracts/${changedContract.chainId}`) } catch (_) {}
+      createdPinPath = pinPath
+      await plugin.call('fileManager' as any, 'writeFile', pinPath, JSON.stringify({
+        name: changedContract.name,
+        address: changedContract.address,
+        abi: changedContract.abi,
+        filePath: changedContract.sourceFilePath || '',
+        pinnedAt: Date.now()
+      }, null, 2))
+    }
+
+    logQuickDappBinding('binding.change.applied', {
+      workspaceName: pending.workspaceName,
+      changeType: pending.type,
+      bindingCount: pending.selection.contracts.length,
+      stagedFileCount: stagedFiles.length
+    })
+  } catch (error: any) {
+    for (const snapshot of sourceSnapshots.reverse()) {
+      try {
+        if (snapshot.existed) {
+          await plugin.call('fileManager' as any, 'writeFile', snapshot.path, snapshot.content)
+        } else {
+          await plugin.call('fileManager' as any, 'remove', snapshot.path)
+        }
+      } catch (_) {}
+    }
+    if (configWritten) {
+      try { await plugin.call('fileManager' as any, 'writeFile', configPath, originalConfig) } catch (_) {}
+    }
+    if (createdPinPath) {
+      try { await plugin.call('fileManager' as any, 'remove', createdPinPath) } catch (_) {}
+    }
+    logQuickDappBinding('binding.change.rolled_back', {
+      workspaceName: pending.workspaceName,
+      changeType: pending.type,
+      reason: error?.message || 'apply_failed'
+    })
+    throw error
+  } finally {
+    await removeQuickDappBindingStage(plugin)
+  }
 }
 
 export interface DAppGenerationResult {
@@ -500,7 +676,7 @@ export interface DAppGenerationResult {
 
 export class GenerateDAppHandler extends BaseToolHandler {
   name = 'generate_dapp'
-  description = 'Create a new DApp frontend from one to eight deployed contracts in the current environment. Keep a single candidate preselected; when multiple candidates are available, ask the user to select the contracts and one primary unless the request says the contract selection was confirmed in the UI, in which case preserve it exactly. The existing contract fields identify that primary and additionalContracts contains the rest. The selected contract set is fixed after creation. STRICT PREREQUISITE: first ask only the required setup options, then stop. If the current prompt or tool result says Location is fixed, do not ask Location; otherwise ask Location Workspace(default)/Inline. Always ask Base mini-app No(default)/Yes, Design defaults/style notes/Figma URL, and Subgraph None(default)/.subgraph file path or name. Do not ask Theme, Primary Color, DApp Title, Layout, or other design subquestions. Call this only after the user replies, with setupOptionsConfirmed=true and a non-empty setupOptionsSummary. If a .subgraph file is chosen in contract-first flow, pass subgraphFilePath so this tool can resolve graphContext without losing the contract context. If Figma is requested, the URL/token are validated before any workspace or file generation begins.'
+  description = 'Create a new DApp frontend from one to eight deployed contracts in the current environment. Keep a single candidate preselected; when multiple candidates are available, ask the user to select the contracts and one primary unless the request says the contract selection was confirmed in the UI, in which case preserve it exactly. The existing contract fields identify that primary and additionalContracts contains the rest. STRICT PREREQUISITE: first ask only the required setup options, then stop. If the current prompt or tool result says Location is fixed, do not ask Location; otherwise ask Location Workspace(default)/Inline. Always ask Base mini-app No(default)/Yes, Design defaults/style notes/Figma URL, and Subgraph None(default)/.subgraph file path or name. Do not ask Theme, Primary Color, DApp Title, Layout, or other design subquestions. Call this only after the user replies, with setupOptionsConfirmed=true and a non-empty setupOptionsSummary. If a .subgraph file is chosen in contract-first flow, pass subgraphFilePath so this tool can resolve graphContext without losing the contract context. If Figma is requested, the URL/token are validated before any workspace or file generation begins.'
   inputSchema = {
     type: 'object',
     properties: {
@@ -1311,7 +1487,7 @@ export class GenerateDAppHandler extends BaseToolHandler {
       // Do NOT include the full system prompt or file dumps — they cause tool result overflow.
       // The agent/subagent already knows DApp frontend patterns.
 
-      const contractBindingBlock = `CONTRACTS (fixed at creation):\n${contractSelection.contracts.map((contract) => {
+      const contractBindingBlock = `CONTRACTS (managed by QuickDapp):\n${contractSelection.contracts.map((contract) => {
         const primaryLabel = contract.id === contractSelection.primaryContractId ? ' (primary)' : ''
         const functions = contract.abi
           .filter((item: any) => item.type === 'function')
@@ -1436,7 +1612,7 @@ export class GenerateDAppHandler extends BaseToolHandler {
 
 export class UpdateDAppHandler extends BaseToolHandler {
   name = 'update_dapp'
-  description = 'Update an existing DApp without changing its contract bindings or managed ZK circuit metadata. Contract addresses, ABIs, chain, primary contract, and contract count are fixed at creation. For ZK DApps, only UI/source updates are allowed; app kind, circuit metadata, signal inputs, proving scheme, prime field, zkVerify config, and artifact files/paths are fixed. If the request changes an immutable binding, do not call this tool, a DApp generation tool, or file tools; tell the user to create a new DApp. Direct chat prerequisite: call list_dapps first and wait for the user to select a workspace. If the prompt already provides an exact DApp update target workspaceName, use that exact workspaceName without calling list_dapps. Never substitute a different workspaceName. Never call generate_dapp, generate_graph_dapp, or generate_zk_dapp for an update.'
+  description = 'Update an existing DApp. A contract-backed DApp may add one deployed contract or replace one binding only when the prompt explicitly says the change was confirmed in the QuickDapp UI and provides the exact bindingChange object with bindingChangeConfirmed=true. Binding changes are limited to the same current non-Remix-VM environment and at most eight contracts. Contract removal, reprioritization, cross-chain changes, Graph-only conversion, and ZK metadata changes are not supported. For direct chat without UI confirmation, contract bindings remain immutable. Use the exact target workspaceName and never call a DApp generation tool for an update.'
   inputSchema = {
     type: 'object',
     properties: {
@@ -1460,6 +1636,24 @@ export class UpdateDAppHandler extends BaseToolHandler {
       chainId: {
         type: ['number', 'string'],
         description: 'Legacy compatibility field. Omit it; if provided, it must match the persisted primary contract chain.'
+      },
+      bindingChange: {
+        type: 'object',
+        description: 'Exact add/replace selection confirmed in the QuickDapp update modal. Omit for normal source/UI updates.',
+        properties: {
+          type: {
+            type: 'string',
+            enum: ['add', 'replace']
+          },
+          contractAddress: { type: 'string', pattern: '^0x[a-fA-F0-9]{40}$' },
+          contractName: { type: 'string' },
+          replaceContractId: { type: 'string' }
+        },
+        required: ['type', 'contractAddress']
+      },
+      bindingChangeConfirmed: {
+        type: 'boolean',
+        description: 'Must be true only when the exact bindingChange was confirmed in the QuickDapp UI.'
       }
     },
     required: ['workspaceName', 'description']
@@ -1472,6 +1666,12 @@ export class UpdateDAppHandler extends BaseToolHandler {
   validate(args: UpdateDAppArgs): boolean | string {
     if (!args.workspaceName) return 'Missing required argument: workspaceName'
     if (!args.description) return 'Missing required argument: description'
+    if (args.bindingChange && args.bindingChangeConfirmed !== true) {
+      return 'Contract binding changes must be confirmed in the QuickDapp UI'
+    }
+    if (args.bindingChange?.type === 'replace' && !args.bindingChange.replaceContractId) {
+      return 'replaceContractId is required when replacing a contract binding'
+    }
     return true
   }
 
@@ -1483,20 +1683,141 @@ export class UpdateDAppHandler extends BaseToolHandler {
     }
 
     if (args.contractAddress && args.contractAddress.toLowerCase() !== primary.address.toLowerCase()) {
-      throw new Error('Contract bindings are fixed at DApp creation. Create a new DApp to use another address.')
+      throw new Error('Use the QuickDapp update modal to change a contract address.')
     }
     if (args.chainId !== undefined && args.chainId !== null &&
       normalizeQuickDappEnvironment(args.chainId) !== normalizeQuickDappEnvironment(primary.chainId)) {
-      throw new Error('Contract bindings are fixed at DApp creation. Create a new DApp to use another chain.')
+      throw new Error('Cross-chain contract changes are not supported in this version.')
     }
     if (args.contractAbi && JSON.stringify(args.contractAbi) !== JSON.stringify(primary.abi)) {
-      throw new Error('Contract bindings are fixed at DApp creation. The persisted ABI cannot be replaced during an update.')
+      throw new Error('Use the QuickDapp update modal to replace a persisted contract ABI.')
     }
 
     return {
       address: primary.address,
       chainId: primary.chainId,
       contracts
+    }
+  }
+
+  private async resolveBindingChange(
+    args: UpdateDAppArgs,
+    config: any,
+    plugin: Plugin
+  ): Promise<ResolvedQuickDappBindingChange | undefined> {
+    const change = args.bindingChange
+    if (!change) return undefined
+    if (args.bindingChangeConfirmed !== true) {
+      throw new Error('Contract binding changes must be confirmed in the QuickDapp UI')
+    }
+
+    const existingContracts = getQuickDappContracts(config)
+    const existingPrimary = getPrimaryQuickDappContract(config)
+    if (!existingPrimary || existingContracts.length === 0) {
+      throw new Error('The DApp config does not contain a valid contract binding')
+    }
+    if (isQuickDappRemixVMIdentifier(existingPrimary.chainId)) {
+      throw new Error('Contract binding changes for Remix VM DApps are not supported in this version')
+    }
+
+    const providerName = await plugin.call('blockchain' as any, 'getProvider') as string
+    const currentEnvironment = isQuickDappRemixVMIdentifier(providerName)
+      ? providerName
+      : await plugin.call('blockchain' as any, 'sendRpc', 'eth_chainId') as string
+    if (normalizeQuickDappEnvironment(currentEnvironment) !== normalizeQuickDappEnvironment(existingPrimary.chainId)) {
+      throw new Error(`Switch Deploy & Run to the DApp network (chain ${existingPrimary.chainId}) before changing contract bindings`)
+    }
+
+    const deployedContracts = await plugin.call('udappDeployedContracts' as any, 'getDeployedContracts') as any[]
+    if (!Array.isArray(deployedContracts)) {
+      throw new Error('Could not read deployed contracts from the current environment')
+    }
+    const deployed = deployedContracts.find((candidate: any) =>
+      typeof candidate?.address === 'string' &&
+      candidate.address.toLowerCase() === change.contractAddress.toLowerCase()
+    )
+    if (!deployed) {
+      throw new Error(`The selected contract ${change.contractAddress} is not deployed in the current environment`)
+    }
+
+    const abi = Array.isArray(deployed.abi) && deployed.abi.length > 0
+      ? deployed.abi
+      : Array.isArray(deployed.contractData?.abi) && deployed.contractData.abi.length > 0
+        ? deployed.contractData.abi
+        : null
+    if (!abi) {
+      throw new Error(`ABI not found for the selected contract at ${change.contractAddress}`)
+    }
+    const code = await plugin.call('blockchain' as any, 'getCode', change.contractAddress) as string
+    if (!code || code === '0x' || code === '0x0') {
+      throw new Error(`No deployed bytecode found at ${change.contractAddress}`)
+    }
+
+    let networkName = existingPrimary.networkName || 'Unknown Network'
+    try {
+      const network = await plugin.call('udappEnv' as any, 'getNetwork')
+      networkName = network?.name || networkName
+    } catch (_) {}
+    const currentWorkspace = await plugin.call('filePanel' as any, 'getCurrentWorkspace')
+    const storedFilePath = deployed.filePath || deployed.contractData?.contract?.file || ''
+    const workspacePrefix = currentWorkspace?.name ? `${currentWorkspace.name}/` : ''
+    const sourceFilePath = workspacePrefix && storedFilePath.startsWith(workspacePrefix)
+      ? storedFilePath.substring(workspacePrefix.length)
+      : storedFilePath
+
+    const toInput = (contract: QuickDappContractBinding): QuickDappContractInput => ({
+      name: contract.name,
+      address: contract.address,
+      abi: contract.abi,
+      chainId: contract.chainId,
+      networkName: contract.networkName,
+      sourceFilePath: contract.sourceFilePath,
+      alias: contract.alias
+    })
+    const candidateInput: QuickDappContractInput = {
+      name: deployed.name || change.contractName || 'Contract',
+      address: deployed.address,
+      abi,
+      chainId: existingPrimary.chainId,
+      networkName,
+      sourceFilePath
+    }
+    const nextInputs = existingContracts.map(toInput)
+    let changedIndex = nextInputs.length
+    let replacedContractId: string | undefined
+
+    if (change.type === 'add') {
+      if (existingContracts.length >= 8) {
+        throw new Error('A DApp can use at most 8 contracts')
+      }
+      nextInputs.push(candidateInput)
+    } else {
+      const replaceIndex = existingContracts.findIndex((contract) => contract.id === change.replaceContractId)
+      if (replaceIndex < 0) {
+        throw new Error('The selected contract binding to replace was not found in this DApp')
+      }
+      changedIndex = replaceIndex
+      replacedContractId = existingContracts[replaceIndex].id
+      nextInputs[replaceIndex] = {
+        ...candidateInput,
+        alias: existingContracts[replaceIndex].alias
+      }
+    }
+
+    const baseSelection = createQuickDappContractSelection(nextInputs)
+    const previousPrimaryIndex = existingContracts.findIndex((contract) => contract.id === existingPrimary.id)
+    const nextPrimary = baseSelection.contracts[previousPrimaryIndex]
+    const selection: QuickDappContractSelection = {
+      contracts: baseSelection.contracts,
+      primaryContractId: nextPrimary.id,
+      primary: nextPrimary
+    }
+
+    return {
+      type: change.type,
+      selection,
+      changedContract: selection.contracts[changedIndex],
+      replacedContractId
     }
   }
 
@@ -1662,10 +1983,29 @@ export class UpdateDAppHandler extends BaseToolHandler {
         contractResolutionRequired: isContractUpdate
       })
 
+      if (args.bindingChange && !isContractUpdate) {
+        return this.createErrorResult('Contract bindings can only be changed for a contract-backed DApp.')
+      }
+
       let contractResolved: ResolvedQuickDappContractInfo | undefined
+      let resolvedBindingChange: ResolvedQuickDappBindingChange | undefined
       if (isContractUpdate) {
         try {
           contractResolved = this.resolveContractInfo(args, targetConfig)
+          resolvedBindingChange = await this.resolveBindingChange(args, targetConfig, plugin)
+          if (resolvedBindingChange) {
+            contractResolved = {
+              address: resolvedBindingChange.selection.primary.address,
+              chainId: resolvedBindingChange.selection.primary.chainId,
+              contracts: resolvedBindingChange.selection.contracts
+            }
+            logQuickDappBinding('binding.change.validated', {
+              workspaceName: targetWorkspace,
+              changeType: resolvedBindingChange.type,
+              bindingCountBefore: getQuickDappContracts(targetConfig).length,
+              bindingCountAfter: resolvedBindingChange.selection.contracts.length
+            })
+          }
         } catch (error: any) {
           return this.createErrorResult(error.message)
         }
@@ -1697,6 +2037,8 @@ export class UpdateDAppHandler extends BaseToolHandler {
         clearQuickDappWorkspaceLock(dappOps.getWorkspaceName())
         return this.createErrorResult(`Failed to switch to workspace ${targetWorkspace}: ${e.message}`)
       }
+      pendingQuickDappBindingUpdates.delete(dappOps.getWorkspaceName())
+      await removeQuickDappBindingStage(plugin)
 
       let configSlug: string | undefined = typeof targetConfigLookup.config?.slug === 'string'
         ? targetConfigLookup.config.slug
@@ -1736,6 +2078,15 @@ export class UpdateDAppHandler extends BaseToolHandler {
         return this.createErrorResult('No files found in workspace. Please ensure the DApp workspace is active.')
       }
 
+      if (resolvedBindingChange) {
+        await prepareQuickDappBindingStage(plugin, fileNames)
+        pendingQuickDappBindingUpdates.set(dappOps.getWorkspaceName(), {
+          ...resolvedBindingChange,
+          workspaceName: dappOps.getWorkspaceName(),
+          targetMode
+        })
+      }
+
       const graphDataSourceBlock = this.getExistingGraphDataSourceBlock(targetConfig)
 
       // Emit UI events
@@ -1765,6 +2116,7 @@ export class UpdateDAppHandler extends BaseToolHandler {
       const hasRuntimeContractBindings = Boolean(
         contractResolved && Array.isArray(targetConfig.contracts) && targetConfig.contracts.length > 0
       )
+      const isBindingChange = !!resolvedBindingChange
       const zkSignalInputs = Array.isArray(zkCircuit?.signalInputs) && zkCircuit.signalInputs.length > 0
         ? zkCircuit.signalInputs.join(', ')
         : 'not recorded'
@@ -1778,8 +2130,8 @@ export class UpdateDAppHandler extends BaseToolHandler {
           `- Signal inputs: ${zkSignalInputs}\n` +
           `- Artifact paths: wasm=${zkCircuit.zkArtifacts.wasmPath || 'not recorded'}, zkey=${zkCircuit.zkArtifacts.zkeyPath || 'not recorded'}, vkey=${zkCircuit.zkArtifacts.vkeyPath || 'not recorded'}\n` +
           `- zkVerify network: ${zkCircuit.zkVerifyConfig?.network || 'not recorded'}\n`
-        : hasRuntimeContractBindings
-          ? `CONTRACT BINDINGS (immutable, chain ${contractResolved.chainId}${isLocalVM ? ', Remix VM' : ''}):\n` +
+        : hasRuntimeContractBindings || isBindingChange
+          ? `CONTRACT BINDINGS (${isBindingChange ? 'confirmed updated set' : 'immutable'}, chain ${contractResolved.chainId}${isLocalVM ? ', Remix VM' : ''}):\n` +
             contractResolved.contracts.map((contract) =>
               `- ${contract.alias}${contract.address.toLowerCase() === contractResolved.address.toLowerCase() ? ' (primary)' : ''}: ${contract.name} at ${contract.address}`
             ).join('\n') + '\n'
@@ -1815,12 +2167,14 @@ export class UpdateDAppHandler extends BaseToolHandler {
           : `LOGIC PRESERVATION (MANDATORY):\n` +
           `- Preserve existing ethers.js contract functionality, React state behavior, and ABI calls. Replace obsolete provider/listener wiring when required by the wallet rules below; do not keep duplicate listeners.\n` +
           `- NEVER remove wallet connection code or window.__QUICK_DAPP_CONFIG__ integration.\n` +
-          (hasRuntimeContractBindings
+          (hasRuntimeContractBindings || isBindingChange
             ? `- Preserve the complete contract set and continue resolving bindings from window.__QUICK_DAPP_CONFIG__.contracts and primaryContractId.\n` +
               `- Do not introduce or retain literal contract addresses or ABI arrays, including fallback values. If a configured binding, address, or ABI is missing or invalid, show a configuration error and do not create or call an ethers.Contract.\n`
             : '') +
           `- You MAY restructure JSX layout, change CSS classes, and add new features.\n` +
-          `- If the user asks to change contract address, ABI, chain, add contracts, or convert app kind, do not modify dapp.config.json or fake the config change. Explain that they must create a new DApp.\n` +
+          (isBindingChange
+            ? `- Apply only the confirmed ${resolvedBindingChange.type} operation represented by the updated contract set above. Do not add, remove, replace, or reprioritize any other binding.\n`
+            : `- If the user asks to change contract address, ABI, chain, add contracts, or convert app kind, do not modify dapp.config.json or fake the config change. Explain that they must use the QuickDapp update modal.\n`) +
           `- When returning a file, return the COMPLETE file content — not just the changed portion.\n\n`
       const walletRules = !contractResolved
         ? ''
@@ -1841,8 +2195,15 @@ export class UpdateDAppHandler extends BaseToolHandler {
           `- Log wallet connection milestones with the single filter keyword: console.info('[QDBinding] wallet.connect', { stage: 'provider-selected' }) after provider selection, then the same call with stage 'accounts-authorized' after the account request resolves, then 'connected' after network and signer resolution. Do not log account addresses or provider objects.\n` +
           `- Show Connect Wallet / Disconnect / Switch Network buttons. Compare chain IDs as decimal numbers (not hex).\n`
       const finalizeInstruction = contractResolved
-        ? `4. Call finalize_dapp_generation with workspaceName="${targetWorkspace}", contractAddress="${contractResolved.address}", isUpdate=true\n`
+        ? `4. Call finalize_dapp_generation with workspaceName="${targetWorkspace}", contractAddress="${contractResolved.address}", isUpdate=true${isBindingChange ? ', bindingChange=true' : ''}\n`
         : `4. Call finalize_dapp_generation with workspaceName="${targetWorkspace}", isUpdate=true\n`
+      const sourceWriteSteps = isBindingChange
+        ? `1. Use read_file to read the existing source files you need to modify\n` +
+          `2. Write each changed COMPLETE file only to the matching staging path under /${QUICKDAPP_BINDING_STAGE_ROOT}. For example, write ${examplePaths} to /${QUICKDAPP_BINDING_STAGE_ROOT}${examplePaths}. Use write_file, not edit_file.\n` +
+          `3. NEVER write the live source path directly and NEVER create or modify dapp.config.json. QuickDapp applies the staged files and binding config together during finalization.\n`
+        : `1. Use read_file to read the files you need to modify\n` +
+          `2. Modify only the relevant files using write_file\n` +
+          `3. NEVER create or modify dapp.config.json — it is managed by the system.\n`
 
       return this.createSuccessResult({
         success: true,
@@ -1864,9 +2225,7 @@ export class UpdateDAppHandler extends BaseToolHandler {
           `- NEVER include workspace name in paths. ${correctPathExample}\n\n` +
           logicPreservation +
           `STEPS:\n` +
-          `1. Use read_file to read the files you need to modify\n` +
-          `2. Modify only the relevant files using write_file\n` +
-          `3. NEVER create or modify dapp.config.json — it is managed by the system.\n` +
+          sourceWriteSteps +
           walletRules +
           finalizeInstruction +
           `---`
@@ -1875,6 +2234,8 @@ export class UpdateDAppHandler extends BaseToolHandler {
     } catch (error: any) {
       remixAILogger.error('[QuickDapp] UpdateDAppHandler FAILED:', error)
       if (dappOps?.getWorkspaceName()) {
+        pendingQuickDappBindingUpdates.delete(dappOps.getWorkspaceName())
+        await removeQuickDappBindingStage(plugin)
         clearQuickDappWorkspaceLock(dappOps.getWorkspaceName())
         clearQuickDappGenerationContext(dappOps.getWorkspaceName())
       }
@@ -1913,6 +2274,11 @@ export class FinalizeDAppGenerationHandler extends BaseToolHandler {
         type: 'boolean',
         description: 'Set to true if this is an update (not a new generation)',
         default: false
+      },
+      bindingChange: {
+        type: 'boolean',
+        description: 'Set to true when update_dapp prepared a UI-confirmed staged contract binding change.',
+        default: false
       }
     },
     required: ['workspaceName']
@@ -1928,7 +2294,7 @@ export class FinalizeDAppGenerationHandler extends BaseToolHandler {
   }
 
   async execute(args: any, plugin: Plugin): Promise<IMCPToolResult> {
-    const { workspaceName, contractAddress, isUpdate } = args
+    const { workspaceName, contractAddress, isUpdate, bindingChange } = args
     let dappOps: DappOperations | undefined
     let configSlug: string | undefined
 
@@ -1939,6 +2305,13 @@ export class FinalizeDAppGenerationHandler extends BaseToolHandler {
       const targetMode = targetConfigLookup ? targetConfigLookup.mode : (workspaceName?.startsWith('inline-') ? 'inline' : 'workspace')
       dappOps = new DappOperations(targetMode, workspaceName, plugin)
       const isInlineMode = dappOps.isInline()
+      const pendingBindingUpdate = pendingQuickDappBindingUpdates.get(dappOps.getWorkspaceName())
+      if (bindingChange && !pendingBindingUpdate) {
+        throw new Error('The confirmed contract binding update is no longer active. Start the update again from the QuickDapp UI.')
+      }
+      if (pendingBindingUpdate && !isUpdate) {
+        throw new Error('A contract binding change can only be finalized as a DApp update.')
+      }
 
       // Ensure we're in the correct workspace
       await switchToWorkspaceIfNeeded(plugin, dappOps.getWorkspaceName())
@@ -1955,6 +2328,9 @@ export class FinalizeDAppGenerationHandler extends BaseToolHandler {
         }
 
         const wasPublished = !!config.deployment?.ipfsCid
+        if (pendingBindingUpdate) {
+          Object.assign(config, buildQuickDappContractConfigFields(pendingBindingUpdate.selection))
+        }
         config.status = isUpdate && wasPublished ? 'deployed' : 'created'
         if (isUpdate && wasPublished) {
           config.deployment = {
@@ -1996,7 +2372,18 @@ export class FinalizeDAppGenerationHandler extends BaseToolHandler {
           remixAILogger.log(`[QuickDapp][FINALIZE] sourceWorkspace OK: ${config.sourceWorkspace.name}`)
         }
 
-        if (targetConfigLookup?.configPath) {
+        if (pendingBindingUpdate) {
+          if (!targetConfigLookup?.configPath) {
+            throw new Error('Could not resolve dapp.config.json for the contract binding update')
+          }
+          await applyQuickDappBindingUpdate(
+            plugin,
+            pendingBindingUpdate,
+            targetConfigLookup.configPath,
+            config
+          )
+          pendingQuickDappBindingUpdates.delete(dappOps.getWorkspaceName())
+        } else if (targetConfigLookup?.configPath) {
           await plugin.call('fileManager', 'writeFile', targetConfigLookup.configPath, JSON.stringify(config, null, 2))
         } else {
           await dappOps.writeConfig(config)
@@ -2004,7 +2391,8 @@ export class FinalizeDAppGenerationHandler extends BaseToolHandler {
         if (isUpdate) {
           logQuickDappBinding('update.completed', {
             workspaceName: dappOps.getWorkspaceName(),
-            publishState: wasPublished ? 'published-with-unpublished-changes' : 'created'
+            publishState: wasPublished ? 'published-with-unpublished-changes' : 'created',
+            bindingChanged: !!pendingBindingUpdate
           })
         }
         remixAILogger.log('[QuickDapp] Config status updated after finalization')
@@ -2058,6 +2446,8 @@ export class FinalizeDAppGenerationHandler extends BaseToolHandler {
         error: error.message
       })
       if (dappOps?.getWorkspaceName()) {
+        pendingQuickDappBindingUpdates.delete(dappOps.getWorkspaceName())
+        await removeQuickDappBindingStage(plugin)
         clearQuickDappWorkspaceLock(dappOps.getWorkspaceName())
         clearQuickDappGenerationContext(dappOps.getWorkspaceName())
       }
@@ -3184,7 +3574,7 @@ export function createDAppGeneratorTools(): RemixToolDefinition[] {
     },
     {
       name: 'generate_dapp',
-      description: 'Set up a new DApp frontend from one to eight deployed contracts in the current environment. STRICT PREREQUISITE: never call this in the same assistant turn where setup options are asked. Keep a single candidate preselected; with multiple candidates, ask for the selected contracts and one primary unless the request says the contract selection was confirmed in the UI, in which case preserve it exactly and do not ask Contracts. Ask the other required setup options, then stop. If Location is fixed, do not ask it; otherwise ask Workspace(default)/Inline. Always ask Base mini-app No(default)/Yes, Design defaults/style notes/Figma URL, and Subgraph None(default)/.subgraph file path or name. Call only after the user replies, with the primary in the existing contract fields, the rest in additionalContracts, setupOptionsConfirmed=true, and a non-empty setupOptionsSummary. Contract bindings are fixed after creation. Returns generation instructions — you MUST then write each DApp file using write_file, then call finalize_dapp_generation.',
+      description: 'Set up a new DApp frontend from one to eight deployed contracts in the current environment. STRICT PREREQUISITE: never call this in the same assistant turn where setup options are asked. Keep a single candidate preselected; with multiple candidates, ask for the selected contracts and one primary unless the request says the contract selection was confirmed in the UI, in which case preserve it exactly and do not ask Contracts. Ask the other required setup options, then stop. If Location is fixed, do not ask it; otherwise ask Workspace(default)/Inline. Always ask Base mini-app No(default)/Yes, Design defaults/style notes/Figma URL, and Subgraph None(default)/.subgraph file path or name. Call only after the user replies, with the primary in the existing contract fields, the rest in additionalContracts, setupOptionsConfirmed=true, and a non-empty setupOptionsSummary. Returns generation instructions — you MUST then write each DApp file using write_file, then call finalize_dapp_generation.',
       inputSchema: new GenerateDAppHandler().inputSchema,
       category: ToolCategory.WORKSPACE,
       permissions: ['dapp:generate', 'file:write'],
@@ -3216,7 +3606,7 @@ export function createDAppGeneratorTools(): RemixToolDefinition[] {
     },
     {
       name: 'update_dapp',
-      description: 'Update an existing DApp without changing contract bindings or managed ZK circuit metadata. If the request adds, removes, replaces, or reprioritizes contracts, changes an address, ABI, or chain, or changes a ZK DApp app kind, circuit metadata, signal inputs, proving scheme, prime field, zkVerify config, or artifact files/paths, do not call this tool, a DApp generation tool, or file tools; tell the user to create a new DApp. Otherwise, use the exact target workspaceName supplied by the prompt, or call list_dapps and wait for the user to select one. Never substitute a different workspaceName. Never call generate_dapp, generate_graph_dapp, or generate_zk_dapp for an update.',
+      description: new UpdateDAppHandler().description,
       inputSchema: new UpdateDAppHandler().inputSchema,
       category: ToolCategory.WORKSPACE,
       permissions: ['dapp:update', 'file:write'],
