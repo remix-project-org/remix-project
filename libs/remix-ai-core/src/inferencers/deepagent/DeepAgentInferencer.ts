@@ -12,6 +12,7 @@ import { RemixFilesystemBackend } from './RemixFilesystemBackend'
 import { createRemixTools, ToolApprovalGate } from './tools'
 import {
   REMIX_DEEPAGENT_SYSTEM_PROMPT,
+  QUICKDAPP_SPECIALIST_SUBAGENT_PROMPT,
   SOLIDITY_CODE_GENERATION_PROMPT,
   SECURITY_ANALYSIS_PROMPT,
   CODE_EXPLANATION_PROMPT
@@ -35,6 +36,7 @@ import { generateStructured } from '../../helpers/structuredOutput'
 import { SecurityCheckSchema } from '../../types/schemas'
 import { getLangfuseCallbackHandler } from '../../helpers/langfuse'
 import { buildSubagentConfigs } from './SubagentConfig'
+import { getQuickDappToolsForQuickDappSpecialist } from './helpers/subagentToolFilters'
 import { StreamEventHandler } from './StreamEventHandler'
 import { CONVERSATION_THREAD_PREFIX, DAPP_MAX_TOKENS } from '@remix/remix-ai-core'
 import { Features } from '@remix-api'
@@ -930,6 +932,13 @@ export class DeepAgentInferencer implements ICompletions, IGeneration {
           this.filesystemBackend,
           fallbackModel
         )
+        const hasQuickDappSpecialist = agentConfig.subagents.some(subagent => subagent.name === 'QuickDapp_Specialist')
+        if (hasQuickDappSpecialist) {
+          const quickDappTools = getQuickDappToolsForQuickDappSpecialist(this.tools)
+          agentConfig.tools = quickDappTools
+          agentConfig.systemPrompt += `\n\n## QuickDapp conversational workflows\n${QUICKDAPP_SPECIALIST_SUBAGENT_PROMPT}`
+          remixAILogger.log(`[QDBinding] QuickDapp tools available to the main agent: ${quickDappTools.length}`)
+        }
         let subagentsDesc = ''
         agentConfig.subagents.forEach(sub => {
           subagentsDesc += `\n- ${sub.name}:${sub.description || ''}`

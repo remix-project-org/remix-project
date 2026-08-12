@@ -394,6 +394,13 @@ export function DeployedContractItem({ contract, index, registerRef, isKebabMenu
     try {
       console.log('[QuickDapp] handleCreateDapp START', { name: contract.name, address: contract.address, timestamp: Date.now() });
 
+      const currentWorkspace = await plugin.call('filePanel', 'getCurrentWorkspace')
+      const sourceIsDappWorkspace = currentWorkspace?.name?.startsWith('dapp-') === true
+      if (sourceIsDappWorkspace && isDesktop) {
+        await plugin.call('notification', 'toast', 'Creating another DApp from a DApp workspace is not supported in Remix Desktop because generation is inline-only.')
+        return
+      }
+
       // Send contract details to AI Assistant for DApp generation
 
       let chainId: string
@@ -461,18 +468,21 @@ STEP 1 - ASK FOR SETUP OPTIONS:
 ${QUICKDAPP_SCOPE_NOTICE}
 ${contractSelectionContext}
 Ask me once: "How should I create your DApp?"
-- Location: Workspace (default, new dedicated workspace) or Inline (in /frontend folder of current workspace)
+${sourceIsDappWorkspace
+    ? 'Location is fixed to Workspace for this request. Do not ask Location or use Inline.'
+    : '- Location: Workspace (default, new dedicated workspace) or Inline (in /frontend folder of current workspace)'}
 - Base mini-app: No (default) or Yes
 - Design: defaults, style notes, or a Figma URL
 ${QUICKDAPP_SUBGRAPH_SETUP_OPTION}
 
-Ask exactly those four setup options. Do not ask Theme, Primary Color, DApp Title, Layout, or any other design subquestions.
+Ask exactly ${sourceIsDappWorkspace ? 'those three' : 'those four'} setup options. Do not ask Theme, Primary Color, DApp Title, Layout, or any other design subquestions.
 ${QUICKDAPP_SUBGRAPH_SETUP_RULE}
 After asking, STOP and wait for my next reply. Do not call generate_dapp or write files in the same turn as this setup question.
 In my next reply, use defaults for anything I skip. If I provide a Figma URL without a token, ask for the Figma Personal Access Token and STOP again.
 
-STEP 2 - IF I CHOOSE INLINE:
-Check if /frontend exists with content. If yes, ask: "The /frontend folder already has files. Overwrite them?"
+${sourceIsDappWorkspace
+    ? ''
+    : 'STEP 2 - IF I CHOOSE INLINE:\nCheck if /frontend exists with content. If yes, ask: "The /frontend folder already has files. Overwrite them?"'}
 
 STEP 3 - CALL THE TOOL:
 After I answer, you MUST call generate_dapp with:
@@ -481,11 +491,11 @@ After I answer, you MUST call generate_dapp with:
 - contractAddress: "${contract.address}"
 - chainId: "${chainId}"
 ${additionalContractsToolArg}
-- frontendMode: "inline" or "workspace" based on my Location answer
+- frontendMode: ${sourceIsDappWorkspace ? '"workspace"' : '"inline" or "workspace" based on my Location answer'}
 - isBaseMiniApp: true only if I selected Base mini-app Yes; otherwise false
 - figmaUrl and figmaToken only if I provided them
 ${QUICKDAPP_GRAPH_CONTEXT_TOOL_ARG}
-- confirmOverwrite: true only if I chose Inline and confirmed overwrite
+${sourceIsDappWorkspace ? '' : '- confirmOverwrite: true only if I chose Inline and confirmed overwrite'}
 - setupOptionsConfirmed: true
 - setupOptionsSummary: a short summary of my confirmed setup choices
 
@@ -505,6 +515,7 @@ IMPORTANT: In this turn, only ask STEP 1 and then STOP. After my next reply, con
 
       // Send prompt to AI Assistant
       console.log('[QuickDapp] calling chatPipe...');
+      console.log('[QDBinding] QuickDapp flow requested');
       await plugin.call('remixaiassistant' as any, 'chatPipe', prompt, false, { source: 'run-tab', presetId: 'dapp-from-deployed-contract' })
       console.log('[QuickDapp] chatPipe returned');
 

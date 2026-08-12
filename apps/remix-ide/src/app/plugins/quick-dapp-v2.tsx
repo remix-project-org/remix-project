@@ -3,7 +3,9 @@ import { ViewPlugin } from '@remixproject/engine-web'
 import * as packageJson from '../../../../../package.json'
 import {
   buildQuickDappContractConfigFields,
+  classifyQuickDappEnvironment,
   createQuickDappContractSelection,
+  logQuickDappBinding,
   normalizeQuickDappEnvironment,
   PluginViewWrapper,
   QuickDappContractInput
@@ -367,8 +369,33 @@ export class QuickDappV2 extends ViewPlugin {
       : createQuickDappContractSelection([singleContractInput]);
     const isMultiContract = contractSelection.contracts.length > 1;
 
-    if (isMultiContract) {
-      const actualProvider = await this.call('blockchain' as any, 'getProvider') as string;
+    let sourceWorkspaceName = 'default_workspace';
+    try {
+      const currentWs = await this.call('filePanel', 'getCurrentWorkspace');
+      sourceWorkspaceName = currentWs?.name || 'default_workspace';
+    } catch (e) { /* fallback */ }
+
+    const sourceIsDappWorkspace = sourceWorkspaceName.startsWith(DAPP_WORKSPACE_PREFIX);
+    const primaryContract = contractSelection.primary;
+    const vmProviderName = primaryContract.chainId && String(primaryContract.chainId).startsWith('vm-')
+      ? String(primaryContract.chainId) : null;
+    const actualProvider = (isMultiContract || sourceIsDappWorkspace)
+      ? await this.call('blockchain' as any, 'getProvider') as string
+      : '';
+    const environmentKind = classifyQuickDappEnvironment(actualProvider, primaryContract.chainId);
+
+    if (sourceIsDappWorkspace && environmentKind !== 'network-rpc') {
+      logQuickDappBinding('workspace.creation.blocked', {
+        sourceWorkspace: sourceWorkspaceName,
+        targetMode: 'workspace',
+        reason: environmentKind === 'remix-vm'
+          ? 'remix_vm_from_dapp_workspace'
+          : 'non_persistent_environment'
+      });
+      throw new Error('createDappWorkspace: Creating another DApp from a DApp workspace requires a persistent network');
+    }
+
+    if (isMultiContract || sourceIsDappWorkspace) {
       const currentEnvironment = actualProvider?.startsWith('vm')
         ? actualProvider
         : await this.call('blockchain' as any, 'sendRpc', 'eth_chainId') as string;
@@ -385,7 +412,6 @@ export class QuickDappV2 extends ViewPlugin {
       }
     }
 
-    const primaryContract = contractSelection.primary;
     const name = primaryContract.name || 'Untitled';
     const id = Date.now().toString(36) + Math.random().toString(36).substring(2, 8);
     const slugSuffix = isMultiContract ? id.slice(-6) : id.slice(0, 6);
@@ -393,27 +419,23 @@ export class QuickDappV2 extends ViewPlugin {
     const workspaceName = `${DAPP_WORKSPACE_PREFIX}${slug}`;
     const timestamp = Date.now();
 
-    let sourceWorkspaceName = 'default_workspace';
-    try {
-      const currentWs = await this.call('filePanel', 'getCurrentWorkspace');
-      sourceWorkspaceName = currentWs?.name || 'default_workspace';
-    } catch (e) { /* fallback */ }
-
-    // ── Guard: Block DApp creation from within a DApp workspace ──
-    if (sourceWorkspaceName.startsWith(DAPP_WORKSPACE_PREFIX)) {
-      throw new Error(
-        'Cannot create a DApp from within a DApp workspace. ' +
-        'Please switch to the original contract workspace first.'
-      );
-    }
-    if (isMultiContract && await this.call('filePanel' as any, 'workspaceExists', workspaceName)) {
+    if ((isMultiContract || sourceIsDappWorkspace) && await this.call('filePanel' as any, 'workspaceExists', workspaceName)) {
       throw new Error(`createDappWorkspace: Workspace already exists: ${workspaceName}`);
+    }
+
+    if (sourceIsDappWorkspace) {
+      logQuickDappBinding('workspace.creation.validated', {
+        sourceWorkspace: sourceWorkspaceName,
+        targetWorkspace: workspaceName,
+        targetMode: 'workspace',
+        bindingCount: contractSelection.contracts.length,
+        environmentKind,
+        chainId: normalizeQuickDappEnvironment(primaryContract.chainId)
+      });
     }
 
     // Capture VM state if on VM provider
     let vmStateSnapshot: string | null = null;
-    const vmProviderName = primaryContract.chainId && String(primaryContract.chainId).startsWith('vm-')
-      ? String(primaryContract.chainId) : null;
 
     if (isMultiContract && vmProviderName) {
       const saveEvmState = await this.call('config' as any, 'getAppParameter', 'settings/save-evm-state');
@@ -502,10 +524,14 @@ export class QuickDappV2 extends ViewPlugin {
     const sourceMappingPath = `.deploys/dapp-mappings/${primaryContract.address}_${workspaceName}.json`;
     let sourceMappingCreated = false;
     let workspaceCreatedByThisCall = false;
-    const rollbackMultiContractCreation = async () => {
-      if (!isMultiContract) return;
+    const shouldRollbackCreation = isMultiContract || sourceIsDappWorkspace;
+    const rollbackWorkspaceCreation = async () => {
+      if (!shouldRollbackCreation) return;
 
       let sourceWorkspaceRestored = false;
+      let removedSourceMapping = false;
+      let removedSourcePinCount = 0;
+      let removedTargetWorkspace = false;
       try {
         const currentWorkspace = await this.call('filePanel' as any, 'getCurrentWorkspace');
         if (currentWorkspace?.name !== sourceWorkspaceName) {
@@ -518,18 +544,34 @@ export class QuickDappV2 extends ViewPlugin {
 
       if (sourceWorkspaceRestored) {
         if (sourceMappingCreated) {
-          try { await this.call('fileManager', 'remove', sourceMappingPath); } catch (_) {}
+          try {
+            await this.call('fileManager', 'remove', sourceMappingPath);
+            removedSourceMapping = true;
+          } catch (_) {}
         }
         for (const pinPath of createdSourcePinPaths) {
-          try { await this.call('fileManager', 'remove', pinPath); } catch (_) {}
+          try {
+            await this.call('fileManager', 'remove', pinPath);
+            removedSourcePinCount += 1;
+          } catch (_) {}
         }
       }
 
       if (sourceWorkspaceRestored && workspaceCreatedByThisCall) {
         try {
           await this.call('filePanel' as any, 'deleteWorkspace', workspaceName);
+          removedTargetWorkspace = true;
         } catch (_) {}
       }
+
+      logQuickDappBinding('workspace.creation.rolled_back', {
+        sourceWorkspace: sourceWorkspaceName,
+        targetWorkspace: workspaceName,
+        sourceIsDappWorkspace,
+        removedMapping: removedSourceMapping,
+        removedPinCount: removedSourcePinCount,
+        removedTargetWorkspace
+      });
     };
 
     try { await this.call('fileManager', 'mkdir', '.deploys'); } catch (_) {}
@@ -546,10 +588,10 @@ export class QuickDappV2 extends ViewPlugin {
         };
         const pinPath = `.deploys/pinned-contracts/${contract.chainId}/${contract.address}.json`;
         try { await this.call('fileManager', 'mkdir', `.deploys/pinned-contracts/${contract.chainId}`); } catch (_) {}
-        const preserveExistingPin = isMultiContract && await this.call('fileManager', 'exists', pinPath);
+        const preserveExistingPin = shouldRollbackCreation && await this.call('fileManager', 'exists', pinPath);
         if (!preserveExistingPin) {
           await this.call('fileManager', 'writeFile', pinPath, JSON.stringify(pinnedData, null, 2));
-          if (isMultiContract) createdSourcePinPaths.push(pinPath);
+          if (shouldRollbackCreation) createdSourcePinPaths.push(pinPath);
         }
 
         if (contract.id === contractSelection.primaryContractId) {
@@ -560,15 +602,15 @@ export class QuickDappV2 extends ViewPlugin {
             chainId: contract.chainId,
             createdAt: timestamp
           };
-          const preserveExistingMapping = isMultiContract && await this.call('fileManager', 'exists', sourceMappingPath);
+          const preserveExistingMapping = shouldRollbackCreation && await this.call('fileManager', 'exists', sourceMappingPath);
           if (!preserveExistingMapping) {
             await this.call('fileManager', 'writeFile', sourceMappingPath, JSON.stringify(dappMapping, null, 2));
-            if (isMultiContract) sourceMappingCreated = true;
+            if (shouldRollbackCreation) sourceMappingCreated = true;
           }
         }
       } catch (e) {
-        if (isMultiContract) {
-          await rollbackMultiContractCreation();
+        if (shouldRollbackCreation) {
+          await rollbackWorkspaceCreation();
           throw new Error(`createDappWorkspace: Could not pin ${contract.address} in the source workspace: ${e?.message || e}`);
         }
         remixAILogger.warn(`[QuickDapp] Auto-pin failed for ${contract.address} (non-critical):`, e);
@@ -582,7 +624,7 @@ export class QuickDappV2 extends ViewPlugin {
       await new Promise(r => setTimeout(r, 300));
       await this.call('fileManager', 'writeFile', 'dapp.config.json', initialConfigJson);
     } catch (e) {
-      await rollbackMultiContractCreation();
+      await rollbackWorkspaceCreation();
       throw e;
     }
     try { await this.call('fileManager', 'mkdir', 'src'); } catch (_) {}
@@ -606,7 +648,7 @@ export class QuickDappV2 extends ViewPlugin {
         }
       } catch (e) {
         if (isMultiContract) {
-          await rollbackMultiContractCreation();
+          await rollbackWorkspaceCreation();
           throw new Error(`createDappWorkspace: Could not restore all selected Remix VM contracts: ${e?.message || e}`);
         }
         remixAILogger.warn('[QuickDapp] VM state restore failed (non-critical):', e);
@@ -630,8 +672,8 @@ export class QuickDappV2 extends ViewPlugin {
         try { await this.call('fileManager', 'mkdir', `.deploys/pinned-contracts/${contract.chainId}`); } catch (_) {}
         await this.call('fileManager', 'writeFile', pinnedPath, JSON.stringify(pinnedData, null, 2));
       } catch (e) {
-        if (isMultiContract) {
-          await rollbackMultiContractCreation();
+        if (shouldRollbackCreation) {
+          await rollbackWorkspaceCreation();
           throw new Error(`createDappWorkspace: Could not pin ${contract.address} in the DApp workspace: ${e?.message || e}`);
         }
         remixAILogger.warn(`[QuickDapp] DApp workspace pin failed for ${contract.address} (non-critical):`, e);
@@ -654,6 +696,14 @@ export class QuickDappV2 extends ViewPlugin {
       }
     }
 
+    logQuickDappBinding('workspace.creation.completed', {
+      sourceWorkspace: sourceWorkspaceName,
+      targetWorkspace: workspaceName,
+      sourceIsDappWorkspace,
+      bindingCount: contractSelection.contracts.length,
+      environmentKind,
+      chainId: normalizeQuickDappEnvironment(primaryContract.chainId)
+    });
     remixAILogger.log('[QuickDapp] createDappWorkspace done', { slug: workspaceName });
     return { slug: workspaceName, workspaceName };
   }
