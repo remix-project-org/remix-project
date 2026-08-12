@@ -650,12 +650,15 @@ export const TabsUI = (props: TabsUIProps) => {
     const currentFile = tabsState.name
     const currentFileName = currentFile?.split('/').pop() || ''
 
-    // Guard: Block DApp creation from within a DApp workspace
+    // DApp workspaces may create a separate workspace-mode DApp on the web.
+    // Desktop remains blocked because QuickDapp generation is inline-only there.
+    let sourceIsDappWorkspace = false
     try {
       const currentWs = await props.plugin.call('filePanel', 'getCurrentWorkspace')
-      if (currentWs?.name?.startsWith('dapp-')) {
+      sourceIsDappWorkspace = currentWs?.name?.startsWith('dapp-') === true
+      if (sourceIsDappWorkspace && isElectron()) {
         props.plugin.call('notification', 'toast',
-          'DApp generation is not available from a DApp workspace. Please switch to your contract workspace first.'
+          'Creating another DApp from a DApp workspace is not supported in Remix Desktop because generation is inline-only.'
         )
         return
       }
@@ -762,21 +765,25 @@ export const TabsUI = (props: TabsUIProps) => {
           `STEP 1 - ASK FOR SETUP OPTIONS:`,
           `Ask me once: "How should I create your DApp?"`,
           ...(contractSetupOption ? [contractSetupOption] : []),
-          `- Location: Workspace (default, new dedicated workspace) or Inline (in /frontend folder of current workspace)`,
+          sourceIsDappWorkspace
+            ? `Location is fixed to Workspace for this request. Do not ask Location or use Inline.`
+            : `- Location: Workspace (default, new dedicated workspace) or Inline (in /frontend folder of current workspace)`,
           `- Base mini-app: No (default) or Yes`,
           `- Design: defaults, style notes, or a Figma URL`,
           QUICKDAPP_SUBGRAPH_SETUP_OPTION,
           ``,
           additionalInstances.length > 0
             ? `Ask exactly the listed setup options. Do not ask Theme, Primary Color, DApp Title, Layout, or any other design subquestions.`
-            : `Ask exactly those four setup options. Do not ask Theme, Primary Color, DApp Title, Layout, or any other design subquestions.`,
+            : `Ask exactly ${sourceIsDappWorkspace ? 'those three' : 'those four'} setup options. Do not ask Theme, Primary Color, DApp Title, Layout, or any other design subquestions.`,
           QUICKDAPP_SUBGRAPH_SETUP_RULE,
           `After asking, STOP and wait for my next reply. Do not call generate_dapp or write files in the same turn as this setup question.`,
           `In my next reply, use defaults for anything I skip. If I provide a Figma URL without a token, ask for the Figma Personal Access Token and STOP again.`,
           ``,
-          `STEP 2 - IF I CHOOSE INLINE:`,
-          `Check if /frontend exists with content. If yes, ask: "The /frontend folder already has files. Overwrite them?"`,
-          ``,
+          ...(sourceIsDappWorkspace ? [] : [
+            `STEP 2 - IF I CHOOSE INLINE:`,
+            `Check if /frontend exists with content. If yes, ask: "The /frontend folder already has files. Overwrite them?"`,
+            ``
+          ]),
           `STEP 3 - CALL THE TOOL:`,
           `After I answer, you MUST call generate_dapp with:`,
           `- description: my design answer, or "Modern dark mode single-page DApp using React and Ethers.js" if I skipped it`,
@@ -784,11 +791,11 @@ export const TabsUI = (props: TabsUIProps) => {
           `- contractAddress: "${inst.address}"`,
           `- chainId: "${chainId}"`,
           ...(additionalContractsToolArg ? [additionalContractsToolArg] : []),
-          `- frontendMode: "inline" or "workspace" based on my Location answer`,
+          `- frontendMode: ${sourceIsDappWorkspace ? '"workspace"' : '"inline" or "workspace" based on my Location answer'}`,
           `- isBaseMiniApp: true only if I selected Base mini-app Yes; otherwise false`,
           `- figmaUrl and figmaToken only if I provided them`,
           QUICKDAPP_GRAPH_CONTEXT_TOOL_ARG,
-          `- confirmOverwrite: true only if I chose Inline and confirmed overwrite`,
+          ...(sourceIsDappWorkspace ? [] : [`- confirmOverwrite: true only if I chose Inline and confirmed overwrite`]),
           `- setupOptionsConfirmed: true`,
           `- setupOptionsSummary: a short summary of my confirmed setup choices`,
           ``,
@@ -807,8 +814,8 @@ export const TabsUI = (props: TabsUIProps) => {
         contractList,
         ``,
         isDesktop
-          ? `Ask one combined setup question: Contracts (one to eight from the list, with one primary), Base mini-app No(default)/Yes, Design defaults/style notes/Figma URL, and Subgraph None(default)/.subgraph file path or name. Location is fixed to Inline in /frontend. ${QUICKDAPP_SUBGRAPH_SETUP_RULE} Do not ask Theme, Primary Color, DApp Title, Layout, or any other design subquestions. Then STOP. After my reply, call generate_dapp with the primary in the existing contract fields, the rest in additionalContracts, frontendMode="inline", isBaseMiniApp and Figma/Subgraph choices from my answer, setupOptionsConfirmed=true, and setupOptionsSummary. If /frontend has files, preserve the existing overwrite confirmation flow. Later contract changes require explicit confirmation from the target DApp update flow.`
-          : `Ask one combined setup question: Contracts (one to eight from the list, with one primary), Location Workspace(default)/Inline, Base mini-app No(default)/Yes, Design defaults/style notes/Figma URL, and Subgraph None(default)/.subgraph file path or name. ${QUICKDAPP_SUBGRAPH_SETUP_RULE} Do not ask Theme, Primary Color, DApp Title, Layout, or any other design subquestions. Then STOP. After my reply, call generate_dapp with the primary in the existing contract fields, the rest in additionalContracts, frontendMode, isBaseMiniApp and Figma/Subgraph choices from my answer, setupOptionsConfirmed=true, and setupOptionsSummary. If Inline has files, preserve the existing overwrite confirmation flow. Later contract changes require explicit confirmation from the target DApp update flow.`
+          ? `Ask one combined setup question: Contracts (one to eight from the list, with one primary), Base mini-app No(default)/Yes, Design defaults/style notes/Figma URL, and Subgraph None(default)/.subgraph file path or name. Preselect the first contract marked "current file" as the only default contract and primary; additional contracts default to None. Location is fixed to Inline in /frontend. ${QUICKDAPP_SUBGRAPH_SETUP_RULE} Do not ask Theme, Primary Color, DApp Title, Layout, or any other design subquestions. Then STOP. After my reply, call generate_dapp with the primary in the existing contract fields, the rest in additionalContracts, frontendMode="inline", isBaseMiniApp and Figma/Subgraph choices from my answer, setupOptionsConfirmed=true, and setupOptionsSummary. If /frontend has files, preserve the existing overwrite confirmation flow. Later contract changes require explicit confirmation from the target DApp update flow.`
+          : `Ask one combined setup question: Contracts (one to eight from the list, with one primary), ${sourceIsDappWorkspace ? 'Location is fixed to Workspace (do not ask Location or use Inline),' : 'Location Workspace(default)/Inline,'} Base mini-app No(default)/Yes, Design defaults/style notes/Figma URL, and Subgraph None(default)/.subgraph file path or name. Preselect the first contract marked "current file" as the only default contract and primary; additional contracts default to None. ${QUICKDAPP_SUBGRAPH_SETUP_RULE} Do not ask Theme, Primary Color, DApp Title, Layout, or any other design subquestions. Then STOP. After my reply, call generate_dapp with the primary in the existing contract fields, the rest in additionalContracts, frontendMode=${sourceIsDappWorkspace ? '"workspace"' : 'the selected location'}, isBaseMiniApp and Figma/Subgraph choices from my answer, setupOptionsConfirmed=true, and setupOptionsSummary. ${sourceIsDappWorkspace ? '' : 'If Inline has files, preserve the existing overwrite confirmation flow.'} Later contract changes require explicit confirmation from the target DApp update flow.`
       )
     } else if (instances.length > 0) {
       // No match for current file but other contracts exist
@@ -822,8 +829,8 @@ export const TabsUI = (props: TabsUIProps) => {
         contractList,
         ``,
         isDesktop
-          ? `Ask one combined setup question: either compile and deploy "${currentFileName}" first or select one to eight listed contracts with one primary; Base mini-app No(default)/Yes; Design defaults/style notes/Figma URL; and Subgraph None(default)/.subgraph file path or name. Location is fixed to Inline in /frontend. ${QUICKDAPP_SUBGRAPH_SETUP_RULE} Do not ask Theme, Primary Color, DApp Title, Layout, or any other design subquestions. Then STOP. After my reply, compile and deploy if requested; once every selected contract is deployed, call generate_dapp with the primary in the existing contract fields, the rest in additionalContracts, frontendMode="inline", isBaseMiniApp and Figma/Subgraph choices from my answer, setupOptionsConfirmed=true, and setupOptionsSummary. If /frontend has files, preserve the existing overwrite confirmation flow. Later contract changes require explicit confirmation from the target DApp update flow.`
-          : `Ask one combined setup question: either compile and deploy "${currentFileName}" first or select one to eight listed contracts with one primary; Location Workspace(default)/Inline; Base mini-app No(default)/Yes; Design defaults/style notes/Figma URL; and Subgraph None(default)/.subgraph file path or name. ${QUICKDAPP_SUBGRAPH_SETUP_RULE} Do not ask Theme, Primary Color, DApp Title, Layout, or any other design subquestions. Then STOP. After my reply, compile and deploy if requested; once every selected contract is deployed, call generate_dapp with the primary in the existing contract fields, the rest in additionalContracts, frontendMode, isBaseMiniApp and Figma/Subgraph choices from my answer, setupOptionsConfirmed=true, and setupOptionsSummary. If Inline has files, preserve the existing overwrite confirmation flow. Later contract changes require explicit confirmation from the target DApp update flow.`
+          ? `Ask one combined setup question: either compile and deploy "${currentFileName}" first or select one to eight listed contracts with one primary; Base mini-app No(default)/Yes; Design defaults/style notes/Figma URL; and Subgraph None(default)/.subgraph file path or name. Preselect the first listed deployed contract as the only default contract and primary; additional contracts default to None. Location is fixed to Inline in /frontend. ${QUICKDAPP_SUBGRAPH_SETUP_RULE} Do not ask Theme, Primary Color, DApp Title, Layout, or any other design subquestions. Then STOP. After my reply, compile and deploy if requested; once every selected contract is deployed, call generate_dapp with the primary in the existing contract fields, the rest in additionalContracts, frontendMode="inline", isBaseMiniApp and Figma/Subgraph choices from my answer, setupOptionsConfirmed=true, and setupOptionsSummary. If /frontend has files, preserve the existing overwrite confirmation flow. Later contract changes require explicit confirmation from the target DApp update flow.`
+          : `Ask one combined setup question: either compile and deploy "${currentFileName}" first or select one to eight listed contracts with one primary; ${sourceIsDappWorkspace ? 'Location is fixed to Workspace (do not ask Location or use Inline);' : 'Location Workspace(default)/Inline;'} Base mini-app No(default)/Yes; Design defaults/style notes/Figma URL; and Subgraph None(default)/.subgraph file path or name. Preselect the first listed deployed contract as the only default contract and primary; additional contracts default to None. ${QUICKDAPP_SUBGRAPH_SETUP_RULE} Do not ask Theme, Primary Color, DApp Title, Layout, or any other design subquestions. Then STOP. After my reply, compile and deploy if requested; once every selected contract is deployed, call generate_dapp with the primary in the existing contract fields, the rest in additionalContracts, frontendMode=${sourceIsDappWorkspace ? '"workspace"' : 'the selected location'}, isBaseMiniApp and Figma/Subgraph choices from my answer, setupOptionsConfirmed=true, and setupOptionsSummary. ${sourceIsDappWorkspace ? '' : 'If Inline has files, preserve the existing overwrite confirmation flow.'} Later contract changes require explicit confirmation from the target DApp update flow.`
       )
     } else {
       // No deployed contracts at all — AI will guide compile→deploy→generate
@@ -865,12 +872,14 @@ export const TabsUI = (props: TabsUIProps) => {
           ``,
           `STEP 1 - ASK FOR SETUP OPTIONS:`,
           `Ask me once: "How should I create your DApp?"`,
-          `- Location: Workspace (default, new dedicated workspace) or Inline (in /frontend folder of current workspace)`,
+          sourceIsDappWorkspace
+            ? `Location is fixed to Workspace for this request. Do not ask Location or use Inline.`
+            : `- Location: Workspace (default, new dedicated workspace) or Inline (in /frontend folder of current workspace)`,
           `- Base mini-app: No (default) or Yes`,
           `- Design: defaults, style notes, or a Figma URL`,
           QUICKDAPP_SUBGRAPH_SETUP_OPTION,
           ``,
-          `Ask exactly those four setup options. Do not ask Theme, Primary Color, DApp Title, Layout, or any other design subquestions.`,
+          `Ask exactly ${sourceIsDappWorkspace ? 'those three' : 'those four'} setup options. Do not ask Theme, Primary Color, DApp Title, Layout, or any other design subquestions.`,
           QUICKDAPP_SUBGRAPH_SETUP_RULE,
           `After asking, STOP and wait for my next reply. Do not compile, deploy, call generate_dapp, or write files in the same turn as this setup question.`,
           `In my next reply, use defaults for anything I skip. If I provide a Figma URL without a token, ask for the Figma Personal Access Token and STOP again.`,
@@ -878,11 +887,13 @@ export const TabsUI = (props: TabsUIProps) => {
           `STEP 2 - COMPILE AND DEPLOY:`,
           `After I answer, compile "${filePath}" and deploy the compiled contract.`,
           ``,
-          `STEP 3 - IF I CHOSE INLINE:`,
-          `Check if /frontend exists with content. If yes, ask: "The /frontend folder already has files. Overwrite them?"`,
-          ``,
+          ...(sourceIsDappWorkspace ? [] : [
+            `STEP 3 - IF I CHOSE INLINE:`,
+            `Check if /frontend exists with content. If yes, ask: "The /frontend folder already has files. Overwrite them?"`,
+            ``
+          ]),
           `STEP 4 - GENERATE DAPP:`,
-          `After deployment, call generate_dapp with the deployed contract details, my location choice, isBaseMiniApp from my answer (default false), figmaUrl/figmaToken only if provided, subgraphFilePath only if I chose a .subgraph file, setupOptionsConfirmed=true, and setupOptionsSummary.`,
+          `After deployment, call generate_dapp with the deployed contract details, frontendMode=${sourceIsDappWorkspace ? '"workspace"' : 'my location choice'}, isBaseMiniApp from my answer (default false), figmaUrl/figmaToken only if provided, subgraphFilePath only if I chose a .subgraph file, setupOptionsConfirmed=true, and setupOptionsSummary.`,
           ``,
           `Start by asking me for the setup options, then STOP.`
         )
@@ -900,6 +911,7 @@ export const TabsUI = (props: TabsUIProps) => {
     } catch (e) { /* best-effort */ }
 
     console.log('[QuickDapp] Start Now → chatPipe (no modal), prompt length:', prompt.length)
+    console.log('[QDBinding] QuickDapp flow requested')
     try {
       await props.plugin.call('remixaiassistant' as any, 'chatPipe', prompt, false, { source: 'editor-tabs', presetId: 'quickdapp-start' })
       console.log('[QuickDapp] chatPipe returned')

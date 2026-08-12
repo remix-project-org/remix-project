@@ -957,9 +957,6 @@ export class GenerateDAppHandler extends BaseToolHandler {
     if (!currentWorkspace?.name) {
       throw new Error('Could not resolve the current contract workspace')
     }
-    if (isDedicatedDappWorkspace(currentWorkspace.name)) {
-      throw new Error('Switch to the original contract workspace before creating a DApp')
-    }
 
     const deployedContracts = await plugin.call('udappDeployedContracts' as any, 'getDeployedContracts')
     if (!Array.isArray(deployedContracts)) {
@@ -1120,12 +1117,24 @@ export class GenerateDAppHandler extends BaseToolHandler {
     let figmaDesign: FigmaDesignSuccess | undefined
     let contractSelection: QuickDappContractSelection | undefined
     try {
-      remixAILogger.log('[GenerateDApp] Received args:', getGenerateDAppArgsTrace(args))
+      remixAILogger.log('[QDBinding] [GenerateDApp] Received args:', getGenerateDAppArgsTrace(args))
       const isDesktop = isElectron()
       const targetMode = isDesktop ? 'inline' : (args.frontendMode || 'workspace')
       const hasAdditionalContracts = Array.isArray(args.additionalContracts) && args.additionalContracts.length > 0
+      const sourceWorkspace = await plugin.call('filePanel' as any, 'getCurrentWorkspace')
+      const sourceWorkspaceName = sourceWorkspace?.name || ''
+      const sourceIsDappWorkspace = isDedicatedDappWorkspace(sourceWorkspaceName)
       args.frontendMode = targetMode
       this.normalizeGraphContext(args)
+
+      if (sourceIsDappWorkspace && isDesktop) {
+        logQuickDappBinding('workspace.creation.blocked', {
+          sourceWorkspace: sourceWorkspaceName,
+          targetMode,
+          reason: 'desktop_inline_only'
+        })
+        return this.createErrorResult('Creating another DApp from a DApp workspace is not supported in Remix Desktop because Desktop generation is inline-only.')
+      }
 
       if (args.setupOptionsConfirmed !== true || !args.setupOptionsSummary?.trim()) {
         return this.createSuccessResult({
@@ -1140,13 +1149,20 @@ export class GenerateDAppHandler extends BaseToolHandler {
               'Design: defaults, style notes, or a Figma URL',
               'Subgraph: None (default) or provide a .subgraph file path/name'
             ]
-            : [
-              `Contracts: keep ${args.contractName} preselected; if other deployed candidates exist, choose up to seven more and one primary`,
-              'Location: Workspace (default) or Inline in /frontend',
-              'Base mini-app: No (default) or Yes',
-              'Design: defaults, style notes, or a Figma URL',
-              'Subgraph: None (default) or provide a .subgraph file path/name'
-            ],
+            : sourceIsDappWorkspace
+              ? [
+                `Contracts: keep ${args.contractName} preselected; if other deployed candidates exist, choose up to seven more and one primary`,
+                'Base mini-app: No (default) or Yes',
+                'Design: defaults, style notes, or a Figma URL',
+                'Subgraph: None (default) or provide a .subgraph file path/name'
+              ]
+              : [
+                `Contracts: keep ${args.contractName} preselected; if other deployed candidates exist, choose up to seven more and one primary`,
+                'Location: Workspace (default) or Inline in /frontend',
+                'Base mini-app: No (default) or Yes',
+                'Design: defaults, style notes, or a Figma URL',
+                'Subgraph: None (default) or provide a .subgraph file path/name'
+              ],
           defaults: {
             contracts: args.additionalContracts?.length
               ? `${args.contractName} as primary; additional contracts: ${args.additionalContracts.map((contract) => `${contract.contractName} at ${contract.contractAddress}`).join(', ')}`
@@ -1156,10 +1172,12 @@ export class GenerateDAppHandler extends BaseToolHandler {
             design: 'defaults',
             subgraph: 'none'
           },
-          fixedLocation: isDesktop ? 'inline' : undefined,
+          fixedLocation: isDesktop ? 'inline' : sourceIsDappWorkspace ? 'workspace' : undefined,
           nextAction: isDesktop
             ? 'Keep a single contract preselected; include Contracts only when other deployed candidates are available. Ask Base mini-app, Design, and Subgraph, then STOP. Location is fixed to Inline in /frontend for this request; do not ask Location. Subgraph defaults to None. If the user wants a .subgraph, ask for the .subgraph file path/name and pass it as subgraphFilePath; do not redirect to the .subgraph context menu. Do not call any tools or write files in the same turn. After the user answers, call generate_dapp again with the primary in the existing contract fields, the rest in additionalContracts, setupOptionsConfirmed=true, a non-empty setupOptionsSummary, frontendMode="inline", isBaseMiniApp, description, any figmaUrl/figmaToken, and subgraphFilePath if provided.'
-            : 'Ask only those setup options and then STOP. Subgraph defaults to None. If the user wants a .subgraph, ask for the .subgraph file path/name and pass it as subgraphFilePath; do not redirect to the .subgraph context menu. Do not call any tools or write files in the same turn. After the user answers, call generate_dapp again with the primary in the existing contract fields, the rest in additionalContracts, setupOptionsConfirmed=true, a non-empty setupOptionsSummary, frontendMode, isBaseMiniApp, description, any figmaUrl/figmaToken, and subgraphFilePath if provided.'
+            : sourceIsDappWorkspace
+              ? 'Ask only Contracts when other deployed candidates are available, Base mini-app, Design, and Subgraph, then STOP. Location is fixed to Workspace for this request; do not ask Location or use Inline. After the user answers, call generate_dapp again with the primary in the existing contract fields, the rest in additionalContracts, setupOptionsConfirmed=true, a non-empty setupOptionsSummary, frontendMode="workspace", isBaseMiniApp, description, any figmaUrl/figmaToken, and subgraphFilePath if provided.'
+              : 'Ask only those setup options and then STOP. Subgraph defaults to None. If the user wants a .subgraph, ask for the .subgraph file path/name and pass it as subgraphFilePath; do not redirect to the .subgraph context menu. Do not call any tools or write files in the same turn. After the user answers, call generate_dapp again with the primary in the existing contract fields, the rest in additionalContracts, setupOptionsConfirmed=true, a non-empty setupOptionsSummary, frontendMode, isBaseMiniApp, description, any figmaUrl/figmaToken, and subgraphFilePath if provided.'
         })
       }
 
@@ -1172,12 +1190,36 @@ export class GenerateDAppHandler extends BaseToolHandler {
       args.chainId = chainResolution.chainId
       const environmentKind = classifyQuickDappEnvironment(chainResolution.providerName, args.chainId)
 
-      if (hasAdditionalContracts) {
+      if (sourceIsDappWorkspace && targetMode !== 'workspace') {
+        logQuickDappBinding('workspace.creation.blocked', {
+          sourceWorkspace: sourceWorkspaceName,
+          targetMode,
+          reason: isDesktop ? 'desktop_inline_only' : 'inline_target_already_managed'
+        })
+        return this.createErrorResult(
+          isDesktop
+            ? 'Creating another DApp from a DApp workspace is not supported in Remix Desktop because Desktop generation is inline-only.'
+            : 'A DApp workspace already has one managed inline target. Choose Location: Workspace to create a separate DApp.'
+        )
+      }
+
+      if (sourceIsDappWorkspace && environmentKind !== 'network-rpc') {
+        logQuickDappBinding('workspace.creation.blocked', {
+          sourceWorkspace: sourceWorkspaceName,
+          targetMode,
+          reason: environmentKind === 'remix-vm'
+            ? 'remix_vm_from_dapp_workspace'
+            : 'non_persistent_environment'
+        })
+        return this.createErrorResult('Creating another DApp from a DApp workspace requires a persistent network. Remix VM and local RPC environments remain unchanged in this stage.')
+      }
+
+      if (hasAdditionalContracts || sourceIsDappWorkspace) {
         try {
           contractSelection = await this.resolveMultiContractSelection(args, plugin)
           args.contractAbi = contractSelection.primary.abi
         } catch (error: any) {
-          return this.createErrorResult(`Cannot create a multi-contract DApp: ${error.message}`)
+          return this.createErrorResult(`Cannot create DApp: ${error.message}`)
         }
       }
 
