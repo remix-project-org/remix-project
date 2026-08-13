@@ -59,6 +59,14 @@
   scrollbar-width: none;  /* Firefox */
 }
 
+.zoom-icon-btn {
+  border-radius: 4px;
+  transition: background-color 0.12s ease;
+}
+.zoom-icon-btn:hover {
+  color: var(--bs-emphasis-color) !important;
+}
+
 .loadingExplanation {
   animation: fancy-spin 2000ms;
   animation-iteration-count: infinite;

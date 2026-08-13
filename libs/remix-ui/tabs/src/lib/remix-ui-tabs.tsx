@@ -73,20 +73,20 @@ const QUICKDAPP_SCOPE_NOTICE = 'When asking setup options, briefly state this sc
 
 const tabsReducer = (state: ITabsState, action: ITabsAction) => {
   switch (action.type) {
-  case 'SELECT_INDEX':
-    return {
-      ...state,
-      currentExt: action.ext,
-      selectedIndex: action.payload,
-      name: action.name
-    }
-  case 'SET_FILE_DECORATIONS':
-    return {
-      ...state,
-      fileDecorations: action.payload as fileDecoration[]
-    }
-  default:
-    return state
+    case 'SELECT_INDEX':
+      return {
+        ...state,
+        currentExt: action.ext,
+        selectedIndex: action.payload,
+        name: action.name
+      }
+    case 'SET_FILE_DECORATIONS':
+      return {
+        ...state,
+        fileDecorations: action.payload as fileDecoration[]
+      }
+    default:
+      return state
   }
 }
 const PlayExtList = ['js', 'ts', 'sol', 'circom', 'vy', 'nr', 'yul', 'sql', 'subgraph']
@@ -420,14 +420,14 @@ export const TabsUI = (props: TabsUIProps) => {
         const ts = (res && (res.timestamp || res.timeStamp || res.time || res.generatedAt)) || null
         const isFreshTime = typeof ts === 'number' ? ts >= startMs : true
         if (res && hasFile(res) && isFreshTime) return res
-      } catch {}
+      } catch { }
       await new Promise(r => setTimeout(r, intervalMs))
     }
     return last
   }
 
   const attachCompilationListener = (compilerName: string, mySeq: number, path: string, startedAt: number) => {
-    try { props.plugin.off(compilerName, 'compilationFinished') } catch {}
+    try { props.plugin.off(compilerName, 'compilationFinished') } catch { }
 
     const onFinished = async (_success: boolean) => {
       if (mySeq !== compileSeq.current || settledSeqRef.current === mySeq) return
@@ -454,7 +454,7 @@ export const TabsUI = (props: TabsUIProps) => {
         }
       }
       settledSeqRef.current = mySeq
-      try { props.plugin.off(compilerName, 'compilationFinished') } catch {}
+      try { props.plugin.off(compilerName, 'compilationFinished') } catch { }
     }
     props.plugin.on(compilerName, 'compilationFinished', onFinished)
   }
@@ -526,7 +526,7 @@ export const TabsUI = (props: TabsUIProps) => {
           }
           const resultPath = `./amp/results/query-${Date.now()}.json`
           await props.plugin.call('fileManager', 'writeFile', resultPath, JSON.stringify(result, null, '\t'))
-          props.plugin.call('notification', 'toast',`Query done. Result has been added to ${resultPath}`)
+          props.plugin.call('notification', 'toast', `Query done. Result has been added to ${resultPath}`)
           setCompileState('compiled')
         } catch (e) {
           console.error(e)
@@ -611,7 +611,7 @@ export const TabsUI = (props: TabsUIProps) => {
         await props.plugin.call('manager', 'activatePlugin', compilerName)
         await props.plugin.call('menuicons', 'select', compilerName)
         settledSeqRef.current = mySeq
-        try { props.plugin.off(compilerName, 'compilationFinished') } catch {}
+        try { props.plugin.off(compilerName, 'compilationFinished') } catch { }
       }, 3000)
 
       if (tabsState.currentExt === 'vy') {
@@ -957,7 +957,7 @@ export const TabsUI = (props: TabsUIProps) => {
   } else {
     dropDown = (
       <>
-        <EmptyDropdown/>
+        <EmptyDropdown />
       </>
     )
   }
@@ -1014,9 +1014,8 @@ export const TabsUI = (props: TabsUIProps) => {
   return (
     <>
       <div
-        className={`remix-ui-tabs justify-content-between  border-0 header nav-tabs ${
-          appContext.appState.connectedToDesktop === desktopConnectionType .disabled ? 'd-flex' : 'd-none'
-        }`}
+        className={`remix-ui-tabs justify-content-between  border-0 header nav-tabs ${appContext.appState.connectedToDesktop === desktopConnectionType.disabled ? 'd-flex' : 'd-none'
+          }`}
         data-id="tabs-component"
       >
         <div className="d-flex flex-row" style={{ maxWidth: 'fit-content', width: '99%' }}>
@@ -1096,14 +1095,6 @@ export const TabsUI = (props: TabsUIProps) => {
               )}
             </div>
 
-            <div className="d-flex border-start ms-1 align-items-center" style={{ height: "3em" }}>
-              <CustomTooltip placement="bottom" tooltipId="overlay-tooltip-zoom-out" tooltipText={<FormattedMessage id="remixUiTabs.zoomOut" />}>
-                <span data-id="tabProxyZoomOut" className="btn fas fa-search-minus text-dark ps-2 pe-0 py-0 d-flex" onClick={() => props.onZoomOut()}></span>
-              </CustomTooltip>
-              <CustomTooltip placement="bottom" tooltipId="overlay-tooltip-run-zoom-in" tooltipText={<FormattedMessage id="remixUiTabs.zoomIn" />}>
-                <span data-id="tabProxyZoomIn" className="btn fas fa-search-plus text-dark ps-2 pe-0 py-0 d-flex" onClick={() => props.onZoomIn()}></span>
-              </CustomTooltip>
-            </div>
           </div>
           <Tabs
             className="tab-scroll"
@@ -1139,6 +1130,14 @@ export const TabsUI = (props: TabsUIProps) => {
             ))}
           </Tabs>
 
+        </div>
+        <div className="d-flex border-start ms-1 align-items-center" style={{ height: "3em" }}>
+          <CustomTooltip placement="bottom" tooltipId="overlay-tooltip-zoom-out" tooltipText={<FormattedMessage id="remixUiTabs.zoomOut" />}>
+            <span data-id="tabProxyZoomOut" className="btn fas fa-search-minus text-dark d-flex p-2 zoom-icon-btn" onClick={() => props.onZoomOut()}></span>
+          </CustomTooltip>
+          <CustomTooltip placement="bottom" tooltipId="overlay-tooltip-run-zoom-in" tooltipText={<FormattedMessage id="remixUiTabs.zoomIn" />}>
+            <span data-id="tabProxyZoomIn" className="btn fas fa-search-plus text-dark d-flex p-2 zoom-icon-btn" onClick={() => props.onZoomIn()}></span>
+          </CustomTooltip>
         </div>
       </div>
       {shouldShowQuickDappBanner && (
