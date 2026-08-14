@@ -1014,12 +1014,12 @@ export const TabsUI = (props: TabsUIProps) => {
   return (
     <>
       <div
-        className={`remix-ui-tabs justify-content-between  border-0 header nav-tabs ${appContext.appState.connectedToDesktop === desktopConnectionType.disabled ? 'd-flex' : 'd-none'
+        className={`remix-ui-tabs justify-content-between border-bottom header nav-tabs ${appContext.appState.connectedToDesktop === desktopConnectionType.disabled ? 'd-flex' : 'd-none'
         }`}
         data-id="tabs-component"
       >
         <div className="d-flex flex-row" style={{ maxWidth: 'fit-content', width: '99%' }}>
-          <div className="d-flex flex-row justify-content-center align-items-center m-1 mt-1">
+          <div className="d-flex flex-row justify-content-center align-items-center m-1 me-0">
             <div className="d-flex align-items-center m-1">
               {props.isDebugging ? (
                 <CustomTooltip
@@ -1094,7 +1094,7 @@ export const TabsUI = (props: TabsUIProps) => {
                 </>
               )}
             </div>
-            <div className="d-flex border-end align-items-center" style={{ height: "3em" }}>
+            <div className="d-flex align-items-center" style={{ height: "3em" }}>
               <CustomTooltip placement="bottom" tooltipId="overlay-tooltip-zoom-out" tooltipText={<FormattedMessage id="remixUiTabs.zoomOut" />}>
                 <span data-id="tabProxyZoomOut" className="btn fas fa-search-minus text-dark d-flex p-2 zoom-icon-btn" onClick={() => props.onZoomOut()}></span>
               </CustomTooltip>

@@ -386,6 +386,7 @@ export const EditorUI = (props: EditorUIProps) => {
         'menu.selectionBackground': secondaryColor,
         'menu.selectionForeground': textColor,
         'menu.selectionBorder': secondaryColor,
+        'scrollbar.shadow': '#00000000', // disable the drop-shadow shown when the editor content is scrolled
       },
     })
     monacoRef.current.editor.setTheme(themeName)
