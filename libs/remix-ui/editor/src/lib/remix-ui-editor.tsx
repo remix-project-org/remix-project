@@ -1993,7 +1993,9 @@ export const EditorUI = (props: EditorUIProps) => {
                 glyphMargin: true,
                 readOnly: editorModelsState[props.currentFile]?.readOnly,
                 inlineSuggest: { enabled: true },
-                minimap: { enabled: false }
+                minimap: { enabled: false },
+                padding: { top: 16 },
+                lineNumbersMinChars: 4
               }}
               defaultValue={defaultEditorValue}
             />
@@ -2047,7 +2049,9 @@ export const EditorUI = (props: EditorUIProps) => {
             glyphMargin: true,
             readOnly: editorModelsState[props.currentFile]?.readOnly ?? false,
             inlineSuggest: { enabled: true },
-            minimap: { enabled: false }
+            minimap: { enabled: false },
+            padding: { top: 16 },
+            lineNumbersMinChars: 4
           }}
           defaultValue={defaultEditorValue}
           className={props.isDiff ? "d-none" : "d-block"}
