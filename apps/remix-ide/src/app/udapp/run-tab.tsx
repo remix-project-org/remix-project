@@ -70,7 +70,11 @@ export class RunTab extends ViewPlugin {
 
   setDispatch(dispatch: (state: any) => void) {
     this.dispatch = dispatch
-    this.renderComponent()
+    // When dispatch is set (on mount/remount), ensure we render after DOM is ready
+    // Use requestAnimationFrame to ensure DOM elements are created before portals try to attach
+    requestAnimationFrame(() => {
+      this.renderComponent()
+    })
   }
 
   renderComponent() {
@@ -84,11 +88,16 @@ export class RunTab extends ViewPlugin {
   }
 
   updateComponent() {
+    const envContainer = document.getElementById('udappEnvComponent')
+    const deployContainer = document.getElementById('udappDeployComponent')
+    const deployedContractsContainer = document.getElementById('udappDeployedContractsComponent')
+    const transactionsContainer = document.getElementById('udappTransactionsComponent')
+
     return (<>
-      { this.envUI && createPortal(this.envUI, document.getElementById('udappEnvComponent')) }
-      { this.deployUI && createPortal(this.deployUI, document.getElementById('udappDeployComponent')) }
-      { this.deployedContractsUI && createPortal(this.deployedContractsUI, document.getElementById('udappDeployedContractsComponent')) }
-      { this.transactionsUI && createPortal(this.transactionsUI, document.getElementById('udappTransactionsComponent')) }
+      { this.envUI && envContainer && createPortal(this.envUI, envContainer) }
+      { this.deployUI && deployContainer && createPortal(this.deployUI, deployContainer) }
+      { this.deployedContractsUI && deployedContractsContainer && createPortal(this.deployedContractsUI, deployedContractsContainer) }
+      { this.transactionsUI && transactionsContainer && createPortal(this.transactionsUI, transactionsContainer) }
     </>)
   }
 
