@@ -1,4 +1,4 @@
-import React, { useMemo, useState, useRef } from 'react'
+import React, { useMemo, useState, useRef, useEffect } from 'react'
 import { AddressToggle, CustomMenu, CustomTooltip, EnvironmentToggle, shortenAddress, SmartAccountPromptTitle } from "@remix-ui/helper"
 import { Dropdown } from "react-bootstrap"
 import { useIntl } from 'react-intl'
@@ -17,6 +17,27 @@ import { SmartAccountPrompt } from '../components/smartAccountPrompt'
 import { DelegationAuthorizationPrompt } from '../components/delegationAuthorizationPrompt'
 import { SignMessagePrompt, SignedMessagePrompt } from '../components/signMessagePrompt'
 import { CopyToClipboard } from '@remix-ui/clipboard'
+import { DeployedContract } from '../../../../run-tab-deployed-contracts/src/lib/types'
+
+export const getUnpinnedContractCount = (
+  deployedContractsCount: number,
+  pinnedContractsCount: number
+): number => {
+  return Math.max(deployedContractsCount - pinnedContractsCount, 0)
+}
+
+const runUnpinnedContractDebugChecks = () => {
+  console.assert(getUnpinnedContractCount(1, 0) === 1, 'Expected 1 unpinned contract')
+  console.assert(getUnpinnedContractCount(2, 1) === 1, 'Expected 1 unpinned contract')
+  console.assert(getUnpinnedContractCount(1, 1) === 0, 'Expected 0 unpinned contracts')
+  console.assert(getUnpinnedContractCount(0, 0) === 0, 'Expected 0 unpinned contracts')
+  console.assert(getUnpinnedContractCount(1, 2) === 0, 'Expected count to never go below 0')
+  console.log('Unpinned contract debug checks finished for envPortraitView.tsx')
+}
+
+if (process.env.NODE_ENV === 'development') {
+  runUnpinnedContractDebugChecks()
+}
 
 function EnvironmentPortraitView() {
   const { plugin, widgetState, dispatch, themeQuality } = useContext(EnvAppContext)
@@ -36,6 +57,7 @@ function EnvironmentPortraitView() {
   const messageRef = useRef<string>('')
   const editingInputRef = useRef<HTMLInputElement>(null)
   const aaSupportedChainIds = ["11155111", "100"] // AA01: Add chain id here to show 'Create Smart Account' button in Udapp
+  const [deployedContracts, setDeployedContracts] = useState(0)
 
   const handleResetClick = () => {
     trackMatomoEvent({ category: 'udapp', action: 'deleteState', name: 'deleteState clicked', isClick: true })
@@ -50,11 +72,21 @@ function EnvironmentPortraitView() {
   const handleProviderSelection = (provider: Provider) => {
     trackMatomoEvent({ category: 'udapp', action: 'environmentSelected', name: provider.category || provider.displayName, isClick: true })
     if (provider.category && selectedProvider?.category === provider.category) return
+
+    const deployCount = widgetState.deployedContractsCount
+    var confirmEnv
+    if(deployCount > deployedContracts){
+      const count = deployCount - deployedContracts
+      confirmEnv = window.confirm(`You have ${count} unpinned contract(s) that may be lost on environment change. Continue?`)
+    }
+    else{
+      confirmEnv = true
+    }
     if (provider.category === 'Dev' || provider.category === 'Browser Extension') {
       // select category to show sub-categories
-      dispatch({ type: 'SET_CURRENT_PROVIDER', payload: provider.name })
+      if(confirmEnv) dispatch({ type: 'SET_CURRENT_PROVIDER', payload: provider.name })
     } else {
-      setExecutionContext(provider, plugin, dispatch)
+      if(confirmEnv) setExecutionContext(provider, plugin, dispatch)
     }
   }
 
@@ -433,6 +465,9 @@ function EnvironmentPortraitView() {
         {!widgetState.fork.isVisible.forkUI && !widgetState.fork.isVisible.resetUI && (
           <div className="d-flex p-3 pt-0">
             <Dropdown className="w-100" show={isEnvironmentDropdownOpen} onToggle={(isOpen) => {
+              plugin.call('udappDeployedContracts', 'getDeployedContracts').then(val => {
+              setDeployedContracts(val.filter((c) => c.isPinned).length);
+              })
               if (isOpen) {
                 trackMatomoEvent({ category: 'udapp', action: 'environmentDropdownOpen', name: selectedProvider?.category || selectedProvider?.displayName || 'Remix VM' })
               }
