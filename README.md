@@ -269,6 +269,23 @@ parameters:
     default: true
 ```
 
+## Remix Trademark & Branding
+The name “Remix” as it relates to Remix IDE (available at remix.ethereum.org) and its associated logos, icons, and branding elements are subject to trademark rights. For example, a REMIX trademark application is on record with the United States Patent and Trademark Office and is associated with the Ethereum Foundation / Stiftung Ethereum.
+
+If you fork this repository or publish derived materials, you must not use the Remix name, logos, trademarks, or other branding in a manner that suggests endorsement by, affiliation with, or sponsorship from the trademark owner unless you have explicit written permission from the rights holder. This includes, but is not limited to:
+
+- Naming your forked project with Remix or confusingly similar marks.
+
+- Displaying the official Remix logos or visual identity.
+
+- Marketing your fork as an “official” or “supported” version of Remix IDE.
+
+- When referring to the original Remix IDE for clarity (e.g., in documentation or comparisons), use the name in a purely descriptive way (nominative use) and clearly state that your fork is independent and not endorsed by Remix IDE or Remix Labs or any affiliated trademark owner.
+
+Failure to respect trademark rights may lead to takedown requests or other legal action by the trademark holder.
+
+For more information about the software license that Remix uses, see https://github.com/remix-project-org/remix-project/LICENSE
+
 ## Important Links
 
 - Official website: https://remix.live
