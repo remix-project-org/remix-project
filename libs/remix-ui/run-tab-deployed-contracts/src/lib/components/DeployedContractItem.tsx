@@ -494,7 +494,6 @@ For Inline mode, preserve the existing /frontend overwrite confirmation flow. Co
 
       // Send prompt to AI Assistant
       console.log('[QuickDapp] calling chatPipe...');
-      console.log('[QDBinding] QuickDapp flow requested');
       await plugin.call('remixaiassistant' as any, 'chatPipe', prompt, false, { source: 'run-tab', presetId: 'dapp-from-deployed-contract' })
       console.log('[QuickDapp] chatPipe returned');
 

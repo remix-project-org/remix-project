@@ -69,7 +69,7 @@ const initialTabsState: ITabsState = {
 const QUICKDAPP_SUBGRAPH_SETUP_OPTION = '- Subgraph: None (default) or a .subgraph file path/name'
 const QUICKDAPP_SUBGRAPH_SETUP_RULE = 'Subgraph defaults to None. If I choose to use a .subgraph, ask me for the .subgraph file path/name and pass it to generate_dapp as subgraphFilePath. Do not redirect me to the .subgraph context menu and do not invent graphContext.'
 const QUICKDAPP_GRAPH_CONTEXT_TOOL_ARG = '- subgraphFilePath: include only if I chose a .subgraph file path/name; graphContext: include only if a validated graphContext was already provided by The Graph handoff'
-const QUICKDAPP_SCOPE_NOTICE = 'When asking setup options, briefly state this scope once: "QuickDApp publishes a browser-based static frontend. It does not provide a server runtime or secret storage, and selected contract bindings are fixed after creation."'
+const QUICKDAPP_SCOPE_NOTICE = 'When asking setup options, briefly state this scope once: "QuickDApp publishes a browser-based static frontend and does not provide a server runtime or secret storage. Later contract changes require explicit confirmation from the target DApp update flow."'
 const REMIX_VM_DAPP_WORKSPACE_MESSAGE = 'Creating another DApp from a DApp workspace is not supported with Remix VM. Switch to a persistent network, deploy the contract there, and try again.'
 
 const tabsReducer = (state: ITabsState, action: ITabsAction) => {
@@ -926,7 +926,6 @@ export const TabsUI = (props: TabsUIProps) => {
     } catch (e) { /* best-effort */ }
 
     console.log('[QuickDapp] Start Now → chatPipe (no modal), prompt length:', prompt.length)
-    console.log('[QDBinding] QuickDapp flow requested')
     try {
       await props.plugin.call('remixaiassistant' as any, 'chatPipe', prompt, false, { source: 'editor-tabs', presetId: 'quickdapp-start' })
       console.log('[QuickDapp] chatPipe returned')

@@ -1117,7 +1117,7 @@ export class GenerateDAppHandler extends BaseToolHandler {
     let figmaDesign: FigmaDesignSuccess | undefined
     let contractSelection: QuickDappContractSelection | undefined
     try {
-      remixAILogger.log('[QDBinding] [GenerateDApp] Received args:', getGenerateDAppArgsTrace(args))
+      remixAILogger.log('[GenerateDApp] Received args:', getGenerateDAppArgsTrace(args))
       const isDesktop = isElectron()
       const targetMode = isDesktop ? 'inline' : (args.frontendMode || 'workspace')
       const hasAdditionalContracts = Array.isArray(args.additionalContracts) && args.additionalContracts.length > 0
@@ -2441,7 +2441,6 @@ export class FinalizeDAppGenerationHandler extends BaseToolHandler {
             bindingChanged: !!pendingBindingUpdate
           })
         }
-        remixAILogger.log('[QuickDapp] Config status updated after finalization')
       } catch (configErr) {
         if (isUpdate) throw configErr
         remixAILogger.warn('[QuickDapp] Config update failed (non-critical):', configErr)

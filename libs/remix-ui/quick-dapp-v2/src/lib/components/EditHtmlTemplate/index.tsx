@@ -741,7 +741,7 @@ window.addEventListener('unhandledrejection', function(e) {
       );
     } else if (contractBindings.length > 1) {
       promptParts.push(
-        `Contract bindings are fixed at creation:`,
+        `Current contract bindings (preserve them for this preview fix):`,
         ...contractBindings.map((contract) =>
           `- ${contract.alias}${contract.id === primaryContract?.id ? ' (primary)' : ''}: ${contract.name} at ${contract.address}`
         ),
