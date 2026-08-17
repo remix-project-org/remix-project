@@ -1,5 +1,5 @@
 import { fileDecoration, FileDecorationIcons } from '@remix-ui/file-decorators'
-import { CustomTooltip } from '@remix-ui/helper'
+import { CustomTooltip, isQuickDappRemixVMIdentifier } from '@remix-ui/helper'
 import { Plugin } from '@remixproject/engine'
 
 import React, { useState, useRef, useEffect, useReducer, useContext, useCallback } from 'react' // eslint-disable-line
@@ -70,6 +70,7 @@ const QUICKDAPP_SUBGRAPH_SETUP_OPTION = '- Subgraph: None (default) or a .subgra
 const QUICKDAPP_SUBGRAPH_SETUP_RULE = 'Subgraph defaults to None. If I choose to use a .subgraph, ask me for the .subgraph file path/name and pass it to generate_dapp as subgraphFilePath. Do not redirect me to the .subgraph context menu and do not invent graphContext.'
 const QUICKDAPP_GRAPH_CONTEXT_TOOL_ARG = '- subgraphFilePath: include only if I chose a .subgraph file path/name; graphContext: include only if a validated graphContext was already provided by The Graph handoff'
 const QUICKDAPP_SCOPE_NOTICE = 'When asking setup options, briefly state this scope once: "QuickDApp publishes a browser-based static frontend. It does not provide a server runtime or secret storage, and selected contract bindings are fixed after creation."'
+const REMIX_VM_DAPP_WORKSPACE_MESSAGE = 'Creating another DApp from a DApp workspace is not supported with Remix VM. Switch to a persistent network, deploy the contract there, and try again.'
 
 const tabsReducer = (state: ITabsState, action: ITabsAction) => {
   switch (action.type) {
@@ -661,6 +662,20 @@ export const TabsUI = (props: TabsUIProps) => {
           'Creating another DApp from a DApp workspace is not supported in Remix Desktop because generation is inline-only.'
         )
         return
+      }
+      if (sourceIsDappWorkspace) {
+        const providerObject = await props.plugin.call('blockchain', 'getProviderObject')
+        if (isQuickDappRemixVMIdentifier(providerObject?.name)) {
+          console.warn('[QDBinding] workspace.creation.blocked', {
+            sourceWorkspace: currentWs?.name,
+            targetMode: 'workspace',
+            reason: 'remix_vm_from_dapp_workspace'
+          })
+          try {
+            await props.plugin.call('notification', 'toast', REMIX_VM_DAPP_WORKSPACE_MESSAGE)
+          } catch (e) { /* best-effort */ }
+          return
+        }
       }
     } catch (e) { /* proceed if check fails */ }
 

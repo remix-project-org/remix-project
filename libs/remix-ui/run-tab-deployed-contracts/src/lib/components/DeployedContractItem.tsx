@@ -1,6 +1,6 @@
 import React, { useContext, useEffect, useState, useRef, useMemo } from 'react'
 import { FormattedMessage, useIntl } from 'react-intl'
-import { CustomToggle, CustomTooltip, getTimeAgo, shortenAddress, isNumeric, is0XPrefixed, isHexadecimal, logBuilder, extractDataDefault, getMultiValsString } from '@remix-ui/helper'
+import { CustomToggle, CustomTooltip, getTimeAgo, shortenAddress, isNumeric, is0XPrefixed, isHexadecimal, logBuilder, extractDataDefault, getMultiValsString, isQuickDappRemixVMIdentifier } from '@remix-ui/helper'
 import { CopyToClipboard } from '@remix-ui/clipboard'
 import * as remixLib from '@remix-project/remix-lib'
 import { Dropdown } from 'react-bootstrap'
@@ -23,6 +23,7 @@ import isElectron from 'is-electron'
 const txHelper = remixLib.execution.txHelper
 const txFormat = remixLib.execution.txFormat
 const highlightedContracts = new Set<string>()
+const REMIX_VM_DAPP_WORKSPACE_MESSAGE = 'Creating another DApp from a DApp workspace is not supported with Remix VM. Switch to a persistent network, deploy the contract there, and try again.'
 interface DeployedContractItemProps {
   contract: DeployedContract
   index: number
@@ -383,6 +384,30 @@ export function DeployedContractItem({ contract, index, registerRef, isKebabMenu
     }
   }
 
+  const blockDappWorkspaceRemixVmCreation = async (sourceWorkspaceName?: string): Promise<boolean> => {
+    if (!sourceWorkspaceName?.startsWith('dapp-')) return false
+
+    let providerName: string | undefined
+    try {
+      const providerObject = await plugin.call('blockchain', 'getProviderObject')
+      providerName = providerObject?.name
+    } catch (e) {
+      return false
+    }
+
+    if (!isQuickDappRemixVMIdentifier(providerName)) return false
+
+    console.warn('[QDBinding] workspace.creation.blocked', {
+      sourceWorkspace: sourceWorkspaceName,
+      targetMode: 'workspace',
+      reason: 'remix_vm_from_dapp_workspace'
+    })
+    try {
+      await plugin.call('notification', 'toast', REMIX_VM_DAPP_WORKSPACE_MESSAGE)
+    } catch (e) { /* best-effort */ }
+    return true
+  }
+
   const startCreateDapp = async (contract: DeployedContract, setupOptions: QuickDappSetupOptions) => {
     if (isGenerating.current) return
     isGenerating.current = true
@@ -396,6 +421,8 @@ export function DeployedContractItem({ contract, index, registerRef, isKebabMenu
         await plugin.call('notification', 'toast', 'Creating another DApp from a DApp workspace is not supported in Remix Desktop because generation is inline-only.')
         return
       }
+      if (await blockDappWorkspaceRemixVmCreation(currentWorkspace?.name)) return
+
       const frontendMode = isDesktop ? 'inline' : sourceIsDappWorkspace ? 'workspace' : setupOptions.frontendMode
       const selectedAdditionalContracts = setupOptions.additionalContracts
 
@@ -503,6 +530,8 @@ For Inline mode, preserve the existing /frontend overwrite confirmation flow. Co
         await plugin.call('notification', 'toast', 'Creating another DApp from a DApp workspace is not supported in Remix Desktop because generation is inline-only.')
         return
       }
+      if (await blockDappWorkspaceRemixVmCreation(currentWorkspace?.name)) return
+
       setQuickDappFixedFrontendMode(isDesktop ? 'inline' : sourceIsDappWorkspace ? 'workspace' : undefined)
       setShowQuickDappContractSelector(true)
     } catch (error) {
