@@ -5,7 +5,7 @@
 .remixui_no-shadow {
   border-width: 1px;
   border-style: solid;
-  border-color: var(--info);
+  border-color: var(--bs-info);
 }
 
 #solUmlMenuDropdown > div > ul > a:hover {
@@ -32,6 +32,9 @@
 }
 
 .uml-btn-icon {
-  width: 0.5rem;
-  height: 0.5rem;
+  width: 1rem;
+  height: 1rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }

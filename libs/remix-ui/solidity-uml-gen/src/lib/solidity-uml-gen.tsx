@@ -65,7 +65,7 @@ export function RemixUiSolidityUmlGen({ updatedSvg, loading, fileName, themeDark
               placement="top"
             >
               <button data-id="umlZoominbtn" className="badge text-bg-secondary remixui_no-shadow p-2 rounded-circle me-2" onClick={() => zoomIn()}>
-                <i className="far fa-plus uml-btn-icon"></i>
+                <i className="far fa-plus uml-btn-icon fs-6"></i>
               </button>
             </CustomTooltip>
             <CustomTooltip
@@ -74,7 +74,7 @@ export function RemixUiSolidityUmlGen({ updatedSvg, loading, fileName, themeDark
               placement="top"
             >
               <button data-id="umlZoomoutbtn" className="badge text-bg-secondary remixui_no-shadow p-2 rounded-circle me-2" onClick={() => zoomOut()}>
-                <i className="far fa-minus uml-btn-icon"></i>
+                <i className="far fa-minus uml-btn-icon fs-6"></i>
               </button>
             </CustomTooltip>
             <CustomTooltip
@@ -83,7 +83,7 @@ export function RemixUiSolidityUmlGen({ updatedSvg, loading, fileName, themeDark
               placement="top"
             >
               <button data-id="umlResetbtn" className="badge text-bg-secondary remixui_no-shadow p-2 rounded-circle me-2" onClick={() => resetTransform()}>
-                <i className="far fa-undo uml-btn-icon"></i>
+                <i className="far fa-undo uml-btn-icon fs-6"></i>
               </button>
             </CustomTooltip>
           </div>

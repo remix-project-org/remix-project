@@ -77,8 +77,8 @@ export default function UmlDownload(props: UmlDownloadProps) {
         placement="top"
       >
         <Dropdown id="solUmlMenuDropdown">
-          <Dropdown.Toggle icon="far fa-arrow-to-bottom uml-btn-icon" as={Markup} className="badge text-bg-info remixui_no-shadow p-2 rounded-circle me-2"></Dropdown.Toggle>
-          <Dropdown.Menu as={UmlCustomMenu} className="form-select">
+          <Dropdown.Toggle icon="far fa-arrow-to-bottom uml-btn-icon fs-6" as={Markup} className="badge text-bg-info remixui_no-shadow p-2 rounded-circle me-2"></Dropdown.Toggle>
+          <Dropdown.Menu as={UmlCustomMenu} className="form-select mt-1">
             <Dropdown.Item
               onClick={() => {
                 trackMatomoEvent({ category: 'solidityumlgen', action: 'umlpngdownload', name: 'downloadAsPng', isClick: true })
@@ -93,7 +93,7 @@ export default function UmlDownload(props: UmlDownloadProps) {
                 tooltipText={<FormattedMessage id="solUmlGen.pngDownloadTooltip" />}
               >
                 <div data-id="umlPngDownload">
-                  <span id="umlPngDownloadBtn" data-id="umlPngDownload" className="far fa-image ps-2"></span>
+                  <span id="umlPngDownloadBtn" data-id="umlPngDownload" className="far fa-image"></span>
                   <span className="ps-1">
                     <FormattedMessage id="solUmlGen.pngDownload" />
                   </span>
@@ -115,7 +115,7 @@ export default function UmlDownload(props: UmlDownloadProps) {
                 tooltipText={<FormattedMessage id="solUmlGen.pdfDownloadTooltip" />}
               >
                 <div data-id="umlPdfDownload">
-                  <span id="umlPdfDownloadBtn" data-id="umlPdfDownload" className="far fa-file-pdf ps-2"></span>
+                  <span id="umlPdfDownloadBtn" data-id="umlPdfDownload" className="far fa-file-pdf"></span>
                   <span className="ps-2">
                     <FormattedMessage id="solUmlGen.pdfDownload" />
                   </span>

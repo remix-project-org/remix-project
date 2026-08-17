@@ -769,12 +769,12 @@ Use empty array if no relevant trusted docs.`
                         : ''
 
                       const deeperPrompt = isSolidityFile
-                        ? `Analyse this code snippet ${analysisContext} for security implications, and its safer use in smart contract development. If applicable, provide best practices and common pitfalls to avoid.
+                        ? `Analyze this code snippet ${analysisContext} for security implications, and its safer use in smart contract development. If applicable, provide best practices and common pitfalls to avoid.
 
 \`\`\`solidity
 ${codeToAnalyze}
 \`\`\``
-                        : `Analyse this ${languageLabel} code snippet ${analysisContext} for potential issues, best practices, and code quality improvements. If applicable, highlight any security concerns or common pitfalls to avoid.
+                        : `Analyze this ${languageLabel} code snippet ${analysisContext} for potential issues, best practices, and code quality improvements. If applicable, highlight any security concerns or common pitfalls to avoid.
 
 \`\`\`${language}
 ${codeToAnalyze}
@@ -838,11 +838,11 @@ ${codeToAnalyze}
                       const isSolidityFile = currentFile.endsWith('.sol')
                       const { label: languageLabel, code: language } = getLanguageFromFilename(currentFile)
 
-                      // Extract filename from path for display
-                      const fileName = currentFile.split('/').pop() || currentFile
+                      // Use full file path so AI knows the file location in workspace
+                      const fileName = currentFile
 
                       const wholeFilePrompt = isSolidityFile
-                        ? `Analyse this complete Solidity smart contract file for security implications, best practices, and potential vulnerabilities. Provide a comprehensive review covering:
+                        ? `Analyze this complete Solidity smart contract file for security implications, best practices, and potential vulnerabilities. Provide a comprehensive review covering:
 - Security issues and vulnerabilities
 - Gas optimization opportunities
 - Code quality and maintainability
@@ -853,7 +853,7 @@ File: ${fileName}
 \`\`\`solidity
 ${fileContent}
 \`\`\``
-                        : `Analyse this complete ${languageLabel} file for potential issues, best practices, and code quality improvements. Provide a comprehensive review covering:
+                        : `Analyze this complete ${languageLabel} file for potential issues, best practices, and code quality improvements. Provide a comprehensive review covering:
 - Potential bugs and issues
 - Code quality and maintainability
 - Performance considerations
