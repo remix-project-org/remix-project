@@ -1,5 +1,6 @@
 import { remixAILogger } from '../helpers/logger'
 import { IContextType, SupportedFileExtensions, ISimilaritySearchConfig } from "../types/types";
+import { WorkspaceEditSchema } from "../types/schemas";
 import { extractFirstLvlImports } from "../helpers/localImportsExtractor";
 export class workspaceAgent {
   plugin: any
@@ -92,6 +93,13 @@ export class workspaceAgent {
       }
       if (typeof payload === 'string') {
         payload = JSON.parse(payload)
+      }
+      // Validate the edit payload for observability — we proceed with the raw
+      // payload regardless so schema drift never blocks a working edit, but a
+      // mismatch is logged for diagnosis.
+      const editValidation = WorkspaceEditSchema.safeParse(payload)
+      if (!editValidation.success) {
+        remixAILogger.warn('[workspaceAgent] edit payload did not match WorkspaceEditSchema:', editValidation.error?.message)
       }
       let modifiedFilesMarkdown = '#### **List of Modified Files**\n'
       let createdFilesMarkdown = '#### **List of Created Files**\n'

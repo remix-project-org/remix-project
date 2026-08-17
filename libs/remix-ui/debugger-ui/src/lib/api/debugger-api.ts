@@ -189,14 +189,14 @@ export const DebuggerApiMixin = (Base) => class extends Base {
     return trace
   }
 
-  debug (hash, provider?: BrowserProvider) {
+  async debug (hash, provider?: BrowserProvider) {
     try {
       this.call('fetchAndCompile', 'clearCache')
     } catch (e) {
       console.error(e)
     }
     if (provider) this._web3 = provider
-    else this._web3 = this.initialWeb3
+    else this._web3 = await this.getDebugProvider()
     init.extendProvider(this._web3)
     if (this.onDebugRequestedListener) {
       this.onDebugRequestedListener(hash, this._web3).then((debuggerBackend: Debugger) => {

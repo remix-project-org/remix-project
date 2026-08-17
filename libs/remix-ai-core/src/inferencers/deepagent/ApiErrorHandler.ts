@@ -137,6 +137,9 @@ export function getErrorMessage(errorType: DeepAgentErrorType, error: any, retry
     if (originalMsg.toLowerCase().includes('moonshot') || originalMsg.includes('api.moonshot.cn')) {
       return 'Moonshot authentication failed. Please verify your Moonshot/Kimi API key is valid and has not expired.'
     }
+    if (originalMsg.toLowerCase().includes('openrouter')) {
+      return 'OpenRouter authentication failed. Please verify your OpenRouter API key is valid and has not expired.'
+    }
     return 'Authentication failed. Please check your API key configuration.'
   }
 

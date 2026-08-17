@@ -35,7 +35,7 @@ interface AutocompletePanelProps {
 // Available commands - this could be moved to a config file or fetched dynamically
 export const AVAILABLE_COMMANDS: Command[] = [
   // Core commands
-  // { name: 'generate', description: 'Generate smart contracts or code', shortcut: '/g', category: 'Generate' },
+  { name: 'generate', description: 'Generate smart contracts or code', shortcut: '/g', category: 'Generate', hint: 'describe the contract or code to generate', requiredFeatures: [Features.AI_SOLCODER]},
   // { name: 'workspace', description: 'Generate a new workspace', shortcut: '/w', category: 'Generate' },
   // { name: 'setAssistant', description: 'Set AI assistant provider', category: 'Settings' },
   // { name: 'ollama', description: 'Configure Ollama integration', category: 'Settings' },

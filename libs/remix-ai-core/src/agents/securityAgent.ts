@@ -1,4 +1,5 @@
 import { remixAILogger } from '../helpers/logger'
+import { SecurityCheckSchema } from '../types/schemas'
 // security checks
 import * as fs from 'fs';
 
@@ -166,11 +167,18 @@ export class SecurityAgent {
         const content = await this.basePlugin.call('fileManager', 'getFile', file);
         const prompt = "```\n" + content + "\n```\n\nReply in a short manner: Does this code contain major security vulnerabilities leading to a scam or loss of funds?"
 
-        let result = await this.basePlugin.call('remixAI', 'vulnerability_check', prompt)
-        result = JSON.parse(result);
-        report.vulnerabilities = result.Reason;
-        report.recommendations = result.Suggestion;
-        report.isNotSafe = result.Answer;
+        const raw = await this.basePlugin.call('remixAI', 'vulnerability_check', prompt)
+        // The response is a JSON string shaped like SecurityCheckSchema. Validate
+        // it before use so a malformed reply degrades gracefully (keep the prior
+        // report) instead of writing `undefined` fields into the report.
+        const parsed = SecurityCheckSchema.safeParse(JSON.parse(raw))
+        if (!parsed.success) {
+          remixAILogger.warn('Security check response did not match schema, skipping report update:', parsed.error?.message);
+          return;
+        }
+        report.vulnerabilities = parsed.data.Reason;
+        report.recommendations = parsed.data.Suggestion;
+        report.isNotSafe = parsed.data.Answer;
         report.reportTimestamp = new Date().toISOString();
       }
 

@@ -3,7 +3,7 @@ import { Plugin } from '@remixproject/engine';
 import { trackMatomoEvent, Features, ChatPromptMetadata } from '@remix-api'
 import { remixAILogger, RemoteInferencer, IRemoteModel, IParams, GenerationParams, AssistantParams, CodeExplainAgent, SecurityAgent, CompletionParams, OllamaInferencer } from '@remix/remix-ai-core';
 import { CodeCompletionAgent, ContractAgent, workspaceAgent, IContextType, mcpDefaultServersConfig, mcpBasicServersConfig, mcpWebSearchServersConfig } from '@remix/remix-ai-core';
-import { MCPInferencer, DeepAgentInferencer, onApiKeysChange, isUsingOwnKeyForProvider } from '@remix/remix-ai-core';
+import { MCPInferencer, DeepAgentInferencer, onApiKeysChange } from '@remix/remix-ai-core';
 import { IMCPServer, IMCPConnectionStatus } from '@remix/remix-ai-core';
 import { RemixMCPServer, createRemixMCPServer } from '@remix/remix-ai-core';
 import { AIModel } from '@remix/remix-ai-core';
@@ -131,7 +131,7 @@ export class RemixAIPlugin extends Plugin {
     this.mcpManager.setDeps({
       plugin: this as any,
       permissionChecker: this.permissionChecker,
-      setModel: (modelId: string) => this.modelManager.setModel(modelId),
+      setModel: (modelId: string, provider?: string) => this.modelManager.setModel(modelId, [], provider),
       reinitializeDeepAgent: () => this.deepAgentManager.reinitialize()
     })
 
@@ -357,7 +357,7 @@ export class RemixAIPlugin extends Plugin {
         // GenerationParams/CompletionParams pick up the provider+model
         // and DeepAgent (if enabled) reinitialises.
         try {
-          await this.setModel(def.id)
+          await this.setModel(def.id, def.provider)
         } catch (e) {
           remixAILogger.warn('[RemixAI Plugin] setModel failed during initial /permissions resolution', e)
         }
@@ -493,9 +493,9 @@ export class RemixAIPlugin extends Plugin {
           remixAILogger.log('[RemixAI Plugin] Using user-provided API keys for DeepAgent')
         }
 
-        const fallbackInferencer = (this.selectedModel.provider === 'ollama' || isUsingOwnKeyForProvider(this.selectedModel.provider, userApiKeys))
-          ? null
-          : this.remoteInferencer
+        // Solcoder fallback disabled: DeepAgent errors surface to the user
+        // instead of silently retrying against the remote (solcoder) path.
+        const fallbackInferencer = null
 
         // Clean up old instance if it exists
         if (this.deepAgentInferencer && typeof this.deepAgentInferencer.cleanup === 'function') {
@@ -513,7 +513,7 @@ export class RemixAIPlugin extends Plugin {
           },
           fallbackInferencer,
           this.mcpInferencer, // Pass MCPInferencer to gather external MCP client tools
-          { provider: this.selectedModel.provider as 'anthropic' | 'mistralai' | 'openai' | 'moonshot' | 'ollama' | 'bedrock', modelId: this.selectedModelId } // Pass selected model
+          { provider: this.selectedModel.provider as 'anthropic' | 'mistralai' | 'openai' | 'moonshot' | 'openrouter' | 'ollama' | 'bedrock', modelId: this.selectedModelId } // Pass selected model
         )
         await this.deepAgentInferencer.initialize()
         // Set up DeepAgent event listeners for streaming (once only)
@@ -562,7 +562,7 @@ export class RemixAIPlugin extends Plugin {
     // resolved one. Without an id the picker is empty and downstream
     // setModel would throw — we let the assistantState subscription do it.
     if (this.selectedModelId) {
-      await this.setModel(this.selectedModelId)
+      await this.setModel(this.selectedModelId, this.selectedModel?.provider)
     } else {
       remixAILogger.log('[RemixAI Plugin] initialize: no selectedModelId yet, deferring setModel until /permissions loads')
     }
@@ -744,7 +744,6 @@ export class RemixAIPlugin extends Plugin {
         }
       }
       remixAILogger.log('[answer][route-flow]', routeFlow)
-      console.log('[answer][route-flow] route', route)
       if (!remoteRouteCheck && route === 'remote') {
         remixAILogger.warn('[answer][route-flow] remote route selected but remoteInferencer is missing')
       }
@@ -1014,8 +1013,8 @@ export class RemixAIPlugin extends Plugin {
     return this.modelManager.setAssistantProvider(provider)
   }
 
-  async setModel(modelId: string, allowedModels: string[] = []) {
-    return this.modelManager.setModel(modelId, allowedModels)
+  async setModel(modelId: string, provider?: string, allowedModels: string[] = []) {
+    return this.modelManager.setModel(modelId, allowedModels, provider)
   }
 
   async setOllamaModel(ollamaModelName: string) {

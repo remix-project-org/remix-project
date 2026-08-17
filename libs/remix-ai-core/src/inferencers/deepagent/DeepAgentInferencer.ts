@@ -31,6 +31,8 @@ import { RemixDeepAgentMiddleware } from './deepAgentMiddleWare'
 
 import './AsyncLocalStorageInit'
 import { createModelInstance } from './ModelFactory'
+import { generateStructured } from '../../helpers/structuredOutput'
+import { SecurityCheckSchema } from '../../types/schemas'
 import { getLangfuseCallbackHandler } from '../../helpers/langfuse'
 import { buildSubagentConfigs } from './SubagentConfig'
 import { StreamEventHandler } from './StreamEventHandler'
@@ -525,6 +527,25 @@ export class DeepAgentInferencer implements ICompletions, IGeneration {
         )
       }
 
+      // A security check is a single read-only analysis — no tools needed — so
+      // constrain the model to the SecurityCheck shape (Answer/Reason/Suggestion)
+      // that `SecurityAgent.processFile` consumes. Callers `JSON.parse` the
+      // string result, so we stringify the validated object. Falls back to the
+      // free-form agent run if the model can't do structured output.
+      if (this.model) {
+        try {
+          const structuredMessages: BaseMessage[] = [
+            new SystemMessage(REMIX_DEEPAGENT_SYSTEM_PROMPT + '\n\n' + SECURITY_ANALYSIS_PROMPT),
+            new HumanMessage(prompt)
+          ]
+          const result = await generateStructured(this.model, SecurityCheckSchema, structuredMessages, { name: 'security_check' })
+          this.event.emit('onInferenceDone')
+          return JSON.stringify(result)
+        } catch (structuredError) {
+          remixAILogger.warn('[DeepAgentInferencer] structured vulnerability_check failed, falling back to agent run', structuredError)
+        }
+      }
+
       const messages = [
         { role: 'system', content: REMIX_DEEPAGENT_SYSTEM_PROMPT + '\n\n' + SECURITY_ANALYSIS_PROMPT },
         { role: 'user', content: prompt }
@@ -896,11 +917,12 @@ export class DeepAgentInferencer implements ICompletions, IGeneration {
       if (this.config.enableSubagents && this.model) {
         let fallbackModel = this.model
         if (notSuitableForCodeGeneration.includes(this.modelSelection.modelId)) {
-          fallbackModel = await createModelInstance({
-            provider: 'anthropic',
-            modelId: 'claude-sonnet-4-6',
-          }, DAPP_MAX_TOKENS, this.userApiKeys)
-          remixAILogger.log(`[DeepAgentInferencer] Using fallback model claude-sonnet-4-6 for subagents due to unsuitability of selected model ${this.modelSelection.modelId} for code generation`)
+          // Route the subagent fallback the same way as the active selection.
+          const fallbackSelection: ModelSelection = this.modelSelection.routeProvider === 'bedrock'
+            ? { provider: 'anthropic', modelId: 'us.anthropic.claude-sonnet-4-20250514-v1:0', routeProvider: 'bedrock' }
+            : { provider: 'anthropic', modelId: 'claude-sonnet-4-6' }
+          fallbackModel = await createModelInstance(fallbackSelection, DAPP_MAX_TOKENS, this.userApiKeys)
+          remixAILogger.log(`[DeepAgentInferencer] Using fallback model ${fallbackSelection.modelId} (route=${fallbackSelection.routeProvider ?? fallbackSelection.provider}) for subagents due to unsuitability of selected model ${this.modelSelection.modelId} for code generation`)
         }
         agentConfig.subagents = await buildSubagentConfigs(
           this.tools,
@@ -973,16 +995,7 @@ export class DeepAgentInferencer implements ICompletions, IGeneration {
     const userMessage = getErrorMessage(errorType, error, retryAfter)
 
     remixAILogger.log(`[DeepAgentInferencer] Error classified as: ${errorType}, retryable: ${retryable}, retryAfter: ${retryAfter}`)
-
-    this.event.emit('onApiError', {
-      type: errorType,
-      message: userMessage,
-      retryable,
-      retryAfter,
-      originalError: error?.message,
-      timestamp: Date.now(),
-      threadId: this.sessionThreadId
-    })
+    console.error(`[DeepAgentInferencer] Original error:`, error)
 
     // Emit API key specific error for UI handling
     if (errorType === DeepAgentErrorType.AUTHENTICATION_FAILED ||
@@ -992,53 +1005,28 @@ export class DeepAgentInferencer implements ICompletions, IGeneration {
       this.emitApiKeyError(errorType, error)
     }
 
+    // Recoverable errors: surface a friendly inline message and keep the
+    // turn's partial output — there's nothing actionable to report.
     if (errorType === DeepAgentErrorType.RATE_LIMIT_EXCEEDED ||
         errorType === DeepAgentErrorType.QUOTA_EXCEEDED) {
+      this.event.emit('onApiError', {
+        type: errorType,
+        message: userMessage,
+        retryable,
+        retryAfter,
+        originalError: error?.message,
+        timestamp: Date.now(),
+        threadId: this.sessionThreadId
+      })
       return `${userMessage}`
     }
 
-    // Try fallback to RemoteInferencer for other errors
-    if (this.fallbackInferencer) {
-      remixAILogger.log(`[DeepAgentInferencer] Falling back to RemoteInferencer for ${method}`)
-      this.event.emit('deepAgentFallback', { method, error: error.message, errorType })
-
-      try {
-        switch (method) {
-        case 'code_generation':
-          return await this.fallbackInferencer.code_generation(prompt, params)
-        case 'code_explaining':
-          return await this.fallbackInferencer.code_explaining(prompt, '', params)
-        case 'answer':
-          return await this.fallbackInferencer.answer(prompt, params)
-        case 'vulnerability_check':
-          return await this.fallbackInferencer.vulnerability_check(prompt, params)
-        default:
-          return await this.fallbackInferencer.generate(prompt, params)
-        }
-      } catch (fallbackError: any) {
-        remixAILogger.error('[DeepAgentInferencer] Fallback also failed:', fallbackError)
-        // If the fallback failed with a backend envelope, propagate it so the
-        // gate can react instead of dumping the raw body into the chat.
-        const fbEnvelope = aiErrorFromException(fallbackError)
-        if (fbEnvelope && fbEnvelope.code !== 'INTERNAL_ERROR' && fbEnvelope.status > 0) {
-          try {
-            fallbackError.aiError = fbEnvelope
-            if (!fallbackError.response) {
-              fallbackError.response = { status: fbEnvelope.status, data: { error: fbEnvelope } }
-            }
-            if (typeof fallbackError.message === 'string' && /^\d{3}\s+\{|API error occurred|Status\s+\d{3}[\s\S]*Body\s*:/i.test(fallbackError.message.trim())) {
-              fallbackError.message = fbEnvelope.message
-            }
-          } catch { /* ignore */ }
-          throw fallbackError
-        }
-        const fallbackClassification = classifyApiError(fallbackError)
-        const fallbackMessage = getErrorMessage(fallbackClassification.type, fallbackError, fallbackClassification.retryAfter)
-        return `${fallbackMessage}`
-      }
-    }
-
-    return `${userMessage}`
+    // Solcoder fallback disabled. Where we used to silently retry the
+    // request against RemoteInferencer, re-throw so withAssistantGate calls
+    // reportError() and the existing chat-notice strip above the prompt
+    // renders the failure (same path backend-envelope errors already take).
+    remixAILogger.log(`[DeepAgentInferencer] ${method} failed, solcoder fallback disabled — surfacing to notice strip`)
+    throw error
   }
 
   cancelRequest(): void {
