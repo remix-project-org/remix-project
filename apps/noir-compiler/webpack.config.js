@@ -59,8 +59,8 @@ module.exports = composePlugins(withNx(), (config) => {
   config.plugins.push(
     new webpack.DefinePlugin({
       WALLET_CONNECT_PROJECT_ID: JSON.stringify(process.env.WALLET_CONNECT_PROJECT_ID),
-      BASE_URL: JSON.stringify('https://noir.zkdev.net'),
-      WS_URL: JSON.stringify('wss://noir.zkdev.net/ws/')
+      BASE_URL: process.env.NODE_ENV === 'development' ? JSON.stringify(process.env.NOIR_COMPILER_BASE_URL_DEV) : JSON.stringify(process.env.NOIR_COMPILER_BASE_URL_PROD),
+      WS_URL: process.env.NODE_ENV === 'development' ? JSON.stringify(process.env.NOIR_COMPILER_WS_URL_DEV) : JSON.stringify(process.env.NOIR_COMPILER_WS_URL_PROD)
     })
   )
 
