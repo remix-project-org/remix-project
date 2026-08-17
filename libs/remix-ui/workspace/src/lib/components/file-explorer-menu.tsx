@@ -31,6 +31,7 @@ export const FileExplorerMenu = (props: FileExplorerMenuProps) => {
   }
   const [dappMappings, setDappMappings] = useState<DappMappingInfo[]>([])
   const [sourceWorkspaceTarget, setSourceWorkspaceTarget] = useState<string | null>(null)
+  const [sourceWorkspaceAvailable, setSourceWorkspaceAvailable] = useState<boolean | null>(null)
   const [navigationRefreshCounter, setNavigationRefreshCounter] = useState(0)
   const [showDappSelectModal, setShowDappSelectModal] = useState(false)
   const [selectedDappIndex, setSelectedDappIndex] = useState(0)
@@ -144,21 +145,38 @@ export const FileExplorerMenu = (props: FileExplorerMenuProps) => {
       if (currentWorkspace.startsWith('dapp-')) {
         setIsDappWorkspace(true)
         setDappMappings([])
+        setSourceWorkspaceTarget(null)
+        setSourceWorkspaceAvailable(null)
 
         try {
           const configContent = await global.plugin.call('fileManager', 'readFile', 'dapp.config.json')
           const config = JSON.parse(configContent)
           if (config.sourceWorkspace?.name) {
-            setSourceWorkspaceTarget(config.sourceWorkspace.name)
+            const sourceWorkspace = config.sourceWorkspace.name
+            const sourceExists = await global.plugin.call('filePanel', 'workspaceExists', sourceWorkspace)
+            if (global.fs.browser.currentWorkspace !== currentWorkspace) return
+
+            setSourceWorkspaceTarget(sourceWorkspace)
+            setSourceWorkspaceAvailable(sourceExists)
+            if (!sourceExists) {
+              console.warn('[QDBinding] source.workspace.unavailable', {
+                dappWorkspace: currentWorkspace,
+                sourceWorkspace
+              })
+            }
           } else {
             setSourceWorkspaceTarget(null)
+            setSourceWorkspaceAvailable(null)
           }
         } catch (e) {
+          if (global.fs.browser.currentWorkspace !== currentWorkspace) return
           setSourceWorkspaceTarget(null)
+          setSourceWorkspaceAvailable(null)
         }
       } else {
         setIsDappWorkspace(false)
         setSourceWorkspaceTarget(null)
+        setSourceWorkspaceAvailable(null)
         setIsCheckingDappMappings(true)
       }
     }
@@ -286,10 +304,12 @@ export const FileExplorerMenu = (props: FileExplorerMenuProps) => {
 
     global.plugin.on('filePanel', 'setWorkspace', handleWorkspaceChange)
     global.plugin.on('filePanel', 'workspaceDeleted', handleWorkspaceChange)
+    global.plugin.on('filePanel', 'workspaceRenamed', handleWorkspaceChange)
 
     return () => {
       global.plugin.off('filePanel', 'setWorkspace', handleWorkspaceChange)
-      global.plugin.off('filePanel', 'workspaceDeleted')
+      global.plugin.off('filePanel', 'workspaceDeleted', handleWorkspaceChange)
+      global.plugin.off('filePanel', 'workspaceRenamed', handleWorkspaceChange)
     }
   }, [])
 
@@ -347,11 +367,20 @@ export const FileExplorerMenu = (props: FileExplorerMenuProps) => {
   }
 
   const handleGoToContract = async () => {
-    if (!sourceWorkspaceTarget || isSwitchingToContract) {
+    if (!sourceWorkspaceTarget || sourceWorkspaceAvailable !== true || isSwitchingToContract) {
       return
     }
     setIsSwitchingToContract(true)
     try {
+      const sourceExists = await global.plugin.call('filePanel', 'workspaceExists', sourceWorkspaceTarget)
+      if (!sourceExists) {
+        setSourceWorkspaceAvailable(false)
+        console.warn('[QDBinding] source.workspace.unavailable', {
+          dappWorkspace: global.fs.browser.currentWorkspace,
+          sourceWorkspace: sourceWorkspaceTarget
+        })
+        return
+      }
       if (global.dispatchSwitchToWorkspace) {
         await global.dispatchSwitchToWorkspace(sourceWorkspaceTarget)
       } else {
@@ -658,13 +687,21 @@ export const FileExplorerMenu = (props: FileExplorerMenuProps) => {
           {isDappWorkspace && sourceWorkspaceTarget && (
             <span className="ps-0 pb-1 w-50">
               <Button
-                variant="success"
+                variant={sourceWorkspaceAvailable === false ? 'secondary' : 'success'}
                 className="w-100 mb-1 d-flex flex-row align-items-center justify-content-center"
                 data-id="fileExplorerGoToContractButton"
                 onClick={handleGoToContract}
-                disabled={isSwitchingToContract}
+                disabled={isSwitchingToContract || sourceWorkspaceAvailable !== true}
+                title={sourceWorkspaceAvailable === false
+                  ? `Source workspace "${sourceWorkspaceTarget}" is unavailable. The DApp can still use its saved contract binding.`
+                  : undefined}
               >
-                {isSwitchingToContract ? (
+                {sourceWorkspaceAvailable === false ? (
+                  <>
+                    <i className="fas fa-unlink me-2"></i>
+                    <span>Source unavailable</span>
+                  </>
+                ) : isSwitchingToContract ? (
                   <>
                     <i className="fas fa-spinner fa-spin me-2"></i>
                     <span>Switching...</span>
