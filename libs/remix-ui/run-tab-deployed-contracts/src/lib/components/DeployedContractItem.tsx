@@ -11,7 +11,7 @@ import { DeployedContract } from '../types'
 import { runTransactions } from '../actions'
 import { ContractKebabMenu } from './ContractKebabMenu'
 import { EnsNaming } from './EnsNaming'
-import { QuickDappContractSelector } from './QuickDappContractSelector'
+import { QuickDappContractSelector, QuickDappSetupOptions } from './QuickDappContractSelector'
 
 import { TreeView, TreeViewItem } from '@remix-ui/tree-view'
 import BN from 'bn.js'
@@ -23,11 +23,6 @@ import isElectron from 'is-electron'
 const txHelper = remixLib.execution.txHelper
 const txFormat = remixLib.execution.txFormat
 const highlightedContracts = new Set<string>()
-const QUICKDAPP_SUBGRAPH_SETUP_OPTION = '- Subgraph: None (default) or a .subgraph file path/name'
-const QUICKDAPP_SUBGRAPH_SETUP_RULE = 'Subgraph defaults to None. If I choose to use a .subgraph, ask me for the .subgraph file path/name and pass it to generate_dapp as subgraphFilePath. Do not redirect me to the .subgraph context menu and do not invent graphContext.'
-const QUICKDAPP_GRAPH_CONTEXT_TOOL_ARG = '- subgraphFilePath: include only if I chose a .subgraph file path/name; graphContext: include only if a validated graphContext was already provided by The Graph handoff'
-const QUICKDAPP_SCOPE_NOTICE = 'Before listing setup options, briefly state this scope once: "QuickDApp publishes a browser-based static frontend. It does not provide a server runtime or secret storage, and selected contract bindings are fixed after creation."'
-
 interface DeployedContractItemProps {
   contract: DeployedContract
   index: number
@@ -64,6 +59,7 @@ export function DeployedContractItem({ contract, index, registerRef, isKebabMenu
   const [functionSearchTerm, setFunctionSearchTerm] = useState<string>('')
   const [showEnsNaming, setShowEnsNaming] = useState<boolean>(false)
   const [showQuickDappContractSelector, setShowQuickDappContractSelector] = useState<boolean>(false)
+  const [quickDappFixedFrontendMode, setQuickDappFixedFrontendMode] = useState<'inline' | 'workspace' | undefined>()
 
   useEffect(() => {
     plugin.call('udappEnv', 'getNetwork').then((net) => {
@@ -387,7 +383,7 @@ export function DeployedContractItem({ contract, index, registerRef, isKebabMenu
     }
   }
 
-  const startCreateDapp = async (contract: DeployedContract, selectedAdditionalContracts: DeployedContract[]) => {
+  const startCreateDapp = async (contract: DeployedContract, setupOptions: QuickDappSetupOptions) => {
     if (isGenerating.current) return
     isGenerating.current = true
 
@@ -400,6 +396,8 @@ export function DeployedContractItem({ contract, index, registerRef, isKebabMenu
         await plugin.call('notification', 'toast', 'Creating another DApp from a DApp workspace is not supported in Remix Desktop because generation is inline-only.')
         return
       }
+      const frontendMode = isDesktop ? 'inline' : sourceIsDappWorkspace ? 'workspace' : setupOptions.frontendMode
+      const selectedAdditionalContracts = setupOptions.additionalContracts
 
       // Send contract details to AI Assistant for DApp generation
 
@@ -418,88 +416,42 @@ export function DeployedContractItem({ contract, index, registerRef, isKebabMenu
       }
       console.log('[QuickDapp] chainId resolved:', chainId);
 
-      const contractSelectionContext = selectedAdditionalContracts.length > 0
-        ? `The contract selection was confirmed in the UI. Do not ask about Contracts or change this selection.\n- Primary: ${contract.name} at ${contract.address}\n- Additional: ${selectedAdditionalContracts.map((candidate) => `${candidate.name} at ${candidate.address}`).join(', ')}`
-        : `The contract selection was confirmed in the UI. Do not ask about Contracts or change this selection.\n- Primary: ${contract.name} at ${contract.address}\n- Additional: None`
       const additionalContractsToolArg = selectedAdditionalContracts.length > 0
         ? `- additionalContracts: ${JSON.stringify(selectedAdditionalContracts.map((candidate) => ({ contractName: candidate.name, contractAddress: candidate.address })))}`
         : '- additionalContracts: omit this field'
+      const design = setupOptions.design || 'Modern dark mode single-page DApp using React and Ethers.js'
+      const setupOptionsSummary = [
+        `Location: ${frontendMode === 'inline' ? 'Inline' : 'Workspace'}`,
+        `Base mini-app: ${setupOptions.isBaseMiniApp ? 'Yes' : 'No'}`,
+        `Design: ${setupOptions.design || 'defaults'}`,
+        `Subgraph: ${setupOptions.subgraphFilePath || 'None'}`
+      ].join(', ')
+      const prompt = `I want to create a DApp frontend. The user confirmed all setup options in the QuickDapp UI. Do not ask the setup question again and do not change the confirmed values.
 
-      const prompt = isDesktop
-        ? `I want to create a DApp frontend inline in the /frontend folder of my current workspace. Follow these steps exactly:
+Confirmed contracts:
+- Primary: ${contract.name} at ${contract.address}
+- Additional: ${selectedAdditionalContracts.length > 0 ? selectedAdditionalContracts.map((candidate) => `${candidate.name} at ${candidate.address}`).join(', ') : 'None'}
 
-STEP 1 - ASK FOR SETUP OPTIONS:
+Confirmed setup:
+- Location: ${frontendMode === 'inline' ? 'Inline in /frontend' : 'Workspace'}
+- Base mini-app: ${setupOptions.isBaseMiniApp ? 'Yes' : 'No'}
+- Design: ${JSON.stringify(setupOptions.design || 'defaults')}
+- Subgraph: ${JSON.stringify(setupOptions.subgraphFilePath || 'None')}
 
-${QUICKDAPP_SCOPE_NOTICE}
-${contractSelectionContext}
-Location is fixed to Inline in /frontend for this request. Ask me once for:
-- Base mini-app: No (default) or Yes
-- Design: defaults, style notes, or a Figma URL
-${QUICKDAPP_SUBGRAPH_SETUP_OPTION}
-
-Ask exactly those three setup options. Do not ask Theme, Primary Color, DApp Title, Layout, or any other design subquestions.
-${QUICKDAPP_SUBGRAPH_SETUP_RULE}
-After asking, STOP and wait for my next reply. Do not check files, call generate_dapp, or write files in the same turn as this setup question.
-In my next reply, use defaults for anything I skip. If I provide a Figma URL without a token, ask for the Figma Personal Access Token and STOP again.
-
-STEP 2 - CHECK FOR EXISTING CONTENT:
-Check if /frontend exists with content. If yes, ask: "The /frontend folder already has files. Overwrite them?"
-
-STEP 3 - CALL THE TOOL:
-After I confirm (or if /frontend is empty/doesn't exist), you MUST call generate_dapp with:
-- description: my design answer, or "Modern dark mode single-page DApp using React and Ethers.js" if I skipped it
-- contractName: "${contract.name}"
-- contractAddress: "${contract.address}"
-- chainId: "${chainId}"
+If the confirmed Design is a Figma URL and no Figma token is available, ask only for the token and STOP. Otherwise call generate_dapp now with:
+- description: ${JSON.stringify(design)}
+- contractName: ${JSON.stringify(contract.name)}
+- contractAddress: ${JSON.stringify(contract.address)}
+- chainId: ${JSON.stringify(chainId)}
 ${additionalContractsToolArg}
-- frontendMode: "inline"
-- isBaseMiniApp: true only if I selected Base mini-app Yes; otherwise false
-- figmaUrl and figmaToken only if I provided them
-${QUICKDAPP_GRAPH_CONTEXT_TOOL_ARG}
-- confirmOverwrite: true only if I confirmed overwrite
+- frontendMode: ${JSON.stringify(frontendMode)}
+- isBaseMiniApp: ${setupOptions.isBaseMiniApp}
+- figmaUrl: include only if the confirmed Design is a Figma URL
+- subgraphFilePath: ${setupOptions.subgraphFilePath ? JSON.stringify(setupOptions.subgraphFilePath) : 'omit this field'}
 - setupOptionsConfirmed: true
-- setupOptionsSummary: a short summary of my confirmed setup choices
+- setupOptionsSummary: ${JSON.stringify(setupOptionsSummary)}
 
-IMPORTANT: In this turn, only ask STEP 1 and then STOP. After my next reply, continue with STEP 2 and STEP 3.`
-        : `I want to create a DApp frontend. Follow these steps exactly:
-
-STEP 1 - ASK FOR SETUP OPTIONS:
-
-${QUICKDAPP_SCOPE_NOTICE}
-${contractSelectionContext}
-Ask me once: "How should I create your DApp?"
-${sourceIsDappWorkspace
-    ? 'Location is fixed to Workspace for this request. Do not ask Location or use Inline.'
-    : '- Location: Workspace (default, new dedicated workspace) or Inline (in /frontend folder of current workspace)'}
-- Base mini-app: No (default) or Yes
-- Design: defaults, style notes, or a Figma URL
-${QUICKDAPP_SUBGRAPH_SETUP_OPTION}
-
-Ask exactly ${sourceIsDappWorkspace ? 'those three' : 'those four'} setup options. Do not ask Theme, Primary Color, DApp Title, Layout, or any other design subquestions.
-${QUICKDAPP_SUBGRAPH_SETUP_RULE}
-After asking, STOP and wait for my next reply. Do not call generate_dapp or write files in the same turn as this setup question.
-In my next reply, use defaults for anything I skip. If I provide a Figma URL without a token, ask for the Figma Personal Access Token and STOP again.
-
-${sourceIsDappWorkspace
-    ? ''
-    : 'STEP 2 - IF I CHOOSE INLINE:\nCheck if /frontend exists with content. If yes, ask: "The /frontend folder already has files. Overwrite them?"'}
-
-STEP 3 - CALL THE TOOL:
-After I answer, you MUST call generate_dapp with:
-- description: my design answer, or "Modern dark mode single-page DApp using React and Ethers.js" if I skipped it
-- contractName: "${contract.name}"
-- contractAddress: "${contract.address}"
-- chainId: "${chainId}"
-${additionalContractsToolArg}
-- frontendMode: ${sourceIsDappWorkspace ? '"workspace"' : '"inline" or "workspace" based on my Location answer'}
-- isBaseMiniApp: true only if I selected Base mini-app Yes; otherwise false
-- figmaUrl and figmaToken only if I provided them
-${QUICKDAPP_GRAPH_CONTEXT_TOOL_ARG}
-${sourceIsDappWorkspace ? '' : '- confirmOverwrite: true only if I chose Inline and confirmed overwrite'}
-- setupOptionsConfirmed: true
-- setupOptionsSummary: a short summary of my confirmed setup choices
-
-IMPORTANT: In this turn, only ask STEP 1 and then STOP. After my next reply, continue with STEP 2 and STEP 3.`
+For Inline mode, preserve the existing /frontend overwrite confirmation flow. Contract bindings and setup values were confirmed in the UI.`
 
       console.log('[QuickDapp] prompt assembled, length:', prompt.length);
 
@@ -544,16 +496,19 @@ IMPORTANT: In this turn, only ask STEP 1 and then STOP. After my next reply, con
       return
     }
 
-    const hasAdditionalContracts = widgetState.deployedContracts.some((candidate: DeployedContract) =>
-      candidate.address?.toLowerCase() !== contract.address.toLowerCase()
-    )
-
-    if (hasAdditionalContracts) {
+    try {
+      const currentWorkspace = await plugin.call('filePanel', 'getCurrentWorkspace')
+      const sourceIsDappWorkspace = currentWorkspace?.name?.startsWith('dapp-') === true
+      if (sourceIsDappWorkspace && isDesktop) {
+        await plugin.call('notification', 'toast', 'Creating another DApp from a DApp workspace is not supported in Remix Desktop because generation is inline-only.')
+        return
+      }
+      setQuickDappFixedFrontendMode(isDesktop ? 'inline' : sourceIsDappWorkspace ? 'workspace' : undefined)
       setShowQuickDappContractSelector(true)
-      return
+    } catch (error) {
+      console.error('[QuickDapp] Could not prepare DApp setup options:', error)
+      await plugin.call('notification', 'toast', 'Could not prepare DApp setup options. Please try again.')
     }
-
-    await startCreateDapp(contract, [])
   }
 
   const handleCopyABI = async (contract: DeployedContract) => {
@@ -1336,10 +1291,11 @@ IMPORTANT: In this turn, only ask STEP 1 and then STOP. After my next reply, con
         show={showQuickDappContractSelector}
         primaryContract={contract}
         deployedContracts={widgetState.deployedContracts}
+        fixedFrontendMode={quickDappFixedFrontendMode}
         onCancel={() => setShowQuickDappContractSelector(false)}
-        onConfirm={(additionalContracts) => {
+        onConfirm={(options) => {
           setShowQuickDappContractSelector(false)
-          void startCreateDapp(contract, additionalContracts)
+          void startCreateDapp(contract, options)
         }}
       />
     </div>
