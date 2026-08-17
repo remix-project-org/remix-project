@@ -359,10 +359,10 @@ export const FileExplorerMenu = (props: FileExplorerMenuProps) => {
       }
       await new Promise(resolve => setTimeout(resolve, 500))
       await global.plugin.call('menuicons', 'select', 'filePanel')
-      // Note: Don't reset isSwitchingToContract here - useEffect will handle it when isDappWorkspace changes
     } catch (e) {
       console.error('[FileExplorerMenu] Failed to switch to source workspace:', e)
-      setIsSwitchingToContract(false) // Only reset on error
+    } finally {
+      setIsSwitchingToContract(false)
     }
   }
 
