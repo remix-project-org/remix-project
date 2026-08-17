@@ -659,7 +659,7 @@ export const RemixUiTerminal = (props: RemixUiTerminalProps) => {
     }
   }, [])
 
-  const classNameBlock = 'remix_ui_terminal_block px-4 py-1 text-break'
+  const classNameBlock = 'remix_ui_terminal_block px-2 py-1 text-break'
 
   const replacer = (key, value) => {
     if (typeof value === 'bigint') value = value.toString()
@@ -694,7 +694,7 @@ export const RemixUiTerminal = (props: RemixUiTerminalProps) => {
               </div>
             ) : (
               <>
-                <div id="journal" className="remix_ui_terminal_journal d-flex flex-column pt-3 pb-4 px-2 mx-2 me-0" data-id="terminalJournal">
+                <div id="journal" className="remix_ui_terminal_journal d-flex flex-column pt-3 pb-4 px-2 mx-2 me-0" style={{color:'var(--bs-tertiary-color)', lineHeight:'1rem', gap:'.25rem'}} data-id="terminalJournal">
                   {!terminalState.clearConsole && <TerminalWelcomeMessage storage={storage} packageJson={version} />}
                   {terminalState.journalBlocks &&
               terminalState.journalBlocks.map((x, index) => {

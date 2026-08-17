@@ -35,20 +35,23 @@ const RenderCall = ({ tx, resolvedData, logs, index, plugin, showTableHash, txDe
     <span id={`tx${tx.hash}`} key={index}>
       <div className="remix_ui_terminal_log" onClick={(event) => txDetails(event, tx)}>
         <CheckTxStatus tx={tx} type={txType} />
-        <span>
+        <span className="d-flex flex-wrap align-items-center">
           <span className="remix_ui_terminal_tx">[call]</span>
           <div className="remix_ui_terminal_txItem">
-            <span className="remix_ui_terminal_txItemTitle"><FormattedMessage id="terminal.callFrom" /></span> {from}
+            <span className="remix_ui_terminal_txItemTitle"><FormattedMessage id="terminal.callFrom" /></span>
+            <span className="remix_ui_terminal_txItemValue remix_ui_terminal_txItemValue--hex">{from}</span>
           </div>
           <div className="remix_ui_terminal_txItem">
-            <span className="remix_ui_terminal_txItemTitle"><FormattedMessage id="terminal.callTo" /></span> {to}
+            <span className="remix_ui_terminal_txItemTitle"><FormattedMessage id="terminal.callTo" /></span>
+            <span className="remix_ui_terminal_txItemValue remix_ui_terminal_txItemValue--hex">{to}</span>
           </div>
           <div className="remix_ui_terminal_txItem">
-            <span className="remix_ui_terminal_txItemTitle"><FormattedMessage id="terminal.callData" /></span> {input}
+            <span className="remix_ui_terminal_txItemTitle"><FormattedMessage id="terminal.callData" /></span>
+            <span className="remix_ui_terminal_txItemValue remix_ui_terminal_txItemValue--hex">{input}</span>
           </div>
         </span>
         <div className="remix_ui_terminal_buttons">
-          <div className="remix_ui_terminal_debug btn btn-primary btn-sm" onClick={(event) => debug(event, tx)}>
+          <div className="remix_ui_terminal_debug btn btn-primary btn-sm" style={{padding:'.05rem .25rem', fontSize:'12px', fontWeight:700, fontFamily:'var(--bs-font-sans-serif)'}} onClick={(event) => debug(event, tx)}>
             <FormattedMessage id="terminal.debug" />
           </div>
         </div>
