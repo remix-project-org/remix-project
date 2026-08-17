@@ -226,16 +226,7 @@ const settingsSections: SettingsSection[] = [
           description: 'settings.useOwnApiKeysDescription',
           type: 'toggle' as const,
           toggleUIOptions: [{
-            name: 'deepagent-anthropic-api-key' as keyof typeof initialState,
-            type: 'password'
-          }, {
-            name: 'deepagent-mistral-api-key' as keyof typeof initialState,
-            type: 'password'
-          }, {
-            name: 'deepagent-openai-api-key' as keyof typeof initialState,
-            type: 'password'
-          }, {
-            name: 'deepagent-moonshot-api-key' as keyof typeof initialState,
+            name: 'deepagent-openrouter-api-key' as keyof typeof initialState,
             type: 'password'
           }, {
             name: 'deepagent-bedrock-bearer-token' as keyof typeof initialState,

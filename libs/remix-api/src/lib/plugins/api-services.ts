@@ -485,32 +485,6 @@ const HARDCODED_AI_MODELS: NonNullable<PermissionsResponse['ai_models']> = [
     available: true,
     sort_order: 50
   },
-  {
-    id: 'ministral-3b-latest',
-    display_name: 'Mistral 3B',
-    provider: 'mistralai',
-    description: 'Lightning fast and efficient for basic tasks',
-    requires_auth: true,
-    required_feature: AI_MISTRAL_SMALL,
-    is_default: false,
-    available: true,
-    category: 'general',
-    capabilities: ['chat', 'code', 'completion'],
-    sort_order: 60
-  },
-  {
-    id: 'ministral-8b-latest',
-    display_name: 'Mistral 8B',
-    provider: 'mistralai',
-    description: 'Fast and efficient for basic tasks',
-    requires_auth: true,
-    required_feature: AI_MISTRAL_SMALL,
-    available: true,
-    is_default: false,
-    category: 'general',
-    capabilities: ['chat', 'code', 'completion'],
-    sort_order: 70
-  }
 ]
 
 export class PermissionsApiService {

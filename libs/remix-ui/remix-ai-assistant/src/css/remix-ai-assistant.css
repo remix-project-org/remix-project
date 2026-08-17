@@ -1720,3 +1720,78 @@ code {
 .ai-assistant-prompt-flat::before {
   display: none !important;
 }
+
+/* ===== Dark-themed AI model / provider selector ===== */
+.remix-ai-model-selector {
+  background-color: #1b1c2b !important;
+  border-color: rgba(255, 255, 255, 0.09) !important;
+  color: #e7e8f0;
+}
+
+.remix-ai-model-selector .rai-selector-heading {
+  color: #9b9db4;
+  letter-spacing: 0.04em;
+}
+
+/* Sticky search bar */
+.remix-ai-model-selector .rai-search-bar {
+  background-color: #1b1c2b;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+.remix-ai-model-selector .form-control {
+  background-color: #26273a;
+  border-color: rgba(255, 255, 255, 0.1);
+  color: #e7e8f0;
+}
+.remix-ai-model-selector .form-control:focus {
+  background-color: #26273a;
+  color: #e7e8f0;
+  border-color: var(--custom-ai-color);
+  box-shadow: none;
+}
+.remix-ai-model-selector .form-control::placeholder { color: #797b95; }
+
+/* Provider headers and model rows are GroupListMenu's .btn.btn-light */
+.remix-ai-model-selector .btn-light {
+  background-color: transparent !important;
+  color: #e7e8f0 !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+}
+.remix-ai-model-selector .btn-light:hover,
+.remix-ai-model-selector .btn-light:focus {
+  background-color: #2a2b40 !important;
+}
+.remix-ai-model-selector .btn-light:disabled { opacity: 1; }
+
+.remix-ai-model-selector .text-muted { color: #9b9db4 !important; }
+.remix-ai-model-selector .text-primary { color: var(--custom-ai-color) !important; }
+.remix-ai-model-selector .badge.bg-secondary {
+  background-color: #34364e !important;
+  color: #c9cbe0 !important;
+}
+
+/* One card per provider, separated by a divider */
+.remix-ai-model-selector .rai-provider-group {
+  border-top: 1px solid rgba(255, 255, 255, 0.07) !important;
+}
+
+/* Provider header that owns the currently active model */
+.remix-ai-model-selector [data-owns-selection="true"] {
+  background-color: rgba(255, 255, 255, 0.05) !important;
+  box-shadow: inset 3px 0 0 var(--custom-ai-color);
+}
+
+/* Nesting guide: models sit indented under their provider with a connector
+   line + inset surface, making the provider→models relationship obvious. */
+.remix-ai-model-selector .rai-model-list {
+  margin-left: 1.4rem;
+  border-left: 1px solid rgba(255, 255, 255, 0.12);
+  background-color: rgba(0, 0, 0, 0.18);
+}
+
+/* Selected model row */
+.remix-ai-model-selector [data-selected="true"] {
+  background-color: rgba(255, 255, 255, 0.06) !important;
+  box-shadow: inset 3px 0 0 var(--custom-ai-color);
+}

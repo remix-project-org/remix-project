@@ -3,7 +3,7 @@ import React, { useState, useEffect, useCallback, useRef, useImperativeHandle, M
 //@ts-ignore
 import '../css/remix-ai-assistant.css'
 
-import { ChatCommandParser, GenerationParams, ChatHistory, HandleStreamResponse, AIModel, ANONYMOUS_FALLBACK_MODELS, aiErrorFromException, remixAILogger } from '@remix/remix-ai-core'
+import { ChatCommandParser, GenerationParams, ChatHistory, HandleStreamResponse, AIModel, ANONYMOUS_FALLBACK_MODELS, remixAILogger, modelKey, parseModelKey, findModel } from '@remix/remix-ai-core'
 import { ToolApprovalRequest, ApiKeyErrorEvent } from '@remix/remix-ai-core'
 import { HandleOpenAIResponse, HandleMistralAIResponse, HandleAnthropicResponse, HandleOllamaResponse } from '@remix/remix-ai-core'
 //@ts-ignore
@@ -184,7 +184,7 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
   // users" rule in the current session. Reset when ai:auto flips back to
   // false (logout) so the next login re-applies the default.
   const autoDefaultAppliedRef = useRef(false)
-  const [modelOpt, setModelOpt] = useState({ top: 0, left: 0, maxHeight: 0 })
+  const [modelOpt, setModelOpt] = useState<{ top?: number, bottom?: number, left: number, maxHeight: number }>({ top: 0, left: 0, maxHeight: 0 })
   const [ollamaModelOpt, setOllamaModelOpt] = useState({ top: 0, left: 0 })
   const menuRef = useRef<any>()
   const ollamaMenuRef = useRef<any>()
@@ -250,7 +250,7 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
     }
   }, [dismissChatNotice, props.plugin])
 
-  useOnClickOutside([modelBtnRef], () => setShowModelSelector(false))
+  useOnClickOutside([modelBtnRef, menuRef], () => setShowModelSelector(false))
   useOnClickOutside([modelSelectorBtnRef], () => setShowOllamaModelSelector(false))
 
   const chatCmdParser = new ChatCommandParser(props.plugin)
@@ -399,7 +399,10 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
     const initializeModel = async () => {
       try {
         const currentModelId = await props.plugin.call('remixAI', 'getSelectedModel')
-        const model = availableModels.find(m => m.id === currentModelId)
+        // Resolve with the provider too — ids aren't unique across providers.
+        let currentProvider: string | undefined
+        try { currentProvider = await props.plugin.call('remixAI', 'getAssistantProvider') } catch { /* no selection yet */ }
+        const model = findModel(availableModels, currentModelId, currentProvider)
         if (model) {
           setSelectedModelId(currentModelId)
           setSelectedModel(model)
@@ -415,7 +418,9 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
 
     const handleModelChanged = async (modelId: string) => {
       remixAILogger.log('[RemixAI Assistant UI] Model changed to:', modelId)
-      const model = availableModels.find(m => m.id === modelId)
+      let changedProvider: string | undefined
+      try { changedProvider = await props.plugin.call('remixAI', 'getAssistantProvider') } catch { /* no selection */ }
+      const model = findModel(availableModels, modelId, changedProvider)
       if (model) {
         setSelectedModelId(modelId)
         setSelectedModel(model)
@@ -911,13 +916,15 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
       remixAILogger.error('[RemixAI Assistant] API error:', data)
       setIsStreaming(false)
 
+      // Do NOT write the error into the chat bubble — it is surfaced by the
+      // notice strip above the prompt. Just clear the in-flight tool/todo
+      // status on the streaming bubble.
       if (streamingAssistantIdRef.current) {
         setMessages(prev =>
           prev.map(m =>
             m.id === streamingAssistantIdRef.current
               ? {
                 ...m,
-                content: m.content + `\n${data.message}`,
                 isExecutingTools: false,
                 executingToolName: undefined,
                 executingToolArgs: undefined,
@@ -2021,79 +2028,23 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
           return
         }
 
-        // Pull the structured AIError envelope (HTTP body, SSE error frame,
-        // or stamped by withAssistantGate / DeepAgent.handleError). The
-        // assistant-state plugin has already routed it to the cooldown
-        // banner / plan-manager / chat-notice strip as appropriate.
-        let envelope = error?.aiError ?? error?.response?.data?.error ?? error?.data?.error
-        // Last-ditch: re-parse the error here. Different SDKs throw
-        // different shapes (Anthropic gives clean .message; Mistral SDK
-        // throws "API error occurred: Status 429 ... Body: {json}";
-        // langchain wraps as "<status> {json}"). aiErrorFromException
-        // knows about all of them — running it locally guarantees we
-        // never dump raw JSON in the chat bubble even if upstream
-        // stamping was lost (frozen error object, missed code path…).
-        if (!envelope?.code) {
-          try {
-            const parsed = aiErrorFromException(error)
-            if (parsed && parsed.code && parsed.code !== 'INTERNAL_ERROR') {
-              envelope = parsed
-            } else if (parsed && parsed.code === 'INTERNAL_ERROR' && parsed.message && parsed.message !== (error?.message ?? '')) {
-              // Scanner extracted a JSON body's `message` field but no
-              // recognised code — still a cleaner message than the raw
-              // SDK string, so use it.
-              envelope = parsed
-            }
-          } catch { /* ignore */ }
-        }
-        const envelopeCode: string | undefined = envelope?.code
-        const envelopeMsg: string | undefined = envelope?.message
-
-        // The streaming bubble may contain pollution: model SSE error
-        // frames, raw HTTP bodies that langchain emits as `on_chat_model_stream`
-        // events, or partial output that was invalidated by the error.
-        // If we have a structured envelope, replace the bubble's content
-        // with a single-line trace so the user knows WHICH prompt failed
-        // without seeing the raw JSON. If there's no envelope, we keep
-        // whatever partial content was streamed (it's the only signal).
+        // The turn failed. The error is surfaced by the chat-notice strip
+        // above the prompt (routed via assistantState.reportError upstream),
+        // so we do NOT write the error text into a chat bubble. Clean up the
+        // in-flight assistant bubble: keep any partial streamed content, but
+        // drop the bubble entirely if it never produced output.
         const streamingId = streamingAssistantIdRef.current
-        if (streamingId && envelopeCode) {
-          setMessages(prev => prev.map(m =>
-            m.id === streamingId
-              ? { ...m, content: `${envelopeCode}: ${envelopeMsg ?? 'AI service error'}`, isExecutingTools: false, executingToolName: undefined, executingToolArgs: undefined, executingToolUIString: undefined }
-              : m
-          ))
-          streamingAssistantIdRef.current = null
-          return
-        }
-
-        // No envelope — likely a network failure, abort, or unknown shape.
-        // The notice strip won't render (assistantState classifies it as
-        // INTERNAL_ERROR but the strip suppresses generic messages without
-        // a real backend code). Surface a single chat bubble so the user
-        // never sees a silent failure.
-        const fallbackText = `Error: ${error?.message ?? 'Something went wrong'}`
         if (streamingId) {
-          setMessages(prev => prev.map(m =>
-            m.id === streamingId
-              ? (m.content && m.content.trim().length > 0
-                ? { ...m, content: m.content + `\n\n${fallbackText}`, isExecutingTools: false, executingToolName: undefined, executingToolArgs: undefined, executingToolUIString: undefined }
-                : { ...m, content: fallbackText, isExecutingTools: false, executingToolName: undefined, executingToolArgs: undefined, executingToolUIString: undefined })
-              : m
-          ))
+          setMessages(prev => prev
+            .map(m =>
+              m.id === streamingId
+                ? { ...m, isExecutingTools: false, executingToolName: undefined, executingToolArgs: undefined, executingToolUIString: undefined }
+                : m
+            )
+            .filter(m => !(m.id === streamingId && (!m.content || m.content.trim().length === 0)))
+          )
           streamingAssistantIdRef.current = null
-          return
         }
-        setMessages(prev => [
-          ...prev,
-          {
-            id: crypto.randomUUID(),
-            role: 'assistant',
-            content: fallbackText,
-            timestamp: Date.now(),
-            sentiment: 'none'
-          }
-        ])
       }
     },
     [isStreaming, props.plugin, selectedModel, assistantChoice, dismissChatNotice]
@@ -2165,10 +2116,11 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
     setShowModelSelector(prev => !prev)
   }, [])
 
-  const handleModelSelection = useCallback(async (modelId: string) => {
+  const handleModelSelection = useCallback(async (selectionKey: string) => {
     setChatNotice(null)
+    const { id: modelId, provider: selectedProvider } = parseModelKey(selectionKey)
     // Handle auto mode selection
-    if (modelId === 'auto') {
+    if (selectionKey === 'auto') {
       setAutoModeEnabled(true)
       try {
         await props.plugin.call('remixAI', 'setAutoMode', true)
@@ -2188,7 +2140,7 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
           setSelectedModel(def)
           setAssistantChoice(def.provider as 'openai' | 'mistralai' | 'anthropic' | 'ollama')
           try {
-            await props.plugin.call('remixAI', 'setModel', def.id)
+            await props.plugin.call('remixAI', 'setModel', def.id, def.provider)
           } catch (e) {
             remixAILogger.warn('[remix-ai-assistant] setModel(default) failed when entering Auto Mode', e)
           }
@@ -2209,7 +2161,7 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
       }
     }
 
-    const model = availableModels.find(m => m.id === modelId)
+    const model = findModel(availableModels, modelId, selectedProvider)
     if (!model) return
 
     // Check access — backend's `available` flag is the source of truth.
@@ -2254,8 +2206,8 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
 
     if (model.provider === 'ollama') {
       try {
-        await props.plugin.call('remixAI', 'setModel', modelId)
-        trackMatomoEvent({ category: 'ai', action: 'remixAI', name: 'model_selected', value: modelId, isClick: true })
+        await props.plugin.call('remixAI', 'setModel', model.id, model.provider)
+        trackMatomoEvent({ category: 'ai', action: 'remixAI', name: 'model_selected', value: modelKey(model), isClick: true })
         const models: { name: string; supported: boolean }[] = await props.plugin.call('remixAI', 'getOllamaModels')
         setOllamaModels(models || [])
         if (!models || models.length === 0) {
@@ -2271,7 +2223,7 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
           const def: AIModel | null = await props.plugin.call('assistantState' as any, 'getDefaultModel')
           const fallbackModel = def || availableModels.find(m => m.available && m.provider !== 'ollama')
           if (fallbackModel) {
-            await props.plugin.call('remixAI', 'setModel', fallbackModel.id)
+            await props.plugin.call('remixAI', 'setModel', fallbackModel.id, fallbackModel.provider)
             setSelectedModelId(fallbackModel.id)
             setSelectedModel(fallbackModel)
             setAssistantChoice(fallbackModel.provider as 'openai' | 'mistralai' | 'anthropic' | 'ollama')
@@ -2282,8 +2234,8 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
       }
     } else {
       try {
-        await props.plugin.call('remixAI', 'setModel', modelId)
-        trackMatomoEvent({ category: 'ai', action: 'remixAI', name: 'model_selected', value: modelId, isClick: true })
+        await props.plugin.call('remixAI', 'setModel', model.id, model.provider)
+        trackMatomoEvent({ category: 'ai', action: 'remixAI', name: 'model_selected', value: modelKey(model), isClick: true })
       } catch (error) {
         remixAILogger.warn('Failed to set model:', error)
       }
@@ -2292,8 +2244,9 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
     setShowModelSelector(false)
   }, [props.plugin, modelAccess, pushSystemNotice])
 
-  const handleLockedModelClick = useCallback((modelId: string, modelName: string) => {
-    const model = availableModels.find(m => m.id === modelId)
+  const handleLockedModelClick = useCallback((selectionKey: string, _modelName: string) => {
+    const { id: modelId, provider } = parseModelKey(selectionKey)
+    const model = findModel(availableModels, modelId, provider)
     let reason: 'auth-required' | 'email-unverified' | 'feature-required' | 'quota-exhausted' = 'feature-required'
     let requiredFeature: string | null = null
     if (model?.reason === 'auth_required' || modelId === '__signin__') {
@@ -2488,33 +2441,27 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
     const btnRect = modelBtn.getBoundingClientRect()
     const containerRect = container.getBoundingClientRect()
     const menuWidth = menu.offsetWidth // replace hardcoded 180
-    const menuHeight = menu.offsetHeight
     const GAP = 8
 
     // Room available on each side of the button, bounded by the chat container.
     const spaceAbove = btnRect.top - containerRect.top - GAP
     const spaceBelow = containerRect.bottom - btnRect.bottom - GAP
 
-    // The button sits at the bottom of the panel, so prefer opening above it.
-    // Only drop below when the menu doesn't fit above AND there's more room
-    // below. On a short viewport (e.g. a 14" screen) neither side may fully
-    // fit, so we also cap the height and let the list scroll instead of
-    // spilling out of view.
-    const openAbove = menuHeight <= spaceAbove || spaceAbove >= spaceBelow
-    const maxHeight = Math.max(120, openAbove ? spaceAbove : spaceBelow)
+    // The button sits at the bottom of the panel, so prefer opening above it;
+    const openAbove = spaceAbove >= spaceBelow
+    const maxHeight = Math.max(160, openAbove ? spaceAbove : spaceBelow)
 
-    // When opening above, anchor the menu's bottom just above the button; if
-    // it can't fit it grows up to the container top (never past it).
-    const top = openAbove
-      ? btnRect.top - GAP - Math.min(menuHeight, spaceAbove)
-      : btnRect.bottom + GAP
-
-    // Right-align with the button, then clamp to side panel
+    // Right-align with the button, then clamp to the side panel.
     let left = btnRect.right - menuWidth
     if (left < containerRect.left) left = containerRect.left
     if (left + menuWidth > containerRect.right) left = containerRect.right - menuWidth
 
-    setModelOpt({ top, left, maxHeight })
+    // Anchor by the edge nearest the button, NOT by measured menu height. When
+    if (openAbove) {
+      setModelOpt({ bottom: window.innerHeight - (btnRect.top - GAP), left, maxHeight })
+    } else {
+      setModelOpt({ top: btnRect.bottom + GAP, left, maxHeight })
+    }
   }, [])
   useEffect(() => {
     if (showModelSelector) {
@@ -3052,6 +2999,7 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
             </div>
           </div>
         )}
+
       </div>
     )
   )

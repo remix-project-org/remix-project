@@ -20,7 +20,7 @@
 import { setup, createActor, type AnyActorRef } from 'xstate'
 import type { PermissionsResponse } from '@remix-api'
 import { Features } from '@remix-api'
-import { ANONYMOUS_FALLBACK_MODELS, parseAIModelsFromPermissions, type AIModel } from '../types/models'
+import { ANONYMOUS_FALLBACK_MODELS, parseAIModelsFromPermissions, curateBedrockBrandedModels, type AIModel } from '../types/models'
 
 // ─── Public types ───────────────────────────────────────────────────
 
@@ -666,7 +666,7 @@ export function selectAllowedProvidersFromError(snap: AssistantSnapshot): string
 export function selectAvailableModels(snap: AssistantSnapshot): AIModel[] {
   if (snap.isAuthenticated && snap.permissions) {
     const parsed = parseAIModelsFromPermissions(snap.permissions)
-    if (parsed && parsed.length > 0) return parsed
+    if (parsed && parsed.length > 0) return curateBedrockBrandedModels(parsed)
   }
   return ANONYMOUS_FALLBACK_MODELS
 }

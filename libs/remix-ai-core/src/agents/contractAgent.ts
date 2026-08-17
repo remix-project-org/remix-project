@@ -3,6 +3,7 @@ import isElectron from 'is-electron'
 import { AssistantParams } from "../types/models";
 import { workspaceAgent } from "./workspaceAgent";
 import { CompilationResult } from "../types/types";
+import { GeneratedProjectSchema } from "../types/schemas";
 import { compilecontracts, compilationParams } from "../helpers/compile";
 import { OllamaInferencer } from "../inferencers/local/ollamaInferencer"
 const COMPILATION_WARNING_MESSAGE = '⚠️**Warning**: The compilation failed. Please check the compilation errors in the Solidity compiler plugin. Enter `/continue` or `/c` if you want RemixAI to try again until a compilable solution is generated?'
@@ -103,6 +104,13 @@ export class ContractAgent {
       await statusCallback?.('Processing generated files...')
       this.contracts = {}
       const parsedFiles = payload
+      // Validate the generated payload against the schema for observability. We
+      // proceed with the raw payload regardless so schema drift never blocks a
+      // working generation, but a mismatch is logged for diagnosis.
+      const projectValidation = GeneratedProjectSchema.safeParse(parsedFiles)
+      if (!projectValidation.success) {
+        remixAILogger.warn('[ContractAgent] generated payload did not match GeneratedProjectSchema:', projectValidation.error?.message)
+      }
       this.oldPayload = payload
       this.generationThreadID = this.plugin.remoteInferencer instanceof OllamaInferencer ? "" : parsedFiles['threadID']
       this.workspaceName = parsedFiles['projectName']

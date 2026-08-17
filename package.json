@@ -138,6 +138,7 @@
     "@langchain/mistralai": "^1.0.7",
     "@langchain/ollama": "^1.0.0",
     "@langchain/openai": "^1.4.5",
+    "@langchain/openrouter": "0.3.0",
     "@metamask/eth-sig-util": "^7.0.2",
     "@microlink/react-json-view": "^1.23.0",
     "@noir-lang/noir_wasm": "^1.0.0-beta.2",
