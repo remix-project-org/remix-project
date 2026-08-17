@@ -165,37 +165,58 @@ export async function openTransactionInTerminal (plugin: TransactionsPlugin, tra
 
 export async function openTransactionInExplorer (plugin: TransactionsPlugin, transaction: Transaction) {
   try {
+    const txHash = transaction.record?.txHash
+    if (!txHash) {
+      await plugin.call('notification', 'toast', 'Transaction hash not available')
+      return
+    }
+
     const network = await plugin.call('network', 'detectNetwork')
+
+    if (!network || (!network.chainId && !network.id)) {
+      await plugin.call('notification', 'toast', 'Unable to detect network')
+      return
+    }
+
     let explorerUrl = ''
+    const chainId = String(network.chainId || network.id)
 
     // Determine explorer URL based on network
-    if (network?.chainId) {
-      switch (network.chainId) {
-      case '1':
-        explorerUrl = `https://etherscan.io/address/${transaction.record?.txHash}`
-        break
-      case '11155111':
-        explorerUrl = `https://sepolia.etherscan.io/address/${transaction.record?.txHash}`
-        break
-      case '5':
-        explorerUrl = `https://goerli.etherscan.io/address/${transaction.record?.txHash}`
-        break
-      case '10':
-        explorerUrl = `https://optimistic.etherscan.io/address/${transaction.record?.txHash}`
-        break
-      default:
-        await plugin.call('notification', 'toast', 'Block explorer not available for this network')
-        return
-      }
-      window.open(explorerUrl, '_blank')
-
-      trackMatomoEvent(plugin, {
-        category: 'udapp',
-        action: 'transactionOpenExplorer',
-        name: network.name.toLowerCase(),
-        isClick: false
-      })
+    switch (chainId) {
+    case '1':
+      explorerUrl = `https://etherscan.io/tx/${txHash}`
+      break
+    case '11155111':
+      explorerUrl = `https://sepolia.etherscan.io/tx/${txHash}`
+      break
+    case '5':
+      explorerUrl = `https://goerli.etherscan.io/tx/${txHash}`
+      break
+    case '10':
+      explorerUrl = `https://optimistic.etherscan.io/tx/${txHash}`
+      break
+    case '137':
+      explorerUrl = `https://polygonscan.com/tx/${txHash}`
+      break
+    case '42161':
+      explorerUrl = `https://arbiscan.io/tx/${txHash}`
+      break
+    case '8453':
+      explorerUrl = `https://basescan.org/tx/${txHash}`
+      break
+    default:
+      await plugin.call('notification', 'toast', `Block explorer not available for network ${network.name || chainId}`)
+      return
     }
+
+    window.open(explorerUrl, '_blank')
+
+    trackMatomoEvent(plugin, {
+      category: 'udapp',
+      action: 'transactionOpenExplorer',
+      name: network.name?.toLowerCase() || chainId,
+      isClick: false
+    })
   } catch (error) {
     console.error('Error opening in explorer:', error)
     await plugin.call('notification', 'toast', `Error: ${error.message}`)
