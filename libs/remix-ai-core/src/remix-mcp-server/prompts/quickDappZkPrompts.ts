@@ -14,7 +14,7 @@ export interface QuickDappZkOnChainVerifier {
 export interface QuickDappZkPromptContext {
   circuitName: string
   circuitPath: string
-  provingScheme: 'groth16'
+  provingScheme: 'groth16' | 'plonk'
   primeValue: 'bn128' | 'bls12381'
   signalInputs: string[]
   wasmPath: string

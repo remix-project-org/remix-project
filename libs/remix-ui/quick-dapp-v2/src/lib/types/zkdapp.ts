@@ -15,6 +15,20 @@ export interface CreateZkDappPayload {
   onChainVerifier?: ZkOnChainVerifierConfig;
 }
 
+export interface CreateNoirZkDappPayload {
+  circuitName: string;
+  circuitPath: string;
+  nargoTomlPath: string;
+  circuitSourcePaths: string[];
+  proverTomlPath: string;
+  programJsonPath: string;
+  verifierContractPath: string;
+  backendUrl: string;
+  wsUrl: string;
+  userDescription?: string;
+  onChainVerifier?: ZkOnChainVerifierConfig;
+}
+
 export interface ZkProofResult {
   proof: {
     pi_a: string[];

@@ -14,6 +14,10 @@ interface ZkVerificationMethodModalResult {
   onChainVerifier?: { address: string; abi: any[]; chainId: string | number; networkName?: string; contractName?: string };
 }
 
+interface ZkVerificationMethodModalOptions {
+  forceOnChain?: boolean;
+}
+
 interface INotificationApi {
   events: StatusEvents
   methods: {
@@ -23,7 +27,7 @@ interface INotificationApi {
     hideToaster: (id: number) => void
     actionNotification: (args: ActionNotification) => void
     hideActionNotification: (id: string) => void
-    showZkVerificationMethodModal: () => ZkVerificationMethodModalResult | null
+    showZkVerificationMethodModal: (options?: ZkVerificationMethodModalOptions) => ZkVerificationMethodModalResult | null
   }
 }
 
@@ -74,14 +78,14 @@ export class NotificationPlugin extends Plugin implements MethodApi<INotificatio
     this.dispatcher.hideActionNotification(id)
   }
 
-  async showZkVerificationMethodModal(): Promise<ZkVerificationMethodModalResult | null> {
+  async showZkVerificationMethodModal(options?: ZkVerificationMethodModalOptions): Promise<ZkVerificationMethodModalResult | null> {
     const resultRef: { current: ZkVerificationMethodModalResult | null } = { current: null }
 
     return new Promise((resolve) => {
       const modal: AppModal = {
         id: 'zkVerificationMethodModal',
         title: 'Choose Verification Method',
-        message: <ZkVerificationMethodModalContent plugin={this} resultRef={resultRef} />,
+        message: <ZkVerificationMethodModalContent plugin={this} resultRef={resultRef} forceOnChain={options?.forceOnChain} />,
         okLabel: 'Continue',
         cancelLabel: 'Cancel',
         okFn: async () => {

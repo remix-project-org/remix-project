@@ -2,7 +2,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { PluginClient } from '@remixproject/plugin';
 import { extractParentFromKey } from '@remix-ui/helper';
 import { DappConfig } from '../types/dapp';
-import { CreateZkDappPayload } from '../types/zkdapp';
+import { CreateZkDappPayload, CreateNoirZkDappPayload } from '../types/zkdapp';
 
 const DAPP_WORKSPACE_PREFIX = 'dapp-';
 const CONFIG_FILENAME = 'dapp.config.json';
@@ -610,6 +610,165 @@ export class DappManager {
       config: {
         title: circuitName,
         details: userDescription || `ZK DApp with in-browser proof generation and ${verificationMethod === 'onchain' ? 'on-chain contract' : 'zkVerify'} verification`
+      }
+    };
+
+    await this.saveConfig(workspaceName, initialConfig);
+
+    // Create src folder for generated code
+    try {
+      await this.plugin.call('fileManager', 'mkdir', 'src');
+    } catch (e) {
+      // ignore if src folder already exists
+    }
+
+    // Notify user about the new workspace
+    try {
+      // @ts-ignore
+      await this.plugin.call('notification', 'modal', {
+        id: 'quick-dapp-zk-workspace-created',
+        title: 'ZK DApp Workspace Created',
+        message: `A new workspace '${workspaceName}' has been created for your ZK DApp.\n\nCircuit artifacts have been copied to the /zk folder.\nGenerated DApp code will be stored in /src.`,
+        modalType: 'alert',
+        okLabel: 'OK',
+      });
+    } catch (e) { /* non-critical */ }
+
+    await this.focusPlugin();
+
+    return initialConfig;
+  }
+
+  async createNoirZkDapp(payload: CreateNoirZkDappPayload): Promise<DappConfig> {
+    const { circuitName, circuitPath, nargoTomlPath, circuitSourcePaths, proverTomlPath, programJsonPath, verifierContractPath, backendUrl, wsUrl, userDescription, onChainVerifier } = payload;
+
+    const uniqueId = uuidv4().slice(0, 6);
+    const sanitizedName = circuitName.toLowerCase().replace(/[^a-z0-9]+/g, '-');
+    const slug = `zk-${sanitizedName}-${uniqueId}`;
+    const workspaceName = `${DAPP_WORKSPACE_PREFIX}${slug}`;
+    const timestamp = Date.now();
+
+    const sourceWorkspaceInfo = await this.getCurrentWorkspace();
+    const sourceWorkspaceName = sourceWorkspaceInfo.name;
+
+    // Block creating DApps from within a dapp workspace.
+    if (sourceWorkspaceName.startsWith(DAPP_WORKSPACE_PREFIX)) {
+      throw new Error(
+        'Cannot create a ZK DApp from within a DApp workspace. ' +
+        'Please switch to the original circuit workspace first.'
+      );
+    }
+
+    // Read circuit source + artifacts before switching workspace
+    let nargoTomlContent: string | null = null;
+    try {
+      nargoTomlContent = await (this.plugin as any).call('fileManager', 'readFile', nargoTomlPath);
+    } catch (e: any) {
+      console.warn('[DappManager] Failed to read Nargo.toml:', e);
+    }
+
+    const circuitSourceFiles: { path: string; content: string }[] = [];
+    for (const sourcePath of circuitSourcePaths) {
+      try {
+        const content = await (this.plugin as any).call('fileManager', 'readFile', sourcePath);
+        circuitSourceFiles.push({ path: sourcePath, content });
+      } catch (e: any) {
+        console.warn('[DappManager] Failed to read circuit source file:', sourcePath, e);
+      }
+    }
+
+    let programJsonContent: string | null = null;
+    try {
+      programJsonContent = await (this.plugin as any).call('fileManager', 'readFile', programJsonPath);
+    } catch (e: any) {
+      console.warn('[DappManager] Failed to read program.json:', e);
+    }
+
+    let verifierContractContent: string | null = null;
+    try {
+      verifierContractContent = await (this.plugin as any).call('fileManager', 'readFile', verifierContractPath);
+    } catch (e: any) {
+      console.warn('[DappManager] Failed to read Verifier.sol:', e);
+    }
+
+    // Create the new workspace
+    await this.plugin.call('filePanel', 'createWorkspace', workspaceName, true);
+    await this.switchToWorkspace(workspaceName);
+    await new Promise(resolve => setTimeout(resolve, 300));
+
+    // Create zk folder and copy artifacts
+    try {
+      await this.plugin.call('fileManager', 'mkdir', 'zk');
+    } catch (e) {
+      // ignore if folder already exists
+    }
+
+    if (nargoTomlContent !== null) {
+      try {
+        await (this.plugin as any).call('fileManager', 'writeFile', 'zk/Nargo.toml', nargoTomlContent, { silent: true });
+      } catch (e) {
+        console.warn('[DappManager] Failed to write Nargo.toml:', e);
+      }
+    }
+
+    for (const sourceFile of circuitSourceFiles) {
+      const fileName = sourceFile.path.split('/').pop();
+      try {
+        await (this.plugin as any).call('fileManager', 'writeFile', `zk/src/${fileName}`, sourceFile.content, { silent: true });
+      } catch (e) {
+        console.warn('[DappManager] Failed to write circuit source file:', fileName, e);
+      }
+    }
+
+    if (programJsonContent !== null) {
+      try {
+        await (this.plugin as any).call('fileManager', 'writeFile', 'zk/program.json', programJsonContent, { silent: true });
+      } catch (e) {
+        console.warn('[DappManager] Failed to write program.json:', e);
+      }
+    }
+
+    if (verifierContractContent !== null) {
+      try {
+        await (this.plugin as any).call('fileManager', 'writeFile', 'zk/Verifier.sol', verifierContractContent, { silent: true });
+      } catch (e) {
+        console.warn('[DappManager] Failed to write verifier contract:', e);
+      }
+    }
+
+    const initialConfig: DappConfig = {
+      _warning: "DO NOT EDIT THIS FILE MANUALLY. MANAGED BY QUICK DAPP.",
+      slug,
+      name: circuitName,
+      workspaceName,
+      mode: 'workspace',
+      appKind: 'zk-circuit',
+      zkCircuit: {
+        circuitName,
+        circuitPath,
+        circuitType: 'noir',
+        noirArtifacts: {
+          nargoTomlPath: 'zk/Nargo.toml',
+          circuitSourcePaths: circuitSourceFiles.map((f) => `zk/src/${f.path.split('/').pop()}`),
+          proverTomlPath,
+          programJsonPath: 'zk/program.json',
+          backendUrl,
+          wsUrl
+        },
+        verificationMethod: 'onchain',
+        onChainVerifier
+      },
+      sourceWorkspace: {
+        name: sourceWorkspaceName,
+        filePath: circuitPath
+      },
+      status: 'creating',
+      processingStartedAt: timestamp,
+      createdAt: timestamp,
+      updatedAt: timestamp,
+      config: {
+        title: circuitName,
+        details: userDescription || `ZK DApp with in-browser proof generation and on-chain contract verification`
       }
     };
 

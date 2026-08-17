@@ -18,7 +18,7 @@ export const profile = {
   maintainedBy: 'Remix',
   permission: true,
   events: [],
-  methods: ['edit', 'clearInstance', 'startAiLoading', 'createDapp', 'createDappWorkspace', 'createZkDapp', 'createZkDappWorkspace', 'openDapp', 'consumePendingCreateDapp', 'listDapps']
+  methods: ['edit', 'clearInstance', 'startAiLoading', 'createDapp', 'createDappWorkspace', 'createZkDapp', 'createZkDappWorkspace', 'createNoirZkDappWorkspace', 'openDapp', 'consumePendingCreateDapp', 'listDapps']
 }
 
 export class QuickDappV2 extends ViewPlugin {
@@ -325,6 +325,161 @@ export class QuickDappV2 extends ViewPlugin {
     try { await this.call('fileManager', 'mkdir', 'src'); } catch (_) {}
 
     remixAILogger.log('[QuickDapp] createZkDappWorkspace done', { slug: workspaceName });
+    return { slug: workspaceName, workspaceName };
+  }
+
+  /**
+   * Create a Noir ZK DApp workspace — callable from MCP handlers.
+   * Noir circuits only support on-chain verification (no zkVerify integration).
+   * Returns the workspace slug so the handler can write files into it.
+   */
+  async createNoirZkDappWorkspace(payload: {
+    circuitName: string;
+    circuitPath: string;
+    nargoTomlPath: string;
+    circuitSourcePaths: string[];
+    proverTomlPath: string;
+    programJsonPath: string;
+    verifierContractPath: string;
+    backendUrl: string;
+    wsUrl: string;
+    userDescription?: string;
+    onChainVerifier?: { address: string; abi: any[]; chainId: string | number; networkName?: string; contractName?: string };
+  }): Promise<{ slug: string; workspaceName: string }> {
+    const DAPP_WORKSPACE_PREFIX = 'dapp-';
+
+    const name = payload.circuitName || 'NoirCircuit';
+    const id = Date.now().toString(36) + Math.random().toString(36).substring(2, 8);
+    const slug = `zk-${name.toLowerCase().replace(/[^a-z0-9]+/g, '-')}-${id.slice(0, 6)}`;
+    const workspaceName = `${DAPP_WORKSPACE_PREFIX}${slug}`;
+    const timestamp = Date.now();
+
+    let sourceWorkspaceName = 'default_workspace';
+    try {
+      const currentWs = await this.call('filePanel', 'getCurrentWorkspace');
+      sourceWorkspaceName = currentWs?.name || 'default_workspace';
+    } catch (e) { /* fallback */ }
+
+    // Guard: Block DApp creation from within a DApp workspace
+    if (sourceWorkspaceName.startsWith(DAPP_WORKSPACE_PREFIX)) {
+      throw new Error(
+        'Cannot create a ZK DApp from within a DApp workspace. ' +
+        'Please switch to the original circuit workspace first.'
+      );
+    }
+
+    // Read circuit source + artifacts before switching workspace
+    let nargoTomlContent: string | null = null;
+    try {
+      nargoTomlContent = await this.call('fileManager', 'readFile', payload.nargoTomlPath);
+    } catch (e) {
+      remixAILogger.warn('[QuickDapp] Failed to read Nargo.toml:', e);
+    }
+
+    const circuitSourceFiles: { fileName: string; content: string }[] = [];
+    for (const sourcePath of payload.circuitSourcePaths || []) {
+      try {
+        const content = await this.call('fileManager', 'readFile', sourcePath);
+        circuitSourceFiles.push({ fileName: sourcePath.split('/').pop(), content });
+      } catch (e) {
+        remixAILogger.warn('[QuickDapp] Failed to read circuit source file:', sourcePath, e);
+      }
+    }
+
+    let programJsonContent: string | null = null;
+    try {
+      programJsonContent = await this.call('fileManager', 'readFile', payload.programJsonPath);
+    } catch (e) {
+      remixAILogger.warn('[QuickDapp] Failed to read program.json:', e);
+    }
+
+    let verifierContractContent: string | null = null;
+    try {
+      verifierContractContent = await this.call('fileManager', 'readFile', payload.verifierContractPath);
+    } catch (e) {
+      remixAILogger.warn('[QuickDapp] Failed to read Verifier.sol:', e);
+    }
+
+    // Create the new workspace
+    await this.call('filePanel', 'createWorkspace', workspaceName, true);
+    await this.call('filePanel' as any, 'switchToWorkspace', { name: workspaceName, isLocalhost: false });
+    await new Promise(r => setTimeout(r, 300));
+
+    // Create zk folder and copy circuit source + artifacts
+    try { await this.call('fileManager', 'mkdir', 'zk'); } catch (_) {}
+
+    if (nargoTomlContent !== null) {
+      try {
+        await this.call('fileManager', 'writeFile', 'zk/Nargo.toml', nargoTomlContent);
+      } catch (e) {
+        remixAILogger.warn('[QuickDapp] Failed to write Nargo.toml:', e);
+      }
+    }
+
+    for (const sourceFile of circuitSourceFiles) {
+      try {
+        await this.call('fileManager', 'writeFile', `zk/src/${sourceFile.fileName}`, sourceFile.content);
+      } catch (e) {
+        remixAILogger.warn('[QuickDapp] Failed to write circuit source file:', sourceFile.fileName, e);
+      }
+    }
+
+    if (programJsonContent !== null) {
+      try {
+        await this.call('fileManager', 'writeFile', 'zk/program.json', programJsonContent);
+      } catch (e) {
+        remixAILogger.warn('[QuickDapp] Failed to write program.json:', e);
+      }
+    }
+
+    if (verifierContractContent !== null) {
+      try {
+        await this.call('fileManager', 'writeFile', 'zk/Verifier.sol', verifierContractContent);
+      } catch (e) {
+        remixAILogger.warn('[QuickDapp] Failed to write verifier contract:', e);
+      }
+    }
+
+    const initialConfig = {
+      _warning: 'DO NOT EDIT THIS FILE MANUALLY. MANAGED BY QUICK DAPP.',
+      id,
+      slug: workspaceName,
+      name,
+      workspaceName,
+      appKind: 'zk-circuit',
+      zkCircuit: {
+        circuitName: payload.circuitName,
+        circuitPath: payload.circuitPath,
+        circuitType: 'noir',
+        noirArtifacts: {
+          nargoTomlPath: 'zk/Nargo.toml',
+          circuitSourcePaths: circuitSourceFiles.map((f) => `zk/src/${f.fileName}`),
+          proverTomlPath: payload.proverTomlPath,
+          programJsonPath: 'zk/program.json',
+          backendUrl: payload.backendUrl,
+          wsUrl: payload.wsUrl
+        },
+        verificationMethod: 'onchain',
+        onChainVerifier: payload.onChainVerifier
+      },
+      sourceWorkspace: {
+        name: sourceWorkspaceName,
+        filePath: payload.circuitPath
+      },
+      status: 'creating',
+      processingStartedAt: timestamp,
+      createdAt: timestamp,
+      updatedAt: timestamp,
+      config: {
+        title: name,
+        details: payload.userDescription || 'ZK DApp with in-browser proof generation and on-chain contract verification'
+      }
+    };
+
+    await this.call('fileManager', 'writeFile', 'dapp.config.json', JSON.stringify(initialConfig, null, 2));
+    try { await this.call('fileManager', 'mkdir', 'src'); } catch (_) {}
+
+    remixAILogger.log('[QuickDapp] createNoirZkDappWorkspace done', { slug: workspaceName });
     return { slug: workspaceName, workspaceName };
   }
 

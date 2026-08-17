@@ -46,7 +46,8 @@ export function CreateZkDappButton() {
   const handleCreateZkDapp = async () => {
     if (isCreating) return
 
-    const result: ZkVerificationMethodResult | null = await (plugin as any).call('notification', 'showZkVerificationMethodModal')
+    const forceOnChain = appState.provingScheme !== 'groth16'
+    const result: ZkVerificationMethodResult | null = await (plugin as any).call('notification', 'showZkVerificationMethodModal', { forceOnChain })
     if (!result) return
 
     await handleVerificationMethodContinue(result)
@@ -60,7 +61,7 @@ export function CreateZkDappButton() {
       const zkContext: QuickDappZkPromptContext = {
         circuitName,
         circuitPath: appState.filePath,
-        provingScheme: appState.provingScheme as 'groth16',
+        provingScheme: appState.provingScheme as 'groth16' | 'plonk',
         primeValue: appState.primeValue as 'bn128' | 'bls12381',
         signalInputs: appState.signalInputs,
         wasmPath: deriveWasmPath(appState.filePath),
@@ -89,15 +90,10 @@ export function CreateZkDappButton() {
 
   const canCreateDapp =
     appState.setupExportStatus === 'done' &&
-    appState.provingScheme === 'groth16' &&
+    (appState.provingScheme === 'groth16' || appState.provingScheme === 'plonk') &&
     appState.verificationKey &&
     Object.keys(appState.verificationKey).length > 0 &&
     appState.signalInputs.length > 0
-
-  // Only show for groth16 (zkVerify requirement)
-  if (appState.provingScheme !== 'groth16') {
-    return null
-  }
 
   const getTooltipText = (): string => {
     if (!appState.verificationKey || Object.keys(appState.verificationKey).length === 0) {
@@ -108,6 +104,9 @@ export function CreateZkDappButton() {
     }
     if (appState.signalInputs.length === 0) {
       return 'Compile the circuit first to detect signal inputs'
+    }
+    if (appState.provingScheme === 'plonk') {
+      return 'Create a DApp with in-browser proof generation and on-chain verification (zkVerify does not support plonk)'
     }
     return 'Create a DApp with in-browser proof generation and zkVerify verification'
   }
