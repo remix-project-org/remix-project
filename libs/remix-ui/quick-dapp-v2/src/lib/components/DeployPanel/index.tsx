@@ -329,7 +329,12 @@ function DeployPanel({ isDeleteInFlight }: DeployPanelProps): JSX.Element {
       ].join('\n');
 
       await openAiAssistantPanel();
-      await plugin.call('remixaiassistant' as any, 'chatPipe', prompt, false, { source: 'quick-dapp', presetId: 'dapp-docs' });
+      const dappName = activeDapp.config?.title || activeDapp.name || 'Untitled';
+      await plugin.call('remixaiassistant' as any, 'chatPipe', prompt, false, {
+        source: 'quick-dapp',
+        presetId: 'dapp-docs',
+        displayText: `Generate DApp documentation\n${dappName}`
+      });
 
       await plugin.call('notification', 'toast', `${DOCS_FILENAME} request sent to RemixAI.`);
     } catch (e: any) {

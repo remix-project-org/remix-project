@@ -677,7 +677,11 @@ window.addEventListener('unhandledrejection', function(e) {
 
     // Send prompt to AI
     try {
-      await plugin.call('remixaiassistant' as any, 'chatPipe', prompt, false, { source: 'quick-dapp', presetId: 'dapp-update' });
+      await plugin.call('remixaiassistant' as any, 'chatPipe', prompt, false, {
+        source: 'quick-dapp',
+        presetId: 'dapp-update',
+        displayText: `Update DApp\n${dappName}`
+      });
     } catch (e) {
       console.warn('[QuickDapp] Could not send prompt to AI Assistant:', e);
     }
@@ -784,7 +788,11 @@ window.addEventListener('unhandledrejection', function(e) {
     await openAiAssistantPanel();
 
     try {
-      await plugin.call('remixaiassistant' as any, 'chatPipe', prompt, false, { source: 'quick-dapp', presetId: 'dapp-fix-preview' });
+      await plugin.call('remixaiassistant' as any, 'chatPipe', prompt, false, {
+        source: 'quick-dapp',
+        presetId: 'dapp-fix-preview',
+        displayText: `Fix DApp preview\n${dappName} · ${previewIssue.type}`
+      });
     } catch (e) {
       console.warn('[QuickDapp] Could not send preview fix prompt to AI Assistant:', e);
     }

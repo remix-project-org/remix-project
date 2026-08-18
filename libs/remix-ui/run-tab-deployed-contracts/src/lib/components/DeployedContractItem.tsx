@@ -494,7 +494,11 @@ For Inline mode, preserve the existing /frontend overwrite confirmation flow. Co
 
       // Send prompt to AI Assistant
       console.log('[QuickDapp] calling chatPipe...');
-      await plugin.call('remixaiassistant' as any, 'chatPipe', prompt, false, { source: 'run-tab', presetId: 'dapp-from-deployed-contract' })
+      await plugin.call('remixaiassistant' as any, 'chatPipe', prompt, false, {
+        source: 'run-tab',
+        presetId: 'dapp-from-deployed-contract',
+        displayText: `Create a DApp\n${contract.name} · ${networkName || chainId} · ${frontendMode === 'inline' ? 'Inline' : 'New workspace'}`
+      })
       console.log('[QuickDapp] chatPipe returned');
 
       trackMatomoEvent?.({ category: 'ai', action: 'remixAI', name: 'create_dapp_via_ai', isClick: true })

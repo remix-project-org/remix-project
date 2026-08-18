@@ -927,7 +927,11 @@ export const TabsUI = (props: TabsUIProps) => {
 
     console.log('[QuickDapp] Start Now → chatPipe (no modal), prompt length:', prompt.length)
     try {
-      await props.plugin.call('remixaiassistant' as any, 'chatPipe', prompt, false, { source: 'editor-tabs', presetId: 'quickdapp-start' })
+      await props.plugin.call('remixaiassistant' as any, 'chatPipe', prompt, false, {
+        source: 'editor-tabs',
+        presetId: 'quickdapp-start',
+        displayText: `Create a DApp\n${currentFileName || 'Current workspace'}`
+      })
       console.log('[QuickDapp] chatPipe returned')
     } catch (error) {
       console.error('[QuickDapp] chatPipe error:', error)

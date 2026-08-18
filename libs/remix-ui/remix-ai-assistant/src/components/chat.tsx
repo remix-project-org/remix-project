@@ -64,6 +64,16 @@ export const ChatHistoryComponent: React.FC<ChatHistoryComponentProps> = ({
   handleLoadSkills
 }) => {
   const [btnColor, setBtnColor] = useState('')
+  const [expandedPromptIds, setExpandedPromptIds] = useState<Set<string>>(new Set())
+
+  const togglePromptDetails = (messageId: string) => {
+    setExpandedPromptIds(current => {
+      const next = new Set(current)
+      next.has(messageId) ? next.delete(messageId) : next.add(messageId)
+      return next
+    })
+  }
+
   return (
     <div
       ref={historyRef}
@@ -75,6 +85,9 @@ export const ChatHistoryComponent: React.FC<ChatHistoryComponentProps> = ({
         messages.map(msg => {
           const isCorrupted = msg.role === 'assistant' && (msg.content === null || msg.content === undefined)
           const displayContent = isCorrupted ? '*Unable to load response.*' : (msg.content ?? '')
+          const hasCollapsiblePrompt = msg.role === 'user' && !!msg.displayContent && msg.displayContent !== msg.content
+          const isPromptExpanded = hasCollapsiblePrompt && expandedPromptIds.has(msg.id)
+          const visibleUserContent = hasCollapsiblePrompt && !isPromptExpanded ? msg.displayContent : msg.content
           const hasContent = typeof displayContent === 'string' && displayContent.trim().length > 0
           const hasAssistantActivity = !!(
             msg.isExecutingTools ||
@@ -125,10 +138,22 @@ export const ChatHistoryComponent: React.FC<ChatHistoryComponentProps> = ({
                         RemixMarkdownViewer(theme, msg.content, btnColor, setBtnColor)
                       ) : (
                         <div className="ai-paragraph pb-0">
-                          {msg.content}
+                          {visibleUserContent}
                         </div>
                       )}
                     </div>
+
+                    {hasCollapsiblePrompt && (
+                      <button
+                        type="button"
+                        className="btn btn-link btn-sm p-0 mt-2 text-secondary text-decoration-none"
+                        aria-expanded={isPromptExpanded}
+                        onClick={() => togglePromptDetails(msg.id)}
+                      >
+                        <i className={`fas fa-chevron-${isPromptExpanded ? 'up' : 'down'} me-1`}></i>
+                        {isPromptExpanded ? 'Hide request details' : 'Show request details'}
+                      </button>
+                    )}
 
                     {/* Copy button for user messages */}
                     {msg.role === 'user' && (
@@ -138,7 +163,7 @@ export const ChatHistoryComponent: React.FC<ChatHistoryComponentProps> = ({
                             role="button"
                             aria-label="copy message"
                             className="message-copy-btn"
-                            onClick={() => copy(msg.content)}
+                            onClick={() => copy(visibleUserContent)}
                             onMouseDown={(e) => e.preventDefault()}
                           >
                             <i className="far fa-copy"></i>
