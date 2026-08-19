@@ -1,6 +1,6 @@
 import React, { useContext, useEffect, useState, useRef, useMemo } from 'react'
 import { FormattedMessage, useIntl } from 'react-intl'
-import { CustomToggle, CustomTooltip, getTimeAgo, shortenAddress, isNumeric, is0XPrefixed, isHexadecimal, logBuilder, extractDataDefault, getMultiValsString, isQuickDappRemixVMIdentifier } from '@remix-ui/helper'
+import { CustomToggle, CustomTooltip, getTimeAgo, shortenAddress, isNumeric, is0XPrefixed, isHexadecimal, logBuilder, extractDataDefault, getMultiValsString, isQuickDappRemixVMIdentifier, normalizeQuickDappEnvironment } from '@remix-ui/helper'
 import { CopyToClipboard } from '@remix-ui/clipboard'
 import * as remixLib from '@remix-project/remix-lib'
 import { Dropdown } from 'react-bootstrap'
@@ -11,7 +11,7 @@ import { DeployedContract } from '../types'
 import { runTransactions } from '../actions'
 import { ContractKebabMenu } from './ContractKebabMenu'
 import { EnsNaming } from './EnsNaming'
-import { QuickDappContractSelector, QuickDappSetupOptions } from './QuickDappContractSelector'
+import { QuickDappContractSelector, QuickDappFigmaPreparationResult, QuickDappSetupOptions } from '@remix-ui/quick-dapp-v2'
 
 import { TreeView, TreeViewItem } from '@remix-ui/tree-view'
 import BN from 'bn.js'
@@ -61,6 +61,7 @@ export function DeployedContractItem({ contract, index, registerRef, isKebabMenu
   const [showEnsNaming, setShowEnsNaming] = useState<boolean>(false)
   const [showQuickDappContractSelector, setShowQuickDappContractSelector] = useState<boolean>(false)
   const [quickDappFixedFrontendMode, setQuickDappFixedFrontendMode] = useState<'inline' | 'workspace' | undefined>()
+  const [quickDappEnvironmentId, setQuickDappEnvironmentId] = useState<string>()
 
   useEffect(() => {
     plugin.call('udappEnv', 'getNetwork').then((net) => {
@@ -408,7 +409,18 @@ export function DeployedContractItem({ contract, index, registerRef, isKebabMenu
     return true
   }
 
-  const startCreateDapp = async (contract: DeployedContract, setupOptions: QuickDappSetupOptions) => {
+  const getCurrentQuickDappEnvironment = async (): Promise<string> => {
+    const provider = await plugin.call('blockchain', 'getProvider') as string
+    if (isQuickDappRemixVMIdentifier(provider)) {
+      return normalizeQuickDappEnvironment(provider)
+    }
+
+    const chainId = await plugin.call('blockchain', 'sendRpc', 'eth_chainId') as string
+    if (!chainId) throw new Error('Could not resolve the current execution environment')
+    return normalizeQuickDappEnvironment(chainId)
+  }
+
+  const startCreateDapp = async (contract: DeployedContract, setupOptions: QuickDappSetupOptions, chainId: string) => {
     if (isGenerating.current) return
     isGenerating.current = true
 
@@ -428,29 +440,17 @@ export function DeployedContractItem({ contract, index, registerRef, isKebabMenu
 
       // Send contract details to AI Assistant for DApp generation
 
-      let chainId: string
-      try {
-        const providerObject = await plugin.call('blockchain', 'getProviderObject')
-        const providerName = providerObject?.name || 'vm-unknown'
-        if (providerName.startsWith('vm')) {
-          chainId = providerName
-        } else {
-          const network = await plugin.call('network', 'detectNetwork')
-          chainId = network?.id?.toString() || providerName
-        }
-      } catch (e) {
-        chainId = 'unknown'
-      }
       console.log('[QuickDapp] chainId resolved:', chainId);
 
       const additionalContractsToolArg = selectedAdditionalContracts.length > 0
         ? `- additionalContracts: ${JSON.stringify(selectedAdditionalContracts.map((candidate) => ({ contractName: candidate.name, contractAddress: candidate.address })))}`
         : '- additionalContracts: omit this field'
-      const design = setupOptions.design || 'Modern dark mode single-page DApp using React and Ethers.js'
+      const design = setupOptions.design || (setupOptions.figmaContextId ? 'Match the validated Figma design' : 'Modern dark mode single-page DApp using React and Ethers.js')
+      const designSummary = setupOptions.figmaContextId ? `Figma: ${setupOptions.figmaUrl}` : setupOptions.design || 'defaults'
       const setupOptionsSummary = [
         `Location: ${frontendMode === 'inline' ? 'Inline' : 'Workspace'}`,
         `Base mini-app: ${setupOptions.isBaseMiniApp ? 'Yes' : 'No'}`,
-        `Design: ${setupOptions.design || 'defaults'}`,
+        `Design: ${designSummary}`,
         `Subgraph: ${setupOptions.subgraphFilePath || 'None'}`
       ].join(', ')
       const prompt = `I want to create a DApp frontend. The user confirmed all setup options in the QuickDapp UI. Do not ask the setup question again and do not change the confirmed values.
@@ -462,10 +462,10 @@ Confirmed contracts:
 Confirmed setup:
 - Location: ${frontendMode === 'inline' ? 'Inline in /frontend' : 'Workspace'}
 - Base mini-app: ${setupOptions.isBaseMiniApp ? 'Yes' : 'No'}
-- Design: ${JSON.stringify(setupOptions.design || 'defaults')}
+- Design: ${JSON.stringify(designSummary)}
 - Subgraph: ${JSON.stringify(setupOptions.subgraphFilePath || 'None')}
 
-If the confirmed Design is a Figma URL and no Figma token is available, ask only for the token and STOP. Otherwise call generate_dapp now with:
+Call generate_dapp now with:
 - description: ${JSON.stringify(design)}
 - contractName: ${JSON.stringify(contract.name)}
 - contractAddress: ${JSON.stringify(contract.address)}
@@ -473,7 +473,8 @@ If the confirmed Design is a Figma URL and no Figma token is available, ask only
 ${additionalContractsToolArg}
 - frontendMode: ${JSON.stringify(frontendMode)}
 - isBaseMiniApp: ${setupOptions.isBaseMiniApp}
-- figmaUrl: include only if the confirmed Design is a Figma URL
+- figmaUrl: ${setupOptions.figmaUrl ? JSON.stringify(setupOptions.figmaUrl) : 'omit this field'}
+- figmaContextId: ${setupOptions.figmaContextId ? JSON.stringify(setupOptions.figmaContextId) : 'omit this field'}
 - subgraphFilePath: ${setupOptions.subgraphFilePath ? JSON.stringify(setupOptions.subgraphFilePath) : 'omit this field'}
 - setupOptionsConfirmed: true
 - setupOptionsSummary: ${JSON.stringify(setupOptionsSummary)}
@@ -535,11 +536,45 @@ For Inline mode, preserve the existing /frontend overwrite confirmation flow. Co
       }
       if (await blockDappWorkspaceRemixVmCreation(currentWorkspace?.name)) return
 
+      const environmentId = await getCurrentQuickDappEnvironment()
+      setQuickDappEnvironmentId(environmentId)
       setQuickDappFixedFrontendMode(isDesktop ? 'inline' : sourceIsDappWorkspace ? 'workspace' : undefined)
       setShowQuickDappContractSelector(true)
     } catch (error) {
       console.error('[QuickDapp] Could not prepare DApp setup options:', error)
       await plugin.call('notification', 'toast', 'Could not prepare DApp setup options. Please try again.')
+    }
+  }
+
+  const handleQuickDappSetupConfirm = async (options: QuickDappSetupOptions) => {
+    if (!quickDappEnvironmentId) {
+      await plugin.call('notification', 'toast', 'Could not confirm the current network. Reopen QuickDapp setup and try again.')
+      return
+    }
+
+    try {
+      const currentEnvironment = await getCurrentQuickDappEnvironment()
+      if (currentEnvironment !== quickDappEnvironmentId) {
+        await plugin.call('notification', 'toast', 'The network changed while QuickDapp setup was open. Switch back or reopen the setup.')
+        return
+      }
+
+      setShowQuickDappContractSelector(false)
+      void startCreateDapp(contract, options, quickDappEnvironmentId)
+    } catch (_) {
+      await plugin.call('notification', 'toast', 'Could not confirm the current network. Please try again.')
+    }
+  }
+
+  const validateQuickDappSetupEnvironment = async (): Promise<string | undefined> => {
+    if (!quickDappEnvironmentId) return 'QuickDapp setup is no longer available. Reopen it and try again.'
+    try {
+      const currentEnvironment = await getCurrentQuickDappEnvironment()
+      if (currentEnvironment !== quickDappEnvironmentId) {
+        return 'The network changed while QuickDapp setup was open. Switch back or reopen the setup.'
+      }
+    } catch (_) {
+      return 'Could not confirm the current network. Please try again.'
     }
   }
 
@@ -1324,11 +1359,13 @@ For Inline mode, preserve the existing /frontend overwrite confirmation flow. Co
         primaryContract={contract}
         deployedContracts={widgetState.deployedContracts}
         fixedFrontendMode={quickDappFixedFrontendMode}
-        onCancel={() => setShowQuickDappContractSelector(false)}
-        onConfirm={(options) => {
-          setShowQuickDappContractSelector(false)
-          void startCreateDapp(contract, options)
+        onPrepareFigma={async (figmaUrl, figmaToken) => {
+          const validationError = await validateQuickDappSetupEnvironment()
+          if (validationError) return { success: false, message: validationError }
+          return await plugin.call('quick-dapp-v2' as any, 'prepareFigmaDesign', figmaUrl, figmaToken) as QuickDappFigmaPreparationResult
         }}
+        onCancel={() => setShowQuickDappContractSelector(false)}
+        onConfirm={(options) => void handleQuickDappSetupConfirm(options)}
       />
     </div>
   )

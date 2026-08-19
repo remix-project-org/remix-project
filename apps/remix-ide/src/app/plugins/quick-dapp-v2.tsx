@@ -12,7 +12,7 @@ import {
 } from '@remix-ui/helper'
 import { RemixUiQuickDappV2, getNetworkName } from '@remix-ui/quick-dapp-v2'
 import { EventEmitter } from 'events'
-import { remixAILogger } from '@remix/remix-ai-core'
+import { fetchAndSimplifyFigmaDesign, FigmaDesignSuccess, remixAILogger } from '@remix/remix-ai-core'
 
 const profile = {
   name: 'quick-dapp-v2',
@@ -26,7 +26,7 @@ const profile = {
   maintainedBy: 'Remix',
   permission: true,
   events: [],
-  methods: ['edit', 'clearInstance', 'startAiLoading', 'createDapp', 'createDappWorkspace', 'createZkDapp', 'createZkDappWorkspace', 'openDapp', 'consumePendingCreateDapp', 'listDapps']
+  methods: ['edit', 'clearInstance', 'startAiLoading', 'createDapp', 'createDappWorkspace', 'createZkDapp', 'createZkDappWorkspace', 'openDapp', 'consumePendingCreateDapp', 'listDapps', 'prepareFigmaDesign', 'getPreparedFigmaDesign', 'clearPreparedFigmaDesign']
 }
 
 export class QuickDappV2 extends ViewPlugin {
@@ -35,6 +35,7 @@ export class QuickDappV2 extends ViewPlugin {
   event: any
   private listenersRegistered: boolean = false
   private pendingCreateDapp: any = null
+  private preparedFigmaDesigns = new Map<string, { design: FigmaDesignSuccess; expiresAt: number }>()
 
   constructor() {
     super(profile)
@@ -80,6 +81,7 @@ export class QuickDappV2 extends ViewPlugin {
 
   onDeactivation() {
     this.listenersRegistered = false
+    this.preparedFigmaDesigns.clear()
   }
 
   private async isQuickDappEnabled(): Promise<boolean> {
@@ -138,6 +140,44 @@ export class QuickDappV2 extends ViewPlugin {
 
   startAiLoading(): void {
     this.event.emit('startAiLoading')
+  }
+
+  async prepareFigmaDesign(figmaUrl: string, figmaToken: string): Promise<{
+    success: boolean;
+    contextId?: string;
+    fileName?: string;
+    message?: string;
+  }> {
+    const result = await fetchAndSimplifyFigmaDesign(figmaUrl, figmaToken)
+    if (result.success === false) {
+      return { success: false, message: result.message }
+    }
+
+    const now = Date.now()
+    for (const [id, prepared] of this.preparedFigmaDesigns) {
+      if (prepared.expiresAt <= now) this.preparedFigmaDesigns.delete(id)
+    }
+    const contextId = `figma-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`
+    this.preparedFigmaDesigns.set(contextId, {
+      design: result,
+      expiresAt: now + 10 * 60 * 1000
+    })
+    return { success: true, contextId, fileName: result.fileName }
+  }
+
+  getPreparedFigmaDesign(contextId: string): FigmaDesignSuccess | null {
+    const prepared = this.preparedFigmaDesigns.get(contextId)
+    if (!prepared) return null
+    if (prepared.expiresAt <= Date.now()) {
+      this.preparedFigmaDesigns.delete(contextId)
+      return null
+    }
+    return prepared.design
+  }
+
+  clearPreparedFigmaDesign(contextId?: string): void {
+    if (contextId) this.preparedFigmaDesigns.delete(contextId)
+    else this.preparedFigmaDesigns.clear()
   }
 
   async createDapp(payload: any): Promise<void> {

@@ -206,7 +206,7 @@ const QUICKDAPP_DESIGN_RULES =
   `- Vary the visual direction across DApps: refined minimal, dense dashboard, editorial, playful, collectible, protocol-console, utility/admin, or other contract-appropriate approaches.\n` +
   `- If a bold visual idea would reduce readability or make wallet/transaction controls harder to operate, choose a simpler design that preserves functionality.\n`
 
-interface FigmaDesignSuccess {
+export interface FigmaDesignSuccess {
   success: true
   fileName: string
   fileKey: string
@@ -216,14 +216,16 @@ interface FigmaDesignSuccess {
   rawLength: number
 }
 
-interface FigmaDesignFailure {
+export interface FigmaDesignFailure {
   success: false
-  reason: 'invalid_figma_url' | 'figma_node_not_found' | 'figma_access_denied' | 'figma_file_not_found' | 'figma_api_error' | 'figma_fetch_error'
+  reason: 'invalid_figma_url' | 'figma_node_not_found' | 'figma_access_denied' | 'figma_file_not_found' | 'figma_api_error' | 'figma_fetch_error' | 'figma_fetch_timeout'
   message: string
   status?: number
 }
 
-type FigmaDesignResult = FigmaDesignSuccess | FigmaDesignFailure
+export type FigmaDesignResult = FigmaDesignSuccess | FigmaDesignFailure
+
+const FIGMA_FETCH_TIMEOUT_MS = 30000
 
 function isFigmaDesignFailure(result: FigmaDesignResult): result is FigmaDesignFailure {
   return result.success === false
@@ -289,7 +291,7 @@ function simplifyFigmaNode(node: any, depth = 0): any {
   return simplified
 }
 
-async function fetchAndSimplifyFigmaDesign(figmaUrl: string, figmaToken: string): Promise<FigmaDesignResult> {
+export async function fetchAndSimplifyFigmaDesign(figmaUrl: string, figmaToken: string): Promise<FigmaDesignResult> {
   const fileKey = extractFigmaFileKey(figmaUrl)
   if (!fileKey) {
     return {
@@ -304,9 +306,13 @@ async function fetchAndSimplifyFigmaDesign(figmaUrl: string, figmaToken: string)
     ? `https://api.figma.com/v1/files/${fileKey}/nodes?ids=${encodeURIComponent(nodeId)}`
     : `https://api.figma.com/v1/files/${fileKey}`
 
+  const controller = new AbortController()
+  const timeout = setTimeout(() => controller.abort(), FIGMA_FETCH_TIMEOUT_MS)
+
   try {
     const response = await fetch(apiUrl, {
-      headers: { 'X-Figma-Token': figmaToken }
+      headers: { 'X-Figma-Token': figmaToken },
+      signal: controller.signal
     })
 
     if (!response.ok) {
@@ -367,11 +373,20 @@ async function fetchAndSimplifyFigmaDesign(figmaUrl: string, figmaToken: string)
       rawLength: rawJson.length
     }
   } catch (error: any) {
+    if (error?.name === 'AbortError') {
+      return {
+        success: false,
+        reason: 'figma_fetch_timeout',
+        message: 'The Figma request timed out. Check your connection and try again.'
+      }
+    }
     return {
       success: false,
       reason: 'figma_fetch_error',
       message: `Failed to fetch Figma design: ${error.message || String(error)}`
     }
+  } finally {
+    clearTimeout(timeout)
   }
 }
 
@@ -393,6 +408,7 @@ export interface GenerateDAppArgs {
   isBaseMiniApp?: boolean
   figmaUrl?: string
   figmaToken?: string
+  figmaContextId?: string
   workspaceName?: string
   frontendMode?: 'workspace' | 'inline'
   confirmOverwrite?: boolean
@@ -454,6 +470,7 @@ const getGenerateDAppArgsTrace = (args: GenerateDAppArgs) => ({
   isBaseMiniApp: !!args.isBaseMiniApp,
   hasFigmaUrl: !!args.figmaUrl,
   hasFigmaToken: !!args.figmaToken,
+  hasFigmaContext: !!args.figmaContextId,
   setupOptionsConfirmed: args.setupOptionsConfirmed === true,
   hasSetupOptionsSummary: !!args.setupOptionsSummary?.trim(),
   subgraphFilePath: args.subgraphFilePath,
@@ -733,7 +750,11 @@ export class GenerateDAppHandler extends BaseToolHandler {
       },
       figmaToken: {
         type: 'string',
-        description: 'Figma Personal Access Token (required if figmaUrl is provided)'
+        description: 'Figma Personal Access Token (required if figmaUrl is provided without a validated figmaContextId)'
+      },
+      figmaContextId: {
+        type: 'string',
+        description: 'Opaque reference to a Figma design validated by the QuickDapp setup UI. Pass it unchanged when provided; never invent one.'
       },
       frontendMode: {
         type: 'string',
@@ -1062,7 +1083,7 @@ export class GenerateDAppHandler extends BaseToolHandler {
           errors: validation?.errors || [],
           warnings: validation?.warnings || [],
           missingFields: validation?.missingFields || [],
-          preserveFields: ['description', 'contractName', 'contractAddress', 'additionalContracts', 'chainId', 'frontendMode', 'isBaseMiniApp', 'setupOptionsConfirmed', 'setupOptionsSummary', 'figmaUrl', 'subgraphFilePath'],
+          preserveFields: ['description', 'contractName', 'contractAddress', 'additionalContracts', 'chainId', 'frontendMode', 'isBaseMiniApp', 'setupOptionsConfirmed', 'setupOptionsSummary', 'figmaUrl', 'figmaContextId', 'subgraphFilePath'],
           originalRequest: {
             description: args.description,
             contractName: args.contractName,
@@ -1074,6 +1095,7 @@ export class GenerateDAppHandler extends BaseToolHandler {
             setupOptionsConfirmed: true,
             setupOptionsSummary: args.setupOptionsSummary,
             figmaUrl: args.figmaUrl,
+            figmaContextId: args.figmaContextId,
             subgraphFilePath
           },
           nextAction: 'Do not create a workspace or write files. Ask the user to fix the reported .subgraph fields. After the file is fixed, call generate_dapp again with the same contract details and subgraphFilePath.'
@@ -1092,7 +1114,7 @@ export class GenerateDAppHandler extends BaseToolHandler {
         message: `Could not read the selected .subgraph file "${subgraphFilePath}". Ask the user for a valid .subgraph path/name, then call generate_dapp again with the same contract details and the corrected subgraphFilePath.`,
         subgraphFilePath,
         error: message,
-        preserveFields: ['description', 'contractName', 'contractAddress', 'additionalContracts', 'chainId', 'frontendMode', 'isBaseMiniApp', 'setupOptionsConfirmed', 'setupOptionsSummary', 'figmaUrl'],
+        preserveFields: ['description', 'contractName', 'contractAddress', 'additionalContracts', 'chainId', 'frontendMode', 'isBaseMiniApp', 'setupOptionsConfirmed', 'setupOptionsSummary', 'figmaUrl', 'figmaContextId'],
         originalRequest: {
           description: args.description,
           contractName: args.contractName,
@@ -1104,7 +1126,8 @@ export class GenerateDAppHandler extends BaseToolHandler {
           setupOptionsConfirmed: true,
           setupOptionsSummary: args.setupOptionsSummary,
           figmaUrl: args.figmaUrl,
-          figmaToken: args.figmaToken
+          figmaToken: args.figmaToken,
+          figmaContextId: args.figmaContextId
         },
         nextAction: 'Do not create a workspace or write files. Ask for a valid .subgraph file path/name, then retry generate_dapp with subgraphFilePath.'
       })
@@ -1223,7 +1246,15 @@ export class GenerateDAppHandler extends BaseToolHandler {
         }
       }
 
-      if (args.figmaUrl && !args.figmaToken) {
+      if (args.figmaContextId) {
+        const preparedFigma = await plugin.call('quick-dapp-v2' as any, 'getPreparedFigmaDesign', args.figmaContextId) as FigmaDesignSuccess | null
+        if (!preparedFigma?.success) {
+          return this.createErrorResult('The validated Figma setup has expired. Reopen the QuickDapp setup and validate the Figma design again.')
+        }
+        figmaDesign = preparedFigma
+      }
+
+      if (!figmaDesign && args.figmaUrl && !args.figmaToken) {
         return this.createSuccessResult({
           success: false,
           requiresUserInput: true,
@@ -1248,7 +1279,7 @@ export class GenerateDAppHandler extends BaseToolHandler {
         })
       }
 
-      if (args.figmaUrl && args.figmaToken) {
+      if (!figmaDesign && args.figmaUrl && args.figmaToken) {
         const figmaResult = await fetchAndSimplifyFigmaDesign(args.figmaUrl, args.figmaToken)
         if (isFigmaDesignFailure(figmaResult)) {
           return this.createSuccessResult({
@@ -1565,6 +1596,12 @@ export class GenerateDAppHandler extends BaseToolHandler {
         contractAddress: args.contractAddress,
         operation: 'generate'
       })
+
+      if (args.figmaContextId) {
+        try {
+          await plugin.call('quick-dapp-v2' as any, 'clearPreparedFigmaDesign', args.figmaContextId)
+        } catch (_) { /* best-effort */ }
+      }
 
       return this.createSuccessResult({
         success: true,
