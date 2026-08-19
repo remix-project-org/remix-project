@@ -191,6 +191,7 @@ export interface FileExplorerMenuProps {
   connectToLocalFileSystem?: any
   handleGitInit?: () => Promise<void>
   revealInExplorer?: () => void
+  cloneGitRepository?: () => void
   tooltipPlacement?: Placement
 }
 export interface FileExplorerContextMenuProps {

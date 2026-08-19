@@ -18,7 +18,6 @@ import { useOnClickOutside } from 'libs/remix-ui/remix-ai-assistant/src/componen
 import { deleteWorkspace, fetchWorkspaceDirectory, deleteAllWorkspaces as deleteAllWorkspacesAction, handleDownloadFiles, handleDownloadWorkspace, handleExpandPath, publishToGist, renameWorkspace, restoreBackupZip, switchToWorkspace } from 'libs/remix-ui/workspace/src/lib/actions'
 import { GitHubUser } from 'libs/remix-api/src/lib/types/git'
 import { GitHubCallback } from '../topbarUtils/gitOauthHandler'
-import { GitHubLogin } from '../components/gitLogin'
 import { CustomTooltip } from 'libs/remix-ui/helper/src/lib/components/custom-tooltip'
 import { useCloneRepositoryModal } from '../components/CloneRepositoryModal'
 import { TrackingContext } from '@remix-ide/tracking'
@@ -584,17 +583,6 @@ export function RemixUiTopbar() {
     )
   }
 
-  const loginWithGitHub = async () => {
-    global.plugin.call('dgit', 'login')
-    trackMatomoEvent({ category: 'topbar', action: 'GIT', name: 'login', isClick: true })
-  }
-
-  const logOutOfGithub = async () => {
-    global.plugin.call('dgit', 'logOut')
-
-    trackMatomoEvent({ category: 'topbar', action: 'GIT', name: 'logout', isClick: true })
-  }
-
   const renameModalMessage = (workspaceName?: string) => {
     return (
       <div className='d-flex flex-column'>
@@ -857,6 +845,7 @@ export function RemixUiTopbar() {
               connectToLocalhost={() => switchWorkspace(LOCALHOST)}
               openTemplateExplorer={openTemplateExplorer}
               onMigrateToCloud={() => cloudStore.emit('showMigrationDialog')}
+              cloneGitRepository={showCloneModal}
             />
             <div
               ref={panelControlRef}
@@ -909,22 +898,13 @@ export function RemixUiTopbar() {
           style={{ flex: '0 0 auto', whiteSpace: 'nowrap' }}
         >
           <div className="d-flex flex-row align-items-center flex-nowrap" style={{ whiteSpace: 'nowrap' }}>
-            <div style={{ whiteSpace: 'nowrap' }}>
-              <GitHubLogin
-                cloneGitRepository={showCloneModal}
-                logOutOfGithub={logOutOfGithub}
-                publishToGist={publishToGist}
-                loginWithGitHub={loginWithGitHub}
-                theme={currentTheme?.quality}
-              />
-            </div>
             {showLoginUI && (
               <LoginButton
                 plugin={plugin}
                 variant="compact"
                 showCredits={true}
                 signInDataId="login-button"
-                className="ms-3 text-nowrap"
+                className="text-nowrap"
                 cloneGitRepository={showCloneModal}
                 publishToGist={publishToGist}
               />

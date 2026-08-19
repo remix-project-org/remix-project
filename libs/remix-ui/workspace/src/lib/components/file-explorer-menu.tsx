@@ -103,6 +103,13 @@ export const FileExplorerMenu = (props: FileExplorerMenuProps) => {
       platforms:[appPlatformTypes.web]
     },
     {
+      action: 'cloneGitRepository',
+      title: 'Clone Git Repository',
+      icon: 'fa-brands fa-git-alt',
+      placement: 'top',
+      platforms:[appPlatformTypes.web, appPlatformTypes.desktop]
+    },
+    {
       action: 'initializeWorkspaceAsGitRepo',
       title: 'Initialize Workspace as a git repository',
       icon: 'fa-brands fa-git-alt',
@@ -429,7 +436,7 @@ export const FileExplorerMenu = (props: FileExplorerMenuProps) => {
                 <span className="fw-semibold">Create</span>
                 <i className="fas fa-caret-down remixui_createBtnChevron ms-2"></i>
               </Dropdown.Toggle>
-              <Dropdown.Menu className="w-100 custom-dropdown-items">
+              <Dropdown.Menu className="w-100 custom-dropdown-items mt-1">
                 {menuItems.filter((item) => item.action === 'newBlankFile').map(({ action, title, icon, placement, platforms }, index) => {
                   return (
                     <Dropdown.Item
@@ -621,6 +628,29 @@ export const FileExplorerMenu = (props: FileExplorerMenuProps) => {
                     </Dropdown.Item>
                   )
                 })}
+                {
+                  menuItems.filter((item) => item.action === 'cloneGitRepository' && props.cloneGitRepository).map(({ action, title, icon, placement, platforms }, index) => {
+                    return (
+                      <Dropdown.Item
+                        data-id="fileExplorerCreateButton-cloneGitRepository"
+                        key={index}
+                        onClick={() => {
+                          props.cloneGitRepository()
+                          trackMatomoEvent({
+                            category: MatomoCategories.FILE_EXPLORER,
+                            action: 'cloneGitRepository',
+                            isClick: true
+                          })
+                        }}
+                      >
+                        <span className="text-decoration-none">
+                          <i className={icon}></i>
+                          <span className="ps-2">{title}</span>
+                        </span>
+                      </Dropdown.Item>
+                    )
+                  })
+                }
               </Dropdown.Menu>
             </Dropdown>
           </span>

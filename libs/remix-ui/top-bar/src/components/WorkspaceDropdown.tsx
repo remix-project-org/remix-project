@@ -59,6 +59,7 @@ interface WorkspacesDropdownProps {
   connectToLocalhost: () => void
   openTemplateExplorer: () => void
   onMigrateToCloud?: () => void
+  cloneGitRepository?: () => void
 }
 
 function useClickOutside(refs: React.RefObject<HTMLElement>[], handler: () => void) {
@@ -74,7 +75,7 @@ function useClickOutside(refs: React.RefObject<HTMLElement>[], handler: () => vo
   }, [refs, handler])
 }
 
-export const WorkspacesDropdown: React.FC<WorkspacesDropdownProps> = ({ menuItems, NO_WORKSPACE, switchWorkspace, CustomToggle, createWorkspace, downloadCurrentWorkspace, restoreBackup, deleteAllWorkspaces, setCurrentMenuItemName, setMenuItems, renameCurrentWorkspace, deleteCurrentWorkspace, downloadWorkspaces, connectToLocalhost, openTemplateExplorer, onMigrateToCloud }) => {
+export const WorkspacesDropdown: React.FC<WorkspacesDropdownProps> = ({ menuItems, NO_WORKSPACE, switchWorkspace, CustomToggle, createWorkspace, downloadCurrentWorkspace, restoreBackup, deleteAllWorkspaces, setCurrentMenuItemName, setMenuItems, renameCurrentWorkspace, deleteCurrentWorkspace, downloadWorkspaces, connectToLocalhost, openTemplateExplorer, onMigrateToCloud, cloneGitRepository }) => {
   const [showMain, setShowMain] = useState(false)
   const [dropdownOpen, setDropdownOpen] = useState(false)
   const [openSubmenuId, setOpenSubmenuId] = useState<number | null>(null)
@@ -285,6 +286,7 @@ export const WorkspacesDropdown: React.FC<WorkspacesDropdownProps> = ({ menuItem
           setShowMain={setShowMain}
           openFolder={openFolder}
           createWorkspace={createWorkspace}
+          cloneGitRepository={cloneGitRepository}
         />
       </Dropdown>
     )
@@ -496,6 +498,17 @@ export const WorkspacesDropdown: React.FC<WorkspacesDropdownProps> = ({ menuItem
             <i className="fas fa-plus text-body-secondary fws-action-icon" />
             <span>New workspace</span>
           </button>
+
+          {cloneGitRepository && (
+            <button
+              className="dropdown-item d-flex align-items-center gap-2 small rounded py-2"
+              data-id="workspaceCloneRepository"
+              onClick={() => { cloneGitRepository(); setDropdownOpen(false) }}
+            >
+              <i className="fab fa-github text-body-secondary fws-action-icon" />
+              <span>Clone repository</span>
+            </button>
+          )}
 
           {/* ── Cloud mode: sync status ── */}
           {isCloudMode && activeSyncStatus && (() => {
