@@ -76,6 +76,7 @@
 }
 .remix_ui_terminal_search {
   width             : 19rem;
+  position          : relative;
 }
 .remix_ui_terminal_filter {
   height                      : 80%;
@@ -83,13 +84,22 @@
   overflow                    : hidden;
   text-overflow               : ellipsis;
   font-size: 14px;
-  background-color: transparent;
+  background-color: var(--bs-body-bg);
+  padding-left: 28px;
+  border: 1px solid var(--bs-border-color);
+}
+.remix_ui_terminal_filter:focus {
+  background-color: var(--bs-body-bg);
+  box-shadow: none;
+  border-color: var(--custom-primary);
 }
 .remix_ui_terminal_searchIcon {
-  width                       : 25px;
-  border-top-left-radius      : 3px;
-  border-bottom-left-radius   : 3px;
-  margin-right                : 5px;
+  position                    : absolute;
+  left                        : 8px;
+  top                         : 50%;
+  transform                   : translateY(-50%);
+  pointer-events              : none;
+  color                       : var(--bs-secondary-color);
 }
 
 .remix_ui_terminal_console {

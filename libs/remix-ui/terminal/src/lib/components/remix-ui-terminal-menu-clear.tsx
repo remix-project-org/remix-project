@@ -12,9 +12,9 @@ export const RemixUITerminalMenuClear = (props: RemixUiTerminalProps) => {
   }
 
   return (
-    <div className="remix_ui_terminal_console" id="clearConsole" data-id="terminalClearConsole" onClick={handleClearConsole}>
+    <div className="d-flex remix_ui_terminal_console" id="clearConsole" data-id="terminalClearConsole" onClick={handleClearConsole}>
       <CustomTooltip placement="top" tooltipId="terminalClearTerminal" tooltipClasses="text-nowrap" tooltipText={<FormattedMessage id="terminal.clearConsole" />}>
-        <i className="fas fa-ban" aria-hidden="true"></i>
+        <i className="fas fa-ban fs-6" aria-hidden="true"></i>
       </CustomTooltip>
     </div>
   )

@@ -54,7 +54,7 @@ export const RemixUITerminalMenu = (props: RemixUiTerminalProps) => {
       <input
         onChange={(event) => setSearchInput(event.target.value.trim())}
         type="text"
-        className="remix_ui_terminal_filter border form-control"
+        className="remix_ui_terminal_filter form-control"
         id="searchInput"
         placeholder={intl.formatMessage({ id: 'terminal.search' })}
         data-id="terminalInputSearchTerminal"
