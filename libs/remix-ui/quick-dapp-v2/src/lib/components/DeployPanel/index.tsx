@@ -18,6 +18,7 @@ import {
   clearQuickDappWorkspaceLock,
   getQuickDappWorkspaceLock,
   logQuickDappBinding,
+  readQuickDappContractConfig,
   trySetQuickDappWorkspaceLock
 } from '@remix-ui/helper';
 // remixClient removed - using plugin from context instead
@@ -614,6 +615,7 @@ function DeployPanel({ isDeleteInFlight }: DeployPanelProps): JSX.Element {
     const isBaseMiniApp = !!activeDapp.config?.isBaseMiniApp;
     const sourceRoot = getDappSourceRoot(activeDapp);
     const configPath = 'dapp.config.json';
+    const { bindings: contractBindings, representativeBinding } = readQuickDappContractConfig(activeDapp);
 
     return (
       <Card className="mb-2">
@@ -631,14 +633,37 @@ function DeployPanel({ isDeleteInFlight }: DeployPanelProps): JSX.Element {
               {renderInfoRow('Updated', formatTimestamp(activeDapp.updatedAt))}
             </div>
 
-            <div className="mb-3">
-              <div className="text-uppercase text-muted mb-1">Contract</div>
-              {renderInfoRow('Network', activeDapp.contract?.networkName)}
-              {renderInfoRow('Chain ID', activeDapp.contract?.chainId)}
-              {renderInfoRow('Name', activeDapp.contract?.name)}
-              {renderInfoRow('Address', activeDapp.contract?.address, true)}
-              {renderInfoRow('Path', activeDapp.sourceWorkspace?.filePath, true)}
-            </div>
+            {contractBindings.length > 0 ? (
+              <div className="mb-3" data-id="dapp-contract-bindings">
+                <div className="text-uppercase text-muted mb-1">Contract bindings</div>
+                {renderInfoRow('Count', contractBindings.length)}
+                {contractBindings.map((binding) => (
+                  <div className="border rounded p-2 mb-2" key={binding.id}>
+                    <div className="d-flex justify-content-between align-items-center gap-2 mb-1">
+                      <span className="fw-bold text-break">{binding.alias}</span>
+                      {binding.id === representativeBinding?.id && (
+                        <span className="badge bg-secondary">Primary</span>
+                      )}
+                    </div>
+                    <div className="small text-muted text-break">{binding.name}</div>
+                    <div className="small font-monospace text-break">{binding.address}</div>
+                    <div className="small text-muted text-break">
+                      {binding.networkName || 'Unknown network'} · Chain {binding.chainId}
+                    </div>
+                  </div>
+                ))}
+                {renderInfoRow('Path', activeDapp.sourceWorkspace?.filePath, true)}
+              </div>
+            ) : (
+              <div className="mb-3">
+                <div className="text-uppercase text-muted mb-1">Contract</div>
+                {renderInfoRow('Network', activeDapp.contract?.networkName)}
+                {renderInfoRow('Chain ID', activeDapp.contract?.chainId)}
+                {renderInfoRow('Name', activeDapp.contract?.name)}
+                {renderInfoRow('Address', activeDapp.contract?.address, true)}
+                {renderInfoRow('Path', activeDapp.sourceWorkspace?.filePath, true)}
+              </div>
+            )}
 
             <div className="mb-3">
               <div className="text-uppercase text-muted mb-1">Workspace</div>

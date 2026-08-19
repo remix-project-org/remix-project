@@ -79,8 +79,10 @@ export default function DappUpdateModal({
 
     setDescription('');
     setUpdateKind('source');
-    setReplaceContractId(bindings[0]?.id || '');
+    setReplaceContractId(primary?.id || bindings[0]?.id || '');
     setCandidateAddress('');
+    setCandidates([]);
+    setCurrentEnvironment('');
     setCandidateError('');
     setLoadingCandidates(true);
 
@@ -146,6 +148,16 @@ export default function DappUpdateModal({
       : currentEnvironment && !environmentMatches
         ? `Switch Deploy & Run to the DApp network (chain ${primary?.chainId}) to add or replace a contract.`
         : candidateError || '';
+  const dappEnvironmentLabel = primary
+    ? `${primary.networkName || 'Unknown network'} (chain ${normalizeQuickDappEnvironment(primary.chainId)})`
+    : 'Not configured';
+  const currentEnvironmentLabel = loadingCandidates
+    ? 'Loading...'
+    : currentEnvironment
+      ? isQuickDappRemixVMIdentifier(currentEnvironment)
+        ? currentEnvironment
+        : `Chain ${normalizeQuickDappEnvironment(currentEnvironment)}`
+      : 'Unavailable';
 
   return (
     <Modal show={show} onHide={onCancel} centered data-id="quickDappUpdateModal">
@@ -179,6 +191,11 @@ export default function DappUpdateModal({
             <option value="add" disabled={!canChangeBindings || bindings.length >= 8}>Add a deployed contract</option>
             <option value="replace" disabled={!canChangeBindings}>Replace a contract</option>
           </Form.Select>
+          {isContractDapp && (
+            <div className="small text-secondary text-break mt-2" data-id="quickDappUpdateEnvironment">
+              DApp: {dappEnvironmentLabel} · Current environment: {currentEnvironmentLabel}
+            </div>
+          )}
         </Form.Group>
 
         {bindingUnavailableMessage && (
@@ -203,7 +220,7 @@ export default function DappUpdateModal({
             >
               {bindings.map((binding) => (
                 <option key={binding.id} value={binding.id}>
-                  {binding.alias} · {shortenAddress(binding.address)}
+                  {binding.alias}{binding.id === primary?.id ? ' (primary)' : ''} · {shortenAddress(binding.address)}
                 </option>
               ))}
             </Form.Select>

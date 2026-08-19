@@ -694,7 +694,10 @@ export const FileExplorerMenu = (props: FileExplorerMenuProps) => {
                 disabled={isSwitchingToContract || sourceWorkspaceAvailable !== true}
                 title={sourceWorkspaceAvailable === false
                   ? `Source workspace "${sourceWorkspaceTarget}" is unavailable. The DApp can still use its saved contract binding.`
-                  : undefined}
+                  : `Open source workspace "${sourceWorkspaceTarget}"`}
+                aria-label={sourceWorkspaceAvailable === false
+                  ? `Source workspace ${sourceWorkspaceTarget} is unavailable`
+                  : `Go to source workspace ${sourceWorkspaceTarget}`}
               >
                 {sourceWorkspaceAvailable === false ? (
                   <>
