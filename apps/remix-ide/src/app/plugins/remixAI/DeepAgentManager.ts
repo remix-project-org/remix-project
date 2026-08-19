@@ -244,7 +244,10 @@ export class DeepAgentManager {
 
   async isUsingOwnApiKey(): Promise<boolean> {
     const plugin = this.deps.plugin
-    const currentProvider = plugin.selectedModel.provider
+    // Keys belong to the transport, not the brand: a Claude row routed through
+    // OpenRouter is unlocked by the OpenRouter key, not an Anthropic one. Same
+    // resolution order ModelFactory uses.
+    const currentProvider = plugin.selectedModel.routeProvider ?? plugin.selectedModel.provider
     return this.apiKeyHelper.isUsingOwnApiKeyForProvider(currentProvider)
   }
 

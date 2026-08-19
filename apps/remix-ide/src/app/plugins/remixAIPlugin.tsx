@@ -513,7 +513,10 @@ export class RemixAIPlugin extends Plugin {
           },
           fallbackInferencer,
           this.mcpInferencer, // Pass MCPInferencer to gather external MCP client tools
-          { provider: this.selectedModel.provider as 'anthropic' | 'mistralai' | 'openai' | 'moonshot' | 'openrouter' | 'ollama' | 'bedrock', modelId: this.selectedModelId } // Pass selected model
+          // routeProvider must travel with the selection: branded rows (Claude
+          // via OpenRouter, etc.) carry the vendor as `provider` and the actual
+          // transport as `routeProvider`, which is what ModelFactory dials.
+          { provider: this.selectedModel.provider as 'anthropic' | 'mistralai' | 'openai' | 'moonshot' | 'openrouter' | 'ollama' | 'bedrock', modelId: this.selectedModelId, routeProvider: this.selectedModel.routeProvider } // Pass selected model
         )
         await this.deepAgentInferencer.initialize()
         // Set up DeepAgent event listeners for streaming (once only)

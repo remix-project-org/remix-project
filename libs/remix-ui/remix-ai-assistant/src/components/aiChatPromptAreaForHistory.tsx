@@ -83,11 +83,11 @@ export default function AiChatPromptAreaForHistory(props: AiChatPromptAreaForHis
     >
       {props.showModelSelector && (
         <div
-          className="pt-2 mb-2 z-3 remix-ai-model-selector border position-fixed"
-          style={{ borderRadius: '8px', top: props.modelOpt.top, bottom: props.modelOpt.bottom, left: props.modelOpt.left + 16, zIndex: 2000, minWidth: '300px', maxWidth: '400px', maxHeight: props.modelOpt.maxHeight || undefined, overflowY: 'auto' }}
+          className="pt-2 mb-2 z-3 remix-ai-model-selector border position-fixed d-flex flex-column"
+          style={{ borderRadius: '8px', top: props.modelOpt.top, bottom: props.modelOpt.bottom, left: props.modelOpt.left + 16, zIndex: 2000, minWidth: '300px', maxWidth: '400px', maxHeight: props.modelOpt.maxHeight || undefined, overflow: 'hidden' }}
           ref={props.menuRef}
         >
-          <div className="text-uppercase ms-2 mb-2 small rai-selector-heading">Select a model</div>
+          <div className="text-uppercase ms-2 mb-2 small rai-selector-heading flex-shrink-0">Select a model</div>
           <ModelSelectorMenu
             availableModels={props.availableModels}
             autoModeAvailable={props.autoModeAvailable}

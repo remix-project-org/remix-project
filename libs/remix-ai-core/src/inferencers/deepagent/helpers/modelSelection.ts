@@ -49,7 +49,7 @@ export function selectOptimalModel(
   const sonnetModelId = allowedModels.find(model => model.includes('sonnet'))
   if (sonnetModelId) {
     remixAILogger.log(`[DeepAgentInferencer] Auto: chose Anthropic Sonnet (${complexity}, security=${hasSecurityKeywords})`)
-    return { provider: 'anthropic', modelId: sonnetModelId, routeProvider: currentModelSelection?.routeProvider ?? 'bedrock' }
+    return { provider: 'anthropic', modelId: sonnetModelId, routeProvider: currentModelSelection?.routeProvider ?? 'openrouter' }
   }
 
   // No Sonnet \u2014 keep the caller's current selection. Don't substitute

@@ -162,59 +162,80 @@ export function parseAIModelsFromPermissions(permissions: any): AIModel[] | null
   return parsed
 }
 
-interface BrandCurationRule {
-  match: RegExp
-  brand: AIModel['provider']
-  displayName: string
-  description?: string
-  sortOrder: number
+/**
+ * OpenRouter is the default router: a model is "routed" when it reaches the
+ * vendor through another provider's transport. `curateOpenRouterBrandedModels`
+ * is the only curation that sets one.
+ *
+ * Bedrock used to be curated the same way — its rows were rebranded onto
+ * Anthropic / Mistral / OpenAI, hoisted to the front of the catalogue and given
+ * `routeProvider: 'bedrock'`, which made Bedrock the de-facto default route.
+ * That curation is gone. Bedrock rows the backend still advertises stay under
+ * their own "AWS Bedrock" group in backend order, selectable but never the
+ * default.
+ */
+export function isOpenRouterRouted(model: AIModel): boolean {
+  return model.routeProvider === 'openrouter' || model.provider === 'openrouter'
 }
 
-const BEDROCK_BRAND_CURATION: BrandCurationRule[] = [
-  // Anthropic (Claude on Bedrock) — 5 family + 4.8 family
-  { match: /claude-fable-5|fable-5/i, brand: 'anthropic', displayName: 'Claude Fable 5', description: 'Anthropic Claude Fable 5', sortOrder: 10 },
-  { match: /claude-opus-5/i, brand: 'anthropic', displayName: 'Claude Opus 5', description: 'Anthropic Claude Opus 5 — most capable', sortOrder: 11 },
-  { match: /claude-sonnet-5/i, brand: 'anthropic', displayName: 'Claude Sonnet 5', description: 'Anthropic Claude Sonnet 5 — balanced', sortOrder: 12 },
-  { match: /claude-opus-4-8/i, brand: 'anthropic', displayName: 'Claude Opus 4.8', description: 'Anthropic Claude Opus 4.8', sortOrder: 13 },
-  { match: /claude-sonnet-4-8/i, brand: 'anthropic', displayName: 'Claude Sonnet 4.8', description: 'Anthropic Claude Sonnet 4.8', sortOrder: 14 },
-  { match: /claude-haiku-4-8/i, brand: 'anthropic', displayName: 'Claude Haiku 4.8', description: 'Anthropic Claude Haiku 4.8 — fast', sortOrder: 15 },
-  // Mistral AI
-  { match: /mistral-large/i, brand: 'mistralai', displayName: 'Mistral Large', description: 'Mistral Large', sortOrder: 20 },
-  { match: /devstral/i, brand: 'mistralai', displayName: 'Devstral', description: 'Mistral Devstral — coding', sortOrder: 21 },
-  { match: /mistral-small/i, brand: 'mistralai', displayName: 'Mistral Small', description: 'Mistral Small — fast', sortOrder: 22 },
-  // OpenAI (open-weight gpt-oss on Bedrock)
-  { match: /gpt-oss-120b/i, brand: 'openai', displayName: 'GPT-OSS 120B', description: 'OpenAI open-weight 120B', sortOrder: 30 },
-  { match: /gpt-oss-20b/i, brand: 'openai', displayName: 'GPT-OSS 20B', description: 'OpenAI open-weight 20B — fast', sortOrder: 31 }
-]
+/**
+ * OpenRouter ids are `vendor/slug` (e.g. `anthropic/claude-sonnet-5`). Map the
+ * vendor segment onto the brand the picker groups under, so an OpenRouter-routed
+ * Claude lands in the Anthropic section rather than a 400-row OpenRouter one.
+ * Vendors absent from this map keep `provider: 'openrouter'` and stay grouped
+ * under OpenRouter.
+ */
+const OPENROUTER_VENDOR_BRANDS: Record<string, AIModel['provider']> = {
+  anthropic: 'anthropic',
+  openai: 'openai',
+  mistralai: 'mistralai',
+  mistral: 'mistralai',
+  moonshotai: 'moonshot',
+  moonshot: 'moonshot'
+}
 
-export function curateBedrockBrandedModels(models: AIModel[]): AIModel[] {
+/** `anthropic/claude-sonnet-5` → `Claude Sonnet 5`. Only used when the backend
+ *  sent no display_name (parseAIModelsFromPermissions falls back to the id). */
+function prettifyOpenRouterId(id: string): string {
+  const slug = id.includes('/') ? id.slice(id.indexOf('/') + 1) : id
+  return slug
+    .replace(/:.*$/, '') // drop OpenRouter variant suffixes (`:batch`, `:free`, …)
+    .split(/[-_]/)
+    .map((part) => (/^\d/.test(part) ? part : part.charAt(0).toUpperCase() + part.slice(1)))
+    .join(' ')
+}
+
+/**
+ * OpenRouter is the primary route: Anthropic / OpenAI / Mistral / Moonshot
+ * models reach us as `provider: 'openrouter'` rows and are rebranded here to
+ * their vendor so the picker groups them by brand, with `routeProvider:
+ * 'openrouter'` carrying the actual transport (ModelFactory reads
+ * `routeProvider ?? provider`). The model id is left untouched — OpenRouter
+ * requires the full `vendor/slug`.
+ *
+ * Needs no per-model rule table: the vendor prefix is part of every
+ * OpenRouter id.
+ */
+export function curateOpenRouterBrandedModels(models: AIModel[]): AIModel[] {
   if (!Array.isArray(models) || models.length === 0) return models
-  const bedrockModels = models.filter((m) => m.provider === 'bedrock')
-  if (bedrockModels.length === 0) return models
-
-  const branded: AIModel[] = []
-  const brandedIds = new Set<string>()
-  for (const model of bedrockModels) {
-    const rule = BEDROCK_BRAND_CURATION.find((r) => r.match.test(model.id))
-    if (!rule) continue
-    brandedIds.add(model.id)
-    branded.push({
-      ...model, // preserves backend `isDefault`, `available`, etc.
-      provider: rule.brand,
-      routeProvider: 'bedrock',
-      displayName: rule.displayName,
-      description: rule.description ?? model.description,
-      sortOrder: rule.sortOrder
-    })
-  }
-
-  if (branded.length === 0) return models
-
-  // Everything we didn't rebrand: unmatched Bedrock models (stay under "AWS
-  const rest = models.filter((m) => !(m.provider === 'bedrock' && brandedIds.has(m.id)))
-
-  branded.sort((a, b) => a.sortOrder - b.sortOrder)
-  return [...branded, ...rest]
+  return models.map((model) => {
+    if (model.provider !== 'openrouter') return model
+    // parseAIModelsFromPermissions falls back to the id when the backend sends
+    // no display_name — never show a raw `vendor/slug` in the picker.
+    const displayName = model.displayName && model.displayName !== model.id
+      ? model.displayName
+      : prettifyOpenRouterId(model.id)
+    const vendor = model.id.includes('/') ? model.id.slice(0, model.id.indexOf('/')).toLowerCase() : ''
+    const brand = OPENROUTER_VENDOR_BRANDS[vendor]
+    // Unmapped vendor (x-ai, google, deepseek, …) — stays under OpenRouter.
+    if (!brand) return { ...model, displayName }
+    return {
+      ...model, // preserves backend `isDefault`, `available`, `sortOrder`, etc.
+      provider: brand,
+      routeProvider: 'openrouter' as const,
+      displayName
+    }
+  })
 }
 
 const CompletionParams:IParams = {

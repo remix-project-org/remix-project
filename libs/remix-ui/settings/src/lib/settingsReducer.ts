@@ -74,9 +74,10 @@ if (!thegraphConfig && thegraphAccessToken) {
 //   config.set('settings/ollama-config', true)
 //   ollamaConfig = true
 // }
-// Auto-enable deepagent API keys config if any API key is set
+// Auto-enable deepagent API keys config if any API key is set — OpenRouter
+// first, since it is the default router (ApiKeySettingsHelper does the same).
 let deepagentApiKeysConfigAuto = deepagentApiKeysConfig
-if (!deepagentApiKeysConfigAuto && deepagentBedrockBearerToken) {
+if (!deepagentApiKeysConfigAuto && (deepagentOpenrouterApiKey || deepagentBedrockBearerToken)) {
   config.set('settings/deepagent-api-keys-config', true)
   deepagentApiKeysConfigAuto = true
 }

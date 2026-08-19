@@ -10,6 +10,7 @@ import {
   AI_CODESTRAL,
   AI_SONNET_4_6,
   AI_OPUS_4_6,
+  AI_PROVIDER_OPENAI,
 } from './features'
 import {
   Credits,
@@ -419,36 +420,96 @@ export class StorageApiService {
  */
 // TEMP: hardcoded ai_models catalogue. Backend doesn't currently surface
 // this for all users on /permissions; remove once it does.
+//
+// Every row routes through OpenRouter — the primary provider — so ids are
+// OpenRouter's `vendor/slug` form. `curateOpenRouterBrandedModels`
+// (remix-ai-core/types/models.ts) rebrands them onto their vendor for the
+// picker and sets `routeProvider: 'openrouter'`, which is what ModelFactory
+// dials. Ids must stay verbatim as OpenRouter publishes them at
+// https://openrouter.ai/api/v1/models; all of these advertise tool support,
+// which the agent requires.
 const HARDCODED_AI_MODELS: NonNullable<PermissionsResponse['ai_models']> = [
   {
-    id: 'mistral-small-latest',
-    provider: 'mistralai',
-    display_name: 'Mistral Small',
-    description: 'Fast and efficient for basic tasks',
-    category: 'general',
-    capabilities: ['chat', 'code'],
+    id: 'anthropic/claude-sonnet-5',
+    provider: 'openrouter',
+    display_name: 'Claude Sonnet 5',
+    description: 'Balanced performance and speed',
+    category: 'coding',
+    capabilities: ['chat', 'code', 'completion'],
     is_default: true,
     requires_auth: true,
-    required_feature: AI_MISTRAL_SMALL,
+    required_feature: AI_SONNET_4_6,
     available: true,
     sort_order: 10
   },
   {
-    id: 'mistral-medium-latest',
-    provider: 'mistralai',
-    display_name: 'Mistral Medium',
+    id: 'anthropic/claude-opus-5',
+    provider: 'openrouter',
+    display_name: 'Claude Opus 5',
+    description: 'Best for complex web3 contracts',
+    category: 'coding',
+    capabilities: ['chat', 'code', 'completion'],
+    is_default: false,
+    requires_auth: true,
+    required_feature: AI_OPUS_4_6,
+    available: true,
+    sort_order: 20
+  },
+  {
+    id: 'anthropic/claude-haiku-4.5',
+    provider: 'openrouter',
+    display_name: 'Claude Haiku 4.5',
     description: 'Fast and efficient for basic tasks',
+    category: 'general',
+    capabilities: ['chat', 'code'],
+    is_default: false,
+    requires_auth: true,
+    required_feature: AI_SONNET_4_6,
+    available: true,
+    sort_order: 30
+  },
+  {
+    id: 'openai/gpt-5.5',
+    provider: 'openrouter',
+    display_name: 'GPT-5.5',
+    description: 'OpenAI flagship — strong general reasoning',
+    category: 'general',
+    capabilities: ['chat', 'code', 'completion'],
+    is_default: false,
+    requires_auth: true,
+    required_feature: AI_PROVIDER_OPENAI,
+    available: true,
+    sort_order: 40
+  },
+  {
+    id: 'openai/gpt-5.1-codex',
+    provider: 'openrouter',
+    display_name: 'GPT-5.1 Codex',
+    description: 'Specialized for code generation',
+    category: 'coding',
+    capabilities: ['code', 'completion'],
+    is_default: false,
+    requires_auth: true,
+    required_feature: AI_PROVIDER_OPENAI,
+    available: true,
+    sort_order: 50
+  },
+  {
+    id: 'mistralai/mistral-large-2512',
+    provider: 'openrouter',
+    display_name: 'Mistral Large 3',
+    description: 'Mistral flagship for general tasks',
     category: 'general',
     capabilities: ['chat', 'code'],
     is_default: false,
     requires_auth: true,
     required_feature: AI_MISTRAL_MEDIUM,
     available: true,
-    sort_order: 20
+    sort_order: 60
   },
   {
-    id: 'codestral-latest',
-    provider: 'mistralai',
+    id: 'mistralai/codestral-2508',
+    provider: 'openrouter',
     display_name: 'Codestral',
     description: 'Specialized for code generation',
     category: 'coding',
@@ -457,33 +518,20 @@ const HARDCODED_AI_MODELS: NonNullable<PermissionsResponse['ai_models']> = [
     requires_auth: true,
     required_feature: AI_CODESTRAL,
     available: true,
-    sort_order: 30
+    sort_order: 70
   },
   {
-    id: 'claude-sonnet-4-6',
-    provider: 'anthropic',
-    display_name: 'Claude Sonnet 4.6',
-    description: 'Balanced performance and speed',
-    category: 'coding',
-    capabilities: ['chat', 'code', 'completion'],
+    id: 'mistralai/mistral-small-2603',
+    provider: 'openrouter',
+    display_name: 'Mistral Small 4',
+    description: 'Fast and efficient for basic tasks',
+    category: 'general',
+    capabilities: ['chat', 'code'],
     is_default: false,
     requires_auth: true,
-    required_feature: AI_SONNET_4_6,
+    required_feature: AI_MISTRAL_SMALL,
     available: true,
-    sort_order: 40
-  },
-  {
-    id: 'claude-opus-4-6',
-    provider: 'anthropic',
-    display_name: 'Claude Opus 4.6',
-    description: 'Best for complex web3 contracts',
-    category: 'coding',
-    capabilities: ['chat', 'code', 'completion'],
-    is_default: false,
-    requires_auth: true,
-    required_feature: AI_OPUS_4_6,
-    available: true,
-    sort_order: 50
+    sort_order: 80
   },
 ]
 

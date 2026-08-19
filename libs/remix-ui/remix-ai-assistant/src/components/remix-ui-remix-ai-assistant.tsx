@@ -2174,9 +2174,12 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
 
     if (model.requireAPIKey) {
       const settingKeyByProvider: Record<string, string> = {
-        bedrock: 'deepagent-bedrock-bearer-token'
+        bedrock: 'deepagent-bedrock-bearer-token',
+        openrouter: 'deepagent-openrouter-api-key'
       }
-      const settingKey = settingKeyByProvider[model.provider]
+      // Keyed on the transport, not the brand: an OpenRouter-routed Claude needs
+      // the OpenRouter key.
+      const settingKey = settingKeyByProvider[model.routeProvider ?? model.provider]
       let hasKey = true
       if (settingKey) {
         try {

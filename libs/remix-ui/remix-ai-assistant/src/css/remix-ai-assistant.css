@@ -1782,12 +1782,46 @@ code {
   box-shadow: inset 3px 0 0 var(--custom-ai-color);
 }
 
+/* The menu body scrolls only as a safety net (many providers on a short
+   panel); its scrollbar is hidden so the sole visible one belongs to the open
+   provider's model list below. */
+.remix-ai-model-selector .rai-model-scroll {
+  overflow-y: auto;
+  scrollbar-width: none;
+}
+
+.remix-ai-model-selector .rai-model-scroll::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+}
+
 /* Nesting guide: models sit indented under their provider with a connector
    line + inset surface, making the provider→models relationship obvious. */
 .remix-ai-model-selector .rai-model-list {
   margin-left: 1.4rem;
   border-left: 1px solid rgba(255, 255, 255, 0.12);
   background-color: rgba(0, 0, 0, 0.18);
+  /* Capped at 6 rows by ProviderModelList; the nested scrollbar stays slim so
+     it reads as the model list's own, distinct from the popover's. */
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.22) transparent;
+}
+
+.remix-ai-model-selector .rai-model-list::-webkit-scrollbar {
+  width: 6px;
+}
+
+.remix-ai-model-selector .rai-model-list::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.remix-ai-model-selector .rai-model-list::-webkit-scrollbar-thumb {
+  background-color: rgba(255, 255, 255, 0.22);
+  border-radius: 3px;
+}
+
+.remix-ai-model-selector .rai-model-list::-webkit-scrollbar-thumb:hover {
+  background-color: rgba(255, 255, 255, 0.35);
 }
 
 /* Selected model row */

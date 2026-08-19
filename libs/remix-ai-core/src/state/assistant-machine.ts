@@ -20,7 +20,7 @@
 import { setup, createActor, type AnyActorRef } from 'xstate'
 import type { PermissionsResponse } from '@remix-api'
 import { Features } from '@remix-api'
-import { ANONYMOUS_FALLBACK_MODELS, parseAIModelsFromPermissions, curateBedrockBrandedModels, type AIModel } from '../types/models'
+import { ANONYMOUS_FALLBACK_MODELS, parseAIModelsFromPermissions, curateOpenRouterBrandedModels, isOpenRouterRouted, type AIModel } from '../types/models'
 
 // ─── Public types ───────────────────────────────────────────────────
 
@@ -666,7 +666,10 @@ export function selectAllowedProvidersFromError(snap: AssistantSnapshot): string
 export function selectAvailableModels(snap: AssistantSnapshot): AIModel[] {
   if (snap.isAuthenticated && snap.permissions) {
     const parsed = parseAIModelsFromPermissions(snap.permissions)
-    if (parsed && parsed.length > 0) return curateBedrockBrandedModels(parsed)
+    // OpenRouter is the only curated route: its rows are rebranded onto their
+    // vendor. Every other provider (including Bedrock) is left exactly as the
+    // backend sent it.
+    if (parsed && parsed.length > 0) return curateOpenRouterBrandedModels(parsed)
   }
   return ANONYMOUS_FALLBACK_MODELS
 }
@@ -680,14 +683,21 @@ export function selectAvailableModels(snap: AssistantSnapshot): AIModel[] {
 export function selectDefaultModel(snap: AssistantSnapshot): AIModel | null {
   const models = selectAvailableModels(snap)
   if (!models.length) return null
-  // Prefer an `available` default; only fall back to the unavailable one
-  // (e.g. anonymous placeholder) if nothing else is marked default.
-  const availableDefault = models.find((m) => m.isDefault && m.available)
-  if (availableDefault) return availableDefault
+  // OpenRouter is the default router: among `available` rows flagged
+  // is_default, an OpenRouter-routed one wins. Only when the backend advertises
+  // no OpenRouter default at all do we fall back to another provider's.
+  const availableDefaults = models.filter((m) => m.isDefault && m.available)
+  const routedDefault = availableDefaults.find(isOpenRouterRouted)
+  if (routedDefault) return routedDefault
+  if (availableDefaults.length > 0) return availableDefaults[0]
   const anyDefault = models.find((m) => m.isDefault)
   if (anyDefault) return anyDefault
-  // No is_default flag anywhere — pick the first available row.
-  return models.find((m) => m.available) ?? models[0] ?? null
+  // No is_default flag anywhere — first available OpenRouter row, else the
+  // first available row of any provider.
+  return models.find((m) => m.available && isOpenRouterRouted(m))
+    ?? models.find((m) => m.available)
+    ?? models[0]
+    ?? null
 }
 
 /**

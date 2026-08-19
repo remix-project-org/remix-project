@@ -43,7 +43,16 @@ import { clearAllQuickDappWorkspaceLocks } from '@remix-ui/helper'
 import { clearAllQuickDappGenerationContexts } from '../../helpers/quickDappGenerationContext'
 import { clearQuickDappDocsContext } from '../../helpers/quickDappDocsContext'
 
-export const notSuitableForCodeGeneration = ['mistral-medium-latest', 'mistral-small-latest', 'ministral-3b', 'ministral-8b-latest']
+/** Model *families* too weak for code generation — subagents fall back to Sonnet.
+ *  Matched as prefixes so both direct ids (`mistral-small-latest`) and
+ *  OpenRouter's `vendor/slug` ids (`mistralai/mistral-small-2603`) hit. */
+export const notSuitableForCodeGeneration = ['mistral-medium', 'mistral-small', 'ministral-3b', 'ministral-8b']
+
+export function isUnsuitableForCodeGeneration(modelId: string): boolean {
+  if (!modelId) return false
+  const slug = modelId.includes('/') ? modelId.slice(modelId.indexOf('/') + 1) : modelId
+  return notSuitableForCodeGeneration.some((family) => slug.startsWith(family))
+}
 
 export class DeepAgentInferencer implements ICompletions, IGeneration {
   private plugin: Plugin
@@ -916,11 +925,13 @@ export class DeepAgentInferencer implements ICompletions, IGeneration {
 
       if (this.config.enableSubagents && this.model) {
         let fallbackModel = this.model
-        if (notSuitableForCodeGeneration.includes(this.modelSelection.modelId)) {
+        if (isUnsuitableForCodeGeneration(this.modelSelection.modelId)) {
           // Route the subagent fallback the same way as the active selection.
           const fallbackSelection: ModelSelection = this.modelSelection.routeProvider === 'bedrock'
             ? { provider: 'anthropic', modelId: 'us.anthropic.claude-sonnet-4-20250514-v1:0', routeProvider: 'bedrock' }
-            : { provider: 'anthropic', modelId: 'claude-sonnet-4-6' }
+            // OpenRouter is the default route, so the fallback uses its
+            // `vendor/slug` id form.
+            : { provider: 'anthropic', modelId: 'anthropic/claude-sonnet-5', routeProvider: 'openrouter' }
           fallbackModel = await createModelInstance(fallbackSelection, DAPP_MAX_TOKENS, this.userApiKeys)
           remixAILogger.log(`[DeepAgentInferencer] Using fallback model ${fallbackSelection.modelId} (route=${fallbackSelection.routeProvider ?? fallbackSelection.provider}) for subagents due to unsuitability of selected model ${this.modelSelection.modelId} for code generation`)
         }
