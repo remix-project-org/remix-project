@@ -91,7 +91,7 @@ export const RemixUITerminalBar = (props: RemixUiTerminalProps) => {
           <>
             {platform === appPlatformTypes.desktop ?
               <div className='d-flex flex-row w-100 justify-content-between align-items-center'>
-                <div className='d-flex flex-row align-items-center'>
+                <div className='d-flex flex-row align-items-center remix_ui_terminal_menu_leftgroup'>
                   {xtermState.showOutput ? <RemixUITerminalMenu {...props} /> : <RemixUIXtermMenu {...props} />}
                 </div>
                 <div className='d-flex flex-row align-items-center remix_ui_terminal_menu_right'>
@@ -102,7 +102,7 @@ export const RemixUITerminalBar = (props: RemixUiTerminalProps) => {
                 </div>
               </div> :
               <div className='d-flex flex-row w-100 justify-content-between align-items-center'>
-                <div className='d-flex flex-row align-items-center'>
+                <div className='d-flex flex-row align-items-center remix_ui_terminal_menu_leftgroup'>
                   <RemixUITerminalMenu {...props} />
                 </div>
                 <div className='d-flex flex-row align-items-center remix_ui_terminal_menu_right'>

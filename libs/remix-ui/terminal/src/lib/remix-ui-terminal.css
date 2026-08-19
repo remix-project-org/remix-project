@@ -23,11 +23,19 @@
   padding: .25em .75em;
   border-bottom: var(--custom-border-light) 1px solid;
 }
+.remix_ui_terminal_menu_leftgroup {
+  min-width: 0;
+  flex: 1 1 auto;
+  overflow: hidden;
+}
 .remix_ui_terminal_menu_left {
   gap: 1rem;
+  min-width: 0;
+  flex: 1 1 auto;
 }
 .remix_ui_terminal_menu_right {
   gap: .75rem;
+  flex-shrink: 0;
 }
 .remix_ui_terminal_toggleTerminal {
   cursor            : pointer;
@@ -75,11 +83,15 @@
   font-family       : monospace;
 }
 .remix_ui_terminal_search {
-  width             : 19rem;
+  flex              : 1 1 auto;
+  min-width         : 4rem;
+  max-width         : 19rem;
   position          : relative;
 }
 .remix_ui_terminal_filter {
   height                      : 80%;
+  width                       : 100%;
+  min-width                   : 0;
   white-space                 : nowrap;
   overflow                    : hidden;
   text-overflow               : ellipsis;
@@ -108,6 +120,7 @@
 
 .remix_ui_terminal_listenOnNetwork {
   min-height: auto;
+  flex-shrink: 0;
 }
 
 .remix_ui_terminal_popup {
