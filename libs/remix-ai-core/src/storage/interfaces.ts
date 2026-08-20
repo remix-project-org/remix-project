@@ -16,6 +16,12 @@ export interface TodoItem {
   status: 'pending' | 'in_progress' | 'completed' | 'failed' | 'stopped'
 }
 
+/** Payload for a generative UI component produced by the render_ui MCP tool */
+export interface GenerativeUIPayload {
+  tree: Record<string, any>
+  title?: string
+}
+
 export interface ChatMessage {
   id: string
   role: 'user' | 'assistant' | 'editor_code_analysis'
@@ -37,6 +43,8 @@ export interface ChatMessage {
   streamingSubagentName?: string
   /** Post-update review data for DApp updates */
   dappUpdateReview?: DAppUpdateReview
+  /** Generative UI component tree rendered inline by the render_ui MCP tool */
+  uiComponent?: GenerativeUIPayload
 }
 
 /**
