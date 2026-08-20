@@ -1,7 +1,7 @@
 /* Feature Badges in User Menu */
 
 .feature-badges-section {
-  padding: 8px 12px;
+  padding: 12px;
 }
 
 .feature-badges-header {
@@ -29,15 +29,14 @@
   font-size: 0.7rem;
   font-weight: 600;
   letter-spacing: 0.03em;
-  color: #2fbfb1;
+  color: var(--custom-primary);
   cursor: pointer;
   border-radius: 4px;
   transition: color 0.15s ease, background 0.15s ease, gap 0.15s ease;
 }
 
 .feature-badges-manage:hover {
-  color: #5fd9c9;
-  background: rgba(47, 191, 177, 0.1);
+  background: color-mix(in srgb, var(--custom-primary) 12%, transparent);
   gap: 8px;
 }
 

@@ -897,7 +897,7 @@ export function RemixUiTopbar() {
           className="d-flex flex-row align-items-center justify-content-end flex-nowrap"
           style={{ flex: '0 0 auto', whiteSpace: 'nowrap' }}
         >
-          <div className="d-flex flex-row align-items-center flex-nowrap" style={{ whiteSpace: 'nowrap' }}>
+          <div className="d-flex flex-row align-items-center gap-2 flex-nowrap" style={{ whiteSpace: 'nowrap' }}>
             {showLoginUI && (
               <LoginButton
                 plugin={plugin}
@@ -911,27 +911,29 @@ export function RemixUiTopbar() {
             )}
             <CustomTooltip placement="bottom" tooltipText="Check out the features in Remix Pro : Security & Gas Audits, the Code Helper, Web3 API connectors (the Graph, Etherscan, Alchemy) and more!">
               <span
-                className="btn btn-sm btn-warning d-flex align-items-center gap-1 ms-3 text-nowrap"
-                style={{ cursor: 'pointer', padding: '0.25rem 0.6rem' }}
+                className="btn btn-sm d-flex align-items-center gap-1 text-nowrap"
+                style={{ cursor: 'pointer', padding: '0.25rem 0.6rem' , border: "1px solid color-mix(in srgb, var(--custom-primary) 64%, transparent)", color: 'var(--custom-primary)', fontSize:"12px", fontWeight:'700', lineHeight:'normal'}}
                 onClick={() => {
                   try { plugin.call('planManager', 'open', 'plans') } catch { /* plugin not ready */ }
-                  trackMatomoEvent({ category: 'topbar', action: 'upgrade', name: 'SeePlans', isClick: true })
+                  trackMatomoEvent({ category: 'topbar', action: 'upgrade', name: 'Upgrade', isClick: true })
                 }}
                 data-id="topbar-upgradeBtn"
               >
-                {!compactRightLabels ? <span>See Plans</span> : <span>Plans</span>}
+                {/* <i className="fas fa-layer-group"></i> */}
+                <span>Upgrade</span>
               </span>
             </CustomTooltip>
             <CustomTooltip placement="bottom" tooltipText="Use RemixAI for editing contracts, code analysis, deployments and more!">
               <span
-                className="btn btn-sm btn-warning d-flex align-items-center gap-1 ms-3 text-nowrap"
+                className="btn btn-sm btn-ai d-flex align-items-center gap-1 text-nowrap"
                 style={{ cursor: 'pointer', padding: '0.25rem 0.6rem' }}
                 onClick={() => {
                   try { plugin.call('planManager', 'open', 'topup') } catch { /* plugin not ready */ }
                   trackMatomoEvent({ category: 'topbar', action: 'upgrade', name: 'GetAICredits', isClick: true })
                 }}
-                data-id="topbar-upgradeBtn"
+                data-id="topbar-aiCreditsBtn"
               >
+                <img src="assets/img/remixAI_small.svg" alt="Remix AI" className="topbar-ai-credits-icon" />
                 {!compactRightLabels ? <span>Get AI Credits</span> : <span>AI Credits</span>}
               </span>
             </CustomTooltip>

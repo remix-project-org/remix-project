@@ -5,7 +5,7 @@ import type { Credits } from '../../../app/src/lib/remix-app/context/auth-contex
 import { useAuth } from '../../../app/src/lib/remix-app/context/auth-context'
 import { ToggleSwitch } from '@remix-ui/toggle'
 import { AppContext } from '@remix-ui/app'
-import { FeatureBadges } from './feature-badges'
+import { FeatureBadges, BADGE_CONFIG, getDefaultBadgeConfig } from './feature-badges'
 import './user-menu-compact.css'
 
 interface Theme {
@@ -78,8 +78,19 @@ export const UserMenuCompact: React.FC<UserMenuCompactProps> = ({
   }
 
   const hasBeta = featureGroups?.some(fg => fg.name === 'beta')
+  // The plan tag mirrors the "Your Plan" badges in the dropdown (feature-badges.tsx),
+  // narrowed to the group representing the actual plan tier rather than an addon.
+  // `source_type` turned out not to distinguish these (both a paid plan and a beta
+  // grant can be `admin_grant`) — real data shows the plan tier instead carries a
+  // higher `priority` than addon grants (e.g. 'beta' is priority 5, a granted 'pro'
+  // plan is priority 15), so: drop 'beta' (already called out separately above),
+  // then take the highest-priority group left, if any.
+  const planGroup = featureGroups
+    ?.filter(fg => fg.name !== 'beta')
+    ?.sort((a, b) => (b.priority ?? 0) - (a.priority ?? 0))[0]
+  const planBadgeConfig = planGroup && (BADGE_CONFIG[planGroup.name] || getDefaultBadgeConfig(planGroup.name))
   const buttonClass = `btn btn-sm d-flex flex-nowrap align-items-center user-menu-compact-button ${
-    hasBeta ? 'user-menu-compact-button--beta' : 'btn-success'
+    hasBeta ? 'user-menu-compact-button--beta' : ''
   }`
 
   return (
@@ -111,6 +122,12 @@ export const UserMenuCompact: React.FC<UserMenuCompactProps> = ({
         )}
         {hasBeta && (
           <span className="user-menu-compact-beta-tag">BETA</span>
+        )}
+        {planGroup && planBadgeConfig && (
+          <span className={`feature-badge user-menu-compact-plan-tag ${planBadgeConfig.colorClass}`}>
+            {/* <i className={`${planBadgeConfig.icon} feature-badge-icon`}></i> */}
+            <span className="feature-badge-name" style={{fontSize:"10px", fontWeight:'700', lineHeight:'normal'}}>{planGroup.display_name}</span>
+          </span>
         )}
       </button>
       {showDropdown && (

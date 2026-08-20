@@ -98,6 +98,11 @@
   cursor: pointer;
 }
 
+.topbar-ai-credits-icon {
+  width: 12px;
+  height: 12px;
+}
+
 .top-bar-dropdownItem:hover {
   color: var(--text);
 }
