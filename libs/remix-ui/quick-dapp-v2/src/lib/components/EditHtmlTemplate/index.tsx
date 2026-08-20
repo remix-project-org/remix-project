@@ -2,6 +2,7 @@
 import React, { useContext, useState, useEffect, useRef, useCallback } from 'react';
 import { Button, Row, Col, Card, Modal } from 'react-bootstrap';
 import { FormattedMessage, useIntl } from 'react-intl';
+import isElectron from 'is-electron';
 import { toPng } from 'html-to-image';
 import { AppContext } from '../../contexts';
 import DeployPanel from '../DeployPanel';
@@ -23,6 +24,8 @@ interface PreviewIssue {
   type: 'runtime' | 'build' | 'preview'
   message: string
 }
+
+type DesktopWalletPreviewStatus = 'checking' | 'ready' | 'select-browser-wallet' | 'browser-disconnected';
 
 export const readDappFiles = async (
   plugin: any,
@@ -436,6 +439,65 @@ window.addEventListener('unhandledrejection', function(e) {
     window.__remixVMUpdateAccounts = function(accounts) {
       return setAccounts(accounts, true);
     };
+  } else if (parent.__quickDappDesktopWalletBridge) {
+    var _desktopListeners = {};
+    function emitDesktopEvent(event, payload) {
+      (_desktopListeners[event] || []).slice().forEach(function(cb) {
+        try { cb(payload); } catch (e) { setTimeout(function() { throw e; }, 0); }
+      });
+    }
+    function syncDesktopProvider(method, result) {
+      if (method === 'eth_accounts' || method === 'eth_requestAccounts') {
+        window.ethereum.selectedAddress = result && result[0] ? result[0] : null;
+      }
+      if (method === 'eth_chainId') {
+        window.ethereum.chainId = result || null;
+      }
+      return result;
+    }
+    window.ethereum = {
+      isMetaMask: false,
+      isRemixDesktop: true,
+      chainId: null,
+      selectedAddress: null,
+      request: function(args) {
+        return parent.__quickDappDesktopWalletBridge.request(args).then(function(result) {
+          return syncDesktopProvider(args && args.method, result);
+        });
+      },
+      send: function(method, params) {
+        var requestArgs = typeof method === 'object' ? method : { method: method, params: params || [] };
+        return parent.__quickDappDesktopWalletBridge.request(requestArgs).then(function(result) {
+          return syncDesktopProvider(requestArgs && requestArgs.method, result);
+        });
+      },
+      on: function(event, cb) {
+        if (!_desktopListeners[event]) _desktopListeners[event] = [];
+        _desktopListeners[event].push(cb);
+        return this;
+      },
+      removeListener: function(event, cb) {
+        if (_desktopListeners[event]) {
+          _desktopListeners[event] = _desktopListeners[event].filter(function(listener) { return listener !== cb; });
+        }
+        return this;
+      },
+      removeAllListeners: function() { _desktopListeners = {}; return this; }
+    };
+    window.__quickDappDesktopWalletUpdate = function(update) {
+      if (update && update.accounts) {
+        window.ethereum.selectedAddress = update.accounts[0] || null;
+        emitDesktopEvent('accountsChanged', update.accounts);
+      }
+      if (update && update.chainId && update.chainId !== window.ethereum.chainId) {
+        window.ethereum.chainId = update.chainId;
+        emitDesktopEvent('chainChanged', update.chainId);
+      }
+      if (update && update.disconnected) {
+        window.ethereum.selectedAddress = null;
+        emitDesktopEvent('disconnect', { code: 4900, message: 'Browser Wallet disconnected.' });
+      }
+    };
   } else if (parent.window && parent.window.ethereum) {
     window.ethereum = parent.window.ethereum;
   }
@@ -825,6 +887,113 @@ window.addEventListener('unhandledrejection', function(e) {
   const dappNetworkLabel = isGraphOnly ? 'The Graph' : activeDapp?.contract?.networkName || 'Unknown Network';
   const [isCurrentProviderVM, setIsCurrentProviderVM] = useState(false);
   const [vmContractStatus, setVmContractStatus] = useState<'checking' | 'deployed' | 'not-found'>('checking');
+  const isDesktopWalletPreview = isElectron() && !isVM && !isGraphOnly && !!activeDapp?.contract;
+  const [desktopWalletStatus, setDesktopWalletStatus] = useState<DesktopWalletPreviewStatus>('checking');
+
+  // Desktop has no injected provider in the renderer. Keep its Browser Wallet bridge scoped to this preview.
+  useEffect(() => {
+    if (!isDesktopWalletPreview || !plugin) {
+      setDesktopWalletStatus('checking');
+      return;
+    }
+
+    let isMounted = true;
+
+    const setStatus = (status: DesktopWalletPreviewStatus) => {
+      if (isMounted) setDesktopWalletStatus(status);
+    };
+
+    const getDesktopWalletStatus = async (): Promise<DesktopWalletPreviewStatus> => {
+      const provider = await plugin.call('blockchain', 'getProvider');
+      if (provider !== 'desktopHost') return 'select-browser-wallet';
+
+      const connected = await plugin.call('desktopHost', 'getIsConnected').catch(() => false);
+      return connected ? 'ready' : 'browser-disconnected';
+    };
+
+    const refreshStatus = async () => {
+      try {
+        setStatus(await getDesktopWalletStatus());
+      } catch (e) {
+        setStatus('browser-disconnected');
+      }
+    };
+
+    const bridge = {
+      request: async ({ method, params }: { method: string; params?: any[] }) => {
+        if (!method || typeof method !== 'string') {
+          throw new Error('A valid wallet RPC method is required.');
+        }
+
+        const status = await getDesktopWalletStatus();
+        setStatus(status);
+
+        if (status === 'select-browser-wallet') {
+          const error: any = new Error('Select Browser Wallet in Deploy & Run to use the wallet in Desktop Preview.');
+          error.code = 4900;
+          throw error;
+        }
+        if (status !== 'ready') {
+          const error: any = new Error('Open Browser Wallet in Deploy & Run and complete the connection in your browser.');
+          error.code = 4900;
+          throw error;
+        }
+
+        return plugin.call('blockchain', 'sendRpc', method, params || []);
+      }
+    };
+
+    (window as any).__quickDappDesktopWalletBridge = bridge;
+
+    const notifyIframe = (update: { accounts?: string[]; chainId?: string; disconnected?: boolean }) => {
+      const updateWallet = (iframeRef.current?.contentWindow as any)?.__quickDappDesktopWalletUpdate;
+      if (typeof updateWallet === 'function') updateWallet(update);
+    };
+
+    const refreshIframeWallet = async () => {
+      let status: DesktopWalletPreviewStatus;
+      try {
+        status = await getDesktopWalletStatus();
+        setStatus(status);
+      } catch (e) {
+        setStatus('browser-disconnected');
+        return;
+      }
+      if (!isMounted || status !== 'ready') return;
+
+      try {
+        const [accounts, chainId] = await Promise.all([
+          plugin.call('blockchain', 'sendRpc', 'eth_accounts'),
+          plugin.call('blockchain', 'sendRpc', 'eth_chainId')
+        ]);
+        if (isMounted) notifyIframe({ accounts: Array.isArray(accounts) ? accounts : [], chainId });
+      } catch (e) {
+        // The next wallet request will surface the actionable connection error.
+      }
+    };
+
+    const onDisconnected = () => {
+      setStatus('browser-disconnected');
+      notifyIframe({ disconnected: true });
+    };
+
+    refreshStatus();
+    plugin.on('blockchain', 'contextChanged', refreshIframeWallet);
+    plugin.on('blockchain', 'networkStatus', refreshIframeWallet);
+    plugin.on('desktopHost', 'accountsChanged', refreshIframeWallet);
+    plugin.on('desktopHost', 'disconnected', onDisconnected);
+
+    return () => {
+      isMounted = false;
+      try { plugin.off('blockchain', 'contextChanged', refreshIframeWallet); } catch (e) {}
+      try { plugin.off('blockchain', 'networkStatus', refreshIframeWallet); } catch (e) {}
+      try { plugin.off('desktopHost', 'accountsChanged', refreshIframeWallet); } catch (e) {}
+      try { plugin.off('desktopHost', 'disconnected', onDisconnected); } catch (e) {}
+      if ((window as any).__quickDappDesktopWalletBridge === bridge) {
+        delete (window as any).__quickDappDesktopWalletBridge;
+      }
+    };
+  }, [isDesktopWalletPreview, plugin, activeDapp?.slug]);
 
   useEffect(() => {
     if (isBuilderReady && activeDapp && !isAiUpdating) {
@@ -1209,6 +1378,18 @@ window.addEventListener('unhandledrejection', function(e) {
                           <i className="fas fa-info-circle me-1"></i>
                           VM data is not permanently stored. Clearing browser data or switching workspaces may reset the VM state.
                         </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {isDesktopWalletPreview && desktopWalletStatus !== 'ready' && (
+                    <div className="alert alert-info py-2 px-3 mb-2 small shadow-sm d-flex align-items-start" data-id="desktop-wallet-preview-banner">
+                      <i className={`fas ${desktopWalletStatus === 'checking' ? 'fa-spinner fa-spin' : 'fa-wallet'} me-2 mt-1`}></i>
+                      <div>
+                        <div className="fw-bold mb-1">Desktop Preview Wallet</div>
+                        {desktopWalletStatus === 'checking' && 'Checking Browser Wallet connection...'}
+                        {desktopWalletStatus === 'select-browser-wallet' && 'Select Browser Wallet in Deploy & Run to test wallet actions in this preview.'}
+                        {desktopWalletStatus === 'browser-disconnected' && 'Open Browser Wallet in Deploy & Run, then complete the wallet connection in your browser.'}
                       </div>
                     </div>
                   )}
