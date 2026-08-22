@@ -909,34 +909,38 @@ export function RemixUiTopbar() {
                 publishToGist={publishToGist}
               />
             )}
-            <CustomTooltip placement="bottom" tooltipText="Check out the features in Remix Pro : Security & Gas Audits, the Code Helper, Web3 API connectors (the Graph, Etherscan, Alchemy) and more!">
-              <span
-                className="btn btn-sm d-flex align-items-center gap-1 text-nowrap"
-                style={{ cursor: 'pointer', padding: '0.25rem 0.6rem' , border: "1px solid color-mix(in srgb, var(--custom-primary) 64%, transparent)", color: 'var(--custom-primary)', fontSize:"12px", fontWeight:'700', lineHeight:'normal'}}
-                onClick={() => {
-                  try { plugin.call('planManager', 'open', 'plans') } catch { /* plugin not ready */ }
-                  trackMatomoEvent({ category: 'topbar', action: 'upgrade', name: 'Upgrade', isClick: true })
-                }}
-                data-id="topbar-upgradeBtn"
-              >
-                {/* <i className="fas fa-layer-group"></i> */}
-                <span>Upgrade</span>
-              </span>
-            </CustomTooltip>
-            <CustomTooltip placement="bottom" tooltipText="Use RemixAI for editing contracts, code analysis, deployments and more!">
-              <span
-                className="btn btn-sm btn-ai d-flex align-items-center gap-1 text-nowrap"
-                style={{ cursor: 'pointer', padding: '0.25rem 0.6rem' }}
-                onClick={() => {
-                  try { plugin.call('planManager', 'open', 'topup') } catch { /* plugin not ready */ }
-                  trackMatomoEvent({ category: 'topbar', action: 'upgrade', name: 'GetAICredits', isClick: true })
-                }}
-                data-id="topbar-aiCreditsBtn"
-              >
-                <img src="assets/img/remixAI_small.svg" alt="Remix AI" className="topbar-ai-credits-icon" />
-                {!compactRightLabels ? <span>Get AI Credits</span> : <span>AI Credits</span>}
-              </span>
-            </CustomTooltip>
+            {isAuthenticated && (
+              <>
+                <CustomTooltip placement="bottom" tooltipText="Check out the features in Remix Pro : Security & Gas Audits, the Code Helper, Web3 API connectors (the Graph, Etherscan, Alchemy) and more!">
+                  <span
+                    className="btn btn-sm d-flex align-items-center gap-1 text-nowrap"
+                    style={{ cursor: 'pointer', padding: '0.25rem 0.6rem' , border: "1px solid color-mix(in srgb, var(--custom-primary) 64%, transparent)", color: 'var(--custom-primary)', fontSize:"12px", fontWeight:'700', lineHeight:'normal'}}
+                    onClick={() => {
+                      try { plugin.call('planManager', 'open', 'plans') } catch { /* plugin not ready */ }
+                      trackMatomoEvent({ category: 'topbar', action: 'upgrade', name: 'Upgrade', isClick: true })
+                    }}
+                    data-id="topbar-upgradeBtn"
+                  >
+                    {/* <i className="fas fa-layer-group"></i> */}
+                    <span>Upgrade</span>
+                  </span>
+                </CustomTooltip>
+                <CustomTooltip placement="bottom" tooltipText="Use RemixAI for editing contracts, code analysis, deployments and more!">
+                  <span
+                    className="btn btn-sm btn-ai d-flex align-items-center gap-1 text-nowrap"
+                    style={{ cursor: 'pointer', padding: '0.25rem 0.6rem' }}
+                    onClick={() => {
+                      try { plugin.call('planManager', 'open', 'topup') } catch { /* plugin not ready */ }
+                      trackMatomoEvent({ category: 'topbar', action: 'upgrade', name: 'GetAICredits', isClick: true })
+                    }}
+                    data-id="topbar-aiCreditsBtn"
+                  >
+                    <img src="assets/img/remixAI_small.svg" alt="Remix AI" className="topbar-ai-credits-icon" />
+                    {!compactRightLabels ? <span>Get AI Credits</span> : <span>AI Credits</span>}
+                  </span>
+                </CustomTooltip>
+              </>
+            )}
           </div>
           {showJoinBetaTopButton && <BetaPromoPill plugin={plugin} />}
           <CartButton />
