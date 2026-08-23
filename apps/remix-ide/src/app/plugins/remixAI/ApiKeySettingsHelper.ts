@@ -66,9 +66,9 @@ export class ApiKeySettingsHelper {
       const hasPermission = await this.canUseOwnApiKeys()
 
       // Read settings via plugin calls (parallel for performance). We read the
-      // Bedrock API key regardless of `hasPermission`: a present key means the
-      // user wants direct access, which must be honoured. When absent, Bedrock
-      // falls back to the Remix proxy (handled in the ModelFactory). The
+      // Bedrock API key regardless of `hasPermission`: Bedrock is BYOK-only —
+      // the Remix proxy no longer fronts it — so the user's own key is the only
+      // way to reach it, and without one its models are not offered at all. The
       // permission flag only governs own-key access on the proxy-backed
       // providers below.
       const [
@@ -120,8 +120,8 @@ export class ApiKeySettingsHelper {
    */
   async isUsingOwnApiKeyForProvider(provider: string): Promise<boolean> {
     try {
-      // A present Bedrock API key means direct ("own key") access, independent
-      // of the proxy-vs-own-key toggle; without one we route through the proxy.
+      // Bedrock is always own-key: it has no proxy route, so a stored token is
+      // the only way it runs, independent of the proxy-vs-own-key toggle.
       if (provider === 'bedrock') {
         return !!(await this.getSetting('deepagent-bedrock-bearer-token'))
       }

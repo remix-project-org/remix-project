@@ -137,6 +137,7 @@ export const HandleOpenAIResponse = async (aiResponse: IAIStreamResponse | any, 
   let inThinking = false;
   const toolCalls: Map<number, any> = new Map(); // Accumulate tool calls by index
   const usage: any = null; // Track token usage
+  let settled = false;
 
   if (!reader) { // normal response, not a stream
     if (streamResponse.result) {
@@ -163,7 +164,7 @@ export const HandleOpenAIResponse = async (aiResponse: IAIStreamResponse | any, 
       const { done, value } = await reader.read();
       if (done) break;
 
-      buffer = decoder.decode(value, { stream: true });
+      buffer += decoder.decode(value, { stream: true });
 
       const lines = buffer.split("\n");
       buffer = lines.pop() ?? ""; // Keep the unfinished line for next chunk
@@ -181,6 +182,7 @@ export const HandleOpenAIResponse = async (aiResponse: IAIStreamResponse | any, 
               trackTokenUsage(usage, 'openai', modelId);
               done_cb?.(resultText, threadId);
             }
+            settled = true;
             return;
           }
 
@@ -235,6 +237,7 @@ export const HandleOpenAIResponse = async (aiResponse: IAIStreamResponse | any, 
                 }
               }
               cb("\n\n");
+              settled = true; // the recursive call owns done_cb from here
               HandleOpenAIResponse(response, cb, done_cb)
               return;
             }
@@ -295,6 +298,11 @@ export const HandleOpenAIResponse = async (aiResponse: IAIStreamResponse | any, 
       remixAILogger.error('Error processing OpenAI stream:', error);
     }
   }
+
+  if (!settled && !abortSignal?.aborted) {
+    trackTokenUsage(usage, 'openai', modelId);
+    done_cb?.(resultText, threadId);
+  }
 }
 
 export const HandleMistralAIResponse = async (aiResponse: IAIStreamResponse | any, cb: (streamText: string) => void, done_cb?: (result: string, thrID:string) => void) => {
@@ -310,6 +318,8 @@ export const HandleMistralAIResponse = async (aiResponse: IAIStreamResponse | an
   let threadId: string = ""
   let resultText = "";
   let usage: any = null; // Track token usage
+  // See HandleOpenAIResponse — guarantees done_cb fires exactly once.
+  let settled = false;
 
   if (!reader) { // normal response, not a stream
     if (streamResponse.result) {
@@ -335,15 +345,18 @@ export const HandleMistralAIResponse = async (aiResponse: IAIStreamResponse | an
       const { done, value } = await reader.read();
       if (done) break;
 
-      buffer = decoder.decode(value, { stream: true });
+      // Accumulate and keep the trailing partial line for the next read.
+      buffer += decoder.decode(value, { stream: true });
 
       const lines = buffer.split("\n");
+      buffer = lines.pop() ?? "";
       for (const line of lines) {
         if (line.startsWith("data: ")) {
           const jsonStr = line.replace(/^data: /, "").trim();
           if (jsonStr === "[DONE]") {
             trackTokenUsage(usage, 'mistralai', modelId);
             done_cb?.(resultText, threadId);
+            settled = true;
             return;
           }
 
@@ -361,7 +374,10 @@ export const HandleMistralAIResponse = async (aiResponse: IAIStreamResponse | an
               usage = json.usage;
             }
 
-            if (json.choices[0].delta.tool_calls && tool_callback){
+            // Optional chaining: OpenRouter emits chunks that carry no
+            // `choices` (routing/usage frames). `json.choices[0]` threw on
+            // those and the catch below aborted the whole stream.
+            if (json.choices?.[0]?.delta?.tool_calls && tool_callback){
               const toolCalls = json.choices[0].delta.tool_calls;
               const response = await tool_callback(toolCalls, uiToolCallback)
 
@@ -374,8 +390,9 @@ export const HandleMistralAIResponse = async (aiResponse: IAIStreamResponse | an
                   response.abortSignal = abortSignal;
                 }
               }
+              settled = true; // the recursive call owns done_cb from here
               HandleMistralAIResponse(response, cb, done_cb)
-            } else if (json.choices[0].delta.content){
+            } else if (json.choices?.[0]?.delta?.content){
               const content = json.choices[0].delta.content
               cb(content);
               resultText += content;
@@ -398,6 +415,12 @@ export const HandleMistralAIResponse = async (aiResponse: IAIStreamResponse | an
       remixAILogger.error('Error processing MistralAI stream:', error);
     }
   }
+
+  // No `[DONE]` frame — settle so the UI stops streaming (see OpenAI handler).
+  if (!settled && !abortSignal?.aborted) {
+    trackTokenUsage(usage, 'mistralai', modelId);
+    done_cb?.(resultText, threadId);
+  }
 }
 
 export const HandleAnthropicResponse = async (aiResponse: IAIStreamResponse | any, cb: (streamText: string) => void, done_cb?: (result: string, thrID:string) => void, thinking_cb?: (isThinking: boolean) => void) => {
@@ -415,6 +438,8 @@ export const HandleAnthropicResponse = async (aiResponse: IAIStreamResponse | an
   const toolUseBlocks: Map<number, any> = new Map();
   let currentBlockIndex: number = -1;
   let usage: any = null; // Track token usage
+  // See HandleOpenAIResponse — guarantees done_cb fires exactly once.
+  let settled = false;
 
   if (!reader) { // normal response, not a stream
     if (streamResponse.result) {
@@ -440,7 +465,9 @@ export const HandleAnthropicResponse = async (aiResponse: IAIStreamResponse | an
       const { done, value } = await reader.read();
       if (done) break;
 
-      buffer = decoder.decode(value, { stream: true });
+      // Append — see HandleOpenAIResponse: overwriting drops the carried-over
+      // partial line and silently loses whatever event it belonged to.
+      buffer += decoder.decode(value, { stream: true });
       const lines = buffer.split("\n");
       buffer = lines.pop() ?? ""; // Keep the unfinished line for next chunk
       for (const line of lines) {
@@ -461,6 +488,7 @@ export const HandleAnthropicResponse = async (aiResponse: IAIStreamResponse | an
             if (json.type === "message_stop"){
               trackTokenUsage(usage, 'anthropic', modelId);
               done_cb?.(resultText, "");
+              settled = true;
               return;
             }
 
@@ -505,6 +533,7 @@ export const HandleAnthropicResponse = async (aiResponse: IAIStreamResponse | an
                   }
                 }
                 cb("\n\n");
+                settled = true; // the recursive call owns done_cb from here
                 HandleAnthropicResponse(response, cb, done_cb)
                 return;
               }
@@ -551,6 +580,12 @@ export const HandleAnthropicResponse = async (aiResponse: IAIStreamResponse | an
       remixAILogger.error('Error processing Anthropic stream:', error);
     }
   }
+
+  // No `message_stop` frame — settle so the UI stops streaming.
+  if (!settled && !abortSignal?.aborted) {
+    trackTokenUsage(usage, 'anthropic', modelId);
+    done_cb?.(resultText, "");
+  }
 }
 
 export const HandleOllamaResponse = async (aiResponse: IAIStreamResponse | any, cb: (streamText: string) => void, done_cb?: (result: string) => void, reasoning_cb?: (result: string) => void, thinking_cb?: (isThinking: boolean) => void) => {
@@ -562,6 +597,7 @@ export const HandleOllamaResponse = async (aiResponse: IAIStreamResponse | any, 
   const modelId = aiResponse?.modelId
   const reader = streamResponse.body?.getReader();
   const decoder = new TextDecoder("utf-8");
+  let buffer = "";
   let resultText = "";
   let inThinking = false;
   let usage: any = null; // Track token usage
@@ -591,8 +627,12 @@ export const HandleOllamaResponse = async (aiResponse: IAIStreamResponse | any, 
       const { done, value } = await reader.read();
       if (done) break;
 
-      const chunk = decoder.decode(value, { stream: true });
-      const lines = chunk.split('\n').filter(line => line.trim());
+      // NDJSON: keep the trailing partial line for the next read, otherwise a
+      // split line throws in JSON.parse and kills the stream mid-answer.
+      buffer += decoder.decode(value, { stream: true });
+      const rawLines = buffer.split('\n');
+      buffer = rawLines.pop() ?? "";
+      const lines = rawLines.filter(line => line.trim());
 
       for (const line of lines) {
         try {

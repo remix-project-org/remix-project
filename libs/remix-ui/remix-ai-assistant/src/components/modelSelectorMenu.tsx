@@ -75,6 +75,11 @@ const providerIcon = (provider: string): React.ReactNode => {
 /** The anonymous sign-in placeholder is rendered ungrouped (like Auto Mode). */
 const isSignInModel = (model: AIModel) => model.id === '__signin__'
 
+const isAutoModel = (model: AIModel) => {
+  const id = model.id.toLowerCase()
+  return id === 'auto' || id === 'openrouter/auto' || id.endsWith('/auto')
+}
+
 /** Map an AIModel to the row shape consumed by GroupListMenu. */
 const toRow = (model: AIModel): groupListType => {
   const key = modelKey(model)
@@ -160,12 +165,18 @@ export default function ModelSelectorMenu(props: ModelSelectorMenuProps) {
     [props.availableModels]
   )
 
+  // The OpenRouter auto entry, hoisted out of its provider group.
+  const autoModel = useMemo(
+    () => props.availableModels.find(m => !isSignInModel(m) && isAutoModel(m)),
+    [props.availableModels]
+  )
+
   // Group the remaining models by provider, ordered by the lowest sortOrder in
   // each group (keeps the backend's ordering intent; Ollama's 1000 lands last).
   const groups = useMemo<ProviderGroup[]>(() => {
     const byProvider = new Map<string, AIModel[]>()
     for (const model of props.availableModels) {
-      if (isSignInModel(model)) continue
+      if (isSignInModel(model) || isAutoModel(model)) continue
       const list = byProvider.get(model.provider) ?? []
       list.push(model)
       byProvider.set(model.provider, list)
@@ -181,13 +192,15 @@ export default function ModelSelectorMenu(props: ModelSelectorMenuProps) {
 
   const selectedModel = useMemo(() => {
     if (!props.currentChoice || props.currentChoice === 'auto') return undefined
-    return props.availableModels.find(m => !isSignInModel(m) && modelKey(m) === props.currentChoice)
+    return props.availableModels.find(m => !isSignInModel(m) && !isAutoModel(m) && modelKey(m) === props.currentChoice)
   }, [props.availableModels, props.currentChoice])
   const selectedProvider = selectedModel?.provider
 
-  // Accordion: at most one provider is open at a time, so expanding one
-  // collapses whichever was open before.
-  const [expanded, setExpanded] = useState<string | null>(() => selectedProvider ?? groups[0]?.provider ?? null)
+  const [expanded, setExpanded] = useState<string | null>(selectedProvider ?? null)
+
+  useEffect(() => {
+    setExpanded(selectedProvider ?? null)
+  }, [selectedProvider])
 
   const toggle = (provider: string) => {
     setExpanded(prev => (prev === provider ? null : provider))
@@ -220,14 +233,10 @@ export default function ModelSelectorMenu(props: ModelSelectorMenuProps) {
     onBuyCreditsClick: props.onBuyCreditsClick
   }
 
-  const autoModeRow: groupListType = {
-    label: 'Auto Mode',
-    bodyText: 'Automatically select the best model based on your prompt',
-    icon: 'fa-solid fa-magic-wand-sparkles',
-    stateValue: 'auto',
-    dataId: 'ai-model-auto',
-    isLocked: false
-  }
+  const autoValue = autoModel ? modelKey(autoModel) : 'auto'
+  const showAutoRow = !!autoModel || props.autoModeAvailable
+  const autoSelected = props.currentChoice === autoValue || props.autoModeEnabled
+  const autoDescription = autoModel?.description || 'Automatically select the best model based on your prompt'
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Escape') {
@@ -266,15 +275,44 @@ export default function ModelSelectorMenu(props: ModelSelectorMenuProps) {
           Overflow stays reachable (wheel/trackpad) but paints no chrome — see
           .rai-model-scroll in remix-ai-assistant.css. */}
       <div className="rai-model-scroll" style={{ flex: '1 1 auto', minHeight: 0 }}>
-        {/* Ungrouped rows (Auto Mode + sign-in placeholder) */}
-        {(props.autoModeAvailable || signInModels.length > 0) && !normalizedQuery && (
-          <GroupListMenu
-            {...groupListProps}
-            groupList={[
-              ...(props.autoModeAvailable ? [autoModeRow] : []),
-              ...signInModels.map(toRow)
-            ]}
-          />
+        {/* Auto Mode is the first entry of the list, sitting at the same level
+            as the provider headers. It sticks to the top so it stays visible
+            while the list scrolls, and is highlighted as the recommended pick. */}
+        {showAutoRow && (
+          <button
+            type="button"
+            className="btn border-0 w-100 d-flex align-items-center justify-content-between py-2 rai-auto-row"
+            data-id="ai-model-auto"
+            data-selected={autoSelected ? 'true' : 'false'}
+            onClick={() => {
+              props.setShowOptions(false)
+              props.setChoice(autoValue)
+            }}
+          >
+            <span className="d-flex align-items-center text-start">
+              <span
+                className="me-2 d-inline-flex align-items-center justify-content-center rai-auto-icon"
+                style={{ width: '1.1rem', fontSize: '0.95rem' }}
+              >
+                <i className="fa-solid fa-magic-wand-sparkles"></i>
+              </span>
+              <span className="d-flex flex-column">
+                <span className="d-flex align-items-center">
+                  <span className="fw-bold small rai-auto-title">Auto Mode</span>
+                  <span className="badge ms-2 rai-auto-badge">Recommended</span>
+                </span>
+                <span className="text-wrap rai-auto-subtitle" style={{ fontSize: '0.7rem' }}>
+                  {autoDescription}
+                </span>
+              </span>
+            </span>
+            {autoSelected && <i className="fa-solid fa-check rai-auto-title"></i>}
+          </button>
+        )}
+
+        {/* Sign-in placeholder */}
+        {signInModels.length > 0 && !normalizedQuery && (
+          <GroupListMenu {...groupListProps} groupList={signInModels.map(toRow)} />
         )}
 
         {normalizedQuery && !groups.some(g => g.models.some(matchesQuery)) && (

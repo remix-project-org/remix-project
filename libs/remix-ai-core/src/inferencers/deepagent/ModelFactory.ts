@@ -10,7 +10,7 @@ import { HTTPClient } from '@mistralai/mistralai/lib/http.js'
 import { endpointUrls } from '@remix-endpoints-helper'
 import { ModelSelection, IUserApiKeyConfig } from '../../types/deepagent'
 import { DAPP_MAX_TOKENS } from './constants'
-import { getRemixAuthHeader, getRemixAccessToken } from '../auth'
+import { getRemixAuthHeader } from '../auth'
 import { discoverOllamaHost, getBestAvailableModel, getModelCapabilities } from '../local/ollama'
 
 const AI_DEBUG = (() => {
@@ -444,6 +444,10 @@ export async function createModelInstance(
         temperature: 0.7,
         maxTokens: maxTokens,
         maxRetries: 0,
+        modelKwargs: {
+          usage: { include: true },
+          include_reasoning: true
+        }
       }), `openrouter/${modelId}`)
     }
     // No key → route through the Remix proxy (OpenAI-compatible endpoint).
@@ -462,32 +466,22 @@ export async function createModelInstance(
   }
 
   case 'bedrock': {
+    // AWS Bedrock is BYOK-only — the Remix proxy no longer fronts it. Without
+    // the user's own bearer token there is no route to build, and the picker
+    // hides Bedrock models until that token is set (see `hasBedrockApiKey`),
+    // so reaching here without one means a stale selection.
     const bedrockBearerToken = userApiKeys?.bedrockBearerToken?.trim()
+    if (!bedrockBearerToken) {
+      throw new Error('[ModelFactory] AWS Bedrock requires your own Bedrock API key. Add it under Settings → RemixAI Assistant → Bring Your Own API Keys.')
+    }
     const region = DEFAULT_BEDROCK_REGION
     const bedrockModelId = resolveBedrockModelId(modelId, region)
-    const useDirectApi = !!bedrockBearerToken
 
-    if (useDirectApi) {
-      remixAILogger.log(`[ModelFactory] Creating AWS Bedrock model: ${bedrockModelId} @ ${region} (direct API)`)
-      return wrapModelForDebug(patchBedrockBindTools(new ChatBedrockConverse({
-        model: bedrockModelId,
-        region,
-        bedrockBearerToken,
-      })), `bedrock/${bedrockModelId}`)
-    }
-
-    // Proxy mode: no user-provided key. Route the Bedrock Converse calls through
-    const remixToken = getRemixAccessToken()
-    if (!remixToken) {
-      throw new Error('[ModelFactory] AWS Bedrock requires you to be signed in to use the Remix proxy, or add your own Bedrock API key under Settings → Bring Your Own API Keys.')
-    }
-    const proxyEndpointHost = `${endpointUrls.langchain}/bedrock`.replace(/^https?:\/\//, '')
-    remixAILogger.log(`[ModelFactory] Creating AWS Bedrock model: ${bedrockModelId} @ ${region} (proxy)`)
+    remixAILogger.log(`[ModelFactory] Creating AWS Bedrock model: ${bedrockModelId} @ ${region} (own key)`)
     return wrapModelForDebug(patchBedrockBindTools(new ChatBedrockConverse({
       model: bedrockModelId,
       region,
-      bedrockBearerToken: remixToken,
-      endpointHost: proxyEndpointHost,
+      bedrockBearerToken,
     })), `bedrock/${bedrockModelId}`)
   }
 

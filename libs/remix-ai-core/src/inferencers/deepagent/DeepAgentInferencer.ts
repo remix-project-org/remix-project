@@ -347,7 +347,8 @@ export class DeepAgentInferencer implements ICompletions, IGeneration {
       provider: this.modelSelection.provider,
       errorType: apiKeyErrorType,
       message: getErrorMessage(errorType, error),
-      canFallbackToProxy: true,
+      // Bedrock has no proxy route (BYOK-only), so never offer the switch.
+      canFallbackToProxy: (this.modelSelection.routeProvider ?? this.modelSelection.provider) !== 'bedrock',
       originalError: error?.message,
       timestamp: Date.now()
     }
@@ -690,7 +691,10 @@ export class DeepAgentInferencer implements ICompletions, IGeneration {
       }
 
       // Flush any pending edit batches — this triggers the HITL modal immediately
-      // after the agent finishes, so the user sees the combined diff right away
+      if (localAbortController.signal.aborted) {
+        this.cancelPendingApprovals()
+        return fullResponse
+      }
       await (this.filesystemBackend as any).flushAllPendingBatches()
 
       // Log final token usage summary
@@ -747,6 +751,10 @@ export class DeepAgentInferencer implements ICompletions, IGeneration {
                 this.event.emit('onStreamResult', { content, isIntermediate: false, source: 'retry', threadId: this.sessionThreadId })
               }
             }
+          }
+          if (retryAbortController.signal.aborted) {
+            this.cancelPendingApprovals()
+            return fullResponse
           }
           await (this.filesystemBackend as any).flushAllPendingBatches()
           return fullResponse
@@ -1046,6 +1054,8 @@ export class DeepAgentInferencer implements ICompletions, IGeneration {
       this.currentAbortController.abort()
       this.currentAbortController = null
     }
+    // Aborting the stream does NOT unblock a run that is parked on a HITL
+    this.cancelPendingApprovals()
     this.event.emit('onInferenceDone')
 
     try {
@@ -1057,8 +1067,25 @@ export class DeepAgentInferencer implements ICompletions, IGeneration {
     } catch (_) { /* best-effort cleanup */ }
   }
 
+  /** Settle every HITL approval still waiting on the user (see cancelRequest). */
+  private cancelPendingApprovals(): void {
+    try {
+      this.approvalGate?.cancelPendingApprovals()
+    } catch (e) {
+      remixAILogger.warn('[DeepAgentInferencer] approvalGate.cancelPendingApprovals failed', e)
+    }
+    try {
+      ;(this.filesystemBackend as any)?.cancelPendingApprovals?.()
+    } catch (e) {
+      remixAILogger.warn('[DeepAgentInferencer] filesystemBackend.cancelPendingApprovals failed', e)
+    }
+  }
+
   async close(): Promise<void> {
     this.__closed = true
+    // A close() racing an in-flight run (cancelRequest → reinitialize) must not
+    // leave approval waiters pending — they would keep answer() alive forever.
+    this.cancelPendingApprovals()
     // eslint-disable-next-line no-console
     if (DeepAgentInferencer.__gcLogging) console.log(`[DeepAgent-GC] 🛑 CLOSE #${this.__instanceId} thread=${this.sessionThreadId} | live=${DeepAgentInferencer.__liveCount}`)
 

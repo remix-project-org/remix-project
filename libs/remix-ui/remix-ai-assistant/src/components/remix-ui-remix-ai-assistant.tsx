@@ -3,7 +3,7 @@ import React, { useState, useEffect, useCallback, useRef, useImperativeHandle, M
 //@ts-ignore
 import '../css/remix-ai-assistant.css'
 
-import { ChatCommandParser, GenerationParams, ChatHistory, HandleStreamResponse, AIModel, ANONYMOUS_FALLBACK_MODELS, remixAILogger, modelKey, parseModelKey, findModel } from '@remix/remix-ai-core'
+import { ChatCommandParser, GenerationParams, ChatHistory, HandleStreamResponse, AIModel, ANONYMOUS_FALLBACK_MODELS, remixAILogger, modelKey, parseModelKey, findModel, applyByokKeyPolicy, BYOK_API_KEY_SETTINGS, modelTransportProvider, onApiKeysChange } from '@remix/remix-ai-core'
 import { ToolApprovalRequest, ApiKeyErrorEvent } from '@remix/remix-ai-core'
 import { HandleOpenAIResponse, HandleMistralAIResponse, HandleAnthropicResponse, HandleOllamaResponse } from '@remix/remix-ai-core'
 //@ts-ignore
@@ -190,6 +190,9 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
   const ollamaMenuRef = useRef<any>()
   const [ollamaModels, setOllamaModels] = useState<{ name: string; supported: boolean }[]>([])
   const [selectedModel, setSelectedModel] = useState<AIModel | null>(null)
+  // Mirrors `selectedModel` for callbacks that must not capture a stale value
+  // (the API-key change subscription lives outside the render closure).
+  const selectedModelRef = useRef<AIModel | null>(null)
   const [autoModeEnabled, setAutoModeEnabled] = useState(false)
   const [usingOwnApiKey, setUsingOwnApiKey] = useState(false)
   const [apiKeyError, setApiKeyError] = useState<ApiKeyErrorEvent | null>(null)
@@ -463,6 +466,75 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
       props.plugin.off('remixAI', 'onApiKeyError')
     }
   }, [props.plugin, availableModels])
+
+  useEffect(() => { selectedModelRef.current = selectedModel }, [selectedModel])
+
+  // Which BYOK keys are currently stored. Deleting a key in Settings clears the
+  // setting, so the provider it belonged to must stop being selectable — either
+  // its rows vanish (Bedrock, BYOK-only) or they go unavailable (proxy-backed
+  // providers, key-only rows). Re-read on every catalogue refresh.
+  const readByokKeyPresence = useCallback(async (): Promise<Record<string, boolean>> => {
+    const entries = await Promise.all(
+      Object.entries(BYOK_API_KEY_SETTINGS).map(async ([provider, settingKey]) => {
+        try {
+          const value = await props.plugin.call('settings' as any, 'get', `settings/${settingKey}`)
+          return [provider, !!(value && String(value).trim())] as const
+        } catch {
+          return [provider, false] as const
+        }
+      })
+    )
+    return Object.fromEntries(entries)
+  }, [props.plugin])
+
+  // Deleting the key that backs the *currently selected* model must not leave
+  // the composer pointing at a dead provider — drop back to the backend default
+  // (or the first usable row) and tell the user why.
+  const dropSelectionInvalidatedByKeys = useCallback(async (models: AIModel[]) => {
+    const current = selectedModelRef.current
+    if (!current || current.provider === 'ollama') return
+    const stillUsable = models.some(m => m.id === current.id && m.provider === current.provider && m.available !== false)
+    if (stillUsable) return
+    setChatNotice({
+      severity: 'warning',
+      code: 'API_KEY_REQUIRED',
+      title: `${current.displayName} is no longer available`,
+      message: 'Its API key was removed. Add it back under Settings → RemixAI Assistant -> Bring Your Own API Keys to use this model again.',
+      actionable: false
+    })
+    let fallback: AIModel | null = null
+    try {
+      const def: AIModel | null = await props.plugin.call('assistantState' as any, 'getDefaultModel')
+      if (def && def.available !== false && models.some(m => m.id === def.id && m.provider === def.provider && m.available !== false)) {
+        fallback = def
+      }
+    } catch { /* assistantState not active — fall through to the catalogue */ }
+    if (!fallback) fallback = models.find(m => m.available !== false && m.provider !== 'ollama') ?? null
+    if (!fallback) return
+    setSelectedModelId(fallback.id)
+    setSelectedModel(fallback)
+    setAssistantChoice(fallback.provider as 'openai' | 'mistralai' | 'anthropic' | 'ollama')
+    try {
+      await props.plugin.call('remixAI', 'setModel', fallback.id, fallback.provider)
+    } catch (e) {
+      remixAILogger.warn('[remix-ai-assistant] setModel(fallback) failed after API key removal', e)
+    }
+  }, [props.plugin])
+
+  const reloadAvailableModels = useCallback(async () => {
+    try {
+      const models = await props.plugin.call('assistantState' as any, 'getAvailableModels')
+      if (Array.isArray(models) && models.length > 0) {
+        const curated = applyByokKeyPolicy(models, await readByokKeyPresence())
+        setAvailableModels(curated)
+        await dropSelectionInvalidatedByKeys(curated)
+      }
+    } catch (e) {
+      remixAILogger.warn('[remix-ai-assistant] reloadAvailableModels failed', e)
+    }
+  }, [props.plugin, readByokKeyPresence, dropSelectionInvalidatedByKeys])
+
+  useEffect(() => onApiKeysChange(() => { void reloadAvailableModels() }), [reloadAvailableModels])
 
   // Subscribe to AI route-status updates so the UI can show a readiness
   // badge and gate the input while DeepAgent/MCP/model are settling.
@@ -987,7 +1059,12 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
         const models = await props.plugin.call('assistantState' as any, 'getAvailableModels')
         remixAILogger.log('[remix-ai-assistant] getAvailableModels →',
           Array.isArray(models) ? models.map((m: any) => `${m.id}(${m.available ? 'on' : 'off'})`).join(', ') : models)
-        if (Array.isArray(models) && models.length > 0) setAvailableModels(models)
+        if (Array.isArray(models) && models.length > 0) {
+          // BYOK policy: Bedrock rows stay hidden until its bearer token is
+          // stored, and key-only rows on the other providers go unavailable
+          // when their key is deleted (kept in sync by onApiKeysChange above).
+          setAvailableModels(applyByokKeyPolicy(models, await readByokKeyPresence()))
+        }
       } catch (e) { remixAILogger.warn('[remix-ai-assistant] getAvailableModels failed', e) }
     }
     const refreshFeatures = async () => {
@@ -2166,20 +2243,10 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
     const model = findModel(availableModels, modelId, selectedProvider)
     if (!model) return
 
-    // Check access — backend's `available` flag is the source of truth.
-    if (!model.available) {
-      handleLockedModelClick(model.id, model.displayName)
-      return
-    }
-
     if (model.requireAPIKey) {
-      const settingKeyByProvider: Record<string, string> = {
-        bedrock: 'deepagent-bedrock-bearer-token',
-        openrouter: 'deepagent-openrouter-api-key'
-      }
       // Keyed on the transport, not the brand: an OpenRouter-routed Claude needs
       // the OpenRouter key.
-      const settingKey = settingKeyByProvider[model.routeProvider ?? model.provider]
+      const settingKey = BYOK_API_KEY_SETTINGS[modelTransportProvider(model)]
       let hasKey = true
       if (settingKey) {
         try {
@@ -2200,6 +2267,14 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
         setShowModelSelector(false)
         return
       }
+    }
+
+    // Check access — backend's `available` flag is the source of truth. Checked
+    // after the key test above so a row invalidated by a deleted key explains
+    // itself instead of opening the plan-manager paywall.
+    if (!model.available) {
+      handleLockedModelClick(model.id, model.displayName)
+      return
     }
 
     setSelectedModelId(modelId)

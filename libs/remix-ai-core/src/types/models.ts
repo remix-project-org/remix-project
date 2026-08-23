@@ -162,17 +162,64 @@ export function parseAIModelsFromPermissions(permissions: any): AIModel[] | null
   return parsed
 }
 
+/** Settings key holding the user's own AWS Bedrock bearer token. */
+export const BEDROCK_API_KEY_SETTING = 'deepagent-bedrock-bearer-token'
+
+/** True when the model reaches AWS Bedrock, whichever brand it is shown under. */
+export function isBedrockModel(model: Pick<AIModel, 'provider' | 'routeProvider'>): boolean {
+  return model.routeProvider === 'bedrock' || model.provider === 'bedrock'
+}
+
+/**
+ * AWS Bedrock is BYOK-only — the Remix proxy no longer fronts it.
+ */
+export function applyBedrockByokPolicy(models: AIModel[], hasBedrockKey: boolean): AIModel[] {
+  if (!Array.isArray(models)) return models
+  if (!hasBedrockKey) return models.filter((model) => !isBedrockModel(model))
+  return models.map((model) =>
+    isBedrockModel(model)
+      ? { ...model, available: true, requiredFeature: null, requireAPIKey: true, reason: undefined }
+      : model
+  )
+}
+
+/** Settings key holding the user's own OpenRouter API key. */
+export const OPENROUTER_API_KEY_SETTING = 'deepagent-openrouter-api-key'
+
+export const BYOK_API_KEY_SETTINGS: Partial<Record<AIModel['provider'], string>> = {
+  bedrock: BEDROCK_API_KEY_SETTING,
+  openrouter: OPENROUTER_API_KEY_SETTING
+}
+
+/** The provider that actually carries the request (route wins over brand). */
+export function modelTransportProvider(model: Pick<AIModel, 'provider' | 'routeProvider'>): AIModel['provider'] {
+  return model.routeProvider ?? model.provider
+}
+
+/**
+ * Applies the BYOK key policy over the whole catalogue: deleting a key must
+ * invalidate the provider it belonged to.
+ */
+export function applyByokKeyPolicy(
+  models: AIModel[],
+  keyPresence: Partial<Record<AIModel['provider'], boolean>>
+): AIModel[] {
+  if (!Array.isArray(models)) return models
+  return applyBedrockByokPolicy(models, !!keyPresence.bedrock).map((model) => {
+    const provider = modelTransportProvider(model)
+    // Bedrock rows were already normalized above.
+    if (provider === 'bedrock') return model
+    if (!BYOK_API_KEY_SETTINGS[provider]) return model
+    if (!model.requireAPIKey || keyPresence[provider]) return model
+    return { ...model, available: false, reason: 'api_key_required' }
+  })
+}
+
 /**
  * OpenRouter is the default router: a model is "routed" when it reaches the
  * vendor through another provider's transport. `curateOpenRouterBrandedModels`
  * is the only curation that sets one.
  *
- * Bedrock used to be curated the same way — its rows were rebranded onto
- * Anthropic / Mistral / OpenAI, hoisted to the front of the catalogue and given
- * `routeProvider: 'bedrock'`, which made Bedrock the de-facto default route.
- * That curation is gone. Bedrock rows the backend still advertises stay under
- * their own "AWS Bedrock" group in backend order, selectable but never the
- * default.
  */
 export function isOpenRouterRouted(model: AIModel): boolean {
   return model.routeProvider === 'openrouter' || model.provider === 'openrouter'

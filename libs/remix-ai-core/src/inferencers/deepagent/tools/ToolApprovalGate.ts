@@ -181,10 +181,29 @@ export class ToolApprovalGate {
   }
 
   /**
+   * Settle every approval still waiting on the user as "rejected".
+   */
+  cancelPendingApprovals(): void {
+    if (this.pendingApprovals.size === 0) return
+    remixAILogger.log('[ToolApprovalGate] cancelling pending approvals:', Array.from(this.pendingApprovals.keys()))
+    const pending = Array.from(this.pendingApprovals.values())
+    this.pendingApprovals.clear()
+    for (const entry of pending) {
+      try {
+        entry.resolve(false)
+      } catch (e) {
+        remixAILogger.warn('[ToolApprovalGate] failed to settle pending approval', e)
+      }
+    }
+  }
+
+  /**
    * Clean up resources
    */
   dispose() {
+    // Settle before dropping the listener — otherwise the waiters can never
+    // be resolved by anyone.
+    this.cancelPendingApprovals()
     this.eventEmitter.removeAllListeners('onToolApprovalResponse')
-    this.pendingApprovals.clear()
   }
 }

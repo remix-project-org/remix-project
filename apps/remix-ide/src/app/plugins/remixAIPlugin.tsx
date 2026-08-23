@@ -6,7 +6,7 @@ import { CodeCompletionAgent, ContractAgent, workspaceAgent, IContextType, mcpDe
 import { MCPInferencer, DeepAgentInferencer, onApiKeysChange } from '@remix/remix-ai-core';
 import { IMCPServer, IMCPConnectionStatus } from '@remix/remix-ai-core';
 import { RemixMCPServer, createRemixMCPServer } from '@remix/remix-ai-core';
-import { AIModel } from '@remix/remix-ai-core';
+import { AIModel, isBedrockModel, BEDROCK_API_KEY_SETTING } from '@remix/remix-ai-core';
 import { aiErrorFromException, parseAIErrorEnvelope } from '@remix/remix-ai-core';
 import axios from 'axios';
 import { endpointUrls } from "@remix-endpoints-helper"
@@ -339,6 +339,17 @@ export class RemixAIPlugin extends Plugin {
           remixAILogger.log('[RemixAI Plugin] /permissions has no usable default model yet — waiting for stateChanged', { id: def?.id, available: def?.available })
           return
         }
+        // Bedrock is BYOK-only: without the user's own bearer token there is no
+        if (isBedrockModel(def)) {
+          let bedrockKey: any = ''
+          try {
+            bedrockKey = await this.call('settings' as any, 'get', `settings/${BEDROCK_API_KEY_SETTING}`)
+          } catch { /* settings unavailable — treat as no key */ }
+          if (!(bedrockKey && String(bedrockKey).trim())) {
+            remixAILogger.log('[RemixAI Plugin] Skipping Bedrock default model — BYOK-only and no key stored', { id: def.id })
+            return
+          }
+        }
         // Re-apply when:
         //   - we don't have a selection yet, OR
         //   - the current selection is the anonymous placeholder / an
@@ -665,6 +676,8 @@ export class RemixAIPlugin extends Plugin {
         return this.mcpInferencer.code_generation(prompt, params)
       } else if (this.deepAgentEnabled && this.deepAgentInferencer) {
         await this.deepAgentManager.awaitReady()
+        // See answer(): the awaited rebuild may have left no inferencer.
+        if (!this.deepAgentInferencer) return await this.remoteInferencer.code_generation(prompt, params)
         return this.deepAgentInferencer.code_generation(prompt, params)
       } else {
         return await this.remoteInferencer.code_generation(prompt, params)
@@ -756,6 +769,14 @@ export class RemixAIPlugin extends Plugin {
         // instance with a clean LangGraph pipe rather than racing the
         // about-to-be-discarded one.
         await this.deepAgentManager.awaitReady()
+        // The rebuild we just waited on can end with no inferencer (reinit
+        // failed). Re-read the field instead of trusting the route decision
+        // taken before the await, so the turn degrades to the remote route
+        // rather than throwing on a null.
+        if (!this.deepAgentInferencer) {
+          remixAILogger.warn('[answer][route-flow] deepAgent unavailable after awaitReady — falling back to remote')
+          return await this.remoteInferencer.answer(newPrompt, params)
+        }
         remixAILogger.log('[answer][route-flow] dispatch=deepagent.answer')
         return await this.deepAgentInferencer.answer(newPrompt, params, this.workspaceAgent.ctxFiles || '')
       } else if (route === 'mcp'){
@@ -779,6 +800,8 @@ export class RemixAIPlugin extends Plugin {
         return await this.mcpInferencer.code_explaining(prompt, context, params)
       } else if (this.deepAgentEnabled && this.deepAgentInferencer) {
         await this.deepAgentManager.awaitReady()
+        // See answer(): the awaited rebuild may have left no inferencer.
+        if (!this.deepAgentInferencer) return await this.remoteInferencer.code_explaining(prompt, context, params)
         return await this.deepAgentInferencer.code_explaining(prompt, context, params)
       } else {
         return await this.remoteInferencer.code_explaining(prompt, context, params)

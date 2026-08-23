@@ -1829,3 +1829,53 @@ code {
   background-color: rgba(255, 255, 255, 0.06) !important;
   box-shadow: inset 3px 0 0 var(--custom-ai-color);
 }
+
+/* "Auto Mode": the first entry of the model list, at the same level as the
+   provider headers. Sticky so it stays put while the list scrolls, and tinted
+   with the theme accent so it reads as the recommended choice. */
+.remix-ai-model-selector .rai-auto-row {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  padding-left: 0.75rem;
+  padding-right: 0.75rem;
+  border-bottom: 1px solid var(--custom-ai-color) !important;
+  box-shadow: inset 3px 0 0 var(--custom-ai-color);
+  background-color: #1b1c2b;
+  background-image: linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--custom-ai-color) 22%, transparent),
+    color-mix(in srgb, var(--custom-ai-color) 6%, transparent)
+  );
+  transition: background-image 0.15s ease;
+}
+
+.remix-ai-model-selector .rai-auto-row:hover,
+.remix-ai-model-selector .rai-auto-row:focus {
+  background-image: linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--custom-ai-color) 36%, transparent),
+    color-mix(in srgb, var(--custom-ai-color) 14%, transparent)
+  );
+}
+
+.remix-ai-model-selector .rai-auto-icon {
+  color: var(--custom-ai-color);
+}
+
+.remix-ai-model-selector .rai-auto-title {
+  color: var(--custom-ai-color);
+}
+
+.remix-ai-model-selector .rai-auto-subtitle {
+  color: rgba(231, 232, 240, 0.7);
+}
+
+.remix-ai-model-selector .rai-auto-badge {
+  background-color: color-mix(in srgb, var(--custom-ai-color) 18%, transparent);
+  border: 1px solid var(--custom-ai-color);
+  color: var(--custom-ai-color);
+  font-size: 0.6rem;
+  padding: 1px 6px;
+  font-weight: 600;
+}

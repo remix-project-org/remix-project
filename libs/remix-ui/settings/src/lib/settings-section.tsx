@@ -26,6 +26,8 @@ export const SettingsSectionUI: React.FC<SettingsSectionUIProps> = ({ plugin, se
   // API key validation state
   const [apiKeyErrors, setApiKeyErrors] = useState<Record<string, string>>({})
   const [apiKeyTestStatus, setApiKeyTestStatus] = useState<Record<string, 'idle' | 'testing' | 'valid' | 'invalid'>>({})
+  // Per-section "save in flight" flag — saving now waits on the live key test.
+  const [isSavingSection, setIsSavingSection] = useState<Record<string, boolean>>({})
   const theme = useContext(ThemeContext)
   const isDark = theme.name === 'dark'
   const intl = useIntl()
@@ -200,12 +202,13 @@ export const SettingsSectionUI: React.FC<SettingsSectionUIProps> = ({ plugin, se
     setApiKeyTestStatus(prev => ({ ...prev, [toggleOptionName]: 'idle' }))
   }
 
-  const saveFormUIData = (optionName: keyof SettingsState) => {
+  const saveFormUIData = async (optionName: keyof SettingsState) => {
+    const fields = formUIData[optionName] || ({} as Record<string, string>)
+    const keys = Object.keys(fields)
     // Check for API key validation errors before saving
-    const keys = Object.keys(formUIData[optionName] || {})
     for (const key of keys) {
-      if (isApiKeySetting(key) && formUIData[optionName][key]) {
-        const error = validateApiKey(key, formUIData[optionName][key])
+      if (isApiKeySetting(key) && fields[key]) {
+        const error = validateApiKey(key, fields[key])
         if (error) {
           setApiKeyErrors(prev => ({ ...prev, [key]: error }))
           dispatch({ type: 'SET_TOAST_MESSAGE', payload: { value: intl.formatMessage({ id: 'settings.apiKeyFormatError' }) + ': ' + error } })
@@ -214,10 +217,47 @@ export const SettingsSectionUI: React.FC<SettingsSectionUIProps> = ({ plugin, se
       }
     }
 
-    Object.keys(formUIData[optionName]).forEach((key) => {
-      dispatch({ type: 'SET_VALUE', payload: { name: key, value: formUIData[optionName][key] } })
+    const rejected: string[] = []
+    setIsSavingSection(prev => ({ ...prev, [optionName as string]: true }))
+    try {
+      for (const key of keys) {
+        if (!isApiKeySetting(key)) continue
+        const value = (fields[key] || '').trim()
+        if (!value) {
+          // Cleared field — nothing to test, and the empty save below is what
+          // deactivates the provider.
+          setApiKeyTestStatus(prev => ({ ...prev, [key]: 'idle' }))
+          setApiKeyErrors(prev => ({ ...prev, [key]: '' }))
+          continue
+        }
+        const provider = getProviderFromSettingKey(key)
+        if (!provider) continue
+        setApiKeyTestStatus(prev => ({ ...prev, [key]: 'testing' }))
+        let result: { isValid: boolean; error?: string }
+        try {
+          result = await testApiKey(provider as ModelProvider, value)
+        } catch (error: any) {
+          result = { isValid: false, error: error?.message || intl.formatMessage({ id: 'settings.apiKeyTestFailed' }) }
+        }
+        setApiKeyTestStatus(prev => ({ ...prev, [key]: result.isValid ? 'valid' : 'invalid' }))
+        setApiKeyErrors(prev => ({ ...prev, [key]: result.isValid ? '' : (result.error || intl.formatMessage({ id: 'settings.apiKeyInvalid' })) }))
+        if (!result.isValid) rejected.push(key)
+      }
+    } finally {
+      setIsSavingSection(prev => ({ ...prev, [optionName as string]: false }))
+    }
+
+    keys.forEach((key) => {
+      dispatch({ type: 'SET_VALUE', payload: { name: key, value: rejected.includes(key) ? '' : fields[key] } })
     })
-    dispatch({ type: 'SET_TOAST_MESSAGE', payload: { value: intl.formatMessage({ id: 'settings.credentialsUpdated' }) } })
+    dispatch({
+      type: 'SET_TOAST_MESSAGE',
+      payload: {
+        value: rejected.length
+          ? `${intl.formatMessage({ id: 'settings.apiKeyInvalid' })}: ${rejected.map(key => intl.formatMessage({ id: `settings.${key}` })).join(', ')}`
+          : intl.formatMessage({ id: 'settings.credentialsUpdated' })
+      }
+    })
   }
 
   return (
@@ -368,7 +408,10 @@ export const SettingsSectionUI: React.FC<SettingsSectionUIProps> = ({ plugin, se
                                 id={`settingsTabSave${option.name}`}
                                 data-id={`settingsTabSave${option.name}`}
                                 onClick={() => saveFormUIData(option.name)}
-                                value={intl.formatMessage({ id: 'settings.save' })}
+                                disabled={!!isSavingSection[option.name as string]}
+                                value={isSavingSection[option.name as string]
+                                  ? intl.formatMessage({ id: 'settings.testing' })
+                                  : intl.formatMessage({ id: 'settings.save' })}
                                 type="button"
                               ></input>
                               {/* Test button for API key settings */}

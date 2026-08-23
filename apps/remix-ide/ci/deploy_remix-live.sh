@@ -25,3 +25,4 @@ git add .
 git commit -m "Built website from {$SHA}."
 
 git push -f git@github.com:remix-project-org/remix-live.git gh-pages
+git push -f git@github.com:remix-project-org/remix-live-app.git gh-pages
