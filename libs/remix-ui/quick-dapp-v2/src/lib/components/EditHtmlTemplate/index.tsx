@@ -14,6 +14,7 @@ import { buildZkRuntimeConfigScript } from '../../utils/zkverify-runtime-config'
 import { getQuickDappPublishState } from '../../utils/publish-state';
 import { buildQuickDappUpdateGraphContextBlock } from '@remix/remix-ai-core/quick-dapp-thegraph-prompts';
 import { getPrimaryQuickDappContract, getQuickDappContracts, getQuickDappWorkspaceLock } from '@remix-ui/helper';
+import DappSettingsDrawer from './DappSettingsDrawer';
 import DappUpdateModal, { DappUpdateRequest } from './DappUpdateModal';
 
 interface Pages {
@@ -83,9 +84,11 @@ function EditHtmlTemplate(): JSX.Element {
   });
 
   const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [showSettingsDrawer, setShowSettingsDrawer] = useState(false);
   const [showUpdateModal, setShowUpdateModal] = useState(false);
   const [showTips, setShowTips] = useState(false);
   const [showVmTips, setShowVmTips] = useState(false);
+  const [publishRequestId, setPublishRequestId] = useState(0);
 
   useEffect(() => {
     if (!plugin) return;
@@ -583,6 +586,20 @@ window.addEventListener('unhandledrejection', function(e) {
     });
   };
 
+  const handleOpenUpdateModal = async () => {
+    if (isActiveDappPublishing()) {
+      await plugin.call('notification', 'toast', 'Please wait until publishing finishes before updating this DApp.');
+      return;
+    }
+    if (isAiAssistantStreaming()) {
+      showAiAssistantBusyNotification();
+      return;
+    }
+
+    setShowSettingsDrawer(false);
+    setShowUpdateModal(true);
+  };
+
   const openAiAssistantPanel = async () => {
     try {
       await plugin.call('manager', 'activatePlugin', 'remix-ai-assistant');
@@ -881,10 +898,18 @@ window.addEventListener('unhandledrejection', function(e) {
   }, []);
 
   const activeContractBindings = getQuickDappContracts(activeDapp);
+  const activePrimaryContract = getPrimaryQuickDappContract(activeDapp);
   const activeContractAddressKey = activeContractBindings.map((contract) => contract.address.toLowerCase()).join(',');
   const isVM = !!activeDapp?.contract?.chainId && activeDapp.contract.chainId.toString().startsWith('vm');
   const isGraphOnly = activeDapp?.appKind === 'graph-only';
   const dappNetworkLabel = isGraphOnly ? 'The Graph' : activeDapp?.contract?.networkName || 'Unknown Network';
+  const contractBindingSummary = activeContractBindings.length > 0
+    ? `${activeContractBindings.length} contract${activeContractBindings.length > 1 ? 's' : ''} · ${dappNetworkLabel} · Primary: ${activePrimaryContract?.alias || activePrimaryContract?.name || 'Unknown'}`
+    : isGraphOnly
+      ? 'The Graph · No contract bindings'
+      : activeDapp?.appKind === 'zk-circuit'
+        ? 'ZK circuit · No contract bindings'
+        : 'No contract bindings';
   const [isCurrentProviderVM, setIsCurrentProviderVM] = useState(false);
   const [vmContractStatus, setVmContractStatus] = useState<'checking' | 'deployed' | 'not-found'>('checking');
   const isDesktopWalletPreview = isElectron() && !isVM && !isGraphOnly && !!activeDapp?.contract;
@@ -1291,34 +1316,16 @@ window.addEventListener('unhandledrejection', function(e) {
               </button>
             )}
             <Button
-              variant="success"
+              variant="outline-secondary"
               size="sm"
-              onClick={async () => {
-                if (isActiveDappPublishing()) {
-                  await plugin.call('notification', 'toast', 'Please wait until publishing finishes before updating this DApp.');
-                  return;
-                }
-                if (isAiAssistantStreaming()) {
-                  showAiAssistantBusyNotification();
-                  return;
-                }
-                setShowUpdateModal(true);
-              }}
+              className="qd-secondary-action"
+              onClick={handleOpenUpdateModal}
               disabled={isAiUpdating}
               title={isGraphOnly ? 'AI update is limited to Graph-only UI/source changes.' : undefined}
               data-id="update-with-ai-btn"
             >
               <i className="fas fa-robot me-1"></i>
               Ask AI to Update
-            </Button>
-            <Button
-              variant="primary"
-              size="sm"
-              onClick={() => runBuild(true)}
-              disabled={isBuilding || isAiUpdating}
-              data-id="refresh-preview-btn"
-            >
-              {isBuilding ? <><i className="fas fa-spinner fa-spin me-1"></i> Building...</> : <><i className="fas fa-play me-1"></i> Refresh Preview</>}
             </Button>
             <Button
               variant="outline-danger"
@@ -1395,6 +1402,33 @@ window.addEventListener('unhandledrejection', function(e) {
                   )}
 
                   <Card className="border flex-grow-1 d-flex position-relative">
+                    <Card.Header className="d-flex align-items-center justify-content-between gap-2 flex-wrap py-2 px-3 bg-transparent qd-preview-toolbar">
+                      <div className="fw-semibold text-body">
+                        <i className="fas fa-desktop me-2 text-secondary"></i>
+                        Preview
+                      </div>
+                      <div className="d-flex align-items-center gap-2">
+                        <Button
+                          variant="outline-secondary"
+                          size="sm"
+                          className="qd-secondary-action"
+                          onClick={() => runBuild(true)}
+                          disabled={isBuilding || isAiUpdating}
+                          data-id="refresh-preview-btn"
+                        >
+                          {isBuilding ? <><i className="fas fa-spinner fa-spin me-1"></i> Building...</> : <><i className="fas fa-sync-alt me-1"></i> Refresh Preview</>}
+                        </Button>
+                        <Button
+                          variant="primary"
+                          size="sm"
+                          onClick={() => setPublishRequestId((requestId) => requestId + 1)}
+                          data-id="preview-publish-btn"
+                        >
+                          <i className="fas fa-cloud-upload-alt me-1"></i>
+                          Publish
+                        </Button>
+                      </div>
+                    </Card.Header>
                     <Card.Body className="p-0 d-flex flex-column position-relative" style={{ overflow: 'hidden' }}>
                       {isAiUpdating && (() => {
                         const progress = appState.generationProgress;
@@ -1480,13 +1514,32 @@ window.addEventListener('unhandledrejection', function(e) {
                         </div>
                       )}
                     </Card.Body>
+                    <Card.Footer className="d-flex align-items-center justify-content-between gap-2 flex-wrap py-2" data-id="quickDappBindingStatus">
+                      <div className="small text-secondary text-break">
+                        <i className="fas fa-link me-1"></i>
+                        {contractBindingSummary}
+                      </div>
+                      <Button
+                        variant="link"
+                        size="sm"
+                        className="p-0 text-decoration-none"
+                        onClick={() => setShowSettingsDrawer(true)}
+                        data-id="quickDappSettingsBtn"
+                      >
+                        <i className="fas fa-cog me-1"></i>
+                        Contract bindings
+                      </Button>
+                    </Card.Footer>
                   </Card>
                 </Col>
               </Row>
             </Col>
             <Col xs={12} lg={4} className="d-flex flex-column qd-side-col">
               <div className="flex-shrink-0">
-                <DeployPanel isDeleteInFlight={() => deleteInFlightRef.current} />
+                <DeployPanel
+                  isDeleteInFlight={() => deleteInFlightRef.current}
+                  publishRequestId={publishRequestId}
+                />
               </div>
             </Col>
           </Row>
@@ -1502,6 +1555,14 @@ window.addEventListener('unhandledrejection', function(e) {
           setShowUpdateModal(false);
           void handleOpenAIAssistant(request);
         }}
+      />
+
+      <DappSettingsDrawer
+        show={showSettingsDrawer}
+        dapp={activeDapp}
+        isUpdating={isAiUpdating}
+        onClose={() => setShowSettingsDrawer(false)}
+        onUpdate={handleOpenUpdateModal}
       />
 
       <Modal show={notificationModal.show} onHide={closeNotificationModal} centered data-id="notification-modal">

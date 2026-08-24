@@ -43,6 +43,7 @@ export interface QuickDappFigmaPreparationResult {
 
 const contractKey = (contract: QuickDappContractCandidate) => contract.address.toLowerCase()
 const isSupportedFigmaUrl = (value: string) => /^https:\/\/(?:www\.)?figma\.com\/(?:file|design|proto)\/[a-zA-Z0-9]+(?:[/?#].*)?$/i.test(value.trim())
+const designPresets = ['', 'Minimal', 'Colorful', 'Techy', 'Futuristic']
 
 export function QuickDappContractSelector({
   show,
@@ -80,6 +81,7 @@ export function QuickDappContractSelector({
   }, [deployedContracts, primaryContract])
 
   const selectedPrimary = allContracts.find((contract) => contractKey(contract) === primaryAddress) || primaryContract
+  const effectiveFrontendMode = fixedFrontendMode || frontendMode
 
   const candidates = useMemo(() => {
     return allContracts.filter((contract) => contractKey(contract) !== primaryAddress)
@@ -151,7 +153,7 @@ export function QuickDappContractSelector({
     onConfirm({
       primaryContract: selectedPrimary,
       additionalContracts: candidates.filter((contract) => selected.has(contractKey(contract))),
-      frontendMode: fixedFrontendMode || frontendMode,
+      frontendMode: effectiveFrontendMode,
       isBaseMiniApp,
       design: design.trim(),
       ...(useFigma ? { figmaUrl: normalizedFigmaUrl, figmaContextId } : {}),
@@ -168,6 +170,12 @@ export function QuickDappContractSelector({
         <p className="mb-2 text-secondary">
           Confirm the contracts and setup options before continuing with AI.
         </p>
+
+        <div className="mb-3" data-id="quickDappContractsStep">
+          <div className="small text-uppercase text-primary fw-semibold mb-1">Step 1 of 3</div>
+          <div className="fw-semibold">Contract bindings</div>
+          <div className="small text-secondary">Choose the main and additional contracts.</div>
+        </div>
 
         {primarySelectable && sourceFileName && matchingContractAddresses.length === 0 && (
           <div className="alert alert-warning py-2" role="alert" data-id="quickDappNoMatchingContract">
@@ -212,7 +220,11 @@ export function QuickDappContractSelector({
         </div>
 
         <div className="d-flex flex-column gap-2" style={{ maxHeight: 240, overflowY: 'auto' }}>
-          {candidates.map((contract) => {
+          {candidates.length === 0 ? (
+            <div className="border rounded p-3 small text-secondary" data-id="quickDappNoAdditionalContracts">
+              No other deployed contracts are available in this environment.
+            </div>
+          ) : candidates.map((contract) => {
             const key = contractKey(contract)
             const selected = selectedAddresses.includes(key)
             const disabled = !selected && selectedAddresses.length >= 7
@@ -246,8 +258,13 @@ export function QuickDappContractSelector({
 
         <hr />
 
+        <div className="mb-3" data-id="quickDappLocationStep">
+          <div className="small text-uppercase text-primary fw-semibold mb-1">Step 2 of 3</div>
+          <div className="fw-semibold">Frontend location</div>
+          <div className="small text-secondary">Choose where the generated frontend is stored.</div>
+        </div>
+
         <Form.Group className="mb-3">
-          <Form.Label className="fw-semibold">Location</Form.Label>
           {fixedFrontendMode ? (
             <div className="border rounded px-3 py-2" data-id="quickDappFixedLocation">
               {fixedFrontendMode === 'inline' ? 'Inline · /frontend in the current workspace' : 'Workspace · new dedicated workspace'}
@@ -256,6 +273,7 @@ export function QuickDappContractSelector({
             <Form.Select
               value={frontendMode}
               onChange={(event) => setFrontendMode(event.target.value as 'inline' | 'workspace')}
+              aria-label="Frontend location"
               data-id="quickDappLocation"
             >
               <option value="workspace">Workspace · new dedicated workspace</option>
@@ -263,6 +281,14 @@ export function QuickDappContractSelector({
             </Form.Select>
           )}
         </Form.Group>
+
+        <hr />
+
+        <div className="mb-3" data-id="quickDappDesignStep">
+          <div className="small text-uppercase text-primary fw-semibold mb-1">Step 3 of 3</div>
+          <div className="fw-semibold">Design and integrations</div>
+          <div className="small text-secondary">Add only the optional details you need.</div>
+        </div>
 
         <Form.Check
           className="mb-3"
@@ -275,15 +301,32 @@ export function QuickDappContractSelector({
 
         <Form.Group className="mb-3">
           <Form.Label className="fw-semibold">Design</Form.Label>
+          <div className="d-flex flex-wrap gap-2 mb-2" aria-label="Design presets" data-id="quickDappDesignPresets">
+            {designPresets.map((preset) => {
+              const label = preset || 'Default'
+              return (
+                <button
+                  key={label}
+                  type="button"
+                  className={`btn btn-sm qd-choice-chip ${design === preset ? 'qd-choice-chip--active' : ''}`}
+                  onClick={() => setDesign(preset)}
+                  aria-pressed={design === preset}
+                  data-id={`quickDappDesignPreset-${label.toLowerCase()}`}
+                >
+                  {label}
+                </button>
+              )
+            })}
+          </div>
           <Form.Control
             as="textarea"
             rows={2}
             value={design}
             onChange={(event) => setDesign(event.target.value)}
-            placeholder="Defaults or style notes"
+            placeholder="Add custom style notes"
             data-id="quickDappDesign"
           />
-          <Form.Text className="text-secondary">Leave empty to use the default design.</Form.Text>
+          <Form.Text className="text-secondary">Choose a starting style or add your own notes.</Form.Text>
         </Form.Group>
 
         <Form.Check
@@ -364,13 +407,18 @@ export function QuickDappContractSelector({
           QuickDApp creates a browser-based static frontend and does not provide server runtime or secret storage.
         </p>
       </Modal.Body>
-      <Modal.Footer>
-        <button type="button" className="btn btn-secondary" onClick={onCancel} disabled={isPreparingFigma} data-id="quickDappContractSelectorCancel">
-          Cancel
-        </button>
-        <button type="button" className="btn btn-primary" onClick={handleConfirm} disabled={isPreparingFigma} data-id="quickDappContractSelectorContinue">
-          {isPreparingFigma ? 'Checking Figma…' : useFigma ? 'Validate and continue' : 'Continue with AI'}
-        </button>
+      <Modal.Footer className="justify-content-between flex-wrap gap-2">
+        <div className="small text-secondary" data-id="quickDappSetupSummary">
+          {selectedAddresses.length + 1} contract{selectedAddresses.length > 0 ? 's' : ''} · {effectiveFrontendMode === 'inline' ? 'Inline /frontend' : 'Dedicated workspace'}
+        </div>
+        <div className="d-flex gap-2">
+          <button type="button" className="btn btn-secondary" onClick={onCancel} disabled={isPreparingFigma} data-id="quickDappContractSelectorCancel">
+            Cancel
+          </button>
+          <button type="button" className="btn btn-primary" onClick={handleConfirm} disabled={isPreparingFigma} data-id="quickDappContractSelectorContinue">
+            {isPreparingFigma ? 'Checking Figma…' : useFigma ? 'Validate and continue' : 'Continue with AI'}
+          </button>
+        </div>
       </Modal.Footer>
     </Modal>
   )

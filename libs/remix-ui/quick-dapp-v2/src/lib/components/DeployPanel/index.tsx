@@ -41,9 +41,10 @@ const REMIX_ENDPOINT_IPFS = endpointUrls.quickdappIpfs;
 
 interface DeployPanelProps {
   isDeleteInFlight?: () => boolean;
+  publishRequestId?: number;
 }
 
-function DeployPanel({ isDeleteInFlight }: DeployPanelProps): JSX.Element {
+function DeployPanel({ isDeleteInFlight, publishRequestId = 0 }: DeployPanelProps): JSX.Element {
   const { features } = useAuth()
   const hasQuickdappPublishPermission = features[Features.DAPP_PUBLISH]?.is_enabled === true
   const intl = useIntl();
@@ -91,10 +92,25 @@ function DeployPanel({ isDeleteInFlight }: DeployPanelProps): JSX.Element {
   const ensPublishLockRef = useRef<{ workspaceName: string; operationId: string } | null>(null);
   const ensRegistrationInFlightRef = useRef(false);
   const isMountedRef = useRef(true);
+  const publishSectionRef = useRef<HTMLDivElement>(null);
+  const lastPublishRequestIdRef = useRef(0);
 
   const [isSavingConfig, setIsSavingConfig] = useState(false);
   const configSaveInFlightRef = useRef(false);
   const logoInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (!publishRequestId || publishRequestId === lastPublishRequestIdRef.current) return;
+
+    lastPublishRequestIdRef.current = publishRequestId;
+    if (!activeDapp?.config?.isBaseMiniApp) setIsPublishOpen(true);
+
+    const frameId = window.requestAnimationFrame(() => {
+      publishSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+
+    return () => window.cancelAnimationFrame(frameId);
+  }, [publishRequestId, activeDapp?.config?.isBaseMiniApp]);
 
   const clearEnsPublishLock = () => {
     const publishLock = ensPublishLockRef.current;
@@ -774,10 +790,12 @@ function DeployPanel({ isDeleteInFlight }: DeployPanelProps): JSX.Element {
       <div data-id="deploy-panel">
         {renderDappInfo()}
         {renderDappDocs()}
-        <BaseAppWizard
-          isConfigSaveInFlight={() => configSaveInFlightRef.current}
-          isDeleteInFlight={isDeleteInFlight}
-        />
+        <div ref={publishSectionRef}>
+          <BaseAppWizard
+            isConfigSaveInFlight={() => configSaveInFlightRef.current}
+            isDeleteInFlight={isDeleteInFlight}
+          />
+        </div>
       </div>
     );
   }
@@ -799,7 +817,7 @@ function DeployPanel({ isDeleteInFlight }: DeployPanelProps): JSX.Element {
 
       {renderDappDocs()}
 
-      <Card className="mb-2">
+      <Card ref={publishSectionRef} className="mb-2">
         <Card.Header onClick={() => setIsPublishOpen(!isPublishOpen)} style={{ cursor: 'pointer' }} className="d-flex justify-content-between bg-transparent border-0">
           Publish to IPFS <i className={`fas ${isPublishOpen ? 'fa-chevron-up' : 'fa-chevron-down'}`}></i>
         </Card.Header>
