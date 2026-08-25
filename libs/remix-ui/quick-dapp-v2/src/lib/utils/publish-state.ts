@@ -16,5 +16,5 @@ export const getQuickDappPublishLabel = (
 ): string => {
   const state = getQuickDappPublishState(dapp);
   if (state === 'published-with-unpublished-changes') return 'Published · Unpublished changes';
-  return state === 'published' ? 'Published' : 'Created';
+  return state === 'published' ? 'Published' : 'Not published';
 };

@@ -157,6 +157,16 @@
   flex-direction: column;
 }
 
+.qd-card-menu-toggle {
+  width: 32px;
+  height: 32px;
+  padding: 0;
+}
+
+.qd-card-menu-toggle::after {
+  display: none;
+}
+
 /* Wide container (>= 600px): side-by-side layout */
 @container qd-main (min-width: 600px) {
   .qd-grid-col {

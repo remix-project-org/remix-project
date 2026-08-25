@@ -38,6 +38,28 @@ type UpdateKind = 'source' | 'add' | 'replace';
 
 const candidateKey = (candidate: DeployedContractCandidate): string => candidate.address.toLowerCase();
 
+const updateKindOptions: Array<{
+  value: UpdateKind;
+  label: string;
+  description: string;
+}> = [
+  {
+    value: 'source',
+    label: 'UI or source only',
+    description: 'Keep the current contract bindings.'
+  },
+  {
+    value: 'add',
+    label: 'Add a deployed contract',
+    description: 'Keep the current bindings and add another contract.'
+  },
+  {
+    value: 'replace',
+    label: 'Replace a contract',
+    description: 'Replace one current binding with a new deployment.'
+  }
+];
+
 export default function DappUpdateModal({
   show,
   dapp,
@@ -158,6 +180,19 @@ export default function DappUpdateModal({
         ? currentEnvironment
         : `Chain ${normalizeQuickDappEnvironment(currentEnvironment)}`
       : 'Unavailable';
+  const descriptionLabel = updateKind === 'source'
+    ? 'What would you like to change?'
+    : 'How should the selected contract be used?';
+  const descriptionPlaceholder = updateKind === 'source'
+    ? 'Describe the UI or source change.'
+    : updateKind === 'add'
+      ? 'Describe how the new contract should be used in the DApp.'
+      : 'Describe what should change after the contract is replaced.';
+
+  const handleUpdateKindChange = (kind: UpdateKind) => {
+    setUpdateKind(kind);
+    setCandidateAddress('');
+  };
 
   return (
     <Modal show={show} onHide={onCancel} centered data-id="quickDappUpdateModal">
@@ -166,31 +201,37 @@ export default function DappUpdateModal({
       </Modal.Header>
       <Modal.Body>
         <Form.Group className="mb-3">
-          <Form.Label>What would you like to change?</Form.Label>
-          <Form.Control
-            as="textarea"
-            rows={3}
-            value={description}
-            onChange={(event) => setDescription(event.target.value)}
-            placeholder="Describe the UI or contract feature to update."
-            data-id="quickDappUpdateDescription"
-          />
-        </Form.Group>
+          <Form.Label>What are you updating?</Form.Label>
+          <div className="d-flex flex-column gap-2" data-id="quickDappUpdateKind" data-value={updateKind}>
+            {updateKindOptions.map((option) => {
+              const disabled = option.value === 'add'
+                ? !canChangeBindings || bindings.length >= 8
+                : option.value === 'replace' && !canChangeBindings;
 
-        <Form.Group className="mb-3">
-          <Form.Label>Contract change</Form.Label>
-          <Form.Select
-            value={updateKind}
-            onChange={(event) => {
-              setUpdateKind(event.target.value as UpdateKind);
-              setCandidateAddress('');
-            }}
-            data-id="quickDappUpdateKind"
-          >
-            <option value="source">No contract changes</option>
-            <option value="add" disabled={!canChangeBindings || bindings.length >= 8}>Add a deployed contract</option>
-            <option value="replace" disabled={!canChangeBindings}>Replace a contract</option>
-          </Form.Select>
+              return (
+                <label
+                  key={option.value}
+                  className={`d-flex align-items-start gap-2 border rounded p-2 mb-0 ${disabled ? 'opacity-50' : ''}`}
+                  style={{ cursor: disabled ? 'not-allowed' : 'pointer' }}
+                >
+                  <input
+                    className="form-check-input mt-1"
+                    type="radio"
+                    name="quickDappUpdateKind"
+                    value={option.value}
+                    checked={updateKind === option.value}
+                    disabled={disabled}
+                    onChange={() => handleUpdateKindChange(option.value)}
+                    data-id={`quickDappUpdateKind-${option.value}`}
+                  />
+                  <span>
+                    <span className="d-block fw-semibold">{option.label}</span>
+                    <span className="d-block small text-secondary">{option.description}</span>
+                  </span>
+                </label>
+              );
+            })}
+          </div>
           {isContractDapp && (
             <div className="small text-secondary text-break mt-2" data-id="quickDappUpdateEnvironment">
               DApp: {dappEnvironmentLabel} · Current environment: {currentEnvironmentLabel}
@@ -258,6 +299,18 @@ export default function DappUpdateModal({
             </div>
           </Form.Group>
         )}
+
+        <Form.Group className={updateKind === 'source' ? 'mb-0' : 'mt-3'}>
+          <Form.Label>{descriptionLabel}</Form.Label>
+          <Form.Control
+            as="textarea"
+            rows={3}
+            value={description}
+            onChange={(event) => setDescription(event.target.value)}
+            placeholder={descriptionPlaceholder}
+            data-id="quickDappUpdateDescription"
+          />
+        </Form.Group>
       </Modal.Body>
       <Modal.Footer>
         <Button variant="secondary" onClick={onCancel}>Cancel</Button>

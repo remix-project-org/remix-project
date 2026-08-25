@@ -112,6 +112,12 @@ function DeployPanel({ isDeleteInFlight, publishRequestId = 0 }: DeployPanelProp
     return () => window.cancelAnimationFrame(frameId);
   }, [publishRequestId, activeDapp?.config?.isBaseMiniApp]);
 
+  const handleAccordionKeyDown = (event: React.KeyboardEvent, toggle: () => void) => {
+    if (event.key !== 'Enter' && event.key !== ' ') return;
+    event.preventDefault();
+    toggle();
+  };
+
   const clearEnsPublishLock = () => {
     const publishLock = ensPublishLockRef.current;
     if (!publishLock) return;
@@ -192,7 +198,7 @@ function DeployPanel({ isDeleteInFlight, publishRequestId = 0 }: DeployPanelProp
     if (!dappManager || !activeDapp) return;
     const activeLock = getQuickDappWorkspaceLock();
     if (activeLock?.workspaceName === activeDapp.workspaceName) {
-      await plugin.call('notification', 'toast', 'Please wait until the current QuickDapp operation finishes before saving configuration.');
+      await plugin.call('notification', 'toast', 'Please wait until the current QuickDApp operation finishes before saving configuration.');
       return;
     }
     if (configSaveInFlightRef.current) return;
@@ -389,7 +395,7 @@ function DeployPanel({ isDeleteInFlight, publishRequestId = 0 }: DeployPanelProp
       reason: 'ipfs_publish'
     });
     if (!publishLock) {
-      await plugin.call('notification', 'toast', 'Please wait until the current QuickDapp operation finishes.');
+      await plugin.call('notification', 'toast', 'Please wait until the current QuickDApp operation finishes.');
       return;
     }
     setDeployResult({ cid: '', gatewayUrl: '', error: '' });
@@ -635,8 +641,16 @@ function DeployPanel({ isDeleteInFlight, publishRequestId = 0 }: DeployPanelProp
 
     return (
       <Card className="mb-2">
-        <Card.Header onClick={() => setIsInfoOpen(!isInfoOpen)} style={{ cursor: 'pointer' }} className="d-flex justify-content-between bg-transparent border-0">
-          Dapp info <i className={`fas ${isInfoOpen ? 'fa-chevron-up' : 'fa-chevron-down'}`}></i>
+        <Card.Header
+          onClick={() => setIsInfoOpen(!isInfoOpen)}
+          onKeyDown={(event) => handleAccordionKeyDown(event, () => setIsInfoOpen(!isInfoOpen))}
+          role="button"
+          tabIndex={0}
+          aria-expanded={isInfoOpen}
+          style={{ cursor: 'pointer' }}
+          className="d-flex justify-content-between bg-transparent border-0"
+        >
+          DApp info <i className={`fas ${isInfoOpen ? 'fa-chevron-up' : 'fa-chevron-down'}`}></i>
         </Card.Header>
         <Collapse in={isInfoOpen}>
           <Card.Body>
@@ -719,8 +733,16 @@ function DeployPanel({ isDeleteInFlight, publishRequestId = 0 }: DeployPanelProp
 
   const renderDappDocs = () => (
     <Card className="mb-2">
-      <Card.Header onClick={() => setIsDocsOpen(!isDocsOpen)} style={{ cursor: 'pointer' }} className="d-flex justify-content-between bg-transparent border-0">
-        Dapp documentation <i className={`fas ${isDocsOpen ? 'fa-chevron-up' : 'fa-chevron-down'}`}></i>
+      <Card.Header
+        onClick={() => setIsDocsOpen(!isDocsOpen)}
+        onKeyDown={(event) => handleAccordionKeyDown(event, () => setIsDocsOpen(!isDocsOpen))}
+        role="button"
+        tabIndex={0}
+        aria-expanded={isDocsOpen}
+        style={{ cursor: 'pointer' }}
+        className="d-flex justify-content-between bg-transparent border-0"
+      >
+        DApp documentation <i className={`fas ${isDocsOpen ? 'fa-chevron-up' : 'fa-chevron-down'}`}></i>
       </Card.Header>
       <Collapse in={isDocsOpen}>
         <Card.Body>
@@ -747,12 +769,20 @@ function DeployPanel({ isDeleteInFlight, publishRequestId = 0 }: DeployPanelProp
   const renderEditForm = () => (
     <div className="mb-3">
       <Form.Group className="mb-3">
-        <Form.Label className="text-uppercase mb-0 form-label">Dapp logo</Form.Label>
+        <Form.Label className="text-uppercase mb-0 form-label">DApp logo</Form.Label>
         <input ref={logoInputRef} type="file" accept="image/*" onChange={handleImageChange} style={{ display: 'none' }} />
         {logo && typeof logo === 'string' ? (
           <div className="mt-2 mb-2 position-relative d-inline-block border bg-white rounded p-1">
-            <img src={logo} alt="Preview" style={{ height: '60px', maxWidth: '100%', objectFit: 'contain' }} onError={(e) => e.currentTarget.style.display = 'none'} />
-            <span onClick={handleRemoveLogo} style={{ cursor: 'pointer', position: 'absolute', top: -10, right: -10 }} className="badge bg-danger rounded-circle"><i className="fas fa-times"></i></span>
+            <img src={logo} alt="DApp logo preview" style={{ height: '60px', maxWidth: '100%', objectFit: 'contain' }} onError={(e) => e.currentTarget.style.display = 'none'} />
+            <button
+              type="button"
+              onClick={handleRemoveLogo}
+              aria-label="Remove DApp logo"
+              style={{ position: 'absolute', top: -10, right: -10 }}
+              className="badge bg-danger rounded-circle border-0"
+            >
+              <i className="fas fa-times" aria-hidden="true"></i>
+            </button>
           </div>
         ) : (
           <div className="mt-1">
@@ -763,11 +793,11 @@ function DeployPanel({ isDeleteInFlight, publishRequestId = 0 }: DeployPanelProp
         )}
       </Form.Group>
       <Form.Group className="mb-3">
-        <Form.Label className="text-uppercase mb-0 form-label">Dapp Title</Form.Label>
+        <Form.Label className="text-uppercase mb-0 form-label">DApp title</Form.Label>
         <Form.Control value={title} onChange={({ target: { value } }) => dispatch({ type: 'SET_INSTANCE', payload: { title: value } })} />
       </Form.Group>
       <Form.Group className="mb-3">
-        <Form.Label className="text-uppercase mb-0 form-label">Dapp Description</Form.Label>
+        <Form.Label className="text-uppercase mb-0 form-label">DApp description</Form.Label>
         <Form.Control as="textarea" rows={3} value={details} onChange={({ target: { value } }) => dispatch({ type: 'SET_INSTANCE', payload: { details: value } })} />
       </Form.Group>
 
@@ -805,8 +835,16 @@ function DeployPanel({ isDeleteInFlight, publishRequestId = 0 }: DeployPanelProp
       {renderDappInfo()}
 
       <Card className="mb-2">
-        <Card.Header onClick={() => setIsDetailsOpen(!isDetailsOpen)} style={{ cursor: 'pointer' }} className="d-flex justify-content-between bg-transparent border-0">
-          Dapp configuration <i className={`fas ${isDetailsOpen ? 'fa-chevron-up' : 'fa-chevron-down'}`}></i>
+        <Card.Header
+          onClick={() => setIsDetailsOpen(!isDetailsOpen)}
+          onKeyDown={(event) => handleAccordionKeyDown(event, () => setIsDetailsOpen(!isDetailsOpen))}
+          role="button"
+          tabIndex={0}
+          aria-expanded={isDetailsOpen}
+          style={{ cursor: 'pointer' }}
+          className="d-flex justify-content-between bg-transparent border-0"
+        >
+          DApp configuration <i className={`fas ${isDetailsOpen ? 'fa-chevron-up' : 'fa-chevron-down'}`}></i>
         </Card.Header>
         <Collapse in={isDetailsOpen}>
           <Card.Body>
@@ -818,13 +856,21 @@ function DeployPanel({ isDeleteInFlight, publishRequestId = 0 }: DeployPanelProp
       {renderDappDocs()}
 
       <Card ref={publishSectionRef} className="mb-2">
-        <Card.Header onClick={() => setIsPublishOpen(!isPublishOpen)} style={{ cursor: 'pointer' }} className="d-flex justify-content-between bg-transparent border-0">
+        <Card.Header
+          onClick={() => setIsPublishOpen(!isPublishOpen)}
+          onKeyDown={(event) => handleAccordionKeyDown(event, () => setIsPublishOpen(!isPublishOpen))}
+          role="button"
+          tabIndex={0}
+          aria-expanded={isPublishOpen}
+          style={{ cursor: 'pointer' }}
+          className="d-flex justify-content-between bg-transparent border-0"
+        >
           Publish to IPFS <i className={`fas ${isPublishOpen ? 'fa-chevron-up' : 'fa-chevron-down'}`}></i>
         </Card.Header>
         <Collapse in={isPublishOpen}>
           <Card.Body>
             <Button variant="primary" className="w-100" onClick={() => handleIpfsDeploy()} disabled={isDeploying || isVM || isAiUpdating} data-id="deploy-ipfs-btn">
-              {isDeploying ? <><i className="fas fa-spinner fa-spin me-1"></i> Uploading...</> : <FormattedMessage id="quickDapp.deployToIPFS" defaultMessage="Deploy to IPFS" />}
+              {isDeploying ? <><i className="fas fa-spinner fa-spin me-1"></i> Uploading...</> : <FormattedMessage id="quickDapp.publishToIPFS" defaultMessage="Publish to IPFS" />}
             </Button>
             {isVM && (
               <Alert variant="warning" className="mt-2 small mb-0">
@@ -853,7 +899,16 @@ function DeployPanel({ isDeleteInFlight, publishRequestId = 0 }: DeployPanelProp
 
       {(
         <Card className="mb-2">
-          <Card.Header onClick={() => setIsEnsOpen(!isEnsOpen)} style={{ cursor: 'pointer' }} className="d-flex justify-content-between bg-transparent border-0" data-id="ens-section-header">
+          <Card.Header
+            onClick={() => setIsEnsOpen(!isEnsOpen)}
+            onKeyDown={(event) => handleAccordionKeyDown(event, () => setIsEnsOpen(!isEnsOpen))}
+            role="button"
+            tabIndex={0}
+            aria-expanded={isEnsOpen}
+            style={{ cursor: 'pointer' }}
+            className="d-flex justify-content-between bg-transparent border-0"
+            data-id="ens-section-header"
+          >
             Register ENS Name <i className={`fas ${isEnsOpen ? 'fa-chevron-up' : 'fa-chevron-down'}`}></i>
           </Card.Header>
           <Collapse in={isEnsOpen}>
@@ -904,7 +959,7 @@ function DeployPanel({ isDeleteInFlight, publishRequestId = 0 }: DeployPanelProp
                   reason: 'ens_registration'
                 });
                 if (!ensPublishLock) {
-                  plugin.call('notification', 'toast', 'Please wait until the current QuickDapp operation finishes.');
+                  plugin.call('notification', 'toast', 'Please wait until the current QuickDApp operation finishes.');
                   return;
                 }
                 ensPublishLockRef.current = {
@@ -994,7 +1049,15 @@ function DeployPanel({ isDeleteInFlight, publishRequestId = 0 }: DeployPanelProp
 
       {currentEnsDomain && (
         <Card className="mb-2">
-          <Card.Header onClick={() => setIsShareOpen(!isShareOpen)} style={{ cursor: 'pointer' }} className="d-flex justify-content-between bg-transparent border-0">
+          <Card.Header
+            onClick={() => setIsShareOpen(!isShareOpen)}
+            onKeyDown={(event) => handleAccordionKeyDown(event, () => setIsShareOpen(!isShareOpen))}
+            role="button"
+            tabIndex={0}
+            aria-expanded={isShareOpen}
+            style={{ cursor: 'pointer' }}
+            className="d-flex justify-content-between bg-transparent border-0"
+          >
             <span><i className="fas fa-share-alt me-2"></i>Share</span>
             <i className={`fas ${isShareOpen ? 'fa-chevron-up' : 'fa-chevron-down'}`}></i>
           </Card.Header>
@@ -1021,7 +1084,7 @@ function DeployPanel({ isDeleteInFlight, publishRequestId = 0 }: DeployPanelProp
                 <Button
                   variant="dark"
                   size="sm"
-                  onClick={() => window.open(`https://x.com/intent/post?text=${encodeURIComponent(`AI-generated DApp, powered by @EthereumRemix QuickDapp ⚡\n\nhttps://${currentEnsDomain}.limo`)}`, '_blank')}
+                  onClick={() => window.open(`https://x.com/intent/post?text=${encodeURIComponent(`AI-generated DApp, powered by @EthereumRemix QuickDApp ⚡\n\nhttps://${currentEnsDomain}.limo`)}`, '_blank')}
                 >
                   <i className="fab fa-x-twitter me-1"></i> Post on X
                 </Button>

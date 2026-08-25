@@ -26,6 +26,14 @@ interface PreviewIssue {
   message: string
 }
 
+interface NotificationModalState {
+  show: boolean
+  title: string
+  message: React.ReactNode
+  variant: string
+  action?: 'publish'
+}
+
 type DesktopWalletPreviewStatus = 'checking' | 'ready' | 'select-browser-wallet' | 'browser-disconnected';
 
 export const readDappFiles = async (
@@ -76,7 +84,7 @@ function EditHtmlTemplate(): JSX.Element {
   const runBuildRef = useRef<(showNotification?: boolean) => Promise<void>>();
   const deleteInFlightRef = useRef(false);
 
-  const [notificationModal, setNotificationModal] = useState({
+  const [notificationModal, setNotificationModal] = useState<NotificationModalState>({
     show: false,
     title: '',
     message: '' as React.ReactNode,
@@ -112,20 +120,21 @@ function EditHtmlTemplate(): JSX.Element {
             title: 'Code Updated',
             message: (
               <div>
-                <p>The AI has successfully updated your dapp code.</p>
+                <p>The AI has successfully updated your DApp code.</p>
                 <div className="alert alert-warning mb-0">
                   <i className="fas fa-exclamation-triangle me-2"></i>
                   <strong>Published · Unpublished changes.</strong> Publish again to update the live IPFS deployment.
                 </div>
               </div>
             ),
-            variant: 'warning'
+            variant: 'warning',
+            action: 'publish'
           });
         } else {
           setNotificationModal({
             show: true,
             title: 'Update Successful',
-            message: 'The AI has successfully updated your dapp code.',
+            message: 'The AI has successfully updated your DApp code.',
             variant: 'success'
           });
         }
@@ -213,6 +222,29 @@ function EditHtmlTemplate(): JSX.Element {
 
   const closeNotificationModal = () => {
     setNotificationModal(prev => ({ ...prev, show: false }));
+  };
+
+  const handlePublishChanges = async () => {
+    closeNotificationModal();
+
+    if (!dappManager || !activeDapp) return;
+
+    try {
+      const updatedConfig = await dappManager.getDappConfig(activeDapp.slug);
+      if (!updatedConfig) throw new Error('Updated DApp configuration is unavailable.');
+
+      dispatch({ type: 'SET_ACTIVE_DAPP', payload: updatedConfig });
+      dispatch({
+        type: 'SET_DAPPS',
+        payload: appState.dapps.map((dapp: any) => dapp.slug === updatedConfig.slug ? updatedConfig : dapp)
+      });
+    } catch (e: any) {
+      console.warn('[EditHtmlTemplate] Failed to refresh DApp config before publishing', e);
+      await plugin.call('notification', 'toast', `Could not prepare the updated DApp for publishing: ${e.message || e}`);
+      return;
+    }
+
+    setPublishRequestId((requestId) => requestId + 1);
   };
 
   const handleBack = async () => {
@@ -1264,9 +1296,12 @@ window.addEventListener('unhandledrejection', function(e) {
     };
   }, [isVM, isCurrentProviderVM, plugin]);
 
-  if (!activeDapp) return <div className="p-3">No active dapp selected.</div>;
+  if (!activeDapp) return <div className="p-3">No active DApp selected.</div>;
 
   const currentPreviewIssue = getFixablePreviewIssue();
+  const previewPublishLabel = getQuickDappPublishState(activeDapp) === 'published-with-unpublished-changes'
+    ? 'Publish changes'
+    : 'Publish';
 
   return (
     <div className="d-flex flex-column h-100">
@@ -1425,7 +1460,7 @@ window.addEventListener('unhandledrejection', function(e) {
                           data-id="preview-publish-btn"
                         >
                           <i className="fas fa-cloud-upload-alt me-1"></i>
-                          Publish
+                          {previewPublishLabel}
                         </Button>
                       </div>
                     </Card.Header>
@@ -1467,7 +1502,7 @@ window.addEventListener('unhandledrejection', function(e) {
                       <iframe
                         ref={iframeRef}
                         style={{ width: '100%', height: '100%', minHeight: '800px', border: 'none', backgroundColor: 'white', display: iframeError ? 'none' : 'block' }}
-                        title="dApp Preview"
+                        title="DApp Preview"
                         sandbox="allow-popups allow-scripts allow-same-origin allow-forms allow-top-navigation"
                         data-id="dapp-preview-iframe"
                       />
@@ -1489,7 +1524,12 @@ window.addEventListener('unhandledrejection', function(e) {
                               <i className="fas fa-robot me-1"></i>
                               Ask AI to fix
                             </Button>
-                            <button className="btn-close ms-2 flex-shrink-0" style={{ fontSize: '0.6rem' }} onClick={() => setRuntimeErrors([])}></button>
+                            <button
+                              className="btn-close ms-2 flex-shrink-0"
+                              style={{ fontSize: '0.6rem' }}
+                              onClick={() => setRuntimeErrors([])}
+                              aria-label="Dismiss runtime error"
+                            ></button>
                           </div>
                         </div>
                       )}
@@ -1574,6 +1614,12 @@ window.addEventListener('unhandledrejection', function(e) {
         <Modal.Body>{notificationModal.message}</Modal.Body>
         <Modal.Footer>
           <Button variant="secondary" onClick={closeNotificationModal} data-id="notification-modal-close-btn">Close</Button>
+          {notificationModal.action === 'publish' && (
+            <Button variant="primary" onClick={handlePublishChanges} data-id="notification-modal-publish-btn">
+              <i className="fas fa-cloud-upload-alt me-1"></i>
+              Publish changes
+            </Button>
+          )}
         </Modal.Footer>
       </Modal>
 

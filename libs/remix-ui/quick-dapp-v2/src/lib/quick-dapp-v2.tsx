@@ -34,6 +34,7 @@ export function RemixUiQuickDappV2({ plugin }: RemixUiQuickDappV2Props): JSX.Ele
   const { isAuthenticated, features } = useAuth()
   const [appState, dispatch] = useReducer(appReducer, appInitialState);
   const dappsRef = useRef(appState.dapps);
+  const viewRef = useRef(appState.view);
   const [isAppLoading, setIsAppLoading] = useState(true);
   const activeDappRef = useRef(appState.activeDapp);
 
@@ -55,6 +56,10 @@ export function RemixUiQuickDappV2({ plugin }: RemixUiQuickDappV2Props): JSX.Ele
   }, [appState.dapps, appState.view]);
 
   useEffect(() => {
+    viewRef.current = appState.view;
+  }, [appState.view]);
+
+  useEffect(() => {
     activeDappRef.current = appState.activeDapp;
   }, [appState]);
 
@@ -67,7 +72,7 @@ export function RemixUiQuickDappV2({ plugin }: RemixUiQuickDappV2Props): JSX.Ele
 
     const handleCreateDapp = async (payload: any) => {
       if (quickdappEnabledRef.current === false) {
-        plugin.call('notification', 'toast', 'QuickDapp is not available yet.')
+        plugin.call('notification', 'toast', 'QuickDApp is not available yet.')
         return
       }
       try {
@@ -104,7 +109,7 @@ export function RemixUiQuickDappV2({ plugin }: RemixUiQuickDappV2Props): JSX.Ele
 
     const handleCreateZkDapp = async (payload: any) => {
       if (quickdappEnabledRef.current === false) {
-        plugin.call('notification', 'toast', 'QuickDapp is not available yet.')
+        plugin.call('notification', 'toast', 'QuickDApp is not available yet.')
         return
       }
       try {
@@ -193,7 +198,7 @@ export function RemixUiQuickDappV2({ plugin }: RemixUiQuickDappV2Props): JSX.Ele
 
         if (!data.isUpdate) {
           plugin.call('notification', 'toast', `DApp '${thisDapp?.name || workspaceName}' created successfully!`);
-        } else {
+        } else if (viewRef.current !== 'editor' || activeDappRef.current?.slug !== slug) {
           plugin.call('notification', 'toast', 'DApp code updated successfully.');
         }
         console.log('[QuickDapp] handleDappGenerated done');
@@ -572,7 +577,7 @@ export function RemixUiQuickDappV2({ plugin }: RemixUiQuickDappV2Props): JSX.Ele
           <i className="fas fa-flask fa-3x mb-3 text-info"></i>
           <h4 className="mb-2">Coming Soon</h4>
           <p className="text-muted" style={{ maxWidth: '400px' }}>
-            QuickDapp V2 is under development and will be available soon. Stay tuned!
+            QuickDApp V2 is under development and will be available soon. Stay tuned!
           </p>
         </div>
       );
@@ -586,16 +591,16 @@ export function RemixUiQuickDappV2({ plugin }: RemixUiQuickDappV2Props): JSX.Ele
           <h4 className="mb-2">Access Required</h4>
           {isAuthenticated ? (
             <p className="text-muted" style={{ maxWidth: '400px' }}>
-              QuickDapp V2 is currently available to beta testers only. Please contact the Remix team to request access.
+              QuickDApp V2 is currently available to beta testers only. Please contact the Remix team to request access.
             </p>
           ) : (
             <>
               <p className="text-muted" style={{ maxWidth: '400px' }}>
-                Please sign in to access QuickDapp V2. This feature is available to beta testers.
+                Please sign in to access QuickDApp V2. This feature is available to beta testers.
               </p>
               <button
                 className="btn btn-sm btn-primary mt-2"
-                onClick={() => startSignInFlow(plugin, () => setShowLoginModal(true), 'QuickDapp Sign In')}
+                onClick={() => startSignInFlow(plugin, () => setShowLoginModal(true), 'QuickDApp Sign In')}
               >
                 Sign In
               </button>
@@ -609,7 +614,7 @@ export function RemixUiQuickDappV2({ plugin }: RemixUiQuickDappV2Props): JSX.Ele
       return (
         <div className="d-flex flex-column justify-content-center align-items-center" style={{ height: '80vh' }}>
           <i className="fas fa-spinner fa-spin fa-2x mb-3 text-primary"></i>
-          <p className="text-muted">Loading QuickDapp...</p>
+          <p className="text-muted">Loading QuickDApp...</p>
         </div>
       );
     }

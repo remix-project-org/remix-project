@@ -68,6 +68,7 @@ export function QuickDappContractSelector({
   const [figmaError, setFigmaError] = useState('')
   const [isPreparingFigma, setIsPreparingFigma] = useState(false)
   const [subgraphFilePath, setSubgraphFilePath] = useState('')
+  const [showOptionalIntegrations, setShowOptionalIntegrations] = useState(false)
 
   const allContracts = useMemo(() => {
     const seen = new Set<string>()
@@ -82,6 +83,7 @@ export function QuickDappContractSelector({
 
   const selectedPrimary = allContracts.find((contract) => contractKey(contract) === primaryAddress) || primaryContract
   const effectiveFrontendMode = fixedFrontendMode || frontendMode
+  const optionalIntegrationCount = Number(isBaseMiniApp) + Number(!!subgraphFilePath.trim())
 
   const candidates = useMemo(() => {
     return allContracts.filter((contract) => contractKey(contract) !== primaryAddress)
@@ -100,6 +102,7 @@ export function QuickDappContractSelector({
     setFigmaError('')
     setIsPreparingFigma(false)
     setSubgraphFilePath('')
+    setShowOptionalIntegrations(false)
   }, [show, primaryContract.address, fixedFrontendMode])
 
   const handlePrimaryChange = (address: string) => {
@@ -174,7 +177,7 @@ export function QuickDappContractSelector({
         <div className="mb-3" data-id="quickDappContractsStep">
           <div className="small text-uppercase text-primary fw-semibold mb-1">Step 1 of 3</div>
           <div className="fw-semibold">Contract bindings</div>
-          <div className="small text-secondary">Choose the main and additional contracts.</div>
+          <div className="small text-secondary">Choose the primary and additional contracts.</div>
         </div>
 
         {primarySelectable && sourceFileName && matchingContractAddresses.length === 0 && (
@@ -185,7 +188,7 @@ export function QuickDappContractSelector({
 
         {primarySelectable ? (
           <Form.Group className="mb-3">
-            <Form.Label className="fw-semibold">Main contract</Form.Label>
+            <Form.Label className="fw-semibold">Primary contract</Form.Label>
             <Form.Select
               value={primaryAddress}
               onChange={(event) => handlePrimaryChange(event.target.value)}
@@ -201,15 +204,23 @@ export function QuickDappContractSelector({
                 )
               })}
             </Form.Select>
+            <Form.Text className="text-secondary">
+              Used as the default contract context for AI generation and compatibility.
+            </Form.Text>
           </Form.Group>
         ) : (
-          <div className="border rounded p-2 mb-3" data-id="quickDappPrimaryContract">
-            <div className="d-flex align-items-center justify-content-between gap-2">
-              <div className="text-truncate">
-                <div className="fw-semibold text-truncate">{selectedPrimary.name}</div>
-                <div className="small text-secondary">{shortenAddress(selectedPrimary.address)}</div>
+          <div className="mb-3">
+            <div className="border rounded p-2 mb-1" data-id="quickDappPrimaryContract">
+              <div className="d-flex align-items-center justify-content-between gap-2">
+                <div className="text-truncate">
+                  <div className="fw-semibold text-truncate">{selectedPrimary.name}</div>
+                  <div className="small text-secondary">{shortenAddress(selectedPrimary.address)}</div>
+                </div>
+                <span className="badge bg-primary">Primary</span>
               </div>
-              <span className="badge bg-primary">Main</span>
+            </div>
+            <div className="small text-secondary">
+              Used as the default contract context for AI generation and compatibility.
             </div>
           </div>
         )}
@@ -280,24 +291,20 @@ export function QuickDappContractSelector({
               <option value="inline">Inline · /frontend in the current workspace</option>
             </Form.Select>
           )}
+          <Form.Text className="text-secondary">
+            {effectiveFrontendMode === 'inline'
+              ? 'Stores the frontend next to the current project in /frontend.'
+              : 'Keeps the generated DApp in a separate workspace.'}
+          </Form.Text>
         </Form.Group>
 
         <hr />
 
         <div className="mb-3" data-id="quickDappDesignStep">
           <div className="small text-uppercase text-primary fw-semibold mb-1">Step 3 of 3</div>
-          <div className="fw-semibold">Design and integrations</div>
-          <div className="small text-secondary">Add only the optional details you need.</div>
+          <div className="fw-semibold">Design</div>
+          <div className="small text-secondary">Choose a starting style and add details only when needed.</div>
         </div>
-
-        <Form.Check
-          className="mb-3"
-          type="checkbox"
-          checked={isBaseMiniApp}
-          onChange={(event) => setIsBaseMiniApp(event.target.checked)}
-          label="Create as a Base mini-app"
-          data-id="quickDappBaseMiniApp"
-        />
 
         <Form.Group className="mb-3">
           <Form.Label className="fw-semibold">Design</Form.Label>
@@ -393,15 +400,43 @@ export function QuickDappContractSelector({
           </div>
         )}
 
-        <Form.Group>
-          <Form.Label className="fw-semibold">Subgraph</Form.Label>
-          <Form.Control
-            value={subgraphFilePath}
-            onChange={(event) => setSubgraphFilePath(event.target.value)}
-            placeholder="None, or a .subgraph file path/name"
-            data-id="quickDappSubgraph"
-          />
-        </Form.Group>
+        <button
+          type="button"
+          className="btn btn-link text-body text-decoration-none p-0 w-100 d-flex align-items-center justify-content-between"
+          onClick={() => setShowOptionalIntegrations((current) => !current)}
+          aria-expanded={showOptionalIntegrations}
+          aria-controls="quickDappOptionalIntegrations"
+          data-id="quickDappOptionalIntegrationsToggle"
+        >
+          <span className="fw-semibold">
+            Optional integrations
+            {optionalIntegrationCount > 0 && <span className="badge bg-secondary ms-2">{optionalIntegrationCount}</span>}
+          </span>
+          <i className={`fas ${showOptionalIntegrations ? 'fa-chevron-up' : 'fa-chevron-down'}`} aria-hidden="true"></i>
+        </button>
+
+        {showOptionalIntegrations && (
+          <div id="quickDappOptionalIntegrations" className="border rounded p-3 mt-2" data-id="quickDappOptionalIntegrations">
+            <Form.Check
+              className="mb-3"
+              type="checkbox"
+              checked={isBaseMiniApp}
+              onChange={(event) => setIsBaseMiniApp(event.target.checked)}
+              label="Create as a Base mini-app"
+              data-id="quickDappBaseMiniApp"
+            />
+
+            <Form.Group>
+              <Form.Label className="fw-semibold">Subgraph</Form.Label>
+              <Form.Control
+                value={subgraphFilePath}
+                onChange={(event) => setSubgraphFilePath(event.target.value)}
+                placeholder="None, or a .subgraph file path/name"
+                data-id="quickDappSubgraph"
+              />
+            </Form.Group>
+          </div>
+        )}
 
         <p className="small text-secondary mt-3 mb-0">
           QuickDApp creates a browser-based static frontend and does not provide server runtime or secret storage.
@@ -409,7 +444,7 @@ export function QuickDappContractSelector({
       </Modal.Body>
       <Modal.Footer className="justify-content-between flex-wrap gap-2">
         <div className="small text-secondary" data-id="quickDappSetupSummary">
-          {selectedAddresses.length + 1} contract{selectedAddresses.length > 0 ? 's' : ''} · {effectiveFrontendMode === 'inline' ? 'Inline /frontend' : 'Dedicated workspace'}
+          Primary: {selectedPrimary.name} · {selectedAddresses.length + 1} contract{selectedAddresses.length > 0 ? 's' : ''} · {effectiveFrontendMode === 'inline' ? 'Inline /frontend' : 'Dedicated workspace'}
         </div>
         <div className="d-flex gap-2">
           <button type="button" className="btn btn-secondary" onClick={onCancel} disabled={isPreparingFigma} data-id="quickDappContractSelectorCancel">

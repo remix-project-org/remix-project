@@ -57,14 +57,14 @@ export default function DappSettingsDrawer({
         </div>
 
         <div className="small text-secondary">
-          Workspace, source, and deployment details remain in <strong>Dapp info</strong>. Binding changes use the validated DApp update flow.
+          Workspace, source, and deployment details remain in <strong>DApp info</strong>. Binding changes use the validated DApp update flow.
         </div>
       </Modal.Body>
       <Modal.Footer>
         <Button variant="secondary" onClick={onClose}>Close</Button>
         <Button variant="primary" onClick={onUpdate} disabled={isUpdating} data-id="quickDappSettingsUpdateBtn">
-          <i className="fas fa-robot me-1"></i>
-          Ask AI to Update
+          <i className="fas fa-robot me-1" aria-hidden="true"></i>
+          Change bindings with AI
         </Button>
       </Modal.Footer>
     </Modal>

@@ -484,7 +484,7 @@ const BaseAppWizard: React.FC<BaseAppWizardProps> = ({ isConfigSaveInFlight, isD
       reason: 'base_publish_flow'
     });
     if (!publishLock) {
-      await plugin.call('notification', 'toast', 'Please wait until the current QuickDapp operation finishes.');
+      await plugin.call('notification', 'toast', 'Please wait until the current QuickDApp operation finishes.');
       return;
     }
     publishLockRef.current = {
@@ -608,11 +608,11 @@ const BaseAppWizard: React.FC<BaseAppWizardProps> = ({ isConfigSaveInFlight, isD
   const renderEditForm = () => (
     <div className="mb-3">
       <Form.Group className="mb-3">
-        <Form.Label className="text-uppercase mb-0 form-label">Dapp Title</Form.Label>
+        <Form.Label className="text-uppercase mb-0 form-label">DApp title</Form.Label>
         <Form.Control value={title} onChange={({ target: { value } }) => dispatch({ type: 'SET_INSTANCE', payload: { title: value } })} />
       </Form.Group>
       <Form.Group className="mb-3">
-        <Form.Label className="text-uppercase mb-0 form-label">Dapp Description</Form.Label>
+        <Form.Label className="text-uppercase mb-0 form-label">DApp description</Form.Label>
         <Form.Control as="textarea" rows={3} value={details} onChange={({ target: { value } }) => dispatch({ type: 'SET_INSTANCE', payload: { details: value } })} />
       </Form.Group>
     </div>
@@ -735,7 +735,7 @@ const BaseAppWizard: React.FC<BaseAppWizardProps> = ({ isConfigSaveInFlight, isD
                   <Button
                     variant="dark"
                     size="sm"
-                    onClick={() => window.open(`https://x.com/intent/post?text=${encodeURIComponent(`AI-generated DApp, powered by @EthereumRemix QuickDapp ⚡\n\n${ensUrl}`)}`, '_blank')}
+                    onClick={() => window.open(`https://x.com/intent/post?text=${encodeURIComponent(`AI-generated DApp, powered by @EthereumRemix QuickDApp ⚡\n\n${ensUrl}`)}`, '_blank')}
                   >
                     <i className="fab fa-x-twitter me-1"></i> Post on X
                   </Button>
