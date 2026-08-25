@@ -298,7 +298,7 @@ export const FlatTree = (props: FlatTreeProps) => {
   }
 
   return (<>
-    <div ref={containerRef} className='h-100 mt-1'>
+    <div ref={containerRef} className='d-flex flex-column h-100 ps-1 mt-1'>
       <div className="d-flex flex-row gap-2 align-items-center remixui_rootFolderRow">
         <span className="fa fa-caret-down"></span><span className="fa-regular fa-folder-open"></span><span>{workspaceDetails?.name}</span>
       </div>
@@ -316,7 +316,7 @@ export const FlatTree = (props: FlatTreeProps) => {
         setSelectedItems={setSelectedItems}
       >
         <div data-id="treeViewUltreeViewMenu"
-          className='d-flex h-100 w-100 pb-2'
+          className='d-flex flex-column flex-grow-1 w-100 ms-3 pb-2'
           onClick={handleTreeClick}
           onMouseLeave={onMouseLeave}
           onMouseMove={onMouseMove}

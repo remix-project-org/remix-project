@@ -623,6 +623,7 @@ export function EnsNaming({ contract, onClose }: EnsNamingProps) {
             <button
               className="btn btn-outline-secondary btn-sm flex-fill"
               onClick={() => setViewStep('done')}
+              style={{ color: subtextColor, borderColor: 'var(--bs-border-color)' }}
             >
               Skip
             </button>
@@ -745,14 +746,18 @@ export function EnsNaming({ contract, onClose }: EnsNamingProps) {
                 Retry
               </button>
             )}
-            <button className="btn btn-outline-secondary btn-sm flex-fill" onClick={() => {
-              if (errorContext === 'reverse') {
-                setJobError('')
-                setViewStep('done')
-              } else {
-                onClose()
-              }
-            }}>
+            <button
+              className="btn btn-outline-secondary btn-sm flex-fill"
+              style={{ color: subtextColor, borderColor: 'var(--bs-border-color)' }}
+              onClick={() => {
+                if (errorContext === 'reverse') {
+                  setJobError('')
+                  setViewStep('done')
+                } else {
+                  onClose()
+                }
+              }}
+            >
               {errorContext === 'reverse' ? 'Skip Reverse' : 'Close'}
             </button>
           </div>

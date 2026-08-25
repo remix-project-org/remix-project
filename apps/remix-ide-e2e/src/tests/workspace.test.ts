@@ -507,7 +507,6 @@ module.exports = {
       .click('*[data-id="contract-wizard-topcard"]')
       .waitForElementVisible('*[data-id="contract-wizard-container"]')
       .click('*[data-id="contract-wizard-validate-workspace-button"]')
-      .clickLaunchIcon('filePanel')
       .waitForElementVisible('*[data-id="treeViewLitreeViewItemcontracts"]')
       .waitForElementVisible('*[data-id="treeViewLitreeViewItemcontracts/MyToken.sol"]')
       .waitForElementVisible('*[data-id="treeViewLitreeViewItem.prettierrc.json"]')

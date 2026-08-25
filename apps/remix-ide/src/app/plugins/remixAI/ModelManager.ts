@@ -7,7 +7,9 @@ import { remixAILogger,
   getBestAvailableModel,
   listModels,
   modelSupportsTools,
-  getModelById
+  getModelById,
+  findModel,
+  ANONYMOUS_FALLBACK_MODELS
 } from '@remix/remix-ai-core'
 import type { AIModel } from '@remix/remix-ai-core'
 import type { IRemixAIPlugin } from './types'
@@ -26,23 +28,18 @@ export class ModelManager {
     this.deps = deps
   }
 
-  async setModel(modelId: string, allowedModels: string[] = []): Promise<void> {
+  async setModel(modelId: string, allowedModels: string[] = [], provider?: string): Promise<void> {
     const plugin = this.deps.plugin
-    // The static `getModelById` only knows the anonymous fallback list
-    // (placeholder + ollama). Real model metadata lives in the
-    // assistantState plugin, fed by /permissions.ai_models. Look it up
-    // there first; only fall back to the static helper for the bootstrap
-    // / ollama cases.
     let model: AIModel | undefined
     try {
       const dynamic: AIModel[] = await plugin.call('assistantState', 'getAvailableModels')
       if (Array.isArray(dynamic)) {
-        model = dynamic.find(m => m.id === modelId)
+        model = findModel(dynamic, modelId, provider)
       }
     } catch (e) {
       remixAILogger.warn('[ModelManager] assistantState.getAvailableModels failed', e)
     }
-    if (!model) model = getModelById(modelId)
+    if (!model) model = findModel(ANONYMOUS_FALLBACK_MODELS, modelId, provider) ?? getModelById(modelId)
     if (!model) {
       // No silent fallback. The picker is fed by /permissions — if a
       // caller asks for a model id that isn't in any catalogue we have a
@@ -180,7 +177,7 @@ export class ModelManager {
       throw new Error(`[ModelManager.setAssistantProvider] No available model for provider "${provider}" in /permissions ai_models. Backend must advertise at least one row for this provider.`)
     }
     const chosen = candidates.find(m => m.isDefault) ?? candidates[0]
-    await this.setModel(chosen.id)
+    await this.setModel(chosen.id, [], chosen.provider)
   }
 
   async getOllamaModels(): Promise<{ name: string; supported: boolean }[]> {

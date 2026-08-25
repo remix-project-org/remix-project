@@ -490,7 +490,6 @@ module.exports = {
       .click('*[data-id="contract-wizard-pausable-checkbox"]')
       .assert.selected('*[data-id="contract-wizard-access-ownable-radio"]', 'checked')
       .click('*[data-id="contract-wizard-validate-workspace-button"]')
-      .clickLaunchIcon('filePanel')
       .pause(1000)
       .waitForElementVisible('*[data-id="treeViewLitreeViewItemcontracts/MyToken_test.sol"]')
   },
@@ -558,7 +557,6 @@ module.exports = {
       .click('*[data-id="initializeAsGitRepo-uniswapV4Template"]')
       .click('*[data-id="validate-uniswapV4Templateworkspace-button"]')
       .pause(2000)
-      .clickLaunchIcon('filePanel')
       .waitForElementVisible('*[data-id="treeViewLitreeViewItemsrc"]')
       .openFile('src')
       .openFile('src/Counter.sol')

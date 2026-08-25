@@ -11,7 +11,8 @@ import { Features } from '@remix-api';
  */
 export interface AIModel {
   id: string
-  provider: 'openai' | 'mistralai' | 'moonshot' | 'anthropic' | 'ollama'
+  provider: 'openai' | 'mistralai' | 'moonshot' | 'openrouter' | 'anthropic' | 'ollama' | 'bedrock'
+  routeProvider?: 'openai' | 'mistralai' | 'moonshot' | 'openrouter' | 'anthropic' | 'ollama' | 'bedrock'
   /** Display name as the backend wants it shown. */
   displayName: string
   description: string
@@ -26,6 +27,7 @@ export interface AIModel {
   available: boolean
   /** Backend-supplied reason when `available === false`. e.g. 'feature_required'. */
   reason?: string
+  requireAPIKey?: boolean
   /** Backend ordering hint. */
   sortOrder: number
 }
@@ -86,16 +88,34 @@ export const ANONYMOUS_FALLBACK_MODELS: AIModel[] = [
  * it via `assistantState.getDefaultModel()` (or `selectDefaultModel(snap)`).
  *
  * If you find yourself wanting a literal model id here, you have a bug:
- *   - For "user just opened the app" \u2192 selectedModel should be `null`
- *     until /permissions resolves. Render a "Loading\u2026" state.
- *   - For "task X needs model Y" \u2192 backend advertises that via
+ *   - For "user just opened the app" → selectedModel should be `null`
+ *     until /permissions resolves. Render a "Loading…" state.
+ *   - For "task X needs model Y" → backend advertises that via
  *     `permissions.task_models[X]`. Read with `assistantState.getModelForTask('X')`.
- *   - For "Ollama / anonymous fallback" \u2192 ANONYMOUS_FALLBACK_MODELS.
+ *   - For "Ollama / anonymous fallback" → ANONYMOUS_FALLBACK_MODELS.
  *
  * Anything else MUST throw rather than silently substitute.
  */
-
 export function getModelById(id: string, list: ReadonlyArray<AIModel> = ANONYMOUS_FALLBACK_MODELS): AIModel | undefined {
+  return list.find(m => m.id === id)
+}
+
+export function modelKey(model: Pick<AIModel, 'provider' | 'id'>): string {
+  return `${model.provider}::${model.id}`
+}
+
+export function parseModelKey(key: string): { provider?: string; id: string } {
+  const idx = key.indexOf('::')
+  if (idx === -1) return { id: key }
+  return { provider: key.slice(0, idx), id: key.slice(idx + 2) }
+}
+
+export function findModel(
+  list: ReadonlyArray<AIModel>,
+  id: string,
+  provider?: string
+): AIModel | undefined {
+  if (provider) return list.find(m => m.id === id && m.provider === provider)
   return list.find(m => m.id === id)
 }
 
@@ -126,17 +146,143 @@ export function parseAIModelsFromPermissions(permissions: any): AIModel[] | null
       requiredFeature: typeof m.required_feature === 'string' ? m.required_feature : null,
       available: m.available !== false,
       reason: typeof m.reason === 'string' ? m.reason : undefined,
+      requireAPIKey: !!(m.require_api_key ?? m.requireAPIKey),
       sortOrder: typeof m.sort_order === 'number' ? m.sort_order : 0
     }))
     .sort((a, b) => a.sortOrder - b.sortOrder)
+
   // Append the local Ollama option only when the user has the `ai:ollama`
-  // feature enabled. The backend doesn't ship Ollama in `ai_models[]`
-  // (it's a local capability), so the feature flag is the only signal.
+  // feature. Every other provider (anthropic / openai / mistral / moonshot /
+  // openrouter / bedrock) is advertised directly by the backend in `ai_models`.
   const features = permissions?.features as Record<string, { is_enabled?: boolean }> | undefined
+
   if (features && features[Features.AI_OLLAMA]?.is_enabled === true) {
     parsed.push(OLLAMA_MODEL)
   }
   return parsed
+}
+
+/** Settings key holding the user's own AWS Bedrock bearer token. */
+export const BEDROCK_API_KEY_SETTING = 'deepagent-bedrock-bearer-token'
+
+/** True when the model reaches AWS Bedrock, whichever brand it is shown under. */
+export function isBedrockModel(model: Pick<AIModel, 'provider' | 'routeProvider'>): boolean {
+  return model.routeProvider === 'bedrock' || model.provider === 'bedrock'
+}
+
+/**
+ * AWS Bedrock is BYOK-only — the Remix proxy no longer fronts it.
+ */
+export function applyBedrockByokPolicy(models: AIModel[], hasBedrockKey: boolean): AIModel[] {
+  if (!Array.isArray(models)) return models
+  if (!hasBedrockKey) return models.filter((model) => !isBedrockModel(model))
+  return models.map((model) =>
+    isBedrockModel(model)
+      ? { ...model, available: true, requiredFeature: null, requireAPIKey: true, reason: undefined }
+      : model
+  )
+}
+
+/** Settings key holding the user's own OpenRouter API key. */
+export const OPENROUTER_API_KEY_SETTING = 'deepagent-openrouter-api-key'
+
+export const BYOK_API_KEY_SETTINGS: Partial<Record<AIModel['provider'], string>> = {
+  bedrock: BEDROCK_API_KEY_SETTING,
+  openrouter: OPENROUTER_API_KEY_SETTING
+}
+
+/** The provider that actually carries the request (route wins over brand). */
+export function modelTransportProvider(model: Pick<AIModel, 'provider' | 'routeProvider'>): AIModel['provider'] {
+  return model.routeProvider ?? model.provider
+}
+
+/**
+ * Applies the BYOK key policy over the whole catalogue: deleting a key must
+ * invalidate the provider it belonged to.
+ */
+export function applyByokKeyPolicy(
+  models: AIModel[],
+  keyPresence: Partial<Record<AIModel['provider'], boolean>>
+): AIModel[] {
+  if (!Array.isArray(models)) return models
+  return applyBedrockByokPolicy(models, !!keyPresence.bedrock).map((model) => {
+    const provider = modelTransportProvider(model)
+    // Bedrock rows were already normalized above.
+    if (provider === 'bedrock') return model
+    if (!BYOK_API_KEY_SETTINGS[provider]) return model
+    if (!model.requireAPIKey || keyPresence[provider]) return model
+    return { ...model, available: false, reason: 'api_key_required' }
+  })
+}
+
+/**
+ * OpenRouter is the default router: a model is "routed" when it reaches the
+ * vendor through another provider's transport. `curateOpenRouterBrandedModels`
+ * is the only curation that sets one.
+ *
+ */
+export function isOpenRouterRouted(model: AIModel): boolean {
+  return model.routeProvider === 'openrouter' || model.provider === 'openrouter'
+}
+
+/**
+ * OpenRouter ids are `vendor/slug` (e.g. `anthropic/claude-sonnet-5`). Map the
+ * vendor segment onto the brand the picker groups under, so an OpenRouter-routed
+ * Claude lands in the Anthropic section rather than a 400-row OpenRouter one.
+ * Vendors absent from this map keep `provider: 'openrouter'` and stay grouped
+ * under OpenRouter.
+ */
+const OPENROUTER_VENDOR_BRANDS: Record<string, AIModel['provider']> = {
+  anthropic: 'anthropic',
+  openai: 'openai',
+  mistralai: 'mistralai',
+  mistral: 'mistralai',
+  moonshotai: 'moonshot',
+  moonshot: 'moonshot'
+}
+
+/** `anthropic/claude-sonnet-5` → `Claude Sonnet 5`. Only used when the backend
+ *  sent no display_name (parseAIModelsFromPermissions falls back to the id). */
+function prettifyOpenRouterId(id: string): string {
+  const slug = id.includes('/') ? id.slice(id.indexOf('/') + 1) : id
+  return slug
+    .replace(/:.*$/, '') // drop OpenRouter variant suffixes (`:batch`, `:free`, …)
+    .split(/[-_]/)
+    .map((part) => (/^\d/.test(part) ? part : part.charAt(0).toUpperCase() + part.slice(1)))
+    .join(' ')
+}
+
+/**
+ * OpenRouter is the primary route: Anthropic / OpenAI / Mistral / Moonshot
+ * models reach us as `provider: 'openrouter'` rows and are rebranded here to
+ * their vendor so the picker groups them by brand, with `routeProvider:
+ * 'openrouter'` carrying the actual transport (ModelFactory reads
+ * `routeProvider ?? provider`). The model id is left untouched — OpenRouter
+ * requires the full `vendor/slug`.
+ *
+ * Needs no per-model rule table: the vendor prefix is part of every
+ * OpenRouter id.
+ */
+export function curateOpenRouterBrandedModels(models: AIModel[]): AIModel[] {
+  if (!Array.isArray(models) || models.length === 0) return models
+  return models.map((model) => {
+    if (model.provider !== 'openrouter') return model
+    // parseAIModelsFromPermissions falls back to the id when the backend sends
+    // no display_name — never show a raw `vendor/slug` in the picker.
+    const displayName = model.displayName && model.displayName !== model.id
+      ? model.displayName
+      : prettifyOpenRouterId(model.id)
+    const vendor = model.id.includes('/') ? model.id.slice(0, model.id.indexOf('/')).toLowerCase() : ''
+    const brand = OPENROUTER_VENDOR_BRANDS[vendor]
+    // Unmapped vendor (x-ai, google, deepseek, …) — stays under OpenRouter.
+    if (!brand) return { ...model, displayName }
+    return {
+      ...model, // preserves backend `isDefault`, `available`, `sortOrder`, etc.
+      provider: brand,
+      routeProvider: 'openrouter' as const,
+      displayName
+    }
+  })
 }
 
 const CompletionParams:IParams = {

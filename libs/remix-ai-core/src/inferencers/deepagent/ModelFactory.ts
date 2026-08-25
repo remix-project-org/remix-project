@@ -2,7 +2,9 @@ import { remixAILogger } from '../../helpers/logger'
 import { ChatAnthropic } from '@langchain/anthropic'
 import { ChatMistralAI } from '@langchain/mistralai'
 import { ChatOpenAI } from '@langchain/openai'
+import { ChatOpenRouter } from '@langchain/openrouter'
 import { ChatOllama } from '@langchain/ollama'
+import { ChatBedrockConverse } from '@langchain/aws'
 import { BaseChatModel } from '@langchain/core/language_models/chat_models'
 import { HTTPClient } from '@mistralai/mistralai/lib/http.js'
 import { endpointUrls } from '@remix-endpoints-helper'
@@ -14,6 +16,8 @@ import { discoverOllamaHost, getBestAvailableModel, getModelCapabilities } from 
 const AI_DEBUG = (() => {
   try { return typeof window !== 'undefined' && window.localStorage?.getItem('AI_DEBUG') === 'true' } catch { return false }
 })()
+
+const DEFAULT_BEDROCK_REGION = 'us-east-1'
 
 /**
  * fetch wrapper that injects the user's Remix bearer token on every request.
@@ -285,12 +289,71 @@ function wrapModelForDebug<T extends BaseChatModel>(model: T, label: string): T 
   return model
 }
 
+/**
+ * AWS Bedrock's Converse API rejects any tool whose `toolSpec.description`
+ * is empty ("Member must have length greater than or equal to 1"), unlike
+ * Anthropic / OpenAI / Mistral which tolerate blank descriptions. The
+ * deepagents runtime binds several built-in tools (todo / task / filesystem)
+ * whose descriptions can be empty. Backfill a non-empty description so the
+ * request passes Bedrock validation.
+ */
+function ensureBedrockToolDescriptions<T>(tools: T[]): T[] {
+  if (!Array.isArray(tools)) return tools
+  const fallback = (name?: unknown) =>
+    (typeof name === 'string' && name.length > 0 ? `The ${name} tool.` : 'No description provided.')
+  return tools.map((tool: any) => {
+    if (!tool || typeof tool !== 'object') return tool
+    try {
+      // StructuredTool / DynamicStructuredTool and plain { name, description }.
+      if ('description' in tool && (!tool.description || String(tool.description).trim().length === 0)) {
+        tool.description = fallback(tool.name)
+      }
+      // OpenAI-style function tool: { type: 'function', function: { name, description } }.
+      const fn = tool.function
+      if (fn && typeof fn === 'object' && (!fn.description || String(fn.description).trim().length === 0)) {
+        fn.description = fallback(fn.name)
+      }
+    } catch {
+      /* description may be read-only on some tool classes — best effort. */
+    }
+    return tool
+  })
+}
+
+function bedrockGeoForRegion(region: string): string {
+  if (region.startsWith('us-gov-')) return 'us-gov'
+  if (region.startsWith('eu-')) return 'eu'
+  if (region.startsWith('ap-')) return 'apac'
+  return 'us'
+}
+
+/**
+ * Normalise a Bedrock model id for the caller's region.
+ *
+ * Newer Anthropic / Meta models on Bedrock are only reachable through a
+ * cross-region inference profile (e.g. `us.anthropic.claude-haiku-4-5-…`) —
+ */
+function resolveBedrockModelId(modelId: string, region: string): string {
+  const m = modelId.match(/^(us-gov|us|eu|apac)\.(.+)$/)
+  if (!m) return modelId
+  return `${bedrockGeoForRegion(region)}.${m[2]}`
+}
+
+function patchBedrockBindTools<T extends BaseChatModel>(model: T): T {
+  const original = typeof (model as any).bindTools === 'function' ? (model as any).bindTools.bind(model) : null
+  if (!original) return model
+  ;(model as any).bindTools = (tools: any[], kwargs?: any) =>
+    original(ensureBedrockToolDescriptions(tools), kwargs)
+  return model
+}
+
 export async function createModelInstance(
   modelSelection: ModelSelection,
   maxTokens: number = DAPP_MAX_TOKENS,
   userApiKeys?: IUserApiKeyConfig
 ): Promise<BaseChatModel> {
-  const { provider, modelId } = modelSelection
+  const { modelId } = modelSelection
+  const provider = modelSelection.routeProvider ?? modelSelection.provider
 
   switch (provider) {
   case 'ollama': {
@@ -324,63 +387,37 @@ export async function createModelInstance(
   }
 
   case 'mistralai': {
-    const useDirectApi = !!(userApiKeys?.useOwnKeys && userApiKeys?.mistralApiKey)
-    remixAILogger.log(`[ModelFactory] Creating MistralAI model: ${modelId}${useDirectApi ? ' (direct API)' : ' (proxy)'}`)
+    remixAILogger.log(`[ModelFactory] Creating MistralAI model: ${modelId} (proxy)`)
     return wrapModelForDebug(new ChatMistralAI({
-      apiKey: useDirectApi ? (userApiKeys!.mistralApiKey as string) : 'proxy-handled',
+      apiKey: 'proxy-handled',
       model: modelId,
       temperature: 0.7,
       maxTokens: maxTokens,
       streaming: true,
       maxRetries: 0,
-      ...(useDirectApi
-        ? {}
-        : {
-          serverURL: `${endpointUrls.langchain}/mistral`,
-          httpClient: createAuthedMistralHttpClient()
-        })
+      serverURL: `${endpointUrls.langchain}/mistral`,
+      httpClient: createAuthedMistralHttpClient()
     }), `mistralai/${modelId}`)
   }
 
   case 'openai': {
-    const useDirectApi = !!(userApiKeys?.useOwnKeys && userApiKeys?.openaiApiKey)
-    remixAILogger.log(`[ModelFactory] Creating OpenAI model: ${modelId}${useDirectApi ? ' (direct API)' : ' (proxy)'}`)
+    remixAILogger.log(`[ModelFactory] Creating OpenAI model: ${modelId} (proxy)`)
     return wrapModelForDebug(new ChatOpenAI({
-      apiKey: useDirectApi ? (userApiKeys!.openaiApiKey as string) : 'proxy-handled',
+      apiKey: 'proxy-handled',
       model: modelId,
       temperature: 0.7,
       maxTokens: maxTokens,
       streaming: true,
       maxRetries: 0,
-      ...(useDirectApi
-        ? {}
-        : {
-          configuration: {
-            baseURL: `${endpointUrls.langchain}/openai`,
-            fetch: authedFetch
-          }
-        })
+      configuration: {
+        baseURL: `${endpointUrls.langchain}/openai`,
+        fetch: authedFetch
+      }
     }), `openai/${modelId}`)
   }
 
   case 'moonshot': {
-    const useDirectApi = !!(userApiKeys?.useOwnKeys && userApiKeys?.moonshotApiKey)
-    remixAILogger.log(`[ModelFactory] Creating Moonshot model: ${modelId}${useDirectApi ? ' (direct API)' : ' (proxy)'}`)
-    if (useDirectApi) {
-      return wrapModelForDebug(new ChatOpenAI({
-        apiKey: userApiKeys!.moonshotApiKey as string,
-        model: modelId,
-        maxTokens: maxTokens,
-        streaming: true,
-        maxRetries: 0,
-        configuration: {
-          baseURL: 'https://api.moonshot.ai/v1'
-        },
-        modelKwargs: {
-          thinking: { type: 'disabled' }
-        }
-      }), `moonshot/${modelId}`)
-    }
+    remixAILogger.log(`[ModelFactory] Creating Moonshot model: ${modelId} (proxy)`)
     return wrapModelForDebug(new ChatOpenAI({
       apiKey: 'proxy-handled',
       model: modelId,
@@ -396,25 +433,72 @@ export async function createModelInstance(
     }), `moonshot/${modelId}`)
   }
 
-  case 'anthropic':
-  default: {
-    const useDirectApi = !!(userApiKeys?.useOwnKeys && userApiKeys?.anthropicApiKey)
-    remixAILogger.log(`[ModelFactory] Creating Anthropic model: ${modelId}${useDirectApi ? ' (direct API)' : ' (proxy)'}`)
-    return wrapModelForDebug(new ChatAnthropic({
-      apiKey: useDirectApi ? (userApiKeys!.anthropicApiKey as string) : 'proxy-handled',
+  case 'openrouter': {
+    const useDirectApi = !!(userApiKeys?.useOwnKeys && userApiKeys?.openrouterApiKey)
+    remixAILogger.log(`[ModelFactory] Creating OpenRouter model: ${modelId}${useDirectApi ? ' (direct API)' : ' (proxy)'}`)
+    // Own key → talk to OpenRouter directly through its dedicated LangChain SDK.
+    if (useDirectApi) {
+      return wrapModelForDebug(new ChatOpenRouter({
+        apiKey: userApiKeys!.openrouterApiKey as string,
+        model: modelId,
+        temperature: 0.7,
+        maxTokens: maxTokens,
+        maxRetries: 0,
+        modelKwargs: {
+          usage: { include: true },
+          include_reasoning: true
+        }
+      }), `openrouter/${modelId}`)
+    }
+    // No key → route through the Remix proxy (OpenAI-compatible endpoint).
+    return wrapModelForDebug(new ChatOpenAI({
+      apiKey: 'proxy-handled',
       model: modelId,
       temperature: 0.7,
       maxTokens: maxTokens,
       streaming: true,
       maxRetries: 0,
-      ...(useDirectApi
-        ? {}
-        : {
-          clientOptions: {
-            baseURL: endpointUrls.langchain,
-            fetch: authedFetch
-          }
-        })
+      configuration: {
+        baseURL: `${endpointUrls.langchain}/openrouter`,
+        fetch: authedFetch
+      }
+    }), `openrouter/${modelId}`)
+  }
+
+  case 'bedrock': {
+    // AWS Bedrock is BYOK-only — the Remix proxy no longer fronts it. Without
+    // the user's own bearer token there is no route to build, and the picker
+    // hides Bedrock models until that token is set (see `hasBedrockApiKey`),
+    // so reaching here without one means a stale selection.
+    const bedrockBearerToken = userApiKeys?.bedrockBearerToken?.trim()
+    if (!bedrockBearerToken) {
+      throw new Error('[ModelFactory] AWS Bedrock requires your own Bedrock API key. Add it under Settings → RemixAI Assistant → Bring Your Own API Keys.')
+    }
+    const region = DEFAULT_BEDROCK_REGION
+    const bedrockModelId = resolveBedrockModelId(modelId, region)
+
+    remixAILogger.log(`[ModelFactory] Creating AWS Bedrock model: ${bedrockModelId} @ ${region} (own key)`)
+    return wrapModelForDebug(patchBedrockBindTools(new ChatBedrockConverse({
+      model: bedrockModelId,
+      region,
+      bedrockBearerToken,
+    })), `bedrock/${bedrockModelId}`)
+  }
+
+  case 'anthropic':
+  default: {
+    remixAILogger.log(`[ModelFactory] Creating Anthropic model: ${modelId} (proxy)`)
+    return wrapModelForDebug(new ChatAnthropic({
+      apiKey: 'proxy-handled',
+      model: modelId,
+      temperature: 0.7,
+      maxTokens: maxTokens,
+      streaming: true,
+      maxRetries: 0,
+      clientOptions: {
+        baseURL: endpointUrls.langchain,
+        fetch: authedFetch
+      }
     }), `anthropic/${modelId}`)
   }
   }

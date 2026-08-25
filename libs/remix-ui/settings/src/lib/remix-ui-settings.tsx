@@ -226,16 +226,10 @@ const settingsSections: SettingsSection[] = [
           description: 'settings.useOwnApiKeysDescription',
           type: 'toggle' as const,
           toggleUIOptions: [{
-            name: 'deepagent-anthropic-api-key' as keyof typeof initialState,
+            name: 'deepagent-openrouter-api-key' as keyof typeof initialState,
             type: 'password'
           }, {
-            name: 'deepagent-mistral-api-key' as keyof typeof initialState,
-            type: 'password'
-          }, {
-            name: 'deepagent-openai-api-key' as keyof typeof initialState,
-            type: 'password'
-          }, {
-            name: 'deepagent-moonshot-api-key' as keyof typeof initialState,
+            name: 'deepagent-bedrock-bearer-token' as keyof typeof initialState,
             type: 'password'
           }]
         }]
@@ -359,7 +353,7 @@ export const RemixUiSettings = (props: RemixUiSettingsProps) => {
   // Check if user can use their own API keys based on their plan
   const canUseOwnApiKeys = useMemo(() => {
     return features['ai:api-key']?.is_enabled === true
-  }, [featureGroups])
+  }, [features, featureGroups])
 
   // Check if user has access to contextual editor feature (code analysis popover)
   const hasContextualEditorFeature = useMemo(() => {

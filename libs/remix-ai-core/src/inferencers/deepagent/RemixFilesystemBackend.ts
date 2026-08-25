@@ -164,6 +164,25 @@ export class RemixFilesystemBackend {
     await this.writeFileInternal(filePath, finalContent)
   }
 
+  /**
+   * Settle every write approval still waiting on the user as "rejected" and
+   * drop any unflushed edit batch.
+   */
+  public cancelPendingApprovals(): void {
+    const pending = Array.from(this.pendingApprovals.values())
+    this.pendingApprovals.clear()
+    this.editBatches.clear()
+    if (pending.length === 0) return
+    remixAILogger.log('[RemixFilesystemBackend] cancelling pending write approvals:', pending.length)
+    for (const resolve of pending) {
+      try {
+        resolve({ approved: false })
+      } catch (e) {
+        remixAILogger.warn('[RemixFilesystemBackend] failed to settle pending approval', e)
+      }
+    }
+  }
+
   public async flushAllPendingBatches(): Promise<void> {
     const files = [...this.editBatches.keys()]
     if (files.length === 0) return

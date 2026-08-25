@@ -3,7 +3,7 @@
 import { ICompletions,
   IParams, ChatEntry, AIRequestType, IRemoteModel } from './types/types'
 import { ModelType } from './types/constants'
-import { InsertionParams, CompletionParams, GenerationParams, AssistantParams, AIModel, ANONYMOUS_FALLBACK_MODELS, ANONYMOUS_PLACEHOLDER_MODEL, OLLAMA_MODEL, getModelById, parseAIModelsFromPermissions } from './types/models'
+import { InsertionParams, CompletionParams, GenerationParams, AssistantParams, AIModel, ANONYMOUS_FALLBACK_MODELS, ANONYMOUS_PLACEHOLDER_MODEL, OLLAMA_MODEL, getModelById, parseAIModelsFromPermissions, modelKey, parseModelKey, findModel, BEDROCK_API_KEY_SETTING, OPENROUTER_API_KEY_SETTING, BYOK_API_KEY_SETTINGS, isBedrockModel, applyBedrockByokPolicy, applyByokKeyPolicy, modelTransportProvider } from './types/models'
 import { buildChatPrompt } from './prompts/promptBuilder'
 import { RemoteInferencer } from './inferencers/remote/remoteInference'
 import { OllamaInferencer } from './inferencers/local/ollamaInferencer'
@@ -19,6 +19,8 @@ import { ChatHistoryStorageManager } from './storage/storageManager'
 import { IndexedDBChatHistoryBackend } from './storage/indexedDBBackend'
 import { WeightedToolSelector, IChatMessage } from './services/weightedToolSelector'
 import { remixAILogger, setRemixAILoggingEnabled, isRemixAILoggingEnabled } from './helpers/logger'
+import { generateStructured } from './helpers/structuredOutput'
+import { SecurityCheckSchema, GeneratedFileSchema, GeneratedProjectSchema, WorkspaceEditSchema } from './types/schemas'
 export {
   ChatCommandParser,
   ModelType, ICompletions, IParams, IRemoteModel, buildChatPrompt,
@@ -28,10 +30,11 @@ export {
   InsertionParams, CompletionParams, GenerationParams, AssistantParams,
   ChatEntry, AIRequestType, ChatHistory, resetOllamaHostOnSettingsChange,
   mcpDefaultServersConfig, mcpBasicServersConfig, mcpWebSearchServersConfig,
-  AIModel, ANONYMOUS_FALLBACK_MODELS, ANONYMOUS_PLACEHOLDER_MODEL, OLLAMA_MODEL, getModelById, parseAIModelsFromPermissions,
+  AIModel, ANONYMOUS_FALLBACK_MODELS, ANONYMOUS_PLACEHOLDER_MODEL, OLLAMA_MODEL, getModelById, parseAIModelsFromPermissions, modelKey, parseModelKey, findModel, BEDROCK_API_KEY_SETTING, OPENROUTER_API_KEY_SETTING, BYOK_API_KEY_SETTINGS, isBedrockModel, applyBedrockByokPolicy, applyByokKeyPolicy, modelTransportProvider,
   ChatHistoryStorageManager, IndexedDBChatHistoryBackend,
   WeightedToolSelector, IChatMessage,
-  remixAILogger, setRemixAILoggingEnabled, isRemixAILoggingEnabled
+  remixAILogger, setRemixAILoggingEnabled, isRemixAILoggingEnabled,
+  generateStructured, SecurityCheckSchema, GeneratedFileSchema, GeneratedProjectSchema, WorkspaceEditSchema
 }
 
 export * from './types/types'

@@ -43,7 +43,7 @@ export default function GroupListMenu(props: GroupListMenuProps) {
   // upgrade or buy-credits pill, so we hide them when both pills are hidden.
   const visibleItems = props.groupList.filter(item => {
     if (!item.isLocked) return true
-    if (item.stateValue === '__signin__') return true
+    if (item.stateValue === '__signin__' || (typeof item.stateValue === 'string' && item.stateValue.endsWith('::__signin__'))) return true
     return hasVisibleLockedPill
   })
 
@@ -99,6 +99,7 @@ export default function GroupListMenu(props: GroupListMenuProps) {
       {visibleItems.map((item, index) => {
         const upgradePill = item.isLocked ? renderPill(item, 'upgrade', upgradeState) : null
         const buyCreditsPill = item.isLocked ? renderPill(item, 'buy_credits', buyCreditsState) : null
+        const isSelected = !item.isLocked && !item.disabled && props.choice === item.stateValue
         return (
           <button
             key={`${item.label}-${index}`}
@@ -106,6 +107,7 @@ export default function GroupListMenu(props: GroupListMenuProps) {
             data-id={item.dataId}
             data-locked={item.isLocked ? 'true' : 'false'}
             data-disabled={item.disabled ? 'true' : 'false'}
+            data-selected={isSelected ? 'true' : 'false'}
             title={item.disabled ? (item.disabledReason || 'This model is not supported') : undefined}
             onClick={() => {
               props.setShowOptions(false)
@@ -121,7 +123,7 @@ export default function GroupListMenu(props: GroupListMenuProps) {
             <div className="d-flex flex-column small text-start">
               <div className="d-flex align-items-center justify-content-between mb-1">
                 <div className="d-flex align-items-center">
-                  <span className="form-check-label fw-bold">{item.label}</span>
+                  <span className={`form-check-label fw-bold ${isSelected ? 'text-primary' : ''}`}>{item.label}</span>
                   {item.disabled && (
                     <span className="badge bg-secondary ms-2" style={{ fontSize: '0.6rem' }}>
                       {item.disabledReason || 'Unsupported'}

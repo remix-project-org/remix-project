@@ -31,6 +31,8 @@ import { RemixDeepAgentMiddleware } from './deepAgentMiddleWare'
 
 import './AsyncLocalStorageInit'
 import { createModelInstance } from './ModelFactory'
+import { generateStructured } from '../../helpers/structuredOutput'
+import { SecurityCheckSchema } from '../../types/schemas'
 import { getLangfuseCallbackHandler } from '../../helpers/langfuse'
 import { buildSubagentConfigs } from './SubagentConfig'
 import { StreamEventHandler } from './StreamEventHandler'
@@ -41,7 +43,16 @@ import { clearAllQuickDappWorkspaceLocks } from '@remix-ui/helper'
 import { clearAllQuickDappGenerationContexts } from '../../helpers/quickDappGenerationContext'
 import { clearQuickDappDocsContext } from '../../helpers/quickDappDocsContext'
 
-export const notSuitableForCodeGeneration = ['mistral-medium-latest', 'mistral-small-latest', 'ministral-3b', 'ministral-8b-latest']
+/** Model *families* too weak for code generation — subagents fall back to Sonnet.
+ *  Matched as prefixes so both direct ids (`mistral-small-latest`) and
+ *  OpenRouter's `vendor/slug` ids (`mistralai/mistral-small-2603`) hit. */
+export const notSuitableForCodeGeneration = ['mistral-medium', 'mistral-small', 'ministral-3b', 'ministral-8b']
+
+export function isUnsuitableForCodeGeneration(modelId: string): boolean {
+  if (!modelId) return false
+  const slug = modelId.includes('/') ? modelId.slice(modelId.indexOf('/') + 1) : modelId
+  return notSuitableForCodeGeneration.some((family) => slug.startsWith(family))
+}
 
 export class DeepAgentInferencer implements ICompletions, IGeneration {
   private plugin: Plugin
@@ -336,7 +347,8 @@ export class DeepAgentInferencer implements ICompletions, IGeneration {
       provider: this.modelSelection.provider,
       errorType: apiKeyErrorType,
       message: getErrorMessage(errorType, error),
-      canFallbackToProxy: true,
+      // Bedrock has no proxy route (BYOK-only), so never offer the switch.
+      canFallbackToProxy: (this.modelSelection.routeProvider ?? this.modelSelection.provider) !== 'bedrock',
       originalError: error?.message,
       timestamp: Date.now()
     }
@@ -525,6 +537,25 @@ export class DeepAgentInferencer implements ICompletions, IGeneration {
         )
       }
 
+      // A security check is a single read-only analysis — no tools needed — so
+      // constrain the model to the SecurityCheck shape (Answer/Reason/Suggestion)
+      // that `SecurityAgent.processFile` consumes. Callers `JSON.parse` the
+      // string result, so we stringify the validated object. Falls back to the
+      // free-form agent run if the model can't do structured output.
+      if (this.model) {
+        try {
+          const structuredMessages: BaseMessage[] = [
+            new SystemMessage(REMIX_DEEPAGENT_SYSTEM_PROMPT + '\n\n' + SECURITY_ANALYSIS_PROMPT),
+            new HumanMessage(prompt)
+          ]
+          const result = await generateStructured(this.model, SecurityCheckSchema, structuredMessages, { name: 'security_check' })
+          this.event.emit('onInferenceDone')
+          return JSON.stringify(result)
+        } catch (structuredError) {
+          remixAILogger.warn('[DeepAgentInferencer] structured vulnerability_check failed, falling back to agent run', structuredError)
+        }
+      }
+
       const messages = [
         { role: 'system', content: REMIX_DEEPAGENT_SYSTEM_PROMPT + '\n\n' + SECURITY_ANALYSIS_PROMPT },
         { role: 'user', content: prompt }
@@ -660,7 +691,10 @@ export class DeepAgentInferencer implements ICompletions, IGeneration {
       }
 
       // Flush any pending edit batches — this triggers the HITL modal immediately
-      // after the agent finishes, so the user sees the combined diff right away
+      if (localAbortController.signal.aborted) {
+        this.cancelPendingApprovals()
+        return fullResponse
+      }
       await (this.filesystemBackend as any).flushAllPendingBatches()
 
       // Log final token usage summary
@@ -717,6 +751,10 @@ export class DeepAgentInferencer implements ICompletions, IGeneration {
                 this.event.emit('onStreamResult', { content, isIntermediate: false, source: 'retry', threadId: this.sessionThreadId })
               }
             }
+          }
+          if (retryAbortController.signal.aborted) {
+            this.cancelPendingApprovals()
+            return fullResponse
           }
           await (this.filesystemBackend as any).flushAllPendingBatches()
           return fullResponse
@@ -799,7 +837,6 @@ export class DeepAgentInferencer implements ICompletions, IGeneration {
   }
 
   public async getProjectStructure(): Promise<string> {
-    console.log('[DeepAgentInferencer] Attempting to retrieve project structure from MCP...')
     if (!this.mcpInferencer) {
       return ''
     }
@@ -896,12 +933,15 @@ export class DeepAgentInferencer implements ICompletions, IGeneration {
 
       if (this.config.enableSubagents && this.model) {
         let fallbackModel = this.model
-        if (notSuitableForCodeGeneration.includes(this.modelSelection.modelId)) {
-          fallbackModel = await createModelInstance({
-            provider: 'anthropic',
-            modelId: 'claude-sonnet-4-6',
-          }, DAPP_MAX_TOKENS, this.userApiKeys)
-          remixAILogger.log(`[DeepAgentInferencer] Using fallback model claude-sonnet-4-6 for subagents due to unsuitability of selected model ${this.modelSelection.modelId} for code generation`)
+        if (isUnsuitableForCodeGeneration(this.modelSelection.modelId)) {
+          // Route the subagent fallback the same way as the active selection.
+          const fallbackSelection: ModelSelection = this.modelSelection.routeProvider === 'bedrock'
+            ? { provider: 'anthropic', modelId: 'us.anthropic.claude-sonnet-4-20250514-v1:0', routeProvider: 'bedrock' }
+            // OpenRouter is the default route, so the fallback uses its
+            // `vendor/slug` id form.
+            : { provider: 'anthropic', modelId: 'anthropic/claude-sonnet-5', routeProvider: 'openrouter' }
+          fallbackModel = await createModelInstance(fallbackSelection, DAPP_MAX_TOKENS, this.userApiKeys)
+          remixAILogger.log(`[DeepAgentInferencer] Using fallback model ${fallbackSelection.modelId} (route=${fallbackSelection.routeProvider ?? fallbackSelection.provider}) for subagents due to unsuitability of selected model ${this.modelSelection.modelId} for code generation`)
         }
         agentConfig.subagents = await buildSubagentConfigs(
           this.tools,
@@ -974,16 +1014,7 @@ export class DeepAgentInferencer implements ICompletions, IGeneration {
     const userMessage = getErrorMessage(errorType, error, retryAfter)
 
     remixAILogger.log(`[DeepAgentInferencer] Error classified as: ${errorType}, retryable: ${retryable}, retryAfter: ${retryAfter}`)
-
-    this.event.emit('onApiError', {
-      type: errorType,
-      message: userMessage,
-      retryable,
-      retryAfter,
-      originalError: error?.message,
-      timestamp: Date.now(),
-      threadId: this.sessionThreadId
-    })
+    console.error(`[DeepAgentInferencer] Original error:`, error)
 
     // Emit API key specific error for UI handling
     if (errorType === DeepAgentErrorType.AUTHENTICATION_FAILED ||
@@ -993,53 +1024,28 @@ export class DeepAgentInferencer implements ICompletions, IGeneration {
       this.emitApiKeyError(errorType, error)
     }
 
+    // Recoverable errors: surface a friendly inline message and keep the
+    // turn's partial output — there's nothing actionable to report.
     if (errorType === DeepAgentErrorType.RATE_LIMIT_EXCEEDED ||
         errorType === DeepAgentErrorType.QUOTA_EXCEEDED) {
+      this.event.emit('onApiError', {
+        type: errorType,
+        message: userMessage,
+        retryable,
+        retryAfter,
+        originalError: error?.message,
+        timestamp: Date.now(),
+        threadId: this.sessionThreadId
+      })
       return `${userMessage}`
     }
 
-    // Try fallback to RemoteInferencer for other errors
-    if (this.fallbackInferencer) {
-      remixAILogger.log(`[DeepAgentInferencer] Falling back to RemoteInferencer for ${method}`)
-      this.event.emit('deepAgentFallback', { method, error: error.message, errorType })
-
-      try {
-        switch (method) {
-        case 'code_generation':
-          return await this.fallbackInferencer.code_generation(prompt, params)
-        case 'code_explaining':
-          return await this.fallbackInferencer.code_explaining(prompt, '', params)
-        case 'answer':
-          return await this.fallbackInferencer.answer(prompt, params)
-        case 'vulnerability_check':
-          return await this.fallbackInferencer.vulnerability_check(prompt, params)
-        default:
-          return await this.fallbackInferencer.generate(prompt, params)
-        }
-      } catch (fallbackError: any) {
-        remixAILogger.error('[DeepAgentInferencer] Fallback also failed:', fallbackError)
-        // If the fallback failed with a backend envelope, propagate it so the
-        // gate can react instead of dumping the raw body into the chat.
-        const fbEnvelope = aiErrorFromException(fallbackError)
-        if (fbEnvelope && fbEnvelope.code !== 'INTERNAL_ERROR' && fbEnvelope.status > 0) {
-          try {
-            fallbackError.aiError = fbEnvelope
-            if (!fallbackError.response) {
-              fallbackError.response = { status: fbEnvelope.status, data: { error: fbEnvelope } }
-            }
-            if (typeof fallbackError.message === 'string' && /^\d{3}\s+\{|API error occurred|Status\s+\d{3}[\s\S]*Body\s*:/i.test(fallbackError.message.trim())) {
-              fallbackError.message = fbEnvelope.message
-            }
-          } catch { /* ignore */ }
-          throw fallbackError
-        }
-        const fallbackClassification = classifyApiError(fallbackError)
-        const fallbackMessage = getErrorMessage(fallbackClassification.type, fallbackError, fallbackClassification.retryAfter)
-        return `${fallbackMessage}`
-      }
-    }
-
-    return `${userMessage}`
+    // Solcoder fallback disabled. Where we used to silently retry the
+    // request against RemoteInferencer, re-throw so withAssistantGate calls
+    // reportError() and the existing chat-notice strip above the prompt
+    // renders the failure (same path backend-envelope errors already take).
+    remixAILogger.log(`[DeepAgentInferencer] ${method} failed, solcoder fallback disabled — surfacing to notice strip`)
+    throw error
   }
 
   cancelRequest(): void {
@@ -1048,6 +1054,8 @@ export class DeepAgentInferencer implements ICompletions, IGeneration {
       this.currentAbortController.abort()
       this.currentAbortController = null
     }
+    // Aborting the stream does NOT unblock a run that is parked on a HITL
+    this.cancelPendingApprovals()
     this.event.emit('onInferenceDone')
 
     try {
@@ -1059,8 +1067,25 @@ export class DeepAgentInferencer implements ICompletions, IGeneration {
     } catch (_) { /* best-effort cleanup */ }
   }
 
+  /** Settle every HITL approval still waiting on the user (see cancelRequest). */
+  private cancelPendingApprovals(): void {
+    try {
+      this.approvalGate?.cancelPendingApprovals()
+    } catch (e) {
+      remixAILogger.warn('[DeepAgentInferencer] approvalGate.cancelPendingApprovals failed', e)
+    }
+    try {
+      ;(this.filesystemBackend as any)?.cancelPendingApprovals?.()
+    } catch (e) {
+      remixAILogger.warn('[DeepAgentInferencer] filesystemBackend.cancelPendingApprovals failed', e)
+    }
+  }
+
   async close(): Promise<void> {
     this.__closed = true
+    // A close() racing an in-flight run (cancelRequest → reinitialize) must not
+    // leave approval waiters pending — they would keep answer() alive forever.
+    this.cancelPendingApprovals()
     // eslint-disable-next-line no-console
     if (DeepAgentInferencer.__gcLogging) console.log(`[DeepAgent-GC] 🛑 CLOSE #${this.__instanceId} thread=${this.sessionThreadId} | live=${DeepAgentInferencer.__liveCount}`)
 

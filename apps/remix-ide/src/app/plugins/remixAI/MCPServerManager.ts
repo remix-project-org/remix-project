@@ -6,7 +6,7 @@ import type { PermissionChecker } from './PermissionChecker'
 export interface MCPServerManagerDeps {
   plugin: IRemixAIPlugin
   permissionChecker: PermissionChecker
-  setModel: (modelId: string) => Promise<void>
+  setModel: (modelId: string, provider?: string) => Promise<void>
   reinitializeDeepAgent: () => Promise<void>
 }
 

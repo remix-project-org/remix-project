@@ -1,8 +1,9 @@
-export type ModelProvider = 'anthropic' | 'mistralai' | 'openai' | 'moonshot' | 'ollama'
+export type ModelProvider = 'anthropic' | 'mistralai' | 'openai' | 'moonshot' | 'openrouter' | 'ollama' | 'bedrock'
 
 export interface ModelSelection {
   provider: ModelProvider
   modelId: string
+  routeProvider?: ModelProvider
 }
 
 /**
@@ -10,10 +11,23 @@ export interface ModelSelection {
  */
 export interface IUserApiKeyConfig {
   useOwnKeys: boolean
-  anthropicApiKey?: string
-  mistralApiKey?: string
-  openaiApiKey?: string
-  moonshotApiKey?: string
+  openrouterApiKey?: string
+  bedrockBearerToken?: string
+}
+
+export function isUsingOwnKeyForProvider(
+  provider: ModelProvider | string,
+  keys?: IUserApiKeyConfig
+): boolean {
+  if (!keys) return false
+  switch (provider) {
+  case 'bedrock':
+    return !!keys.bedrockBearerToken
+  case 'openrouter':
+    return !!(keys.useOwnKeys && keys.openrouterApiKey)
+  default:
+    return false
+  }
 }
 
 /**

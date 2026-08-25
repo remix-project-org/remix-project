@@ -8,14 +8,16 @@ export function loadWeb3 (url = 'http://localhost:8545') {
 }
 
 export function web3DebugNode (networkid: string) {
-  const web3DebugNodes = {
+  const web3DebugNodes: { [key: number]: string } = {
     1: 'https://go.getblock.us/1552e4e35bcf4efe8a78897cba5557f9',
     11155111: 'https://go.getblock.io/7fbe62b139884d2c9c1616ca0de8b5b2',
     42161: 'https://go.getblock.io/d8fb0ccf25a646edaaf777d8abb10a62',
     10: 'https://go.getblock.io/7ab36af4c9c346bbabab70e9c54d9c6c'
   }
-  if (web3DebugNodes[networkid]) {
-    return loadWeb3(web3DebugNodes[networkid])
+  // Convert string network ID to number for lookup
+  const numericNetworkId = parseInt(networkid, 10)
+  if (web3DebugNodes[numericNetworkId]) {
+    return loadWeb3(web3DebugNodes[numericNetworkId])
   }
   return null
 }

@@ -61,45 +61,53 @@ export class ApiKeySettingsHelper {
    */
   async getUserApiKeysConfig(): Promise<IUserApiKeyConfig | undefined> {
     try {
-      // First check if user has permission to use own API keys
+      // Whether the user may swap the Remix proxy for their own keys on the
+      // proxy-backed providers (openrouter).
       const hasPermission = await this.canUseOwnApiKeys()
-      if (!hasPermission) {
-        remixAILogger.log('[ApiKeySettingsHelper] User does not have permission to use own API keys')
-        return undefined
-      }
 
-      // Read settings via plugin calls (parallel for performance)
-      const [useOwnKeysValue, anthropicApiKey, mistralApiKey, openaiApiKey, moonshotApiKey] = await Promise.all([
+      // Read settings via plugin calls (parallel for performance). We read the
+      // Bedrock API key regardless of `hasPermission`: Bedrock is BYOK-only —
+      // the Remix proxy no longer fronts it — so the user's own key is the only
+      // way to reach it, and without one its models are not offered at all. The
+      // permission flag only governs own-key access on the proxy-backed
+      // providers below.
+      const [
+        useOwnKeysValue,
+        openrouterApiKey,
+        bedrockBearerToken
+      ] = await Promise.all([
         this.getSetting('deepagent-api-keys-config'),
-        this.getSetting('deepagent-anthropic-api-key'),
-        this.getSetting('deepagent-mistral-api-key'),
-        this.getSetting('deepagent-openai-api-key'),
-        this.getSetting('deepagent-moonshot-api-key')
+        this.getSetting('deepagent-openrouter-api-key'),
+        this.getSetting('deepagent-bedrock-bearer-token')
       ])
 
       const useOwnKeys = useOwnKeysValue === 'true' || useOwnKeysValue === true
 
+      const hasBedrockKey = !!bedrockBearerToken
+
+      // Proxy-provider own keys are gated behind the permission; the Bedrock
+      // key is not (see above).
+      const openrouter = hasPermission ? String(openrouterApiKey || '') : ''
+      const hasAnyProxyKey = !!openrouter
+
       // Debug logging
       remixAILogger.log('[ApiKeySettingsHelper] Reading API keys from settings:', {
+        hasPermission,
         useOwnKeys,
-        hasAnthropicKey: !!anthropicApiKey,
-        hasMistralKey: !!mistralApiKey,
-        hasOpenaiKey: !!openaiApiKey,
-        hasMoonshotKey: !!moonshotApiKey
+        hasOpenrouterKey: !!openrouterApiKey,
+        hasBedrockKey: !!hasBedrockKey
       })
 
       // Auto-enable if any API key is set
-      const hasAnyKey = anthropicApiKey || mistralApiKey || openaiApiKey || moonshotApiKey
-      if (!useOwnKeys && !hasAnyKey) {
+      const hasAnyKey = openrouterApiKey
+      if (!hasBedrockKey && !hasAnyProxyKey && !(useOwnKeys && hasPermission)) {
         return undefined
       }
 
       return {
         useOwnKeys: useOwnKeys || !!hasAnyKey,
-        anthropicApiKey: String(anthropicApiKey || ''),
-        mistralApiKey: String(mistralApiKey || ''),
-        openaiApiKey: String(openaiApiKey || ''),
-        moonshotApiKey: String(moonshotApiKey || '')
+        openrouterApiKey: String(openrouterApiKey || ''),
+        bedrockBearerToken: String(bedrockBearerToken || '')
       }
     } catch (error) {
       remixAILogger.warn('[ApiKeySettingsHelper] Failed to read user API keys config:', error)
@@ -112,6 +120,12 @@ export class ApiKeySettingsHelper {
    */
   async isUsingOwnApiKeyForProvider(provider: string): Promise<boolean> {
     try {
+      // Bedrock is always own-key: it has no proxy route, so a stored token is
+      // the only way it runs, independent of the proxy-vs-own-key toggle.
+      if (provider === 'bedrock') {
+        return !!(await this.getSetting('deepagent-bedrock-bearer-token'))
+      }
+
       const useOwnKeysValue = await this.getSetting('deepagent-api-keys-config')
       const useOwnKeys = useOwnKeysValue === 'true' || useOwnKeysValue === true
 
@@ -119,17 +133,8 @@ export class ApiKeySettingsHelper {
 
       let apiKey: string | boolean = ''
       switch (provider) {
-      case 'anthropic':
-        apiKey = await this.getSetting('deepagent-anthropic-api-key')
-        break
-      case 'openai':
-        apiKey = await this.getSetting('deepagent-openai-api-key')
-        break
-      case 'mistralai':
-        apiKey = await this.getSetting('deepagent-mistral-api-key')
-        break
-      case 'moonshot':
-        apiKey = await this.getSetting('deepagent-moonshot-api-key')
+      case 'openrouter':
+        apiKey = await this.getSetting('deepagent-openrouter-api-key')
         break
       default:
         return false

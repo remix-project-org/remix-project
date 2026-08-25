@@ -20,6 +20,7 @@ const { txResultHelper } = helpers
 const { resultToRemixTx } = txResultHelper
 import * as packageJson from '../../../../package.json'
 import { formatUnits, parseUnits } from 'ethers'
+import { CompilerAbstract } from '@remix-project/remix-solidity'
 
 const profile = {
   name: 'blockchain',
@@ -1060,6 +1061,16 @@ export class Blockchain extends Plugin {
         if (isEnabled && !tx.to && !tx.useCall && !tx.isVM) {
           const auth = await this.call('auth', 'getCredits')
           if (auth && auth.balance > creditThreshold) {
+
+            const resolved: CompilerAbstract = await this.call('compilerArtefacts', 'getCompilerAbstractByContractName', args.data.contractName)
+            const sources = resolved.getSourceCode()
+            let source = ''
+            if (sources.target) {
+              source = sources.sources[sources.target].content
+            } else {
+              source = sources.sources[Object.keys(sources.sources)[0]].content
+            }
+
             const copy = { ...args.data }
             delete copy.contractBytecode
             delete copy.contractDeployedBytecode
@@ -1068,8 +1079,23 @@ export class Blockchain extends Plugin {
             const copyResult = { ...result }
             delete copyResult.data
 
-            const prompt = `The following contract has been deployed: ${JSON.stringify(copy)} , ${JSON.stringify(copyResult)}. Sum it up (deployment details) and propose me to go over some specific focussed areas.
-            Additionaly mention that RemixAI can load Skills to analyze the contract and provide insights by typing /load-skills in the AI chat. /gas-audit and /load-audit-checklist are also integrated to provide gas optimization and security audit insights. Go to settings => RemixAI Assistant => AI Feedback to disable automatic feedback feature.`
+            const prompt = `A contract was just deployed. Here is the deployment data: ${JSON.stringify(copy)}, ${JSON.stringify(copyResult)}.
+            ${source ? `Here is the contract source code:\n${source}` : ''}
+            ${copy.funArgs && copy.funArgs.length ? `Here are the constructor arguments:\n${JSON.stringify(copy.funArgs)}` : ''}
+            ${args.data.contractABI ? `Here is the ABI:\n${JSON.stringify(args.data.contractABI)}` : ''}
+
+            Do the following, concisely:
+            1. Confirm the deployment (contract name, address, network, gas used) in 1-2 lines — don't over-elaborate here.
+            2. Based on the actual code/ABI, briefly note what this contract does and flag 1-3 specific things worth a closer look — e.g. access control patterns, external calls, payable functions, loops over dynamic arrays, upgradeability, or anything unusual you spot. Be specific to THIS contract, not generic advice.
+            3. Turn those flagged items into a concrete next-step offer, e.g. "I noticed an unbounded loop in withdrawAll() — want me to run /gas-audit on it?" rather than a generic feature list.
+
+            Then mention, briefly and only once:
+            - /load-skills lets RemixAI load specialized skills to analyze this contract further
+            - /gas-audit runs a gas optimization pass
+            - /load-audit-checklist runs a security checklist pass
+            - Automatic feedback can be disabled under Settings → RemixAI Assistant → AI Feedback
+
+            Keep the whole response tight — a wall of text defeats the purpose.`
             this.call('remixaiassistant', 'chatPipe', prompt, true, { source: 'udapp', presetId: 'deploy-contract' })
           }
         }
