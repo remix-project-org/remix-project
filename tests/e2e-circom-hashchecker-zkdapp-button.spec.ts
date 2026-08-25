@@ -1,24 +1,60 @@
 import { test, expect, Page, FrameLocator, Locator } from '@playwright/test'
-import { test as poolTest } from './helpers/e2e-pool'
+import { releaseAccount } from '../apps/remix-ide-e2e/src/helpers/pool'
+
+const poolApiKey = process.env.E2E_POOL_API_KEY || process.env.E2E_POOL_KEY || ''
 
 test.describe.serial('Circom hashchecker: trusted setup, zk dapp button, and zkVerify flows', () => {
-  test.describe.configure({ timeout: 180_000 })
+  test.describe.configure({ timeout: 300_000 })
 
   let page: Page
   let circuitFrame: FrameLocator
   let terminalJournal: Locator
+  let poolSessionId: string | null = null
 
   test.beforeAll(async ({ browser }) => {
     page = await browser.newPage({ viewport: { width: 1440, height: 900 } })
     terminalJournal = page.locator('[data-id="terminalJournal"]')
 
-    await page.goto('http://127.0.0.1:8080')
+    const url = poolApiKey
+      ? `http://127.0.0.1:8080/#lang=en&e2e_pool_key=${encodeURIComponent(poolApiKey)}&e2e_feature_groups=e2e-unlimited-quota&optimize&runs=200&evmVersion&version=soljson-v0.8.34+commit.80d5c536.js`
+      : 'http://127.0.0.1:8080'
+    await page.goto(url)
 
     // --- Wait for the IDE to finish loading ----------------------------------
     await expect(page.locator('[data-id="apploaded"]')).toBeAttached({ timeout: 60_000 })
     await page.evaluate(() => {
       document.querySelectorAll('#nudge-widget-container, .nudge-widget, .nudge-modal-backdrop, .nudge-decoration').forEach((el) => el.remove())
     })
+
+    if (poolApiKey) {
+      // --- Sign in via the E2E test pool -------------------------------------
+      await page.locator('[data-id="login-button"]').click()
+      await page.locator('[data-id="loginModalE2EPoolButton"]').click()
+      await expect(page.locator('[data-id="user-menu-compact"]').first()).toBeVisible({ timeout: 30_000 })
+      await page.locator('[data-id="verticalIconsKindremixaiassistant"]').click()
+      await page.locator('[data-id="ai-model-selector-btn"]').click()
+      await page.locator('[data-id="ai-model-search"]').fill('haiku')
+      await page.locator('[data-id^="ai-model-"][data-locked="false"]').first().click()
+      await expect(page.locator('[data-id="ai-route-status"]'))
+        .toHaveAttribute('data-route', /agent|tools|chat/, { timeout: 30_000 })
+
+      // --- Save a sample zkVerify API key via Settings > Connected Services --
+      await page.locator('[data-id="topbar-settingsIcon"]').click()
+      await page.locator('[data-id="settings-sidebar-services"]').click()
+      await page.locator('[data-id="zkverify-configSwitch"]').click()
+      await page.locator('[data-id="settingsTabzkverify-api-key"]').fill('zk-verify-api-key')
+      await page.locator('[data-id="settingsTabSavezkverify-config"]').click()
+      await expect(page.locator('[data-shared="tooltipPopup"]')).toContainText('Credentials updated', { timeout: 10_000 })
+
+      poolSessionId = await page.evaluate(() => {
+        try {
+          const raw = window.sessionStorage.getItem('remix_pool_session')
+          return raw ? JSON.parse(raw).sessionId || null : null
+        } catch {
+          return null
+        }
+      })
+    }
 
     // --- Create a new workspace from the "Hash checker" circom template -----
     await page.locator('#icon-panel div[plugin="filePanel"]').click()
@@ -64,6 +100,9 @@ test.describe.serial('Circom hashchecker: trusted setup, zk dapp button, and zkV
 
   test.afterAll(async () => {
     await page.close()
+    if (poolSessionId) {
+      await releaseAccount(poolSessionId)
+    }
   })
 
   async function runTrustedSetupAndWait () {
@@ -103,6 +142,8 @@ test.describe.serial('Circom hashchecker: trusted setup, zk dapp button, and zkV
   })
 
   test('zkVerify shows an error in the terminal when no API key is configured', async () => {
+    test.skip(!!poolApiKey, 'A real zkVerify API key is saved for the pool session, so this scheme is not reachable here')
+
     await ensureSetupSectionExpanded()
     await circuitFrame.locator('[data-id="groth16ProvingScheme"]').click()
     await runTrustedSetupAndWait()
@@ -127,6 +168,10 @@ test.describe.serial('Circom hashchecker: trusted setup, zk dapp button, and zkV
   })
 
   test('Create ZK DApp opens the verification method modal and warns about Remix VM', async () => {
+    await ensureSetupSectionExpanded()
+    await circuitFrame.locator('[data-id="groth16ProvingScheme"]').click()
+    await runTrustedSetupAndWait()
+
     await circuitFrame.locator('[data-id="setup_exports_toggler"]').hover()
     await expect(circuitFrame.locator('.popover')).toHaveCount(0, { timeout: 10_000 })
 
@@ -145,5 +190,65 @@ test.describe.serial('Circom hashchecker: trusted setup, zk dapp button, and zkV
     // Close the modal so later tests reopen it fresh.
     await page.locator('[data-id="zkVerificationMethodModal-modal-footer-cancel-react"]').click()
     await expect(page.locator('[data-id="zkVerificationMethodModal"]')).toHaveCount(0)
+  })
+
+  /**
+   * Verifies that selecting zkVerify with a saved API key actually reaches a
+   * live RemixAI reply, and that the reply asks for the DApp's setup details
+   */
+  test('selecting zkVerify with a saved API key gets a RemixAI reply asking for location, description, and design', async () => {
+    test.skip(!poolApiKey, 'Requires E2E_POOL_API_KEY (or E2E_POOL_KEY) to check out a live test-pool account')
+    test.setTimeout(300_000)
+
+    await ensureSetupSectionExpanded()
+    await circuitFrame.locator('[data-id="groth16ProvingScheme"]').click()
+    await runTrustedSetupAndWait()
+
+    await circuitFrame.locator('[data-id="setup_exports_toggler"]').hover()
+    await expect(circuitFrame.locator('.popover')).toHaveCount(0, { timeout: 10_000 })
+
+    // --- Open the verification method modal and choose zkVerify -------------
+    await circuitFrame.locator('[data-id="create_zk_dapp_btn"]').click()
+    const modal = page.locator('[data-id="zkVerificationMethodModal"]')
+    await expect(modal).toBeVisible({ timeout: 15_000 })
+
+    await page.locator('#zk-verification-method-zkverify').check()
+    await expect(modal).toContainText("zkVerify (Kurier) API key found. You're good to go.", { timeout: 15_000 })
+
+    await page.locator('[data-id="zkVerificationMethodModal-modal-footer-ok-react"]').click()
+    await expect(modal).toHaveCount(0)
+
+    const userBubbles = page.locator('[data-id="ai-user-chat-bubble"].bubble-user')
+    const assistantBubbles = page.locator('[data-id="ai-user-chat-bubble"]:not(.bubble-user)')
+
+    const firstUserBubble = userBubbles.first()
+    await expect(firstUserBubble).toBeVisible({ timeout: 15_000 })
+    await expect(firstUserBubble).toContainText('Location')
+    await expect(firstUserBubble).toContainText('Wallet Connection')
+    await expect(firstUserBubble).toContainText('Design')
+
+    // --- RemixAI's reply should ask for location, description, and design ---
+    // The reply is a live LLM call, so its exact phrasing isn't deterministic
+    // — match loosely (case-insensitive keyword presence), same approach used
+    // by apps/remix-ide-e2e/src/tests/quickDapp_v2.test.ts for AI-reply checks.
+    const assistantBubble = assistantBubbles.first()
+    await expect.poll(
+      async () => (await assistantBubble.innerText()).trim().length,
+      { timeout: 60_000, intervals: [1000, 2000, 3000]}
+    ).toBeGreaterThan(20)
+
+    // Let streaming finish before reading the final text.
+    let prevLen = -1
+    for (let i = 0; i < 60; i++) {
+      const len = (await assistantBubble.innerText()).trim().length
+      if (len === prevLen && len > 0) break
+      prevLen = len
+      await page.waitForTimeout(1000)
+    }
+
+    const reply = (await assistantBubble.innerText()).toLowerCase()
+    for (const keyword of ['location', 'description', 'design']) {
+      expect(reply).toContain(keyword)
+    }
   })
 })

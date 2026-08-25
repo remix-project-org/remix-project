@@ -1,4 +1,5 @@
 import { test, expect, Page, FrameLocator, Locator } from '@playwright/test'
+import { test as poolTest } from './helpers/e2e-pool'
 
 test.describe.serial('Noir multiplier: proof generation and zk dapp button flows', () => {
   test.describe.configure({ timeout: 240_000 })
