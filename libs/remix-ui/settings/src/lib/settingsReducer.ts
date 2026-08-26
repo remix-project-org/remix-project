@@ -26,7 +26,6 @@ const deepagentApiKeysConfig = config.get('settings/deepagent-api-keys-config') 
 const deepagentOpenrouterApiKey = config.get('settings/deepagent-openrouter-api-key') || ''
 const deepagentBedrockBearerToken = config.get('settings/deepagent-bedrock-bearer-token') || ''
 const enableCodeAnalysisPopover = config.get('settings/editor/code-analysis-popover')
-const aiFeedbackCreditThreshold = config.get('settings/ai-feedback-credit-threshold') || '0'
 const zkverifyApiKey = config.get('settings/zkverify-api-key') || ''
 const zkverifyNetwork = config.get('settings/zkverify-network') || 'testnet'
 
@@ -44,6 +43,7 @@ let showGas = config.get('settings/show-gas')
 let displayErrors = config.get('settings/display-errors')
 let saveEvmState = config.get('settings/save-evm-state')
 let aiFeedback = config.get('settings/ai-feedback')
+let aiFeedbackCreditThreshold = config.get('settings/ai-feedback-credit-threshold')
 
 if (!githubConfig && (githubUserName || githubEmail || gistAccessToken)) {
   config.set('settings/github-config', true)
@@ -109,6 +109,10 @@ if (typeof saveEvmState !== 'boolean') {
 if (typeof aiFeedback !== 'boolean') {
   config.set('settings/ai-feedback', true)
   aiFeedback = true
+}
+if (aiFeedbackCreditThreshold == null || aiFeedbackCreditThreshold === undefined) {
+  config.set('settings/ai-feedback-credit-threshold', 12000)
+  aiFeedbackCreditThreshold = 12000
 }
 
 let enableCodeAnalysisPopoverBoolean = enableCodeAnalysisPopover
