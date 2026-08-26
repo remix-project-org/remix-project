@@ -29,7 +29,7 @@ module.exports = {
     browser
       .waitForElementVisible('*[data-id="github-panel"]')
       .waitForElementVisible('*[data-id="gitubUsername"]')
-      .setValue('*[data-id="githubToken"]', process.env.dgit_token)
+      .setValue('*[data-id="githubToken"]', process.env.DGIT_TOKEN)
       .pause(1000)
       .setValue('*[data-id="gitubUsername"]', 'git')
       .pause(1000)
@@ -39,22 +39,22 @@ module.exports = {
   },
   'check if the settings are loaded #group1 #group2': function (browser: NightwatchBrowser) {
     browser
-      .waitForElementVisible('*[data-id="connected-as-bunsenstraat"]')
-      .waitForElementVisible('*[data-id="connected-img-bunsenstraat"]')
-      .waitForElementVisible('*[data-id="connected-link-bunsenstraat"]')
+      .waitForElementVisible('*[data-id="connected-as-EthereumRemix"]')
+      .waitForElementVisible('*[data-id="connected-img-EthereumRemix"]')
+      .waitForElementVisible('*[data-id="connected-link-EthereumRemix"]')
       .waitForElementVisible('*[data-id="remotes-panel"]')
   },
   'check the FE shows logged in user #group1 #group2': function (browser: NightwatchBrowser) {
     browser
       .waitForElementVisible({
-        selector: '//*[@data-id="github-dropdown-toggle-login"]//span[contains(text(), "bunsenstraat")]',
+        selector: '//*[@data-id="github-dropdown-toggle-login"]//span[contains(text(), "EthereumRemix")]',
         locateStrategy: 'xpath'
       })
   },
   // 'check the FE for the auth user #group1 #group2': function (browser: NightwatchBrowser) {
   //   browser
   //     .clickLaunchIcon('filePanel')
-  //     .waitForElementVisible('*[data-id="filepanel-connected-img-bunsenstraat"]')
+  //     .waitForElementVisible('*[data-id="filepanel-connected-img-EthereumRemix"]')
   // },
   'clone a repository #group1': function (browser: NightwatchBrowser) {
     browser
