@@ -70,7 +70,7 @@ function UdappBody() {
       <div className="udapp-sticky-header">
         <div id="udappEnvComponent"></div>
         <nav className="udapp-tabs" role="tablist">
-          <button role="tab" aria-selected={tab === 'deploy'} className={`udapp-tab${tab === 'deploy' ? ' active' : ''}`} onClick={() => switchTab('deploy')}>
+          <button role="tab" aria-selected={tab === 'deploy'} className={`ms-3 udapp-tab${tab === 'deploy' ? ' active' : ''}`} onClick={() => switchTab('deploy')}>
             Deploy
           </button>
           <button role="tab" aria-selected={tab === 'contracts'} className={`udapp-tab${tab === 'contracts' ? ' active' : ''}`} onClick={() => switchTab('contracts')}>

@@ -850,13 +850,13 @@ export function DeployedContractItem({ contract, index, registerRef, isKebabMenu
                                     )}
                                     {/* Bottom row: copy buttons (left) + Transact for multi-input (right) */}
                                     <div className="d-flex align-items-center gap-1 mt-1 mb-1">
-                                      <CopyToClipboard tip={intl.formatMessage({ id: 'udapp.copyCalldata' })} icon="fa-clipboard" direction="bottom" getContent={() => getEncodedCall(actualIndex)}>
+                                      <CopyToClipboard tip={intl.formatMessage({ id: 'udapp.copyCalldata' })} icon="fa-clipboard" direction="auto" getContent={() => getEncodedCall(actualIndex)}>
                                         <button className="btn btn-sm border-0" style={{ fontSize: '0.65rem', padding: '2px 6px', backgroundColor: 'var(--custom-onsurface-layer-3)' }}>
                                           <span className="text-secondary">Calldata</span>
                                           <i className="far fa-copy ms-1 text-secondary"></i>
                                         </button>
                                       </CopyToClipboard>
-                                      <CopyToClipboard tip={intl.formatMessage({ id: 'udapp.copyParameters' })} icon="fa-clipboard" direction="bottom" getContent={() => getEncodedParams(actualIndex)}>
+                                      <CopyToClipboard tip={intl.formatMessage({ id: 'udapp.copyParameters' })} icon="fa-clipboard" direction="auto" getContent={() => getEncodedParams(actualIndex)}>
                                         <button className="btn btn-sm border-0" style={{ fontSize: '0.65rem', padding: '2px 6px', backgroundColor: 'var(--custom-onsurface-layer-3)' }}>
                                           <span className="text-secondary">Params</span>
                                           <i className="far fa-copy ms-1 text-secondary"></i>
@@ -1044,7 +1044,7 @@ export function DeployedContractItem({ contract, index, registerRef, isKebabMenu
                           style={{
                             position: 'absolute',
                             left: '0.35rem',
-                            top: '35%',
+                            top: '50%',
                             transform: 'translateY(-50%)',
                             backgroundColor: '#64C4FF14',
                             color: '#64c4ff',

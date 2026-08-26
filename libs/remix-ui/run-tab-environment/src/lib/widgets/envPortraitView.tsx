@@ -411,7 +411,7 @@ function EnvironmentPortraitView() {
   return (
     <>
       <div className='card env-card gap-2 border-0' style={{ '--theme-text-color': themeQuality === 'dark' ? 'white' : 'black' } as React.CSSProperties}>
-        <div className="d-flex align-items-center justify-content-between px-2 py-1">
+        <div className="d-flex align-items-center justify-content-between py-1">
           <div className="d-flex align-items-center">
             <h6 className="my-auto env-card-heading" style={{margin: '0px', fontSize: '14px', fontWeight: '700', color: 'var(--bs-emphasis-color)'}}>{intl.formatMessage({ id: 'udapp.environment' })}</h6>
           </div>
@@ -651,7 +651,6 @@ function EnvironmentPortraitView() {
                           account={accountData}
                           menuIndex={index}
                           onRenameAccount={handleRenameAccount}
-                          onGeneratePrivateKey={handleGeneratePrivateKey}
                           onDeleteAccount={isSmartAccount ? undefined : handleDeleteAccount}
                         />
                       </div>
