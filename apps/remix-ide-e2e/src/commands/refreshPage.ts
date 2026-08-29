@@ -23,6 +23,14 @@ class RefreshPage extends EventEmitter {
                 #scamDetails {
                   display:none !important;
                 }
+                #nudge-widget-container,
+                .nudge-widget,
+                .nudge-modal-backdrop,
+                .nudge-decoration {
+                  display: none !important;
+                  opacity: 0 !important;
+                  visibility: hidden !important;
+                }
                 `)
         }, [], done())
       })
