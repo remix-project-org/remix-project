@@ -1,4 +1,11 @@
-import React, { useState, useEffect, useRef } from 'react'
+import React, { useState, useEffect, useRef, useCallback } from 'react'
+import { trackMatomoEvent } from '@remix-api'
+import {
+  enumerateSelectableChecklistPaths,
+  buildAuditTaxonomy,
+  AuditMatch,
+  AuditMatchResult
+} from '@remix/remix-ai-core/audit-taxonomy'
 import './remix-ui-checklist-explorer-modal.css'
 
 interface ChecklistItem {
@@ -62,24 +69,10 @@ const categoryFileToken = (categoryPath: string): string => {
     .replace(/^_|_$/g, '')
 }
 
-const enumerateSelectablePaths = (data: ChecklistData[]): string[] => {
-  const paths: string[] = []
-  for (const mainCat of data) {
-    const hasDirectItems = mainCat.data.some(isChecklistItem)
-    const subCats = mainCat.data.filter(item => !isChecklistItem(item)) as ChecklistCategory[]
-    if (hasDirectItems && subCats.length === 0) {
-      paths.push(mainCat.category)
-    } else {
-      subCats.forEach(sub => paths.push(`${mainCat.category}::${sub.category}`))
-    }
-  }
-  return paths
-}
-
 const computeLoadedCategories = (data: ChecklistData[], files: string[]): Set<string> => {
   const haystack = files.join('\n')
   const loaded = new Set<string>()
-  enumerateSelectablePaths(data).forEach(path => {
+  enumerateSelectableChecklistPaths(data).forEach(path => {
     const token = categoryFileToken(path)
     if (token && haystack.includes(token)) loaded.add(path)
   })
@@ -97,7 +90,18 @@ export function RemixUiChecklistExplorerModal(props: RemixUiChecklistExplorerMod
   const [loadedCategories, setLoadedCategories] = useState<Set<string>>(new Set())
   const [wizardStep, setWizardStep] = useState<'browse' | 'confirm' | 'saving'>('browse')
   const [saving, setSaving] = useState<boolean>(false)
+  // AI match. `aiMatchedPaths` is a provenance overlay on selectedCategories,
+  // which stays the single source of truth so the whole save path is untouched.
+  const [matching, setMatching] = useState<boolean>(false)
+  const [matchSlow, setMatchSlow] = useState<boolean>(false)
+  const [matchError, setMatchError] = useState<string | null>(null)
+  const [aiMatchedPaths, setAiMatchedPaths] = useState<Map<string, AuditMatch>>(new Map())
+  const [matchSummary, setMatchSummary] = useState<{ file: string; count: number; discarded: number; skippedReason?: string } | null>(null)
+  const [solCandidates, setSolCandidates] = useState<string[]>([])
+  const [matchTarget, setMatchTarget] = useState<string>('')
+  const [contractNamesByFile, setContractNamesByFile] = useState<Record<string, string[]>>({})
   const containerRef = useRef<HTMLDivElement>(null)
+  const matchRunId = useRef(0)
 
   const fetchChecklistData = async (): Promise<ChecklistData[]> => {
     const response = await fetch('https://raw.githubusercontent.com/Cyfrin/audit-checklist/main/checklist.json')
@@ -119,6 +123,161 @@ export function RemixUiChecklistExplorerModal(props: RemixUiChecklistExplorerMod
     }
   }
 
+  /**
+   * Solidity files worth matching against, best first. Resolved once when the
+   * modal opens — no polling: the modal can be opened from the home tab or a
+   * slash command with nothing in focus, so we look progressively wider.
+   *
+   */
+  const resolveSolCandidates = async (): Promise<{ candidates: string[]; namesByFile: Record<string, string[]> }> => {
+    if (!plugin) return { candidates: [], namesByFile: {} }
+    const ordered: string[] = []
+    const push = (file?: string) => {
+      if (typeof file === 'string' && file.endsWith('.sol') && !ordered.includes(file)) ordered.push(file)
+    }
+
+    try { push(await plugin.call('fileManager', 'getCurrentFile')) } catch (e) { /* nothing in focus */ }
+    try { Object.keys(await plugin.call('fileManager', 'getOpenedFiles') || {}).forEach(push) } catch (e) { /* none open */ }
+
+    // Compilation pass: order files by how many deployable contracts they hold,
+    // and remember each file's contract names for the prompt. Keyed by file
+    // because the user can switch target in the picker after this runs.
+    const namesByFile: Record<string, string[]> = {}
+    try {
+      const result = await plugin.call('solidity', 'getCompilationResult')
+      const contracts = result?.data?.contracts || {}
+      const deployableFor = (file: string): string[] => {
+        const ast = result?.data?.sources?.[file]?.ast
+        const definitions = ast?.nodes?.filter((node: any) => node.nodeType === 'ContractDefinition') || []
+        return Object.keys(contracts[file] || {}).filter(name => {
+          const bytecode = contracts[file][name]?.evm?.bytecode?.object
+          if (!bytecode || bytecode.length === 0) return false
+          const definition = definitions.find((node: any) => node.name === name)
+          if (definition?.contractKind === 'library' || definition?.abstract === true) return false
+          return true
+        })
+      }
+      const compiled = Object.keys(contracts).filter(f => f.endsWith('.sol'))
+      compiled.forEach(file => { namesByFile[file] = deployableFor(file) })
+      compiled
+        .map(file => ({ file, deployable: namesByFile[file].length }))
+        .sort((a, b) => b.deployable - a.deployable)
+        .forEach(entry => push(entry.file))
+    } catch (e) { /* never compiled, or the compiler plugin is inactive */ }
+
+    if (ordered.length === 0) {
+      try {
+        const tree = await plugin.call('fileManager', 'copyFolderToJson', '/')
+        // copyFolderToJson keys are already FULL paths (see fileProvider's
+        // `json[curPath] = file`), so they must be used as-is — deriving a path
+        // from the parent key produced `contracts/contracts/Foo.sol`.
+        const skip = /^(\.|node_modules$|tests?$|scripts?$)/
+        const walk = (node: any) => {
+          if (ordered.length >= 50) return
+          Object.keys(node || {}).forEach(fullPath => {
+            const child = node[fullPath]
+            if (skip.test(fullPath.split('/').pop() ?? '')) return
+            if (child?.content !== undefined) push(fullPath)
+            else if (child?.children) walk(child.children)
+          })
+        }
+        walk(tree)
+      } catch (e) { /* workspace unreadable — the button stays disabled */ }
+    }
+
+    return { candidates: ordered.slice(0, 50), namesByFile }
+  }
+
+  /**
+   * Ask the model which categories apply, then merge the answer into the
+   * existing selection. Never throws out of here: every failure becomes in-band
+   * state so the list stays usable and manual selection still works.
+   */
+  const handleAiMatch = useCallback(async () => {
+    if (!plugin || !matchTarget || matching) return
+    const runId = ++matchRunId.current
+    setMatching(true)
+    setMatchSlow(false)
+    setMatchError(null)
+    trackMatomoEvent(plugin, { category: 'ai', action: 'remixAI', name: 'audit_ai_match_click', isClick: true })
+
+    const slowTimer = setTimeout(() => { if (matchRunId.current === runId) setMatchSlow(true) }, 10000)
+    try {
+      const source = await plugin.call('fileManager', 'getFile', matchTarget)
+      if (!source || !source.trim()) throw new Error('That file is empty.')
+      const { ContractSkeletonExtractor } = await import('@remix/remix-ai-core')
+      const skeleton = ContractSkeletonExtractor.skeletonToString(ContractSkeletonExtractor.extractSkeleton(source))
+
+      const timeout = new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error('AI_MATCH_TIMEOUT')), 60000)
+      )
+      const result: AuditMatchResult | null = await Promise.race([
+        plugin.call('remixAI', 'audit_category_match', {
+          contract: { path: matchTarget, skeleton, contractNames: contractNamesByFile[matchTarget] ?? []},
+          taxonomy: buildAuditTaxonomy(checklistData as any),
+          maxMatches: 12
+        }),
+        timeout
+      ])
+      if (matchRunId.current !== runId) return
+      if (!result) {
+        setMatchError('AI match needs a signed-in account with the AI Auditor feature.')
+        return
+      }
+
+      const matched = new Map(result.matches.map(m => [m.path, m]))
+      setSelectedCategories(prev => {
+        const next = new Set(prev)
+        // Supersede the previous run's untouched picks, then union the new ones.
+        aiMatchedPaths.forEach((_, path) => { if (!matched.has(path)) next.delete(path) })
+        matched.forEach((_, path) => next.add(path))
+        return next
+      })
+      setAiMatchedPaths(matched)
+      setMatchSummary({
+        file: matchTarget,
+        count: matched.size,
+        discarded: result.discarded.length,
+        skippedReason: result.skippedReason
+      })
+      trackMatomoEvent(plugin, {
+        category: 'ai',
+        action: 'remixAI',
+        name: matched.size === 0
+          ? 'audit_ai_match_no_usable'
+          : `audit_ai_match_${result.source}_${matched.size}`,
+        isClick: false
+      })
+    } catch (err: any) {
+      if (matchRunId.current !== runId) return
+      setMatchError(
+        err?.message === 'AI_MATCH_TIMEOUT'
+          ? 'AI match timed out. The assistant may be busy — try again.'
+          : err?.aiError?.message ?? err?.message ?? 'AI match failed.'
+      )
+      trackMatomoEvent(plugin, { category: 'ai', action: 'remixAI', name: 'audit_ai_match_error', isClick: false })
+    } finally {
+      clearTimeout(slowTimer)
+      if (matchRunId.current === runId) {
+        setMatching(false)
+        setMatchSlow(false)
+      }
+    }
+  }, [plugin, matchTarget, matching, contractNamesByFile, checklistData, aiMatchedPaths])
+
+  /** Deselect only the AI's picks; anything hand-toggled is already untracked. */
+  const clearAiMatch = () => {
+    setSelectedCategories(prev => {
+      const next = new Set(prev)
+      aiMatchedPaths.forEach((_, path) => next.delete(path))
+      return next
+    })
+    setAiMatchedPaths(new Map())
+    setMatchSummary(null)
+    setMatchError(null)
+    trackMatomoEvent(plugin, { category: 'ai', action: 'remixAI', name: 'audit_ai_match_cleared', isClick: true })
+  }
+
   const fetchExistingChecklistFiles = async (): Promise<string[]> => {
     if (!plugin) return []
     try {
@@ -129,6 +288,19 @@ export function RemixUiChecklistExplorerModal(props: RemixUiChecklistExplorerMod
     }
   }
 
+  // Clear the AI spinner if the user cancels the request from the assistant.
+  useEffect(() => {
+    if (!isOpen || !plugin) return
+    const onCancelled = () => {
+      matchRunId.current++
+      setMatching(false)
+      setMatchSlow(false)
+      setMatchError('The AI request was cancelled.')
+    }
+    plugin.on('remixAI', 'requestCancelled', onCancelled)
+    return () => { try { plugin.off('remixAI', 'requestCancelled', onCancelled) } catch (e) { /* already torn down */ } }
+  }, [isOpen, plugin])
+
   useEffect(() => {
     if (isOpen) {
       setWizardStep('browse')
@@ -137,6 +309,22 @@ export function RemixUiChecklistExplorerModal(props: RemixUiChecklistExplorerMod
       setLoadedCategories(new Set())
       setSearchTerm('')
       setError(null)
+      matchRunId.current++
+      setMatching(false)
+      setMatchSlow(false)
+      setMatchError(null)
+      setAiMatchedPaths(new Map())
+      setMatchSummary(null)
+
+      resolveSolCandidates().then(({ candidates, namesByFile }) => {
+        setSolCandidates(candidates)
+        setMatchTarget(candidates[0] ?? '')
+        setContractNamesByFile(namesByFile)
+      }).catch(() => {
+        setSolCandidates([])
+        setMatchTarget('')
+        setContractNamesByFile({})
+      })
 
       const load = async () => {
         setLoading(true)
@@ -160,6 +348,14 @@ export function RemixUiChecklistExplorerModal(props: RemixUiChecklistExplorerMod
     setSelectedCategories(prev => {
       const next = new Set(prev)
       next.has(categoryPath) ? next.delete(categoryPath) : next.add(categoryPath)
+      return next
+    })
+    // Once the user touches a row it is their pick, not the AI's: drop the
+    // provenance so the badge disappears and a re-match won't supersede it.
+    setAiMatchedPaths(prev => {
+      if (!prev.has(categoryPath)) return prev
+      const next = new Map(prev)
+      next.delete(categoryPath)
       return next
     })
   }
@@ -432,6 +628,45 @@ export function RemixUiChecklistExplorerModal(props: RemixUiChecklistExplorerMod
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
               />
+              {solCandidates.length > 0 && (
+                <div className="ai-match-target align-self-center" style={{ width: '13rem' }}>
+                  <select
+                    data-id="checklist-explorer-ai-match-target"
+                    className="form-select"
+                    value={matchTarget}
+                    onChange={(e) => setMatchTarget(e.target.value)}
+                    disabled={matching}
+                    title="Which contract to match against"
+                    aria-label="Contract to match against"
+                  >
+                    {solCandidates.map(file => (
+                      <option key={file} value={file} title={file}>{file.split('/').pop()}</option>
+                    ))}
+                  </select>
+                  <i className="fa-solid fa-caret-down ai-match-target-caret" aria-hidden="true"></i>
+                </div>
+              )}
+              <button
+                data-id="checklist-explorer-ai-match"
+                className="btn btn-sm btn-primary text-nowrap align-self-center"
+                onClick={handleAiMatch}
+                disabled={matching || loading || !!error || !matchTarget}
+                title={matchTarget
+                  ? `Let AI preselect categories for ${matchTarget.split('/').pop()}`
+                  : 'Open a Solidity file in the workspace to use AI match'}
+              >
+                {matching ? (
+                  <>
+                    <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                    {matchSlow ? 'Still working…' : 'Matching…'}
+                  </>
+                ) : (
+                  <>
+                    <i className="fa-solid fa-wand-magic-sparkles me-1"></i>
+                    AI match
+                  </>
+                )}
+              </button>
             </div>
           )}
           <button
@@ -461,6 +696,52 @@ export function RemixUiChecklistExplorerModal(props: RemixUiChecklistExplorerMod
                 <div className="alert alert-danger" role="alert">
                   <i className="fa-solid fa-exclamation-triangle me-2"></i>
                   {error}
+                </div>
+              )}
+
+              {matchError && (
+                <div className="alert alert-warning py-2 d-flex justify-content-between align-items-center" role="alert">
+                  <span><i className="fa-solid fa-triangle-exclamation me-2"></i>{matchError}</span>
+                  <button className="btn btn-link btn-sm p-0" onClick={handleAiMatch} disabled={matching || !matchTarget}>
+                    Retry
+                  </button>
+                </div>
+              )}
+
+              {matchSummary && !matchError && (
+                <div
+                  data-id="checklist-explorer-ai-match-summary"
+                  className={`alert py-2 d-flex justify-content-between align-items-center ${matchSummary.count === 0 ? 'alert-warning' : 'alert-info'}`}
+                  role="alert"
+                >
+                  <span>
+                    <i className="fa-solid fa-wand-magic-sparkles me-2"></i>
+                    {matchSummary.count === 0 ? (
+                      <>
+                        No categories matched <code>{matchSummary.file.split('/').pop()}</code>
+                        {matchSummary.skippedReason ? ` — ${matchSummary.skippedReason}` : ''}. Pick manually or retry.
+                      </>
+                    ) : (
+                      <>
+                        Matched <strong>{matchSummary.count}</strong> categor{matchSummary.count === 1 ? 'y' : 'ies'} from{' '}
+                        <code>{matchSummary.file.split('/').pop()}</code>. Review and adjust before generating.
+                      </>
+                    )}
+                    {matchSummary.discarded > 0 && (
+                      <span className="ms-2 small opacity-75">
+                        ({matchSummary.discarded} unrecognised suggestion{matchSummary.discarded === 1 ? '' : 's'} ignored)
+                      </span>
+                    )}
+                  </span>
+                  {aiMatchedPaths.size > 0 && (
+                    <button
+                      data-id="checklist-explorer-clear-ai-match"
+                      className="btn btn-link btn-sm p-0 text-nowrap"
+                      onClick={clearAiMatch}
+                    >
+                      Clear AI matches
+                    </button>
+                  )}
                 </div>
               )}
 
@@ -494,19 +775,27 @@ export function RemixUiChecklistExplorerModal(props: RemixUiChecklistExplorerMod
                           const isSelected = selectedCategories.has(mainCategory.category)
                           const isExpanded = expandedCategories.has(mainCategory.category)
                           const isLoaded = loadedCategories.has(mainCategory.category)
+                          // Provenance only counts while the row is still selected.
+                          const aiMatch = isSelected ? aiMatchedPaths.get(mainCategory.category) : undefined
 
                           return (
                             <div key={mainCategory.category} className="main-category mb-3">
                               <div
                                 className={`main-category-header p-3 d-flex justify-content-between align-items-center cursor-pointer bg-secondary text-body`}
                                 onClick={() => toggleCategory(mainCategory.category)}
-                                style={isSelected ? { boxShadow: 'inset 4px 0 0 var(--bs-primary)' } : isLoaded ? { boxShadow: 'inset 4px 0 0 var(--bs-success)' } : {}}
+                                style={aiMatch ? { boxShadow: 'inset 4px 0 0 var(--bs-success)' } : isSelected ? { boxShadow: 'inset 4px 0 0 var(--bs-primary)' } : isLoaded ? { boxShadow: 'inset 4px 0 0 var(--bs-success)' } : {}}
                               >
                                 <div className="flex-grow-1">
                                   <div className="d-flex align-items-center mb-1">
                                     <h5 className="mb-0">{mainCategory.category}</h5>
                                     {isSelected && (
                                       <i className="fa-solid fa-circle-check ms-2"></i>
+                                    )}
+                                    {aiMatch && (
+                                      <span className="badge bg-success text-white small ms-2" title={aiMatch.reason}>
+                                        <i className="fa-solid fa-wand-magic-sparkles me-1"></i>
+                                        AI · {aiMatch.confidence}
+                                      </span>
                                     )}
                                     {isLoaded && (
                                       <span className="badge bg-success text-white small ms-2" title="A checklist for this category is already saved in audits/">
@@ -515,6 +804,9 @@ export function RemixUiChecklistExplorerModal(props: RemixUiChecklistExplorerMod
                                       </span>
                                     )}
                                   </div>
+                                  {aiMatch?.reason && (
+                                    <p className="mb-0 small fst-italic ai-match-reason">{aiMatch.reason}</p>
+                                  )}
                                   <p className="mb-0 small opacity-75">{mainCategory.description}</p>
                                   <span className="badge bg-light text-dark small mt-1">{countTotalItems(mainCategory.data)} items</span>
                                 </div>
@@ -559,19 +851,26 @@ export function RemixUiChecklistExplorerModal(props: RemixUiChecklistExplorerMod
                                   const isSelected = selectedCategories.has(categoryPath)
                                   const isExpanded = expandedCategories.has(categoryPath)
                                   const isLoaded = loadedCategories.has(categoryPath)
+                                  const aiMatch = isSelected ? aiMatchedPaths.get(categoryPath) : undefined
 
                                   return (
                                     <div key={categoryPath} className="sub-category border-bottom">
                                       <div
                                         className={`sub-category-header p-3 d-flex justify-content-between align-items-center cursor-pointer`}
                                         onClick={() => toggleCategory(categoryPath)}
-                                        style={isSelected ? { backgroundColor: 'rgba(var(--bs-primary-rgb), 0.12)', boxShadow: 'inset 4px 0 0 var(--bs-primary)' } : isLoaded ? { boxShadow: 'inset 4px 0 0 var(--bs-success)' } : {}}
+                                        style={aiMatch ? { backgroundColor: 'rgba(var(--bs-success-rgb), 0.12)', boxShadow: 'inset 4px 0 0 var(--bs-success)' } : isSelected ? { backgroundColor: 'rgba(var(--bs-primary-rgb), 0.12)', boxShadow: 'inset 4px 0 0 var(--bs-primary)' } : isLoaded ? { boxShadow: 'inset 4px 0 0 var(--bs-success)' } : {}}
                                       >
                                         <div className="flex-grow-1">
                                           <div className="d-flex align-items-center mb-1">
                                             <h6 className="text-dark mb-0">{subCategory.category}</h6>
                                             {isSelected && (
                                               <i className="fa-solid fa-circle-check text-primary ms-2"></i>
+                                            )}
+                                            {aiMatch && (
+                                              <span className="badge bg-success text-white small ms-2" title={aiMatch.reason}>
+                                                <i className="fa-solid fa-wand-magic-sparkles me-1"></i>
+                                                AI · {aiMatch.confidence}
+                                              </span>
                                             )}
                                             {isLoaded && (
                                               <span className="badge bg-success text-white small ms-2" title="A checklist for this category is already saved in audits/">
@@ -580,6 +879,9 @@ export function RemixUiChecklistExplorerModal(props: RemixUiChecklistExplorerMod
                                               </span>
                                             )}
                                           </div>
+                                          {aiMatch?.reason && (
+                                            <p className="mb-0 small fst-italic ai-match-reason">{aiMatch.reason}</p>
+                                          )}
                                           <p className="text-muted mb-0 small">{subCategory.description}</p>
                                           <span className="badge bg-primary text-white small">{countTotalItems(subCategory.data)} items</span>
                                         </div>
@@ -640,12 +942,24 @@ export function RemixUiChecklistExplorerModal(props: RemixUiChecklistExplorerMod
                           <div key={categoryPath} className="mb-1">
                             <span className="text-muted small">{mainCat} →</span>
                             <span className="text-primary fw-semibold ms-1">{subCat}</span>
+                            {aiMatchedPaths.get(categoryPath) && (
+                              <span className="ms-2 small fst-italic ai-match-reason">
+                                <i className="fa-solid fa-wand-magic-sparkles me-1"></i>
+                                {aiMatchedPaths.get(categoryPath).reason}
+                              </span>
+                            )}
                           </div>
                         )
                       } else {
                         return (
                           <div key={categoryPath} className="mb-1">
                             <span className="text-primary fw-semibold">{categoryPath}</span>
+                            {aiMatchedPaths.get(categoryPath) && (
+                              <span className="ms-2 small fst-italic ai-match-reason">
+                                <i className="fa-solid fa-wand-magic-sparkles me-1"></i>
+                                {aiMatchedPaths.get(categoryPath).reason}
+                              </span>
+                            )}
                           </div>
                         )
                       }
@@ -720,7 +1034,8 @@ export function RemixUiChecklistExplorerModal(props: RemixUiChecklistExplorerMod
               onClick={handleLoadSelected}
             >
               <i className="fa-solid fa-list-check me-2"></i>
-              Generate Checklist ({selectedCategories.size} categories)
+              Generate Checklist ({selectedCategories.size} categories
+              {aiMatchedPaths.size > 0 && ` · ${aiMatchedPaths.size} AI-matched`})
             </button>
           </div>
         )}
