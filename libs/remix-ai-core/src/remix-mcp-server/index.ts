@@ -31,6 +31,8 @@ export { createFoundryHardhatTools } from './handlers/FoundryHardhatHandler';
 export { createCoordinationTools } from './handlers/CoordinationHandler';
 export { createDAppGeneratorTools } from './handlers/DAppGeneratorHandler';
 export { createContractClassificationTools } from './handlers/ContractClassifierHandler';
+export { ContractSkeletonExtractor, ContractClassifier, ContractClassificationSchema } from './handlers/helpers/ContractClassifier';
+export type { ContractClassification, ContractSkeleton } from './handlers/helpers/ContractClassifier';
 export * from './prompts/quickDappTheGraphPrompts';
 
 // Resource Providers
