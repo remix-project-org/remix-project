@@ -75,6 +75,7 @@ export function RemixUiTopbar() {
   const [compactPanelControl, setCompactPanelControl] = useState(false)
   const [panelControlMenuOpen, setPanelControlMenuOpen] = useState(false)
   const [aiPanelActive, setAiPanelActive] = useState<boolean>(false)
+  const [aiReviewModeActive, setAiReviewModeActive] = useState<boolean>(false)
   const sectionRef = useRef<HTMLElement>(null)
   const panelControlRef = useRef<HTMLDivElement>(null)
   const rightSideRef = useRef<HTMLDivElement>(null)
@@ -722,6 +723,42 @@ export function RemixUiTopbar() {
     )
   }
 
+  // Locks the editor read-only and widens the AI assistant panel, for reviewing code alongside RemixAI.
+  const toggleAiReviewMode = async () => {
+    const next = !aiReviewModeActive
+    setAiReviewModeActive(next)
+    trackMatomoEvent({ category: 'topbar', action: 'aiReviewMode', name: next ? 'enabled' : 'disabled', isClick: true })
+
+    try {
+      await plugin.call('editor', 'setForceReadOnly', next)
+    } catch (e) {
+      console.error('[Topbar] Failed to toggle editor read-only mode:', e)
+    }
+
+    document.body.classList.toggle('ai-review-mode', next)
+
+    if (next) {
+      try {
+        const pState = await plugin.call('menuicons', 'getPluginState', 'remixaiassistant')
+        if (pState && pState.pinned) {
+          if (!aiPanelActive) await plugin.call('rightSidePanel', 'highlight')
+        } else {
+          await plugin.call('menuicons', 'toggle', 'remixaiassistant')
+        }
+        refreshAiPanelState()
+      } catch (e) {
+        console.error('[Topbar] Failed to open the AI assistant panel:', e)
+      }
+
+      plugin.call('rightSidePanel', 'maximizePanel')
+    } else {
+      if (await plugin.call('rightSidePanel', 'isRightSidePanelMaximized')) {
+        // this will set the default width
+        plugin.call('rightSidePanel', 'maximizePanel')
+      }
+    }
+  }
+
   const panelControls = [
     {
       id: 'toggleLeftSidePanelIcon',
@@ -764,6 +801,22 @@ export function RemixUiTopbar() {
         }
         plugin.call('rightSidePanel', 'togglePanel')
       }
+    },
+    {
+      id: 'aiReviewModeBtn',
+      tooltip: 'Enable AI Mode',
+      label: 'AI',
+      iconClass: 'codicon codicon-sparkle',
+      isActive: aiReviewModeActive,
+      onClick: () => { if (!aiReviewModeActive) toggleAiReviewMode() }
+    },
+    {
+      id: 'codeModeBtn',
+      tooltip: 'Switch to Code Mode',
+      label: 'Code',
+      iconClass: 'codicon codicon-code',
+      isActive: !aiReviewModeActive,
+      onClick: () => { if (aiReviewModeActive) toggleAiReviewMode() }
     }
   ]
 
@@ -888,17 +941,39 @@ export function RemixUiTopbar() {
                   </Dropdown.Menu>
                 </Dropdown>
               ) : (
-                panelControls.map(ctrl => (
-                  <CustomTooltip key={ctrl.id} placement="bottom-start" tooltipText={ctrl.tooltip}>
-                    <div
-                      className={`panel-control-btn${ctrl.isActive ? ' active' : ''}`}
-                      data-id={ctrl.id}
-                      onClick={ctrl.onClick}
-                    >
-                      <i className={`${ctrl.iconClass} fs-6`} />
-                    </div>
-                  </CustomTooltip>
-                ))
+                (() => {
+                  const modeButtons = panelControls.filter(c => c.id === 'aiReviewModeBtn' || c.id === 'codeModeBtn')
+                  const otherButtons = panelControls.filter(c => c.id !== 'aiReviewModeBtn' && c.id !== 'codeModeBtn')
+                  return [
+                    ...otherButtons.map(ctrl => (
+                      <CustomTooltip key={ctrl.id} placement="bottom-start" tooltipText={ctrl.tooltip}>
+                        <div
+                          className={`panel-control-btn${ctrl.isActive ? ' active' : ''}`}
+                          data-id={ctrl.id}
+                          onClick={ctrl.onClick}
+                        >
+                          <i className={`${ctrl.iconClass} fs-6`} />
+                        </div>
+                      </CustomTooltip>
+                    )),
+                    modeButtons.length > 0 && (
+                      <div key="mode-toggle-group" className="ai-mode-toggle-group d-flex">
+                        {modeButtons.map(ctrl => (
+                          <CustomTooltip key={ctrl.id} placement="bottom-start" tooltipText={ctrl.tooltip}>
+                            <div
+                              className={`ai-mode-btn${ctrl.isActive ? ' active' : ''}`}
+                              data-id={ctrl.id}
+                              onClick={ctrl.onClick}
+                            >
+                              <i className={`${ctrl.iconClass} fs-6`} />
+                              <span className="ai-mode-btn-label">{ctrl.label}</span>
+                            </div>
+                          </CustomTooltip>
+                        ))}
+                      </div>
+                    )
+                  ]
+                })()
               )}
             </div>
           </div>

@@ -93,6 +93,58 @@
   border-color: rgba(91, 207, 207, 0.7);
 }
 
+/* AI Review Mode switch: a labeled pill, styled larger and brighter than the plain icon toggles so it stands out. */
+.ai-mode-toggle-group {
+  display: flex;
+  align-items: center;
+  overflow: hidden;
+  background-color: rgba(91, 207, 207, 0.05);
+}
+
+.ai-mode-btn {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  height: 28px;
+  padding: 0 10px;
+  cursor: pointer;
+  white-space: nowrap;
+  color: var(--text);
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.ai-mode-btn:first-child {
+  border-right: 1px solid rgba(91, 207, 207, 0.3);
+}
+
+.ai-mode-btn-label {
+  font-size: 0.75rem;
+  font-weight: 500;
+  line-height: 1;
+}
+
+.ai-mode-btn:hover {
+  background-color: rgba(91, 207, 207, 0.15);
+}
+
+/* AI button active state */
+.ai-mode-btn[data-id="aiReviewModeBtn"].active {
+  color: #0b1f1f;
+  background-color: rgba(91, 207, 207, 0.85);
+}
+
+/* Code button active state */
+.ai-mode-btn[data-id="codeModeBtn"].active {
+  color: var(--text);
+  background-color: rgba(var(--primary-rgb, 13, 110, 253), 0.15);
+}
+
+/* AI Review Mode: lower the editor's minimum width so it can shrink further while the AI panel is widened.
+   The AI panel's width itself is set (and stays freely resizable via the drag handle) from remix-ui-topbar.tsx. */
+body.ai-review-mode #main-panel {
+  min-width: 220px !important;
+}
+
 .top-bar-dropdownItem {
   color: var(--text);
   cursor: pointer;
