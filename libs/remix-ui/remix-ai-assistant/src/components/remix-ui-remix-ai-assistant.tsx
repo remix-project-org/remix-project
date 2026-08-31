@@ -1190,6 +1190,32 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
     }
     props.plugin.on('remixAI', 'onDappUpdateCompleted', handleDappUpdateCompleted)
 
+    // Generative UI: attach UI tree to the active streaming message, or create one if none exists yet
+    const handleRenderUI = (payload: { tree: Record<string, any>; title?: string }) => {
+      const activeId = streamingAssistantIdRef.current
+      if (activeId) {
+        // Attach to the message that is currently streaming
+        setMessages(prev => prev.map(m => m.id === activeId ? { ...m, uiComponent: payload } : m))
+        return
+      }
+      // No active stream yet (render_ui called before any text) — create an assistant bubble
+      // and wire it up so subsequent stream chunks append to it rather than creating a new one
+      const uiMsgId = crypto.randomUUID()
+      streamingAssistantIdRef.current = uiMsgId
+      setMessages(prev => [
+        ...prev,
+        {
+          id: uiMsgId,
+          role: 'assistant' as const,
+          content: '',
+          timestamp: Date.now(),
+          sentiment: 'none' as const,
+          uiComponent: payload
+        }
+      ])
+    }
+    props.plugin.on('remixAI', 'renderUI', handleRenderUI)
+
     return () => {
       props.plugin.off('remixAI', 'onStreamResult')
       props.plugin.off('remixAI', 'onStreamComplete')
@@ -1205,6 +1231,7 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
       props.plugin.off('remixAI', 'onApiError')
       props.plugin.off('remixAI', 'onToolApprovalRequired')
       props.plugin.off('remixAI', 'onDappUpdateCompleted')
+      props.plugin.off('remixAI', 'renderUI')
       try { props.plugin.off('assistantState' as any, 'stateChanged') } catch { /* noop */ }
     }
   }, [props.plugin])

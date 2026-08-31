@@ -10,6 +10,7 @@ import { CustomTooltip } from '@remix-ui/helper'
 import { normalizeMarkdown } from 'libs/remix-ui/helper/src/lib/components/remix-md-renderer'
 import { QueryParams } from '@remix-project/remix-lib'
 import { DAppUpdateReviewCard } from './DAppUpdateReviewCard'
+import { GenerativeUIRenderer } from './GenerativeUIRenderer'
 
 // ChatHistory component
 export interface ChatHistoryComponentProps {
@@ -73,6 +74,10 @@ export const ChatHistoryComponent: React.FC<ChatHistoryComponentProps> = ({
         <AiChatIntro theme={theme} />
       ) : (
         messages.map(msg => {
+          console.log('msg', msg)
+          if (msg.uiComponent){
+            console.log('uiComponent', msg)
+          }
           const isCorrupted = msg.role === 'assistant' && (msg.content === null || msg.content === undefined)
           const displayContent = isCorrupted ? '*Unable to load response.*' : (msg.content ?? '')
           const hasContent = typeof displayContent === 'string' && displayContent.trim().length > 0
@@ -82,7 +87,8 @@ export const ChatHistoryComponent: React.FC<ChatHistoryComponentProps> = ({
             msg.isSubagentStreaming ||
             (msg.currentTask && msg.taskStatus === 'running') ||
             (msg.todos && msg.todos.length > 0) ||
-            msg.dappUpdateReview?.status === 'pending'
+            msg.dappUpdateReview?.status === 'pending' ||
+            msg.uiComponent
           )
 
           if (msg.role === 'assistant' && !hasContent && !hasAssistantActivity) return null
@@ -226,6 +232,19 @@ export const ChatHistoryComponent: React.FC<ChatHistoryComponentProps> = ({
                     onViewDiff={(filePath, newContent, oldContent) =>
                       onDappReviewViewDiff?.(filePath, newContent, oldContent)
                     }
+                  />
+                )}
+
+                {/* Generative UI component */}
+                {msg.role === 'assistant' && msg.uiComponent && (
+                  <GenerativeUIRenderer
+                    payload={msg.uiComponent}
+                    onAction={(action, data) => {
+                      const text = data && Object.keys(data).length > 0
+                        ? `[ui:${action}]\n${JSON.stringify(data, null, 2)}`
+                        : `[ui:${action}]`
+                      sendPrompt(text)
+                    }}
                   />
                 )}
 
