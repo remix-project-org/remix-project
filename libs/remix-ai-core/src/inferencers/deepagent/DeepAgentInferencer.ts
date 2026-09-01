@@ -41,7 +41,7 @@ import { StreamEventHandler } from './StreamEventHandler'
 import { InactivityTimeoutManager } from './InactivityTimeoutManager'
 import { CONVERSATION_THREAD_PREFIX, DAPP_MAX_TOKENS } from '@remix/remix-ai-core'
 import { Features } from '@remix-api'
-import { flattenJSON, renderTree } from './helpers/project'
+import { flattenJSON, renderTree, toAbsolutePath } from './helpers/project'
 import { clearAllQuickDappWorkspaceLocks } from '@remix-ui/helper'
 import { clearAllQuickDappGenerationContexts } from '../../helpers/quickDappGenerationContext'
 import { clearQuickDappDocsContext } from '../../helpers/quickDappDocsContext'
@@ -901,7 +901,10 @@ export class DeepAgentInferencer implements ICompletions, IGeneration {
 
       const context = JSON.parse(content.text || '{}')
       const flatten = renderTree(context.structure)
-      const openedFiles = Object.keys(context?.currentOpenedFiles || {}).join(',')
+      // Absolute, like every path the filesystem tools take.
+      const openedFiles = Object.keys(context?.currentOpenedFiles || {})
+        .map(toAbsolutePath)
+        .join(', ')
 
       return `\n\n## Current Project Structure\n${flatten}\n\n## Current Opened Files\n${openedFiles ? openedFiles: 'no opened files'}`
     } catch (error) {
