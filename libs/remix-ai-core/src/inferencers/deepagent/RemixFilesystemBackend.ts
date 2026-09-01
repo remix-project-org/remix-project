@@ -36,8 +36,17 @@ const relativeTo = (root: string, absolute: string): string => {
   return relative.replace(/^\//, '')
 }
 
+/**
+ * Translate a glob into a regex: a double star crosses directories, `*` and `?`
+ * do not, `{a,b}` alternates, `[abc]` / `[!abc]` are character classes. A
+ * leading double-star segment is optional so a recursive pattern also matches
+ * files sitting at the search root. Case-insensitive, since a workspace search
+ * that misses on capitalisation just reads as "file not found".
+ */
 const globToRegExp = (pattern: string): RegExp => {
   let out = ''
+  let braceDepth = 0
+
   for (let i = 0; i < pattern.length; i++) {
     const char = pattern[i]
     if (char === '*') {
@@ -54,17 +63,32 @@ const globToRegExp = (pattern: string): RegExp => {
       }
     } else if (char === '?') {
       out += '[^/]'
+    } else if (char === '[') {
+      // Character class — pass it through, mapping the glob negation marker.
+      const close = pattern.indexOf(']', i + 1)
+      if (close === -1) {
+        out += '\\['
+      } else {
+        const body = pattern.slice(i + 1, close)
+        out += `[${body.startsWith('!') ? `^${body.slice(1)}` : body}]`
+        i = close
+      }
     } else if (char === '{') {
+      braceDepth++
       out += '(?:'
-    } else if (char === '}') {
+    } else if (char === '}' && braceDepth > 0) {
+      braceDepth--
       out += ')'
-    } else if (char === ',') {
+    } else if (char === ',' && braceDepth > 0) {
+      // A comma only separates alternatives inside braces; elsewhere it is
+      // part of the filename.
       out += '|'
     } else {
-      out += char.replace(/[.+^$()|[\]\\]/g, '\\$&')
+      out += char.replace(/[.+^$()|[\]\\{}]/g, '\\$&')
     }
   }
-  return new RegExp(`^${out}$`)
+
+  return new RegExp(`^${out}$`, 'i')
 }
 
 const matchesGlob = (relativePath: string, name: string, pattern: string): boolean => {
@@ -550,7 +574,7 @@ export class RemixFilesystemBackend {
   async globInfo(pattern: string, path?: string): Promise<FileInfo[] | BackendError> {
     await this.flushAllPendingBatches()
     try {
-      const targetPath = path ? this.normalizePath(path) : await this.cwd()
+      const targetPath = path ? this.normalizePath(path) : this.workspaceRoot
       const exists = await this.plugin.call('fileManager', 'exists', targetPath)
       if (!exists) return { error: `Path not found: ${targetPath}` }
 
@@ -560,14 +584,10 @@ export class RemixFilesystemBackend {
         return matchesGlob(name, name, pattern) ? [{ name, path: targetPath, is_dir: false }] : []
       }
 
-      // The previous implementation read a single directory level and turned
-      // the pattern into a regex by replacing `*` with `.*`, so `**/*.sol`
-      // became `.*.*/.*.sol` — it could never match the workspace's nested
-      // files and answered "No files found" for patterns that clearly matched.
       const entries = await this.walk(targetPath)
-      return entries.filter(entry =>
-        !entry.is_dir && matchesGlob(relativeTo(targetPath, entry.path), entry.name, pattern)
-      )
+      return entries
+        .filter(entry => !entry.is_dir && matchesGlob(relativeTo(targetPath, entry.path), entry.name, pattern))
+        .sort((a, b) => a.path.localeCompare(b.path))
     } catch (error) {
       remixAILogger.warn('[Backend] glob failed', pattern, path, error)
       return { error: `Failed to glob '${pattern}': ${error.message}` }
@@ -579,7 +599,7 @@ export class RemixFilesystemBackend {
   ): Promise<GrepMatch[] | BackendError> {
     await this.flushAllPendingBatches()
     try {
-      const targetPath = path ? this.normalizePath(path) : await this.cwd()
+      const targetPath = path ? this.normalizePath(path) : this.workspaceRoot
       const exists = await this.plugin.call('fileManager', 'exists', targetPath)
       if (!exists) return { error: `Path not found: ${targetPath}` }
 
