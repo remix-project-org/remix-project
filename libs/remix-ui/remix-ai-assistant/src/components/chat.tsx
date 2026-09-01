@@ -11,6 +11,16 @@ import { normalizeMarkdown } from 'libs/remix-ui/helper/src/lib/components/remix
 import { QueryParams } from '@remix-project/remix-lib'
 import { DAppUpdateReviewCard } from './DAppUpdateReviewCard'
 
+/** Content with the streaming turn separators (`---`) and whitespace removed. */
+const stripTurnSeparators = (content: string): string =>
+  content.replace(/^[ \t]*-{3,}[ \t]*$/gm, '').trim()
+
+const normalizeTurnSeparators = (content: string): string =>
+  content
+    .replace(/(?:^[ \t]*-{3,}[ \t]*\n\s*)+/, '')
+    .replace(/(?:\n\s*[ \t]*-{3,}[ \t]*)+$/, '')
+    .replace(/(?:\n\s*-{3,}[ \t]*){2,}\n/g, '\n\n---\n')
+
 // ChatHistory component
 export interface ChatHistoryComponentProps {
   messages: ChatMessage[]
@@ -64,6 +74,8 @@ export const ChatHistoryComponent: React.FC<ChatHistoryComponentProps> = ({
   handleLoadSkills
 }) => {
   const [btnColor, setBtnColor] = useState('')
+  // The thinking box belongs to the message currently being produced.
+  const lastAssistantId = [...messages].reverse().find(m => m.role === 'assistant')?.id
   return (
     <div
       ref={historyRef}
@@ -75,14 +87,19 @@ export const ChatHistoryComponent: React.FC<ChatHistoryComponentProps> = ({
         messages.map(msg => {
           const isCorrupted = msg.role === 'assistant' && (msg.content === null || msg.content === undefined)
           const displayContent = isCorrupted ? '*Unable to load response.*' : (msg.content ?? '')
-          const hasContent = typeof displayContent === 'string' && displayContent.trim().length > 0
+          // A turn that only reasoned and called tools leaves nothing but the
+          // `---` turn separators behind; that rendered as a bubble of bare
+          // horizontal rules. Separators alone are not content.
+          const hasContent = typeof displayContent === 'string' && stripTurnSeparators(displayContent).length > 0
           const hasAssistantActivity = !!(
             msg.isExecutingTools ||
             msg.activeSubagent ||
             msg.isSubagentStreaming ||
             (msg.currentTask && msg.taskStatus === 'running') ||
             (msg.todos && msg.todos.length > 0) ||
-            msg.dappUpdateReview?.status === 'pending'
+            msg.dappUpdateReview?.status === 'pending' ||
+            // the thinking box lives in this bubble now, so it keeps it alive
+            (isThinking && msg.id === lastAssistantId)
           )
 
           if (msg.role === 'assistant' && !hasContent && !hasAssistantActivity) return null
@@ -122,7 +139,7 @@ export const ChatHistoryComponent: React.FC<ChatHistoryComponentProps> = ({
                       } : undefined}
                     >
                       {msg.role === 'assistant' || msg.role === 'editor_code_analysis' ? (
-                        RemixMarkdownViewer(theme, msg.content, btnColor, setBtnColor)
+                        RemixMarkdownViewer(theme, normalizeTurnSeparators(displayContent), btnColor, setBtnColor)
                       ) : (
                         <div className="ai-paragraph pb-0">
                           {msg.content}
@@ -146,6 +163,21 @@ export const ChatHistoryComponent: React.FC<ChatHistoryComponentProps> = ({
                         </CustomTooltip>
                       </div>
                     )}
+                  </div>
+                )}
+                {/* Thinking sits above the tool indicator: the model reasons, then
+                    acts, and the UI should read in that order. */}
+                {msg.role === 'assistant' && isThinking && msg.id === lastAssistantId && (
+                  <div className="thinking-indicator small mb-2 p-2 rounded" data-id="remix-ai-thinking" style={{
+                    backgroundColor: theme?.toLowerCase() === 'dark' ? 'rgba(255, 193, 7, 0.15)' : 'rgba(255, 193, 7, 0.1)',
+                    border: '1px solid rgba(255, 193, 7, 0.3)'
+                  }}>
+                    <div className="d-flex align-items-center">
+                      <i className="fa fa-spinner fa-spin me-2 text-warning"></i>
+                      <span className="text-warning">
+                        <strong>Thinking</strong>
+                      </span>
+                    </div>
                   </div>
                 )}
                 {msg.role === 'assistant' && msg.isExecutingTools && (
@@ -280,19 +312,6 @@ export const ChatHistoryComponent: React.FC<ChatHistoryComponentProps> = ({
             </div>
           )
         }) //end of messages renderconsole.log(content)
-      )}
-      {isThinking && (
-        <div className="thinking-indicator small mb-2 p-2 rounded mx-3" style={{
-          backgroundColor: theme?.toLowerCase() === 'dark' ? 'rgba(255, 193, 7, 0.15)' : 'rgba(255, 193, 7, 0.1)',
-          border: '1px solid rgba(255, 193, 7, 0.3)'
-        }}>
-          <div className="d-flex align-items-center">
-            <i className="fa fa-spinner fa-spin me-2 text-warning"></i>
-            <span className="text-warning">
-              <strong>Thinking</strong>
-            </span>
-          </div>
-        </div>
       )}
       {isStreaming && (
         <div className="text-center my-2">
