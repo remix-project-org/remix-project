@@ -15,6 +15,8 @@ class ClearTransactionsRecorder extends EventEmitter {
 
 function clearTransactions (browser: NightwatchBrowser, callback: VoidFunction) {
   browser
+    .waitForElementPresent('[data-id="udappTransactionsHistoryTab"]')
+    .click('[data-id="udappTransactionsHistoryTab"]')
     .execute(function () {
       // Use JavaScript to click the button, avoiding sticky header issues
       const clearBtn = document.querySelector('[data-id="clearAllTransactions"]') as HTMLElement
