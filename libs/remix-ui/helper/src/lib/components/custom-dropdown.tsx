@@ -13,7 +13,8 @@ export const CustomToggle = React.forwardRef(
       icon,
       className = '',
       useDefaultIcon = true,
-      style
+      style,
+      'data-id': dataId
     }: {
       children: React.ReactNode
       onClick: (e) => void
@@ -21,6 +22,7 @@ export const CustomToggle = React.forwardRef(
       className: string
       useDefaultIcon?: boolean
       style?: React.CSSProperties
+      'data-id'?: string
     },
     ref: Ref<HTMLButtonElement>
   ) => (
@@ -32,6 +34,7 @@ export const CustomToggle = React.forwardRef(
       }}
       className={className.replace('dropdown-toggle', '')}
       style={style}
+      data-id={dataId}
     >
       <div className="d-flex align-items-center">
         <div className="me-auto text-nowrap text-truncate overflow-hidden font-sm" data-id={`dropdown-content`}>{children}</div>

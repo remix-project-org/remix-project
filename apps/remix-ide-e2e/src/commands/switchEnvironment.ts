@@ -54,8 +54,8 @@ class switchEnvironment extends EventEmitter {
                 this.api.isPresent({ selector: `[data-id="selected-provider-${provider}"]`, suppressNotFoundErrors: true, timeout: 500 }, (already) => {
                   if (already.value) return done()
                   this.api
-                    .waitForElementVisible('.env-subcategory-toggle', 10000)
-                    .click('.env-subcategory-toggle')
+                    .waitForElementVisible('[data-id="settingsSelectEnvCategoryOptions"]', 10000)
+                    .click('[data-id="settingsSelectEnvCategoryOptions"]')
                     .waitForElementVisible(`[data-id="dropdown-item-${provider}"]`, 10000)
                     .click(`[data-id="dropdown-item-${provider}"]`)
                     .perform(() => done())
