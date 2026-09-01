@@ -31,6 +31,8 @@ export class StreamEventHandler {
   private streamError: any | null = null
   private isIntermediatePhase = true
   private inThinking = false
+  private pendingTurnSeparator = false
+  private hasEmittedVisibleContent = false
   private tokenUsage: TokenUsageState = {
     totalInputTokens: 0,
     totalOutputTokens: 0,
@@ -91,6 +93,8 @@ export class StreamEventHandler {
     this.streamError = null
     this.isIntermediatePhase = true
     this.inThinking = false
+    this.pendingTurnSeparator = false
+    this.hasEmittedVisibleContent = false
     this.tokenUsage = {
       totalInputTokens: 0,
       totalOutputTokens: 0,
@@ -214,13 +218,58 @@ export class StreamEventHandler {
     return { content: '', finalMessage }
   }
 
+  private setThinking(isThinking: boolean, content = '', is_subagent = false, agent_name = ''): void {
+    if (!isThinking && !this.inThinking) return
+    this.inThinking = isThinking
+    if (!isThinking) remixAILogger.log('[StreamEventHandler] Thinking phase ended')
+    this.event.emit('onThinking', {
+      isThinking,
+      content,
+      isSubagent: is_subagent,
+      subagentName: agent_name,
+      threadId: this.getThreadId()
+    })
+  }
+
+  private extractReasoningDelta(chunk: any): string {
+    const kwargs =
+      chunk?.additional_kwargs ??
+      chunk?.message?.additional_kwargs ??
+      chunk?.kwargs?.additional_kwargs ??
+      {}
+
+    const direct =
+      kwargs.reasoning_content ??
+      kwargs.reasoning ??
+      chunk?.thinking ??
+      chunk?.message?.thinking
+
+    if (typeof direct === 'string' && direct.length > 0) return direct
+
+    const details = kwargs.reasoning_details
+    if (Array.isArray(details)) {
+      const text = details
+        .map((d: any) => (typeof d === 'string' ? d : d?.text ?? d?.summary ?? ''))
+        .join('')
+      if (text.length > 0) return text
+    }
+
+    // Anthropic-style array content: the reasoning text lives in the block.
+    const rawContent = chunk?.content ?? chunk?.message?.content
+    if (Array.isArray(rawContent)) {
+      const text = rawContent
+        .filter((item: any) => item?.type === 'thinking' || item?.type === 'reasoning')
+        .map((item: any) => item?.thinking ?? item?.text ?? '')
+        .join('')
+      if (text.length > 0) return text
+    }
+
+    return ''
+  }
+
   private handleChatModelStream(event: any, is_subagent: boolean, agent_name: string): string {
     const chunk = event.data?.chunk
-    const reasoningContent =
-      chunk?.additional_kwargs?.reasoning_content ??
-      chunk?.message?.additional_kwargs?.reasoning_content ??
-      chunk?.kwargs?.additional_kwargs?.reasoning_content ??
-      chunk?.thinking
+    const reasoningContent = this.extractReasoningDelta(chunk)
 
     const rawContent = chunk?.content ?? chunk?.message?.content ?? chunk?.text ?? ''
     const contentStr = typeof rawContent === 'string' ? rawContent : ''
@@ -232,21 +281,20 @@ export class StreamEventHandler {
       (item: any) => item?.type === 'thinking' || item?.type === 'reasoning'
     )
 
-    if ((reasoningContent && reasoningContent !== '') || (isThinkingContent && !hasEndThinkTag) || hasThinkingBlock) {
+    const isReasoningChunk = (reasoningContent && reasoningContent !== '') || (isThinkingContent && !hasEndThinkTag) || hasThinkingBlock
+
+    if (isReasoningChunk) {
       if (!this.inThinking) {
-        this.inThinking = true
         remixAILogger.log('[StreamEventHandler] Thinking phase detected', {
           hasReasoningContent: !!reasoningContent,
           isThinkingContent,
           hasThinkingBlock,
           contentPreview: contentStr.substring(0, 100)
         })
-        this.event.emit('onThinking', { isThinking: true, threadId: this.getThreadId() })
       }
-    } else if (this.inThinking && (hasEndThinkTag || (!reasoningContent && !isThinkingContent && !hasThinkingBlock && contentStr.length > 0))) {
-      this.inThinking = false
-      remixAILogger.log('[StreamEventHandler] Thinking phase ended')
-      this.event.emit('onThinking', { isThinking: false, threadId: this.getThreadId() })
+      this.setThinking(true, reasoningContent || contentStr, is_subagent, agent_name)
+    } else if (this.inThinking && (hasEndThinkTag || (contentStr.length > 0))) {
+      this.setThinking(false)
     }
 
     // Suppress thinking text from being emitted as regular chat content.
@@ -270,9 +318,19 @@ export class StreamEventHandler {
     if (this.previousRunId !== null && this.previousRunId !== currentRunId) {
       // Log token usage when run_id changes (new agent turn)
       remixAILogger.log(`[DeepAgent-Tokens] Run ID changed: ${this.previousRunId} → ${currentRunId}`)
-      deltaContent = '\n \n---\n' + deltaContent
+      this.pendingTurnSeparator = true
     }
     this.previousRunId = currentRunId
+
+    if (!deltaContent.trim()) {
+      if (!this.hasEmittedVisibleContent) return ''
+    } else {
+      if (this.pendingTurnSeparator && this.hasEmittedVisibleContent) {
+        deltaContent = '\n \n---\n' + deltaContent
+      }
+      this.pendingTurnSeparator = false
+      this.hasEmittedVisibleContent = true
+    }
 
     if (is_subagent) {
       this.event.emit('onStreamResult', {
@@ -298,6 +356,9 @@ export class StreamEventHandler {
   }
 
   private handleChatModelEnd(event: any, is_subagent: boolean, agent_name: string): string {
+    // The model spoke — whatever it was reasoning about is settled.
+    this.setThinking(false)
+
     const output = event.data?.output
     if (!output) return ''
 
@@ -353,6 +414,7 @@ export class StreamEventHandler {
   }
 
   private handleToolStart(event: any): string {
+    this.setThinking(false)
     const toolName = event.name
     const toolInput = JSON.parse(event.data?.input.input || '{}')
     const toolUIString = resolveToolUIString(toolName, toolInput)

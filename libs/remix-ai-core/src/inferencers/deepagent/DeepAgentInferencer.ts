@@ -38,9 +38,10 @@ import { setCurrentSessionId } from './helpers/runContext'
 import { buildSubagentConfigs } from './SubagentConfig'
 import { resolveHarnessProfile, applyHarnessToolRules } from './harnessProfiles'
 import { StreamEventHandler } from './StreamEventHandler'
+import { InactivityTimeoutManager } from './InactivityTimeoutManager'
 import { CONVERSATION_THREAD_PREFIX, DAPP_MAX_TOKENS } from '@remix/remix-ai-core'
 import { Features } from '@remix-api'
-import { flattenJSON, renderTree } from './helpers/project'
+import { flattenJSON, renderTree, toAbsolutePath } from './helpers/project'
 import { clearAllQuickDappWorkspaceLocks } from '@remix-ui/helper'
 import { clearAllQuickDappGenerationContexts } from '../../helpers/quickDappGenerationContext'
 import { clearQuickDappDocsContext } from '../../helpers/quickDappDocsContext'
@@ -593,17 +594,12 @@ export class DeepAgentInferencer implements ICompletions, IGeneration {
     this.currentAbortController = localAbortController
     let fullResponse = ''
 
-    // `config.timeout` was set in the constructor and then read by nothing, so
-    // a graph that stopped making progress ran forever. Enforce it here rather
-    // than via LangGraph's own `timeout` option: that one aborts through an
-    // internal signal and surfaces as the same anonymous `Error("Abort")` as
-    // everything else, whereas aborting our own controller lets us stamp a
-    // reason and tell a timeout apart from a user cancel.
     const runTimeoutMs = this.config.timeout
-    const runTimeout = setTimeout(() => {
-      remixAILogger.warn(`[DeepAgentInferencer] run exceeded ${runTimeoutMs}ms — aborting`)
-      localAbortController.abort(new DOMException(`Agent run exceeded ${runTimeoutMs}ms without completing.`, 'TimeoutError'))
-    }, runTimeoutMs)
+    const stallTimeout = new InactivityTimeoutManager(runTimeoutMs, () => {
+      remixAILogger.warn(`[DeepAgentInferencer] no stream activity for ${runTimeoutMs}ms — aborting`)
+      localAbortController.abort(new DOMException(`Agent run stalled: no activity for ${runTimeoutMs}ms.`, 'TimeoutError'))
+    })
+    stallTimeout.reset()
 
     // Filter out system messages - they're already set during agent creation
     const langchainMessages = messages
@@ -660,6 +656,8 @@ export class DeepAgentInferencer implements ICompletions, IGeneration {
 
       let finalMessageFromChain = ''
       for await (const event of eventStream) {
+        // Any event — a reasoning delta included — counts as progress.
+        stallTimeout.reset()
         if (localAbortController.signal.aborted) {
           this.event.emit('onStreamComplete', { content: fullResponse, threadId: this.sessionThreadId })
           break
@@ -701,7 +699,7 @@ export class DeepAgentInferencer implements ICompletions, IGeneration {
         : undefined
       if (abortReason?.name === 'TimeoutError') {
         throw new DeepAgentError(
-          abortReason.message || `Agent run exceeded ${runTimeoutMs}ms.`,
+          abortReason.message || `Agent run stalled: no activity for ${runTimeoutMs}ms.`,
           DeepAgentErrorType.REQUEST_TIMEOUT,
           caught
         )
@@ -865,7 +863,7 @@ export class DeepAgentInferencer implements ICompletions, IGeneration {
 
       throw error
     } finally {
-      clearTimeout(runTimeout)
+      stallTimeout.clear()
       clearQuickDappDocsContext()
       // Best-effort trace delivery: the SDK drains only a slice of its queue
       // per tick, so the tail of this run's trace needs an explicit push.
@@ -903,7 +901,10 @@ export class DeepAgentInferencer implements ICompletions, IGeneration {
 
       const context = JSON.parse(content.text || '{}')
       const flatten = renderTree(context.structure)
-      const openedFiles = Object.keys(context?.currentOpenedFiles || {}).join(',')
+      // Absolute, like every path the filesystem tools take.
+      const openedFiles = Object.keys(context?.currentOpenedFiles || {})
+        .map(toAbsolutePath)
+        .join(', ')
 
       return `\n\n## Current Project Structure\n${flatten}\n\n## Current Opened Files\n${openedFiles ? openedFiles: 'no opened files'}`
     } catch (error) {

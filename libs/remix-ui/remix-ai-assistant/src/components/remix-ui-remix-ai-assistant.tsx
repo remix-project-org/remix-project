@@ -855,7 +855,7 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
     }
 
     // Handle thinking events from Ollama (DeepAgent path)
-    const handleThinking = (data: { isThinking: boolean; threadId?: string }) => {
+    const handleThinking = (data: { isThinking: boolean; content?: string; threadId?: string }) => {
       if (isStoppedRef.current) return
       setIsThinking(data.isThinking)
     }
