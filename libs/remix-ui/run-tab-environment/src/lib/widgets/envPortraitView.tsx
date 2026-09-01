@@ -413,7 +413,7 @@ function EnvironmentPortraitView() {
       <div className='card env-card gap-2 border-0' style={{ '--theme-text-color': themeQuality === 'dark' ? 'white' : 'black' } as React.CSSProperties}>
         <div className="d-flex align-items-center justify-content-between py-1">
           <div className="d-flex align-items-center">
-            <h6 className="my-auto env-card-heading" style={{margin: '0px', fontSize: '14px', fontWeight: '700', color: 'var(--bs-emphasis-color)'}}>{intl.formatMessage({ id: 'udapp.environment' })}</h6>
+            <h6 className="my-auto env-card-heading" style={{ margin: '0px', fontSize: '14px', fontWeight: '700', color: 'var(--bs-emphasis-color)' }}>{intl.formatMessage({ id: 'udapp.environment' })}</h6>
           </div>
           <div className="toggle-container">
             {widgetState.providers?.selectedProvider?.startsWith('vm') && !widgetState.fork.isVisible.forkUI && !widgetState.fork.isVisible.resetUI && (
@@ -422,7 +422,7 @@ function EnvironmentPortraitView() {
               </button>
             )}
             {!widgetState.fork.isVisible.forkUI && !widgetState.fork.isVisible.resetUI && (
-              <button data-id="delete-state-icon" className='btn btn-sm small btn-small-text' style={{background: 'rgba(var(--bs-danger-rgb), 0.08)', border: '1px solid rgba(var(--bs-danger-rgb), 0.32)', color: '#f0776a'}} onClick={handleResetClick}>
+              <button data-id="delete-state-icon" className='btn btn-sm small btn-small-text' style={{ background: 'rgba(var(--bs-danger-rgb), 0.08)', border: '1px solid rgba(var(--bs-danger-rgb), 0.32)', color: '#f0776a' }} onClick={handleResetClick}>
                 <i className='fas fa-redo'></i> {intl.formatMessage({ id: 'udapp.reset' })}
               </button>
             )}
@@ -448,7 +448,7 @@ function EnvironmentPortraitView() {
                 environmentUI={null}
               >
                 <div className="env-toggle-content">
-                  <div className="text-truncate" style={{color: 'var(--bs-heading-color)'}}>
+                  <div className="text-truncate" style={{ color: 'var(--bs-heading-color)' }}>
                     <span data-id={`selected-provider-${widgetState.providers.selectedProvider}`}> { selectedProvider?.category || selectedProvider?.displayName || 'Remix VM' }</span>
                   </div>
                   <i className="fas fa-caret-down text-secondary ms-2 flex-shrink-0"></i>
@@ -510,7 +510,7 @@ function EnvironmentPortraitView() {
                             </CustomTooltip>
                           )}
                           <div className='d-flex flex-column align-items-start ms-1'>
-                            <div className="text-truncate d-flex align-items-center" style={{color: 'var(--bs-heading-color)'}}>
+                            <div className="text-truncate d-flex align-items-center" style={{ color: 'var(--bs-heading-color)' }}>
                               {editingAccountId === 'selected' ? (
                                 <input
                                   ref={editingInputRef}
@@ -609,7 +609,7 @@ function EnvironmentPortraitView() {
                               </CustomTooltip>
                             )}
                             <div className='d-flex flex-column align-items-start'>
-                              <div className="text-truncate d-flex align-items-center" style={{color: 'var(--bs-heading-color)'}}>
+                              <div className="text-truncate d-flex align-items-center" style={{ color: 'var(--bs-heading-color)' }}>
                                 {editingAccountId === accountId ? (
                                   <input
                                     ref={editingInputRef}

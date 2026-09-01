@@ -887,8 +887,8 @@ export function DeployedContractItem({ contract, index, registerRef, isKebabMenu
                                         const response = decoded[numKey]
                                         return numKey === actualIndex
                                           ? Object.keys(response || {}).map((innerkey) =>
-                                              renderData((decoded[numKey] || {})[innerkey], response, innerkey, innerkey)
-                                            )
+                                            renderData((decoded[numKey] || {})[innerkey], response, innerkey, innerkey)
+                                          )
                                           : null
                                       })}
                                     </TreeView>
@@ -962,7 +962,7 @@ export function DeployedContractItem({ contract, index, registerRef, isKebabMenu
                   </div>
                 )}
               </div>
-<div className="border-top mb-3"></div>
+              <div className="border-top mb-3"></div>
 
               {(functionABIs.some((fn: FuncABI) => fn.stateMutability !== 'view' && fn.stateMutability !== 'pure') || showLowLevel) && (
                 <div className="mb-3">
