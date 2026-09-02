@@ -36,6 +36,7 @@ import {
   getSecurityToolsForSecurityAuditor
 } from './helpers/subagentToolFilters'
 import { Features } from '@remix-api'
+import { remixAILogger } from '../../helpers/logger'
 
 export interface SubagentConfigItem {
   name: string
@@ -50,7 +51,6 @@ export async function buildSubagentConfigs(
   tools: DynamicStructuredTool[],
   model: BaseChatModel,
   filesystemBackend: any,
-  fallbackModel: BaseChatModel,
 ): Promise<(SubAgent | CompiledSubAgent)[]> {
   // Check permissions
   const plugin = filesystemBackend.plugin
@@ -131,7 +131,7 @@ export async function buildSubagentConfigs(
     agents.push({
       name: 'QuickDapp_Specialist',
       systemPrompt: QUICKDAPP_SPECIALIST_SUBAGENT_PROMPT,
-      model: fallbackModel,
+      model,
       tools: quickDappTools,
       description: 'Used for all QuickDapp/DApp frontend generation and update requests. Direct chat DApp updates must be delegated here so list_dapps/update_dapp are used instead of current-workspace file inspection.'
     })
@@ -143,7 +143,7 @@ export async function buildSubagentConfigs(
       {
         name: 'Gas_Optimizer',
         systemPrompt: GAS_OPTIMIZER_SUBAGENT_PROMPT,
-        model: fallbackModel,
+        model,
         tools: basicFileTools,
         description: 'Specializes in optimizing gas usage in smart contracts.',
         skills: ['/skills/solidity-gas-optimization']
@@ -157,7 +157,7 @@ export async function buildSubagentConfigs(
       },
       {
         systemPrompt: COMPREHENSIVE_AUDITOR_SUBAGENT_PROMPT,
-        model: fallbackModel,
+        model,
         tools: securityTools,
         name: 'Comprehensive_Auditor',
         description: 'Specializes in comprehensive auditing and analysis of smart contracts.',
@@ -227,12 +227,14 @@ export async function buildSubagentConfigs(
       {
         name: 'Advanced_Solidity_Developer',
         systemPrompt: SOLIDITY_CODE_GENERATION_PROMPT,
-        model: fallbackModel,
+        model,
         tools: solidityTools,
         description: 'Specializes in writing solidity code using openzeppelin libraries. Always pass the current solidity configuration to this subagent. When asked to generate solidity code, always start with the Advanced_Solidity_Developer subagent.'
       }
     )
   }
+
+  remixAILogger.log('[SubagentConfig] ' + agents.map((a: any) => `${a.name}=${a.model?.model ?? '?'}`).join(' '))
 
   return agents
 }

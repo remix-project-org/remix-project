@@ -112,13 +112,13 @@ export const FlatTree = (props: FlatTreeProps) => {
 
   const labelClass = (file: FileType) =>
     props.focusEdit.element === file.path
-      ? 'bg-light'
+      ? 'remixui_rowSurface'
       : props.focusElement.findIndex((item) => item.key === file.path) !== -1
-        ? 'bg-secondary remixui_selected'
+        ? 'remixui_selected'
         : hover == file.path
-          ? 'bg-light border-no-shift'
+          ? 'remixui_rowSurface'
           : props.focusContext.element === file.path && props.focusEdit.element !== file.path
-            ? 'bg-light border-no-shift'
+            ? 'remixui_rowSurface'
             : ''
 
   useEffect(() => {
@@ -168,7 +168,6 @@ export const FlatTree = (props: FlatTreeProps) => {
     setIsDragging(false)
     document.querySelectorAll('li.remixui_selected').forEach(item => {
       item.classList.remove('remixui_selected')
-      item.classList.remove('bg-secondary')
     })
     props.setFilesSelected([])
     setSelectedItems([])
@@ -258,7 +257,7 @@ export const FlatTree = (props: FlatTreeProps) => {
     const file = flatTree[node]
     return (
       <li
-        className={`${labelClass(file)} li_tv`}
+        className={`${labelClass(file)} li_tv remixui_fileRow`}
         onMouseOver={(e) => {
           setHover(file.path)
         }}
@@ -272,7 +271,7 @@ export const FlatTree = (props: FlatTreeProps) => {
         <div data-id={`treeViewDivtreeViewItem${file.path}`} className={`d-flex flex-row align-items-center`}>
           {getIndentLevelDiv(file.path)}
 
-          <div className={`ps-2 ${file.isDirectory ? expandPath && expandPath.includes(file.path) ? 'fa fa-folder-open' : 'fa fa-folder' : `${getPathIcon(file.path)} pe-2 caret caret_tv`} `}></div>
+          <div className={`ps-2 fa-fw ${file.isDirectory ? expandPath && expandPath.includes(file.path) ? 'fa fa-folder-open' : 'fa fa-folder' : `${getPathIcon(file.path)} pe-2 caret caret_tv`} `}></div>
           {focusEdit && file.path && focusEdit.element === file.path ?
             <FlatTreeItemInput
               editModeOff={editModeOff}
@@ -299,8 +298,8 @@ export const FlatTree = (props: FlatTreeProps) => {
   }
 
   return (<>
-    <div ref={containerRef} className='d-flex flex-column h-100 ps-1 mt-1'>
-      <div className="d-flex flex-row gap-2 align-items-center flex-shrink-0">
+    <div ref={containerRef} className='h-100 mt-1'>
+      <div className="d-flex flex-row gap-2 align-items-center remixui_rootFolderRow">
         <span className="fa fa-caret-down"></span><span className="fa-regular fa-folder-open"></span><span>{workspaceDetails?.name}</span>
       </div>
       <FlatTreeDrop
@@ -317,7 +316,7 @@ export const FlatTree = (props: FlatTreeProps) => {
         setSelectedItems={setSelectedItems}
       >
         <div data-id="treeViewUltreeViewMenu"
-          className='d-flex flex-column flex-grow-1 w-100 ms-3 pb-2'
+          className='d-flex h-100 w-100 pb-2'
           onClick={handleTreeClick}
           onMouseLeave={onMouseLeave}
           onMouseMove={onMouseMove}

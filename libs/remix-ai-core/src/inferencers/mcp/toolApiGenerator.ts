@@ -33,7 +33,7 @@ Every tool returns a success or failed response following this schema:
 Example Taks:
 
 ## Tasks 1
-return await callMCPTool('solidity_compile', { file: 'contract.sol' });
+return await callMCPTool('solidity_compile', { filePath: 'contract.sol' });
 
 ## Task 2
 const deployed = await callMCPTool('deploy_contract', { contractName: 'MyToken' });
@@ -44,13 +44,13 @@ return deployed
 // With loops for batch operations
 const files = ['contracts/Token.sol', 'contracts/NFT.sol', 'contracts/DAO.sol'];
 for (const file of files) {
-  await callMCPTool('solidity_compile', { file: 'contracts/' + file });
+  await callMCPTool('solidity_compile', { filePath: file });
 }
 
 ## Sequantial tasks
 ### Task 4.1 
 // first: compile a contract
-return await callMCPTool('solidity_compile', { file: 'contract.sol' });
+return await callMCPTool('solidity_compile', { filePath: 'contract.sol' });
 
 ### Task 4.2
 // second: deploy a contract

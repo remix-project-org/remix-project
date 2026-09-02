@@ -442,6 +442,8 @@ export function DeployedContractItem({ contract, index, registerRef, isKebabMenu
 
       console.log('[QuickDapp] chainId resolved:', chainId);
 
+      // Generic generation rules live in the QuickDapp_Specialist system
+      // prompt. This request carries only the goal and UI-confirmed values.
       const additionalContractsToolArg = selectedAdditionalContracts.length > 0
         ? `- additionalContracts: ${JSON.stringify(selectedAdditionalContracts.map((candidate) => ({ contractName: candidate.name, contractAddress: candidate.address })))}`
         : '- additionalContracts: omit this field'
@@ -479,7 +481,7 @@ ${additionalContractsToolArg}
 - setupOptionsConfirmed: true
 - setupOptionsSummary: ${JSON.stringify(setupOptionsSummary)}
 
-For Inline mode, preserve the existing /frontend overwrite confirmation flow. Contract bindings and setup values were confirmed in the UI.`
+Contract bindings and setup values were confirmed in the QuickDapp UI.`
 
       console.log('[QuickDapp] prompt assembled, length:', prompt.length);
 

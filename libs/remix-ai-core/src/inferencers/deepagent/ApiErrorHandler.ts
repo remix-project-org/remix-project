@@ -30,6 +30,10 @@ export function classifyApiError(error: any): ApiErrorClassification {
     return { type: DeepAgentErrorType.MODEL_OVERLOADED, retryable: true, retryAfter: 30 }
   }
 
+  if (message.includes('idle timeout')) {
+    return { type: DeepAgentErrorType.REQUEST_TIMEOUT, retryable: true, retryAfter: 5 }
+  }
+
   if (status === 503 || status === 502 || status === 504 || message.includes('service unavailable') ||
       message.includes('bad gateway') || message.includes('gateway timeout')) {
     return { type: DeepAgentErrorType.SERVICE_UNAVAILABLE, retryable: true, retryAfter: 10 }
@@ -44,10 +48,6 @@ export function classifyApiError(error: any): ApiErrorClassification {
     return { type: DeepAgentErrorType.AUTHENTICATION_FAILED, retryable: false }
   }
 
-  // 403 alone is not enough to claim the API key is invalid — the
-  // remix-api backend uses 403 for FEATURE_DENIED / EMAIL_NOT_VERIFIED /
-  // PROVIDER_DENIED, none of which are credential problems. Only flag
-  // it as such when the message text actually says so.
   if (message.includes('forbidden') || message.includes('permission denied') ||
       message.includes('invalid api key') || message.includes('expired api key')) {
     return { type: DeepAgentErrorType.API_KEY_INVALID, retryable: false }
@@ -67,14 +67,33 @@ export function classifyApiError(error: any): ApiErrorClassification {
     return { type: DeepAgentErrorType.TOOL_EXECUTION_FAILED, retryable: false }
   }
 
-  if (message.includes('timeout') || message.includes('timed out') || message.includes('ETIMEDOUT') ||
-      message.includes('ESOCKETTIMEDOUT') || error?.code === 'ETIMEDOUT') {
+  if (message.includes('no endpoints found that support tool use')) {
+    return { type: DeepAgentErrorType.TOOL_USE_UNSUPPORTED, retryable: false }
+  }
+
+  // The backend's content filter. Terminal by definition — retrying or
+  // degrading to another model sends the same prompt and gets the same answer.
+  if (message.includes('prohibited_content') || message.includes('content_policy') ||
+      message.includes('content filter')) {
+    return { type: DeepAgentErrorType.CONTENT_BLOCKED, retryable: false }
+  }
+
+  const code = typeof error?.code === 'string' ? error.code.toUpperCase() : ''
+  if (error?.name === 'TimeoutError' ||
+      message.includes('timeout') || message.includes('timed out') || message.includes('etimedout') ||
+      message.includes('esockettimedout') || code === 'ETIMEDOUT' || code === 'ESOCKETTIMEDOUT') {
     return { type: DeepAgentErrorType.REQUEST_TIMEOUT, retryable: true, retryAfter: 5 }
   }
 
-  if (message.includes('network') || message.includes('fetch') || message.includes('ECONNREFUSED') ||
-      message.includes('ENOTFOUND') || message.includes('ECONNRESET') || message.includes('socket') ||
-      error?.code === 'ECONNREFUSED' || error?.code === 'ENOTFOUND') {
+  // 'connection error' is what the OpenAI / Anthropic SDKs throw when the
+  // underlying fetch fails. It matched none of the needles below, so a plain
+  // dropped connection classified as UNKNOWN and was never retried.
+  if (message.includes('network') || message.includes('fetch') || message.includes('econnrefused') ||
+      message.includes('enotfound') || message.includes('econnreset') || message.includes('epipe') ||
+      message.includes('connection error') || message.includes('connection failed') ||
+      message.includes('connection refused') || message.includes('failed to fetch') ||
+      message.includes('load failed') || message.includes('socket') ||
+      code === 'ECONNREFUSED' || code === 'ENOTFOUND' || code === 'ECONNRESET' || code === 'EPIPE') {
     return { type: DeepAgentErrorType.NETWORK_ERROR, retryable: true, retryAfter: 5 }
   }
 
@@ -102,16 +121,66 @@ export function extractRetryAfter(error: any): number {
   return 60
 }
 
+function isOpaqueMessage(message: string): boolean {
+  const m = message.trim().toLowerCase()
+  return m === 'abort' || m === 'aborted' || m === 'error' || m.includes('idle timeout')
+}
+
+function errorText(error: any): string {
+  return String(
+    error?.aiError?.message ??
+    error?.response?.data?.error?.message ??
+    error?.data?.error?.message ??
+    error?.message ??
+    ''
+  )
+}
+
+function isIdleTimeout(error: any): boolean {
+  return errorText(error).toLowerCase().includes('idle timeout')
+}
+
+function isBareAbort(error: any): boolean {
+  const m = errorText(error).trim().toLowerCase()
+  return m === 'abort' || m === 'aborted'
+}
+
+function toolUseUnsupportedMessage(error: any): string {
+  const raw: string =
+    error?.aiError?.message ??
+    error?.response?.data?.error?.message ??
+    error?.data?.error?.message ??
+    error?.message ??
+    ''
+  const named = /disabling\s+"([^"]+)"/i.exec(raw)?.[1]
+  const aside = named
+    ? ` (the provider suggested disabling "${named}" — that will not help; the assistant needs tools on every request.)`
+    : ''
+  return 'The selected model cannot call tools, which the assistant requires. ' +
+    `Choose a model that supports tool calling.${aside}`
+}
+
 export function getErrorMessage(errorType: DeepAgentErrorType, error: any, retryAfter?: number): string {
-  // Prefer a structured envelope message when one is available — the
-  // backend's text is always more accurate than our generic strings.
   remixAILogger.log('[Classified error:]', { errorType, error, retryAfter })
+
+  if (errorType === DeepAgentErrorType.TOOL_USE_UNSUPPORTED) {
+    return toolUseUnsupportedMessage(error)
+  }
+
   const envelopeMessage: string | undefined =
     error?.aiError?.message ??
     error?.response?.data?.error?.message ??
     error?.data?.error?.message
-  if (typeof envelopeMessage === 'string' && envelopeMessage.length > 0) {
+  if (typeof envelopeMessage === 'string' && envelopeMessage.length > 0 && !isOpaqueMessage(envelopeMessage)) {
     return envelopeMessage
+  }
+
+  if (isIdleTimeout(error)) {
+    return 'The model stopped sending data and the connection timed out before the answer was complete. Please try again.'
+  }
+
+  if (isBareAbort(error)) {
+    return 'The run stopped before it finished and no cause was reported. Please try again.'
   }
 
   switch (errorType) {
@@ -134,9 +203,6 @@ export function getErrorMessage(errorType: DeepAgentErrorType, error: any, retry
 
   case DeepAgentErrorType.AUTHENTICATION_FAILED: {
     const originalMsg = error?.message || ''
-    if (originalMsg.toLowerCase().includes('moonshot') || originalMsg.includes('api.moonshot.cn')) {
-      return 'Moonshot authentication failed. Please verify your Moonshot/Kimi API key is valid and has not expired.'
-    }
     if (originalMsg.toLowerCase().includes('openrouter')) {
       return 'OpenRouter authentication failed. Please verify your OpenRouter API key is valid and has not expired.'
     }
@@ -154,6 +220,10 @@ export function getErrorMessage(errorType: DeepAgentErrorType, error: any, retry
 
   case DeepAgentErrorType.TOOL_EXECUTION_FAILED:
     return `Tool execution failed: ${error?.message || 'An error occurred while running a tool.'}`
+
+  case DeepAgentErrorType.CONTENT_BLOCKED:
+    return 'This request was blocked by the content policy. Rephrase it and try again.'
+    // TOOL_USE_UNSUPPORTED is handled above, ahead of the envelope shortcut.
 
   case DeepAgentErrorType.REQUEST_TIMEOUT:
     return 'Request timed out. Please try again.'

@@ -8,30 +8,18 @@ import { NotificationItem } from './notification-center-api'
 
 // ==================== Credits ====================
 
-/**
- * Per-(provider, model) usage cap entitled by an active feature group.
- * Returned by `GET /credits/balance?include=quotas`. Sorted by `amount ASC`
- * so the tightest cap (which is also drained first) appears first.
- *
- * Wildcards: `provider === '*'` and/or `model === '*'` means the cap applies
- * across the whole provider catalog or to any model. Render as
- * "All providers" / "All models".
- *
- * Special amounts:
- *   - `amount >= 1e15` → treat as unlimited (∞ badge)
- *   - `amount === 0`   → quota is effectively disabled; hide the row
- */
+
 export interface QuotaEntry {
   /** Stable backend slug, e.g. `q:free:mistral-small:day`. Never show to end users. */
   slug: string
-  provider: string  // 'mistralai', 'anthropic', '*', …
-  model: string     // 'mistral-small-latest', '*', …
+  provider: string // 'mistralai', 'anthropic', '*', …
+  model: string // 'mistral-small-latest', '*', …
   period: 'day' | 'week' | 'month'
-  amount: number    // cap in credits
-  used: number      // credits drained this period
+  amount: number // cap in credits
+  used: number // credits drained this period
   remaining: number // max(0, amount - used)
-  periodStart: string    // 'YYYY-MM-DD'
-  periodResetAt: string  // ISO datetime when the bucket resets
+  periodStart: string // 'YYYY-MM-DD'
+  periodResetAt: string // ISO datetime when the bucket resets
 }
 
 export interface Credits {
@@ -148,6 +136,14 @@ export interface AppConfig {
   // Limits
   'limits.max_file_size_mb'?: number
 
+  // Domain migration — set on the origin being retired
+  /** Send visitors with an empty browser storage straight to `migration.to_domain`. */
+  'migration.redirect_enabled'?: boolean
+  /** Host users are being moved to, e.g. 'app.remix.live'. */
+  'migration.to_domain'?: string
+  /** Comma-separated hosts the redirect applies to, e.g. 'remix.ethereum.org, remix.live'. */
+  'migration.from_domains'?: string
+
   // Settings
   'settings.account_management'?: boolean
 
@@ -218,7 +214,7 @@ export type LoginMode = 'open' | 'feature_group' | 'admins_only' | 'closed'
 /** Response from GET /sso/login-mode */
 export interface LoginModeResponse {
   mode: LoginMode
-  message: string  // empty string when mode is 'open'
+  message: string // empty string when mode is 'open'
 }
 
 /** Login ACL denial codes (subset of postMessage error codes) */
@@ -545,10 +541,10 @@ export interface CategoryFeaturesResponse {
  * Payment provider configuration for a product
  */
 export interface ProductProvider {
-  slug: string              // Provider identifier (e.g., "paddle")
-  name: string              // Display name
-  priceId: string | null    // Provider's external price ID
-  productId: string | null  // Provider's external product ID
+  slug: string // Provider identifier (e.g., "paddle")
+  name: string // Display name
+  priceId: string | null // Provider's external price ID
+  productId: string | null // Provider's external product ID
   isActive: boolean
   syncStatus: 'pending' | 'synced' | 'error'
 }
@@ -562,18 +558,13 @@ export interface CreditPackage {
   name: string
   description: string
   credits: number
-  priceUsd: number  // Price in cents (500 = $5.00)
+  priceUsd: number
   currency: string
   popular?: boolean
   savings?: string | null
-  providers: ProductProvider[]  // Available payment providers
+  providers: ProductProvider[] // Available payment providers
   paddlePriceId?: string | null // Legacy: prefer providers array
   source?: 'database' | 'config' | 'provider'
-  /**
-   * All billable prices for this package. Today credit packages are
-   * single-price, but the unified API may surface alternates (e.g.
-   * promo SKUs); kept optional for forward-compat.
-   */
   prices?: AvailableProductPrice[]
 }
 
@@ -1069,7 +1060,7 @@ export interface SubscriptionPlan {
   name: string
   description: string
   creditsPerMonth: number
-  priceUsd: number  // Price in cents
+  priceUsd: number // Price in cents
   currency: string
   billingInterval: 'month' | 'year'
   features: string[]
@@ -1083,7 +1074,7 @@ export interface SubscriptionPlan {
   /** Credits granted up-front for the trial. */
   trialCredits?: number | null
   defaultProrationBillingMode?: string
-  providers: ProductProvider[]  // Available payment providers
+  providers: ProductProvider[] // Available payment providers
   paddlePriceId?: string | null // Legacy: prefer providers array
   source?: 'database' | 'config' | 'provider'
   /**
@@ -1201,8 +1192,8 @@ export interface UserSubscriptionResponse {
  */
 export interface PurchaseCreditsRequest {
   packageId: string
-  provider?: string   // Provider slug (default: "paddle")
-  returnUrl?: string  // Redirect URL after checkout
+  provider?: string // Provider slug (default: "paddle")
+  returnUrl?: string // Redirect URL after checkout
 }
 
 /**
@@ -1216,7 +1207,7 @@ export interface PurchaseCreditsResponse {
     id: string
     name: string
     credits: number
-    price: number  // In cents
+    price: number // In cents
   }
 }
 
@@ -1225,8 +1216,8 @@ export interface PurchaseCreditsResponse {
  */
 export interface SubscribeRequest {
   planId: string
-  provider?: string   // Provider slug (default: "paddle")
-  returnUrl?: string  // Redirect URL after checkout
+  provider?: string // Provider slug (default: "paddle")
+  returnUrl?: string // Redirect URL after checkout
 }
 
 /**
@@ -1255,10 +1246,10 @@ export interface BillingConfigResponse {
  */
 export interface FeatureGroupInfo {
   id: number
-  name: string              // Feature group slug (e.g., "ai-pro")
-  displayName: string       // Human-readable name (e.g., "AI Pro")
+  name: string // Feature group slug (e.g., "ai-pro")
+  displayName: string // Human-readable name (e.g., "AI Pro")
   description: string | null
-  priority: number          // Display priority (higher = more prominent)
+  priority: number // Display priority (higher = more prominent)
 }
 
 /**
@@ -1269,16 +1260,16 @@ export interface FeatureAccessProduct {
   slug: string
   name: string
   description: string
-  featureGroup: string           // Primary feature group (legacy, single value)
-  featureGroups: FeatureGroupInfo[]  // All feature groups this product grants
+  featureGroup: string // Primary feature group (legacy, single value)
+  featureGroups: FeatureGroupInfo[] // All feature groups this product grants
   durationType: 'days' | 'months' | 'years' | 'unlimited'
-  durationValue: number          // How many units of duration
-  isRecurring: boolean           // true for subscriptions
+  durationValue: number // How many units of duration
+  isRecurring: boolean // true for subscriptions
   billingInterval: 'day' | 'week' | 'month' | 'year' | null
   priceCents: number
   currency: string
   isPopular: boolean
-  providers?: ProductProvider[]  // Available payment providers
+  providers?: ProductProvider[] // Available payment providers
 }
 
 /**
@@ -1292,10 +1283,10 @@ export interface FeatureAccessProductsResponse {
  * Request to purchase feature access
  */
 export interface FeatureAccessPurchaseRequest {
-  productSlug?: string       // Product slug to purchase
-  productId?: number         // Or product ID
-  provider?: string          // Provider slug (default: "paddle")
-  returnUrl?: string         // Redirect URL after checkout
+  productSlug?: string // Product slug to purchase
+  productId?: number // Or product ID
+  provider?: string // Provider slug (default: "paddle")
+  returnUrl?: string // Redirect URL after checkout
 }
 
 /**
@@ -1323,8 +1314,8 @@ export interface FeatureAccessPurchaseResponse {
 export interface UserFeatureMembership {
   id: number
   featureGroup: string
-  startsAt: string            // ISO date
-  expiresAt: string | null    // ISO date, null = never expires
+  startsAt: string // ISO date
+  expiresAt: string | null // ISO date, null = never expires
   status: 'active' | 'expired' | 'canceled' | 'revoked'
   isRecurring: boolean
   sourceType: 'purchase' | 'subscription' | 'admin_grant' | 'promo' | 'trial'

@@ -3,9 +3,9 @@ import React, { useState, useEffect, useCallback, useRef, useImperativeHandle, M
 //@ts-ignore
 import '../css/remix-ai-assistant.css'
 
-import { ChatCommandParser, GenerationParams, ChatHistory, HandleStreamResponse, AIModel, ANONYMOUS_FALLBACK_MODELS, remixAILogger, modelKey, parseModelKey, findModel, applyByokKeyPolicy, BYOK_API_KEY_SETTINGS, modelTransportProvider, onApiKeysChange } from '@remix/remix-ai-core'
+import { ChatCommandParser, GenerationParams, ChatHistory, HandleStreamResponse, AIModel, ANONYMOUS_FALLBACK_MODELS, remixAILogger, modelKey, parseModelKey, findModel, applyByokKeyPolicy, BYOK_API_KEY_SETTINGS, modelTransportProvider, onApiKeysChange, type ModelTransport } from '@remix/remix-ai-core'
 import { ToolApprovalRequest, ApiKeyErrorEvent } from '@remix/remix-ai-core'
-import { HandleOpenAIResponse, HandleMistralAIResponse, HandleAnthropicResponse, HandleOllamaResponse } from '@remix/remix-ai-core'
+import { HandleOpenAICompatibleResponse, HandleOllamaResponse } from '@remix/remix-ai-core'
 //@ts-ignore
 import '../css/color.css'
 import { ModalTypes } from '@remix-ui/app'
@@ -97,9 +97,9 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
   }, [messages, props.currentConversationId])
   const [isThinking, setIsThinking] = useState(false)
   const [showModelSelector, setShowModelSelector] = useState(false)
-  const [assistantChoice, setAssistantChoice] = useState<'openai' | 'mistralai' | 'anthropic' | 'ollama'>(
-    'mistralai'
-  )
+  // OpenRouter is the router every hosted model arrives on, so it is the only
+  // sensible value before a selection resolves from /permissions.
+  const [assistantChoice, setAssistantChoice] = useState<ModelTransport>('openrouter')
   const [showArchivedConversations, setShowArchivedConversations] = useState(false)
   const [showButton, setShowButton] = useState(true);
   const [isAiChatMaximized, setIsAiChatMaximized] = useState(false)
@@ -176,14 +176,6 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
   // features here. Anonymous users see ANONYMOUS_FALLBACK_MODELS until
   // assistantState reports otherwise.
   const [availableModels, setAvailableModels] = useState<AIModel[]>(ANONYMOUS_FALLBACK_MODELS)
-  // ai:auto feature flag — gates the Auto Mode option in the model picker.
-  // Sourced from assistantState.hasFeature('ai:auto') and refreshed on
-  // every stateChanged event. Anonymous users get false.
-  const [autoModeAvailable, setAutoModeAvailable] = useState(false)
-  // Tracks whether we've applied the "auto is the default for logged-in
-  // users" rule in the current session. Reset when ai:auto flips back to
-  // false (logout) so the next login re-applies the default.
-  const autoDefaultAppliedRef = useRef(false)
   const [modelOpt, setModelOpt] = useState<{ top?: number, bottom?: number, left: number, maxHeight: number }>({ top: 0, left: 0, maxHeight: 0 })
   const [ollamaModelOpt, setOllamaModelOpt] = useState({ top: 0, left: 0 })
   const menuRef = useRef<any>()
@@ -193,7 +185,9 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
   // Mirrors `selectedModel` for callbacks that must not capture a stale value
   // (the API-key change subscription lives outside the render closure).
   const selectedModelRef = useRef<AIModel | null>(null)
-  const [autoModeEnabled, setAutoModeEnabled] = useState(false)
+  // Mirror of the stored BYOK keys, so the picker can mark which rows run on
+  // the user's key and which are waiting for one.
+  const [byokKeyPresence, setByokKeyPresence] = useState<Record<string, boolean>>({})
   const [usingOwnApiKey, setUsingOwnApiKey] = useState(false)
   const [apiKeyError, setApiKeyError] = useState<ApiKeyErrorEvent | null>(null)
   const [themeTracker, setThemeTracker] = useState<{ name: string } | null>(() => ({ name: getSystemThemeFallback() }))
@@ -409,7 +403,7 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
         if (model) {
           setSelectedModelId(currentModelId)
           setSelectedModel(model)
-          setAssistantChoice(model.provider as 'openai' | 'mistralai' | 'anthropic' | 'ollama')
+          setAssistantChoice(model.provider)
         }
         await props.plugin.call('remixAI', 'setModelAccess', modelAccess)
       } catch (error) {
@@ -427,7 +421,7 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
       if (model) {
         setSelectedModelId(modelId)
         setSelectedModel(model)
-        setAssistantChoice(model.provider as 'openai' | 'mistralai' | 'anthropic' | 'ollama')
+        setAssistantChoice(model.provider)
       }
     }
 
@@ -513,7 +507,7 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
     if (!fallback) return
     setSelectedModelId(fallback.id)
     setSelectedModel(fallback)
-    setAssistantChoice(fallback.provider as 'openai' | 'mistralai' | 'anthropic' | 'ollama')
+    setAssistantChoice(fallback.provider)
     try {
       await props.plugin.call('remixAI', 'setModel', fallback.id, fallback.provider)
     } catch (e) {
@@ -525,7 +519,9 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
     try {
       const models = await props.plugin.call('assistantState' as any, 'getAvailableModels')
       if (Array.isArray(models) && models.length > 0) {
-        const curated = applyByokKeyPolicy(models, await readByokKeyPresence())
+        const presence = await readByokKeyPresence()
+        setByokKeyPresence(presence)
+        const curated = applyByokKeyPolicy(models, presence)
         setAvailableModels(curated)
         await dropSelectionInvalidatedByKeys(curated)
       }
@@ -588,7 +584,7 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
           // picker shows ANONYMOUS_FALLBACK_MODELS while logged out.
           setSelectedModelId('')
           setSelectedModel(null)
-          setAssistantChoice('mistralai')
+          setAssistantChoice('openrouter')
         }
         await modelAccess.refreshAccess()
         isRefreshing = false
@@ -859,7 +855,7 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
     }
 
     // Handle thinking events from Ollama (DeepAgent path)
-    const handleThinking = (data: { isThinking: boolean; threadId?: string }) => {
+    const handleThinking = (data: { isThinking: boolean; content?: string; threadId?: string }) => {
       if (isStoppedRef.current) return
       setIsThinking(data.isThinking)
     }
@@ -1063,14 +1059,14 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
           // BYOK policy: Bedrock rows stay hidden until its bearer token is
           // stored, and key-only rows on the other providers go unavailable
           // when their key is deleted (kept in sync by onApiKeysChange above).
-          setAvailableModels(applyByokKeyPolicy(models, await readByokKeyPresence()))
+          const presence = await readByokKeyPresence()
+          setByokKeyPresence(presence)
+          setAvailableModels(applyByokKeyPolicy(models, presence))
         }
       } catch (e) { remixAILogger.warn('[remix-ai-assistant] getAvailableModels failed', e) }
     }
     const refreshFeatures = async () => {
       try {
-        // const auto = await props.plugin.call('assistantState' as any, 'hasFeature', 'ai:auto')
-        setAutoModeAvailable(false)
         // const mcp = await props.plugin.call('assistantState' as any, 'hasFeature', 'mcp:basicExternal')
         setMcpEnabled(true)
         // When the section gets hidden, also collapse the inner toggle so
@@ -1217,26 +1213,6 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
   useEffect(() => {
     props.onMessagesChange?.(messages)
   }, [messages, props.onMessagesChange])
-
-  // Auto Mode is the default for every logged-in user. Once `ai:auto`
-  // becomes available (after /permissions resolves), enable it. When it
-  // flips back off (logout), reset both the toggle and the
-  // "already-applied" guard so the next login re-applies the default.
-  useEffect(() => {
-    if (autoModeAvailable) {
-      if (!autoDefaultAppliedRef.current) {
-        autoDefaultAppliedRef.current = true
-        setAutoModeEnabled(true)
-        void props.plugin.call('remixAI', 'setAutoMode', true).catch(() => { /* noop */ })
-      }
-    } else {
-      autoDefaultAppliedRef.current = false
-      if (autoModeEnabled) {
-        setAutoModeEnabled(false)
-        void props.plugin.call('remixAI', 'setAutoMode', false).catch(() => { /* noop */ })
-      }
-    }
-  }, [autoModeAvailable])
 
   // Smart auto-scroll: only scroll to bottom if:
   useEffect(() => {
@@ -1743,6 +1719,11 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
         if (!ready) return
       } catch { /* assistantState not active — fall through to legacy behaviour */ }
 
+      // Navigate back to chat view if the history sidebar is open
+      if (props.showHistorySidebar && !props.isMaximized) {
+        props.onToggleHistorySidebar?.()
+      }
+
       // firstPromptStateRef holds the live message count — sendPrompt is
       // intentionally memoized without `messages`, so its closure value is stale.
       trackPromptActivity(metadata, trimmed.length, firstPromptStateRef.current.count)
@@ -1854,15 +1835,20 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
 
         remixAILogger.log('Received response from plugin:', response)
 
+        if (response === null || response === undefined) {
+          setIsStreaming(false)
+          streamingAssistantIdRef.current = null
+          abortControllerRef.current = null
+          const notice = await props.plugin.call('assistantState' as any, 'getChatNotice').catch(() => null)
+          setChatNotice(notice ?? {
+            title: 'Request not sent',
+            body: 'The assistant declined this request. Check your plan, sign-in state or any cooldown shown above.'
+          } as any)
+          return
+        }
+
         // Handle langchain/deepagent mode: response is plain text
         if (typeof response === 'string') {
-          // The DeepAgent path now awaits runAgent (so withAssistantGate
-          // can see envelope errors). That means by the time `answer()`
-          // returns, the entire stream has already played out via
-          // onStreamResult/onStreamComplete and the bubble is fully
-          // painted. Skip the legacy create-bubble-from-final-text branch
-          // — otherwise we paint the response a second time below the
-          // streaming bubble.
           if (streamConsumedThisTurnRef.current) {
             setIsStreaming(false)
             streamingAssistantIdRef.current = null
@@ -1983,57 +1969,25 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
           response.modelId = selectedModel?.id
         }
 
-        // Derive provider from selectedModel to avoid stale state issues
-        const currentProvider = selectedModel?.provider || assistantChoice
+        // Only the `remote` and `mcp` routes reach here: they bypass
+        // LangChain entirely, fetching the solcoder endpoint directly and
+        // handing back a raw Response whose SSE we parse ourselves. The
+        // DeepAgent route returns a plain string and already returned above,
+        // its streaming handled by LangChain + StreamEventHandler.
+        //
+        // The transport decides which parser: Ollama has its own SSE shape,
+        // everything else on solcoder is OpenAI-compatible.
+        const currentProvider = (selectedModel ? modelTransportProvider(selectedModel) : undefined) || assistantChoice
 
         switch (currentProvider) {
-        case 'openai':
+        case 'openrouter':
         {
           const thinkingCallback = (thinking: boolean) => {
             if (abortControllerRef.current?.signal.aborted) return
             setIsThinking(thinking)
           }
 
-          await HandleOpenAIResponse(
-            response,
-            (chunk: string) => {
-              if (abortControllerRef.current?.signal.aborted) return
-              appendAssistantChunk(assistantId, chunk)
-            },
-            (finalText: string, threadId) => {
-              if (abortControllerRef.current?.signal.aborted) return
-              setIsThinking(false)
-              Promise.resolve(ChatHistory.pushHistory(trimmed, finalText, metadata?.displayText?.trim())).then(() => props.plugin.loadConversations())
-              setIsStreaming(false)
-              props.plugin.call('remixAI', 'setAssistantThrId', threadId)
-            },
-            thinkingCallback
-          )
-          break;
-        }
-        case 'mistralai':
-          await HandleMistralAIResponse(
-            response,
-            (chunk: string) => {
-              if (abortControllerRef.current?.signal.aborted) return
-              appendAssistantChunk(assistantId, chunk)
-            },
-            (finalText: string, threadId) => {
-              if (abortControllerRef.current?.signal.aborted) return
-              Promise.resolve(ChatHistory.pushHistory(trimmed, finalText, metadata?.displayText?.trim())).then(() => props.plugin.loadConversations())
-              setIsStreaming(false)
-              props.plugin.call('remixAI', 'setAssistantThrId', threadId)
-            }
-          )
-          break;
-        case 'anthropic':
-        {
-          const thinkingCallback = (thinking: boolean) => {
-            if (abortControllerRef.current?.signal.aborted) return
-            setIsThinking(thinking)
-          }
-
-          await HandleAnthropicResponse(
+          await HandleOpenAICompatibleResponse(
             response,
             (chunk: string) => {
               if (abortControllerRef.current?.signal.aborted) return
@@ -2125,8 +2079,18 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
           streamingAssistantIdRef.current = null
         }
       }
+      finally {
+        // Refine the sidebar title now that the turn is over. This used to run
+        // *before* the request as a fire-and-forget model call, racing the
+        // user's own prompt for the same model and quota. It only relabels a
+        // row that already shows the prompt's first 50 characters, so it has
+        // no business on the critical path.
+        try {
+          await props.plugin.call('remixaiassistant' as any, 'refineQueuedConversationTitle')
+        } catch { /* cosmetic — never let a title failure surface to the user */ }
+      }
     },
-    [isStreaming, props.plugin, selectedModel, assistantChoice, dismissChatNotice]
+    [isStreaming, props.plugin, selectedModel, assistantChoice, dismissChatNotice, props.showHistorySidebar, props.isMaximized, props.onToggleHistorySidebar]
   )
 
   const handleSend = useCallback(async () => {
@@ -2198,48 +2162,6 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
   const handleModelSelection = useCallback(async (selectionKey: string) => {
     setChatNotice(null)
     const { id: modelId, provider: selectedProvider } = parseModelKey(selectionKey)
-    // Handle auto mode selection
-    if (selectionKey === 'auto') {
-      setAutoModeEnabled(true)
-      try {
-        await props.plugin.call('remixAI', 'setAutoMode', true)
-        trackMatomoEvent({ category: 'ai', action: 'remixAI', name: 'auto_mode_enabled', isClick: true })
-      } catch (error) {
-        remixAILogger.warn('Failed to enable auto mode:', error)
-      }
-      // When the user toggles back to Auto after explicitly picking a
-      // model (e.g. Opus → Auto), reset the underlying selection to the
-      // backend-advertised default. Otherwise the inferencer keeps the
-      // last static pick and `selectOptimalModel` (which only swaps in
-      // *Sonnet* when allowed) silently keeps Opus, defeating Auto Mode.
-      try {
-        const def: AIModel | null = await props.plugin.call('assistantState' as any, 'getDefaultModel')
-        if (def && def.id && def.available !== false) {
-          setSelectedModelId(def.id)
-          setSelectedModel(def)
-          setAssistantChoice(def.provider as 'openai' | 'mistralai' | 'anthropic' | 'ollama')
-          try {
-            await props.plugin.call('remixAI', 'setModel', def.id, def.provider)
-          } catch (e) {
-            remixAILogger.warn('[remix-ai-assistant] setModel(default) failed when entering Auto Mode', e)
-          }
-        } else {
-          remixAILogger.warn('[remix-ai-assistant] Auto Mode requested but /permissions has no usable default model yet', def)
-        }
-      } catch (e) {
-        remixAILogger.warn('[remix-ai-assistant] assistantState.getDefaultModel failed when entering Auto Mode', e)
-      }
-      setShowModelSelector(false)
-      return
-    } else {
-      setAutoModeEnabled(false)
-      try {
-        await props.plugin.call('remixAI', 'setAutoMode', false)
-      } catch (error) {
-        remixAILogger.warn('Failed to disable auto mode:', error)
-      }
-    }
-
     const model = findModel(availableModels, modelId, selectedProvider)
     if (!model) return
 
@@ -2281,7 +2203,7 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
     setSelectedModel(model)
 
     // Always update assistantChoice to match the selected model's provider
-    setAssistantChoice(model.provider as 'openai' | 'mistralai' | 'anthropic' | 'ollama')
+    setAssistantChoice(model.provider)
     remixAILogger.log('Setting assistant choice to:', model.provider)
 
     if (model.provider === 'ollama') {
@@ -2306,7 +2228,7 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
             await props.plugin.call('remixAI', 'setModel', fallbackModel.id, fallbackModel.provider)
             setSelectedModelId(fallbackModel.id)
             setSelectedModel(fallbackModel)
-            setAssistantChoice(fallbackModel.provider as 'openai' | 'mistralai' | 'anthropic' | 'ollama')
+            setAssistantChoice(fallbackModel.provider)
           }
         } catch (e) {
           remixAILogger.warn('[remix-ai-assistant] failed to switch back to default model after Ollama unavailable', e)
@@ -2936,8 +2858,6 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
               setMcpEnhanced={setMcpEnhanced}
               availableModels={availableModels}
               selectedModel={selectedModel}
-              autoModeEnabled={autoModeEnabled}
-              autoModeAvailable={autoModeAvailable}
               handleModelSelection={handleModelSelection}
               onLockedModelClick={handleLockedModelClick}
               upgradePillState={pillStates.upgrade}
@@ -2971,6 +2891,8 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
               handleLoadAuditChecklist={handleLoadAuditChecklist}
               handleGasOptimisationAudit={handleGasOptimisationAudit}
               usingOwnApiKey={usingOwnApiKey}
+              byokKeyPresence={byokKeyPresence}
+              onAddApiKeyClick={handleOpenSettings}
               aiRoute={aiRouteStatus.route}
               aiRouteReady={aiRouteStatus.ready}
               isAuthenticated={isAuthenticated}
@@ -2994,8 +2916,6 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
               setMcpEnhanced={setMcpEnhanced}
               availableModels={availableModels}
               selectedModel={selectedModel}
-              autoModeEnabled={autoModeEnabled}
-              autoModeAvailable={autoModeAvailable}
               handleModelSelection={handleModelSelection}
               onLockedModelClick={handleLockedModelClick}
               upgradePillState={pillStates.upgrade}
@@ -3029,6 +2949,8 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
               handleLoadAuditChecklist={handleLoadAuditChecklist}
               handleGasOptimisationAudit={handleGasOptimisationAudit}
               usingOwnApiKey={usingOwnApiKey}
+              byokKeyPresence={byokKeyPresence}
+              onAddApiKeyClick={handleOpenSettings}
               aiRoute={aiRouteStatus.route}
               aiRouteReady={aiRouteStatus.ready}
               isAuthenticated={isAuthenticated}

@@ -3,7 +3,7 @@ import { Plugin } from '@remixproject/engine';
 import { trackMatomoEvent, Features, ChatPromptMetadata } from '@remix-api'
 import { remixAILogger, RemoteInferencer, IRemoteModel, IParams, GenerationParams, AssistantParams, CodeExplainAgent, SecurityAgent, CompletionParams, OllamaInferencer } from '@remix/remix-ai-core';
 import { CodeCompletionAgent, ContractAgent, workspaceAgent, IContextType, mcpDefaultServersConfig, mcpBasicServersConfig, mcpWebSearchServersConfig } from '@remix/remix-ai-core';
-import { MCPInferencer, DeepAgentInferencer, onApiKeysChange } from '@remix/remix-ai-core';
+import { MCPInferencer, DeepAgentInferencer, onApiKeysChange, DeepAgentErrorType } from '@remix/remix-ai-core';
 import { IMCPServer, IMCPConnectionStatus } from '@remix/remix-ai-core';
 import { RemixMCPServer, createRemixMCPServer } from '@remix/remix-ai-core';
 import { AIModel, isBedrockModel, BEDROCK_API_KEY_SETTING } from '@remix/remix-ai-core';
@@ -28,7 +28,6 @@ const profile = {
     'enableDeepAgent', 'disableDeepAgent', 'isDeepAgentEnabled',
     'setDeepAgentThread',
     'respondToToolApproval',
-    'setAutoMode', 'getAutoModeStatus',
     'clearCaches', 'cancelRequest',
     'getAllowedModels', 'setModelAccess',
     'isUsingOwnApiKey', 'getApiKeyStatus', 'fallbackToProxy',
@@ -48,6 +47,7 @@ const profile = {
     'onTaskStart', 'onTaskComplete', 'onTodoUpdate',
     'onTodoError', 'onAgentError', 'onApiError',
     'onToolApprovalRequired', 'ollamaModelDiscovered',
+    'onInactivityTimeout',
     'requestCancelled'
   ],
   icon: 'assets/img/remix-logo-blue.png',
@@ -527,7 +527,7 @@ export class RemixAIPlugin extends Plugin {
           // routeProvider must travel with the selection: branded rows (Claude
           // via OpenRouter, etc.) carry the vendor as `provider` and the actual
           // transport as `routeProvider`, which is what ModelFactory dials.
-          { provider: this.selectedModel.provider as 'anthropic' | 'mistralai' | 'openai' | 'moonshot' | 'openrouter' | 'ollama' | 'bedrock', modelId: this.selectedModelId, routeProvider: this.selectedModel.routeProvider } // Pass selected model
+          { provider: this.selectedModel.provider, modelId: this.selectedModelId, routeProvider: this.selectedModel.routeProvider } // Pass selected model
         )
         await this.deepAgentInferencer.initialize()
         // Set up DeepAgent event listeners for streaming (once only)
@@ -570,6 +570,15 @@ export class RemixAIPlugin extends Plugin {
     })
     this.remoteInferencer.event.on('onInferenceDone', () => {
       this.isInferencing = false
+    })
+    // The chat/completion path classifies its own failures. Only the agent
+    // path was wired to react to them, so an unusable model picked up here
+    // stayed selected and failed every following prompt too.
+    this.remoteInferencer.event.on('onApiError', (data: any) => {
+      this.emit('onApiError', data)
+      if (data?.type === DeepAgentErrorType.TOOL_USE_UNSUPPORTED) {
+        void this.handleUnsupportedModel(data?.originalError)
+      }
     })
 
     // Only push the model to the inference layer once /permissions has
@@ -689,7 +698,11 @@ export class RemixAIPlugin extends Plugin {
     this.emit('codeCompletionUsed')
     return this.withAssistantGate(Features.AI_COMPLETION, async () => {
       if (this.completionAgent.indexer == null || this.completionAgent.indexer == undefined) await this.completionAgent.indexWorkspace()
-      params.provider = 'mistralai' // default provider for code completion
+      // Deliberately no routing here: inline completion does not go through
+      // OpenRouter. It hits the `/ai/completion` proxy, which pins Codestral
+      // server-side and rejects `provider: 'openrouter'` outright with
+      // PROVIDER_NOT_SPECIFIED. RemoteInferencer.completionRouting() sets the
+      // provider that endpoint actually accepts.
       const currentFileName = await this.call('fileManager', 'getCurrentFile')
       const contextfiles = await this.completionAgent.getContextFiles(prompt)
       return await this.remoteInferencer.code_completion(prompt, promptAfter, contextfiles, currentFileName, params)
@@ -854,7 +867,7 @@ export class RemixAIPlugin extends Plugin {
   async generate(prompt: string, params: IParams=AssistantParams, newThreadID:string="", useRag:boolean=false, statusCallback?: (status: string) => Promise<void>): Promise<any> {
     params.stream_result = false // enforce no stream result
     params.threadId = newThreadID
-    params.provider = 'mistralai' // enforce all generation to be only on anthropic
+    params.provider = 'openrouter' // every hosted model routes through OpenRouter
     params.model = 'mistral-medium-latest'
     useRag = false
     trackMatomoEvent(this, { category: 'ai', action: 'remixAI', name: 'GenerateNewAIWorkspace', isClick: false })
@@ -949,7 +962,7 @@ export class RemixAIPlugin extends Plugin {
     return this.withAssistantGate(Features.AI_COMPLETION, async () => {
       if (this.completionAgent.indexer == null || this.completionAgent.indexer == undefined) await this.completionAgent.indexWorkspace()
 
-      params.provider = 'mistralai' // default provider for code completion
+      // See code_completion(): the `/ai/completion` proxy owns its own routing.
       const currentFileName = await this.call('fileManager', 'getCurrentFile')
       const contextfiles = await this.completionAgent.getContextFiles(msg_pfx)
       return await this.remoteInferencer.code_insertion( msg_pfx, msg_sfx, contextfiles, currentFileName, params)
@@ -1041,6 +1054,44 @@ export class RemixAIPlugin extends Plugin {
 
   async setModel(modelId: string, provider?: string, allowedModels: string[] = []) {
     return this.modelManager.setModel(modelId, allowedModels, provider)
+  }
+
+  async handleUnsupportedModel(originalError?: string): Promise<void> {
+    const failed = this.selectedModel
+    const failedName = failed?.displayName || this.selectedModelId || 'The selected model'
+
+    const warn = async (message: string, restoredId?: string) => {
+      try {
+        await this.call('assistantState' as any, 'reportError', {
+          code: 'MODEL_TOOLS_UNSUPPORTED',
+          message,
+          status: 0,
+          details: { failedModel: failed?.id, restoredModel: restoredId, originalError }
+        })
+      } catch (e) {
+        remixAILogger.warn('[RemixAI Plugin] reportError(MODEL_TOOLS_UNSUPPORTED) failed', e)
+      }
+    }
+
+    // Warn first, refine after. The chat reads the notice as soon as the
+    // request resolves, which can be before the rollback finishes — without
+    // this the user would briefly get the generic "request not sent" fallback
+    // instead of the real reason.
+    await warn(`${failedName} cannot call tools, which the assistant requires.`)
+
+    let restored: AIModel | null = null
+    try {
+      restored = await this.modelManager.revertToPreviousModel()
+    } catch (e) {
+      remixAILogger.warn('[RemixAI Plugin] revert after tool_use_unsupported failed', e)
+    }
+
+    await warn(
+      restored
+        ? `${failedName} cannot call tools, which the assistant requires. Switched back to ${restored.displayName}.`
+        : `${failedName} cannot call tools, which the assistant requires. Pick a model that supports tool calling.`,
+      restored?.id
+    )
   }
 
   async setOllamaModel(ollamaModelName: string) {
@@ -1161,14 +1212,6 @@ export class RemixAIPlugin extends Plugin {
 
   isDeepAgentEnabled(): boolean {
     return this.deepAgentManager.isEnabled()
-  }
-
-  async setAutoMode(enabled: boolean): Promise<void> {
-    return this.deepAgentManager.setAutoMode(enabled)
-  }
-
-  getAutoModeStatus(): boolean {
-    return this.deepAgentManager.getAutoModeStatus()
   }
 
   setDeepAgentThread(conversationId: string): void {

@@ -285,15 +285,7 @@ export class MCPServerManager {
 
   private async recreateInferencerAndConnect(): Promise<void> {
     if (!this.plugin.remixMCPServer) return
-
-    if (this.plugin.mcpInferencer) {
-      for (const server of this.plugin.mcpServers) {
-        try {
-          await this.plugin.mcpInferencer.removeMCPServer(server.name)
-        } catch (err) {
-        }
-      }
-    }
+    const previous = this.plugin.mcpInferencer
 
     // Create new inferencer
     this.plugin.mcpInferencer = new MCPInferencer(
@@ -324,6 +316,17 @@ export class MCPServerManager {
 
     if (this.deps) {
       await this.deps.reinitializeDeepAgent()
+    }
+
+    if (previous) {
+      try {
+        // External connections only — the built-in server is a shared
+        // RemixMCPServer instance and disconnecting its client stops it for
+        // the new inferencer too.
+        await previous.disconnectExternalServers()
+      } catch (error) {
+        remixAILogger.warn('[RemixAI Plugin] Failed to close the previous MCP connections:', error)
+      }
     }
   }
 }

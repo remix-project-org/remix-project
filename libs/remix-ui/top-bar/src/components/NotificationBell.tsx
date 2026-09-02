@@ -19,6 +19,42 @@ const TYPE_ICONS: Record<NotificationType, string> = {
   update: 'fa-arrow-circle-up notification-icon-primary'
 }
 
+function NotificationBody({ text }: { text: string }) {
+  const [expanded, setExpanded] = useState(false)
+  const [overflowing, setOverflowing] = useState(false)
+  const bodyRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    const el = bodyRef.current
+    if (el) {
+      setOverflowing(el.scrollHeight > el.clientHeight + 1)
+    }
+  }, [text])
+
+  return (
+    <>
+      <div
+        ref={bodyRef}
+        className={`notification-item-body ${expanded ? 'notification-item-body-expanded' : ''}`}
+      >
+        {text}
+      </div>
+      {(overflowing || expanded) && (
+        <button
+          type="button"
+          className="notification-item-body-toggle"
+          onClick={(e) => {
+            e.stopPropagation()
+            setExpanded(prev => !prev)
+          }}
+        >
+          {expanded ? 'Show less' : 'Show more'}
+        </button>
+      )}
+    </>
+  )
+}
+
 function timeAgo(dateStr: string): string {
   const now = new Date()
   const date = new Date(dateStr)
@@ -285,7 +321,7 @@ export function NotificationBell({ className = '' }: NotificationBellProps) {
                     </span>
                     <span className="notification-item-time">{timeAgo(notification.created_at)}</span>
                   </div>
-                  <div className="notification-item-body">{notification.body}</div>
+                  <NotificationBody text={notification.body} />
                   <div className="notification-item-actions">
                     {(notification.action || notification.action_url) && (
                       <button

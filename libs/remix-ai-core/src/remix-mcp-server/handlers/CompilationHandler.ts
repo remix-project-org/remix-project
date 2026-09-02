@@ -17,18 +17,65 @@ import { Plugin } from '@remixproject/engine';
 import isElectron from 'is-electron';
 import { fetchContractFromEtherscan, Network } from '@remix-project/core-plugin' // eslint-disable-line
 
+/** Every .sol file in the workspace, depth-limited so a deep tree can't stall a tool call. */
+async function listSolidityFiles(plugin: Plugin, dir = '/', depth = 0): Promise<string[]> {
+  if (depth > 3) return [];
+  let entries: Record<string, any> = {};
+  try {
+    entries = await plugin.call('fileManager', 'readdir', dir);
+  } catch {
+    return [];
+  }
+  const found: string[] = [];
+  for (const name of Object.keys(entries ?? {})) {
+    // readdir keys are sometimes already full paths (see DirectoryListHandler).
+    const full = name.includes('/') ? name : (dir === '/' ? name : `${dir}/${name}`);
+    let isDir = entries[name]?.isDirectory;
+    if (isDir === undefined) {
+      try {
+        isDir = await plugin.call('fileManager', 'isDirectory', full);
+      } catch {
+        isDir = false;
+      }
+    }
+    if (isDir) found.push(...await listSolidityFiles(plugin, full, depth + 1));
+    else if (full.endsWith('.sol')) found.push(full);
+  }
+  return found;
+}
+
+/**
+ * Resolve the path the model asked for against what the workspace actually has.
+ */
+async function resolveSolidityPath(
+  plugin: Plugin,
+  requested: string
+): Promise<{ path?: string; candidates?: string[] }> {
+  const attempts = [requested, requested.replace(/^\/+/, ''), `/${requested.replace(/^\/+/, '')}`];
+  for (const attempt of attempts) {
+    if (!attempt) continue;
+    try {
+      if (await plugin.call('fileManager', 'exists', attempt)) return { path: attempt };
+    } catch { /* fileManager unavailable for this path — try the next spelling */ }
+  }
+  const all = await listSolidityFiles(plugin);
+  const wanted = requested.split('/').pop()?.toLowerCase();
+  const byName = all.find((f) => f.split('/').pop()?.toLowerCase() === wanted);
+  return byName ? { path: byName } : { candidates: all };
+}
+
 /**
  * Solidity Compile Tool Handler
  */
 export class SolidityCompileHandler extends BaseToolHandler {
   name = 'solidity_compile';
-  description = '';
+  description = 'Compile one Solidity file. Reads the source itself — never read_file first.';
   inputSchema = {
     type: 'object',
     properties: {
       filePath: {
         type: 'string',
-        description: ''
+        description: 'Workspace-relative path, e.g. contracts/Token.sol. No leading slash.'
       },
       version: {
         type: 'string',
@@ -37,18 +84,18 @@ export class SolidityCompileHandler extends BaseToolHandler {
       },
       optimize: {
         type: 'boolean',
-        description: '',
+        description: 'Run the optimizer.',
         default: true
       },
       runs: {
         type: 'number',
-        description: '',
+        description: 'Optimizer runs, 1-10000.',
         default: 200
       },
       evmVersion: {
         type: 'string',
         description: 'EVM version target',
-        enum: ['london', 'berlin', 'istanbul', 'petersburg', 'constantinople', 'byzantium'],
+        enum: ['osaka', 'london', 'berlin', 'istanbul', 'petersburg', 'constantinople', 'byzantium'],
         default: 'london'
       }
     },
@@ -60,14 +107,23 @@ export class SolidityCompileHandler extends BaseToolHandler {
   }
 
   validate(args: SolidityCompileArgs): boolean | string {
+    // This used to type-check a `file` key the schema never declared, so the
+    // one required argument went unvalidated.
     const types = this.validateTypes(args, {
-      file: 'string',
+      filePath: 'string',
       version: 'string',
       optimize: 'boolean',
       runs: 'number',
       evmVersion: 'string'
     });
     if (types !== true) return types;
+
+    if (typeof args.filePath !== 'string' || args.filePath.trim() === '') {
+      return 'filePath is required — pass the workspace path of the .sol file to compile';
+    }
+    if (!args.filePath.endsWith('.sol')) {
+      return `filePath must point at a Solidity file (.sol), got '${args.filePath}'`;
+    }
 
     if (args.runs !== undefined && (args.runs < 1 || args.runs > 10000)) {
       return 'Optimization runs must be between 1 and 10000';
@@ -79,6 +135,8 @@ export class SolidityCompileHandler extends BaseToolHandler {
   async execute(args: SolidityCompileArgs, plugin: Plugin): Promise<IMCPToolResult> {
     try {
       let compilerConfig: any = {};
+      // The path actually compiled, after resolution below.
+      let filePath = args.filePath;
 
       await plugin.call('sidePanel', 'showContent', 'solidity')
 
@@ -97,11 +155,23 @@ export class SolidityCompileHandler extends BaseToolHandler {
 
       let compilationResult: any;
       if (args.filePath) {
-        await plugin.call('solidity' as any, 'compile', args.filePath) // this will enable the UI
+        const resolved = await resolveSolidityPath(plugin, args.filePath)
+        if (!resolved.path) {
+          return this.createErrorResult(
+            `File not found: '${args.filePath}'. ` +
+            (resolved.candidates?.length
+              ? `Solidity files in this workspace: ${resolved.candidates.join(', ')}. Call solidity_compile again with one of these paths.`
+              : 'This workspace contains no .sol files.')
+          );
+        }
+        // Compile whatever the workspace actually calls this file — the model's
+        // spelling is only a request.
+        filePath = resolved.path
+        await plugin.call('solidity' as any, 'compile', filePath) // this will enable the UI
         // Compile specific file - need to use plugin API or direct compilation
-        const content = await plugin.call('fileManager', 'readFile', args.filePath);
+        const content = await plugin.call('fileManager', 'readFile', filePath);
         const contract = {}
-        contract[args.filePath] = { content: content }
+        contract[filePath] = { content: content }
         const compilerPayload: CompilerAbstract = await plugin.call('solidity' as any, 'compileWithParameters', contract, compilerConfig)
         const errors = compilerPayload.getErrors(false)
         remixAILogger.log('Compilation errors:', errors)
@@ -112,7 +182,7 @@ export class SolidityCompileHandler extends BaseToolHandler {
       } else {
         return this.createErrorResult(`Compilation failed: Workspace compilation not yet implemented. The argument file is not provided`);
       }
-      plugin.call('compilerArtefacts', 'saveCompilerAbstract', args.filePath, compilationResult)
+      plugin.call('compilerArtefacts', 'saveCompilerAbstract', filePath, compilationResult)
       // Process compilation result
       const result: CompilationResult = {
         success: !compilationResult.data?.errors || compilationResult.data?.errors.length === 0 || !compilationResult.data?.error,
@@ -125,7 +195,7 @@ export class SolidityCompileHandler extends BaseToolHandler {
 
       // Emit compilationFinished event with correct parameters to trigger UI effects
       plugin.emit('compilationFinished',
-        args.filePath, // source target
+        filePath, // source target
         { sources: compilationResult?.source || {} }, // source files
         'soljson', // compiler type
         compilationResult.data, // compilation data
@@ -137,7 +207,7 @@ export class SolidityCompileHandler extends BaseToolHandler {
         for (const [fileName, fileContracts] of Object.entries(compilationResult.data.contracts)) {
           for (const [contractName, contractData] of Object.entries(fileContracts as any)) {
             const contract = contractData as any;
-            if (fileName.includes(args.filePath)){
+            if (fileName.includes(filePath)){
               result.contracts[`${fileName}:${contractName}`] = {
                 abi: contract.abi || [],
                 // bytecode: contract.evm?.bytecode?.object || '',
@@ -164,7 +234,7 @@ export class SolidityCompileHandler extends BaseToolHandler {
  */
 export class GetCompilationResultHandler extends BaseToolHandler {
   name = 'get_compilation_result';
-  description = '';
+  description = 'Last compilation result: ABIs, bytecode and errors.';
   inputSchema = {
     type: 'object',
     properties: {}
@@ -219,13 +289,13 @@ export class GetCompilationResultHandler extends BaseToolHandler {
  */
 export class GetCompilationResultByFilePathHandler extends BaseToolHandler {
   name = 'get_compilation_result_sources_by_file_path';
-  description = '';
+  description = 'Compiled sources and AST for one already-compiled file.';
   inputSchema = {
     type: 'object',
     properties: {
       filePath: {
         type: 'string',
-        description: ''
+        description: 'Workspace-relative path of the compiled file.'
       }
     },
     required: ['filePath']
@@ -262,21 +332,21 @@ export class GetCompilationResultByFilePathHandler extends BaseToolHandler {
  */
 export class SetCompilerConfigHandler extends BaseToolHandler {
   name = 'set_compiler_config';
-  description = '';
+  description = 'Set the compiler settings used by later compilations.';
   inputSchema = {
     type: 'object',
     properties: {
       version: {
         type: 'string',
-        description: ''
+        description: 'Solidity version, e.g. 0.8.30. Use get_compiler_versions for the list.'
       },
       optimize: {
         type: 'boolean',
-        description: ''
+        description: 'Run the optimizer.'
       },
       runs: {
         type: 'number',
-        description: ''
+        description: 'Optimizer runs, 1-10000.'
       },
       evmVersion: {
         type: 'string',
@@ -284,7 +354,7 @@ export class SetCompilerConfigHandler extends BaseToolHandler {
       },
       language: {
         type: 'string',
-        description: '',
+        description: 'Solidity or Yul.',
         default: 'Solidity'
       }
     },
@@ -370,7 +440,7 @@ export class SetCompilerConfigHandler extends BaseToolHandler {
  */
 export class GetCompilerConfigHandler extends BaseToolHandler {
   name = 'get_compiler_config';
-  description = '';
+  description = 'Current compiler settings.';
   inputSchema = {
     type: 'object',
     properties: {}
@@ -408,7 +478,7 @@ export class GetCompilerConfigHandler extends BaseToolHandler {
  */
 export class CompileWithHardhatHandler extends BaseToolHandler {
   name = 'compile_with_hardhat';
-  description = '';
+  description = 'Compile the workspace with Hardhat. Needs remixd.';
   inputSchema = {
     type: 'object',
     properties: {
@@ -459,7 +529,7 @@ export class CompileWithHardhatHandler extends BaseToolHandler {
  */
 export class CompileWithFoundryHandler extends BaseToolHandler {
   name = 'compile_with_foundry';
-  description = '';
+  description = 'Compile the workspace with Foundry. Needs remixd.';
   inputSchema = {
     type: 'object',
     properties: {
@@ -510,7 +580,7 @@ export class CompileWithFoundryHandler extends BaseToolHandler {
  */
 export class CompileWithTruffleHandler extends BaseToolHandler {
   name = 'compile_with_truffle';
-  description = '';
+  description = 'Compile the workspace with Truffle. Needs remixd.';
   inputSchema = {
     type: 'object',
     properties: {
@@ -561,7 +631,7 @@ export class CompileWithTruffleHandler extends BaseToolHandler {
  */
 export class GetCompilerVersionsHandler extends BaseToolHandler {
   name = 'get_compiler_versions';
-  description = '';
+  description = 'Available Solidity compiler versions.';
   inputSchema = {
     type: 'object',
     properties: {}
@@ -594,7 +664,7 @@ export class GetCompilerVersionsHandler extends BaseToolHandler {
  */
 export class GetVerifiedContractFromEtherscanHandler extends BaseToolHandler {
   name = 'get_verified_contract_from_etherscan';
-  description = '';
+  description = 'Fetch a verified contract source from Etherscan into the workspace.';
   inputSchema = {
     type: 'object',
     properties: {
@@ -715,90 +785,30 @@ export class GetVerifiedContractFromEtherscanHandler extends BaseToolHandler {
  * Create compilation tool definitions
  */
 export function createCompilationTools(): RemixToolDefinition[] {
-  const tools = [
-    {
-      name: 'solidity_compile',
-      description: '',
-      inputSchema: new SolidityCompileHandler().inputSchema,
-      category: ToolCategory.COMPILATION,
-      permissions: ['compile:solidity'],
-      handler: new SolidityCompileHandler()
-    },
-    {
-      name: 'get_compilation_result',
-      description: '',
-      inputSchema: new GetCompilationResultHandler().inputSchema,
-      category: ToolCategory.COMPILATION,
-      permissions: ['compile:read'],
-      handler: new GetCompilationResultHandler()
-    },
-    {
-      name: 'get_compilation_result_sources_by_file_path',
-      description: '',
-      inputSchema: new GetCompilationResultByFilePathHandler().inputSchema,
-      category: ToolCategory.COMPILATION,
-      permissions: ['compile:read'],
-      handler: new GetCompilationResultByFilePathHandler()
-    },
-    {
-      name: 'set_compiler_config',
-      description: '',
-      inputSchema: new SetCompilerConfigHandler().inputSchema,
-      category: ToolCategory.COMPILATION,
-      permissions: ['compile:config'],
-      handler: new SetCompilerConfigHandler()
-    },
-    {
-      name: 'get_compiler_config',
-      description: '',
-      inputSchema: new GetCompilerConfigHandler().inputSchema,
-      category: ToolCategory.COMPILATION,
-      permissions: ['compile:read'],
-      handler: new GetCompilerConfigHandler()
-    },
-    {
-      name: 'get_compiler_versions',
-      description: '',
-      inputSchema: new GetCompilerVersionsHandler().inputSchema,
-      category: ToolCategory.COMPILATION,
-      permissions: ['compile:read'],
-      handler: new GetCompilerVersionsHandler()
-    },
-    {
-      name: 'get_verified_contract_from_etherscan',
-      description: '',
-      inputSchema: new GetVerifiedContractFromEtherscanHandler().inputSchema,
-      category: ToolCategory.COMPILATION,
-      permissions: ['file:write', 'etherscan:read'],
-      handler: new GetVerifiedContractFromEtherscanHandler()
-    }
+  // description comes from the handler — a definition that repeats it drifts,
+  // and an empty one leaves the model guessing what the tool does.
+  const define = (handler: BaseToolHandler, permissions: string[]): RemixToolDefinition => ({
+    name: handler.name,
+    description: handler.description,
+    inputSchema: handler.inputSchema,
+    category: ToolCategory.COMPILATION,
+    permissions,
+    handler
+  })
+
+  const tools: RemixToolDefinition[] = [
+    define(new SolidityCompileHandler(), ['compile:solidity']),
+    define(new GetCompilationResultHandler(), ['compile:read']),
+    define(new GetCompilationResultByFilePathHandler(), ['compile:read']),
+    define(new SetCompilerConfigHandler(), ['compile:config']),
+    define(new GetCompilerConfigHandler(), ['compile:read']),
+    define(new GetCompilerVersionsHandler(), ['compile:read']),
+    define(new GetVerifiedContractFromEtherscanHandler(), ['file:write', 'etherscan:read'])
   ]
   if (isElectron()) {
-    tools.push({
-      name: 'compile_with_hardhat',
-      description: '',
-
-      inputSchema: new CompileWithHardhatHandler().inputSchema,
-      category: ToolCategory.COMPILATION,
-      permissions: ['compile:hardhat'],
-      handler: new CompileWithHardhatHandler()
-    })
-    tools.push({
-      name: 'compile_with_foundry',
-      description: '',
-      inputSchema: new CompileWithFoundryHandler().inputSchema,
-      category: ToolCategory.COMPILATION,
-      permissions: ['compile:foundry'],
-      handler: new CompileWithFoundryHandler()
-    })
-    tools.push({
-      name: 'compile_with_truffle',
-      description: '',
-      inputSchema: new CompileWithTruffleHandler().inputSchema,
-      category: ToolCategory.COMPILATION,
-      permissions: ['compile:truffle'],
-      handler: new CompileWithTruffleHandler()
-    })
+    tools.push(define(new CompileWithHardhatHandler(), ['compile:hardhat']))
+    tools.push(define(new CompileWithFoundryHandler(), ['compile:foundry']))
+    tools.push(define(new CompileWithTruffleHandler(), ['compile:truffle']))
   }
   return tools
 }

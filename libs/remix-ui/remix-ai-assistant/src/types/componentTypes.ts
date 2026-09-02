@@ -16,4 +16,6 @@ export type groupListType = {
   isLocked?: boolean
   disabled?: boolean
   disabledReason?: string
+  /** BYOK state of the row: running on the user's own key, or waiting for one. */
+  keyState?: 'own-key' | 'needs-key'
 }

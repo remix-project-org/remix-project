@@ -292,6 +292,10 @@ export class OllamaInferencer extends RemoteInferencer implements ICompletions, 
         return defaultErrorMessage;
       }
     } catch (e: any) {
+      // Was swallowed silently — no log, no classification — so an Ollama
+      // failure was indistinguishable from a model that had nothing to say.
+      remixAILogger.error('[OllamaInferencer] request failed:', e?.message || e);
+      this.emitClassifiedError(e, rType);
       return defaultErrorMessage;
     } finally {
       this.event.emit("onInferenceDone");
@@ -341,13 +345,14 @@ export class OllamaInferencer extends RemoteInferencer implements ICompletions, 
       }
     }
 
+    const controller = new AbortController()
+    this.inFlightControllers.add(controller)
     try {
-      this.currentAbortController = new AbortController()
       const response = await fetch(endpoint, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(streamPayload),
-        signal: this.currentAbortController.signal,
+        signal: controller.signal,
       });
 
       if (!response.ok) {
@@ -372,8 +377,11 @@ export class OllamaInferencer extends RemoteInferencer implements ICompletions, 
 
       return resultText;
     } catch (e: any) {
+      remixAILogger.error('[OllamaInferencer] stream request failed:', e?.message || e);
+      this.emitClassifiedError(e, rType);
       return defaultErrorMessage;
     } finally {
+      this.inFlightControllers.delete(controller)
       this.event.emit("onInferenceDone");
     }
   }

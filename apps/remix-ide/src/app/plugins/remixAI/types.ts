@@ -18,6 +18,9 @@ export interface StreamResultData {
 // Thinking event data from DeepAgent (Ollama reasoning)
 export interface ThinkingData {
   isThinking: boolean
+  content?: string
+  isSubagent?: boolean
+  subagentName?: string
   threadId?: string
 }
 

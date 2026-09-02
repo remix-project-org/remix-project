@@ -786,33 +786,37 @@ export class GenerateDAppHandler extends BaseToolHandler {
         properties: {
           source: {
             type: 'string',
+            description: 'Where this context came from.',
             enum: ['subgraph-file', 'remixai-chat', 'manual']
           },
-          filePath: { type: 'string' },
+          filePath: { type: 'string', description: 'Path of the .subgraph file it came from.' },
           endpoint: {
             type: 'string',
             description: 'GraphQL endpoint without actual API key values.'
           },
           endpointKind: {
             type: 'string',
+            description: 'Which kind of endpoint this is.',
             enum: ['local', 'thegraph-gateway', 'generic-graphql']
           },
-          endpointNeedsApiKey: { type: 'boolean' },
+          endpointNeedsApiKey: { type: 'boolean', description: 'Endpoint requires an API key.' },
           apiKeySource: {
             type: 'string',
+            description: 'Where the key is read from at runtime.',
             enum: ['remix-settings', 'none']
           },
-          subgraphId: { type: 'string' },
+          subgraphId: { type: 'string', description: 'The Graph subgraph id.' },
           network: {
             type: 'string',
             description: 'Informational metadata only. Must not override the contract chainId.'
           },
-          description: { type: 'string' },
-          query: { type: 'string' },
-          variables: { type: 'object' },
-          operationName: { type: 'string' },
+          description: { type: 'string', description: 'What this data source provides.' },
+          query: { type: 'string', description: 'GraphQL query to run.' },
+          variables: { type: 'object', description: 'Variables for the query.' },
+          operationName: { type: 'string', description: 'Named operation to run from the query.' },
           operationType: {
             type: 'string',
+            description: 'GraphQL operation type.',
             enum: ['query', 'mutation', 'subscription']
           }
         },
@@ -2556,19 +2560,19 @@ export class GenerateGraphDAppHandler extends BaseToolHandler {
         type: 'object',
         description: 'Required complete The Graph data source context from a validated .subgraph handoff. Never include actual API key values.',
         properties: {
-          source: { type: 'string', enum: ['subgraph-file', 'remixai-chat', 'manual']},
-          filePath: { type: 'string' },
-          endpoint: { type: 'string' },
-          endpointKind: { type: 'string', enum: ['local', 'thegraph-gateway', 'generic-graphql']},
-          endpointNeedsApiKey: { type: 'boolean' },
-          apiKeySource: { type: 'string', enum: ['remix-settings', 'none']},
-          subgraphId: { type: 'string' },
-          network: { type: 'string' },
-          description: { type: 'string' },
-          query: { type: 'string' },
-          variables: { type: 'object' },
-          operationName: { type: 'string' },
-          operationType: { type: 'string', enum: ['query', 'mutation', 'subscription']}
+          source: { type: 'string', description: 'Where this context came from.', enum: ['subgraph-file', 'remixai-chat', 'manual']},
+          filePath: { type: 'string', description: 'Path of the .subgraph file it came from.' },
+          endpoint: { type: 'string', description: 'GraphQL endpoint, without API key values.' },
+          endpointKind: { type: 'string', description: 'Which kind of endpoint this is.', enum: ['local', 'thegraph-gateway', 'generic-graphql']},
+          endpointNeedsApiKey: { type: 'boolean', description: 'Endpoint requires an API key.' },
+          apiKeySource: { type: 'string', description: 'Where the key is read from at runtime.', enum: ['remix-settings', 'none']},
+          subgraphId: { type: 'string', description: 'The Graph subgraph id.' },
+          network: { type: 'string', description: 'Informational only. Never overrides the contract chainId.' },
+          description: { type: 'string', description: 'What this data source provides.' },
+          query: { type: 'string', description: 'GraphQL query to run.' },
+          variables: { type: 'object', description: 'Variables for the query.' },
+          operationName: { type: 'string', description: 'Named operation to run from the query.' },
+          operationType: { type: 'string', description: 'GraphQL operation type.', enum: ['query', 'mutation', 'subscription']}
         },
         required: ['source', 'endpoint', 'query']
       },

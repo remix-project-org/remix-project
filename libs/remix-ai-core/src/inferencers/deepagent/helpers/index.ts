@@ -9,7 +9,3 @@ export {
   countComplexityIndicators,
   type PromptComplexity
 } from './promptAnalysis'
-
-export {
-  selectOptimalModel
-} from './modelSelection'

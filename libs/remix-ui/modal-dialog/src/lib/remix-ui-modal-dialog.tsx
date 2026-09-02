@@ -1,4 +1,5 @@
 import React, {useRef, useState, useEffect} from 'react' // eslint-disable-line
+import ReactDOM from 'react-dom' // eslint-disable-line
 import {ModalDialogProps} from './types' // eslint-disable-line
 
 import './remix-ui-modal-dialog.css'
@@ -80,7 +81,7 @@ export const ModalDialog = (props: ModalDialogProps) => {
     handleHide()
   }
 
-  return (
+  const modalContent = (
     <div
       data-id={`${props.id}ModalDialogContainer-react`}
       data-bs-backdrop="static"
@@ -145,6 +146,10 @@ export const ModalDialog = (props: ModalDialogProps) => {
       </div>
     </div>
   )
+
+  // Render modal at document body level using portal to prevent it from being hidden
+  // when the parent container (e.g., file panel) is hidden
+  return ReactDOM.createPortal(modalContent, document.body)
 }
 
 export default ModalDialog

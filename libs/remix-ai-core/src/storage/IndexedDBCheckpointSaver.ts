@@ -69,6 +69,33 @@ export class IndexedDBCheckpointSaver extends BaseCheckpointSaver {
     return this.db!
   }
 
+  /**
+   * Open a transaction, recovering from a connection that has gone away.
+   *
+   * `this.db` is cached, but a connection can be closed underneath us — the
+   * browser closes it on an unexpected termination, and another tab running a
+   * version upgrade forces one too. Nothing invalidated the cached handle, so
+   * every later call threw `InvalidStateError: Failed to execute 'transaction'
+   * on 'IDBDatabase': The database connection is closing` the instant it was
+   * made (hence the ~0.01s failed runs). Drop the dead handle and reopen once.
+   */
+  private async beginTx(
+    storeNames: string | string[],
+    mode: IDBTransactionMode
+  ): Promise<IDBTransaction> {
+    const db = await this.ensureDb()
+    try {
+      return db.transaction(storeNames, mode)
+    } catch (err: any) {
+      if (err?.name !== 'InvalidStateError') throw err
+      remixAILogger.warn('[DeepAgent-Checkpoint] connection was closed — reopening')
+      this.db = null
+      this.initPromise = null
+      const reopened = await this.ensureDb()
+      return reopened.transaction(storeNames, mode)
+    }
+  }
+
   private _openDb(): Promise<void> {
     return new Promise((resolve, reject) => {
       const request = indexedDB.open(DB_NAME, DB_VERSION)
@@ -78,6 +105,21 @@ export class IndexedDBCheckpointSaver extends BaseCheckpointSaver {
 
       request.onsuccess = () => {
         this.db = request.result
+        // Without these the cached handle outlives the connection: `close`
+        // fires on an abnormal termination, and `versionchange` fires when
+        // another tab upgrades the schema — in both cases every subsequent
+        // `transaction()` on this handle throws InvalidStateError.
+        this.db.onclose = () => {
+          remixAILogger.warn('[DeepAgent-Checkpoint] IndexedDB connection closed unexpectedly')
+          this.db = null
+          this.initPromise = null
+        }
+        this.db.onversionchange = () => {
+          remixAILogger.log('[DeepAgent-Checkpoint] another tab upgraded the DB — releasing this connection')
+          this.db?.close()
+          this.db = null
+          this.initPromise = null
+        }
         resolve()
       }
 
@@ -113,8 +155,7 @@ export class IndexedDBCheckpointSaver extends BaseCheckpointSaver {
     ns: string,
     cpId: string
   ): Promise<{ checkpoint: Uint8Array; metadata: Uint8Array; parentCpId: string | undefined } | undefined> {
-    const db = await this.ensureDb()
-    const tx = db.transaction(CHECKPOINTS_STORE, 'readonly')
+    const tx = await this.beginTx(CHECKPOINTS_STORE, 'readonly')
     const store = tx.objectStore(CHECKPOINTS_STORE)
     const key = generateKey(threadId, ns, cpId)
     const result = await idbRequest(store.get(key))
@@ -122,8 +163,7 @@ export class IndexedDBCheckpointSaver extends BaseCheckpointSaver {
   }
 
   private async _getLatestCheckpointId(threadId: string, ns: string): Promise<string | undefined> {
-    const db = await this.ensureDb()
-    const tx = db.transaction(CHECKPOINTS_STORE, 'readonly')
+    const tx = await this.beginTx(CHECKPOINTS_STORE, 'readonly')
     const store = tx.objectStore(CHECKPOINTS_STORE)
     const index = store.index('byThread')
     const all: any[] = await idbRequest(index.getAll(threadId))
@@ -134,8 +174,7 @@ export class IndexedDBCheckpointSaver extends BaseCheckpointSaver {
   }
 
   private async _getWrites(outerKey: string): Promise<Array<{ taskId: string; channel: string; value: Uint8Array }>> {
-    const db = await this.ensureDb()
-    const tx = db.transaction(WRITES_STORE, 'readonly')
+    const tx = await this.beginTx(WRITES_STORE, 'readonly')
     const store = tx.objectStore(WRITES_STORE)
     const index = store.index('byOuterKey')
     const all: any[] = await idbRequest(index.getAll(outerKey))
@@ -202,10 +241,8 @@ export class IndexedDBCheckpointSaver extends BaseCheckpointSaver {
   ): AsyncGenerator<CheckpointTuple> {
     const { before, filter } = options ?? {}
     let limit = options?.limit
-    const db = await this.ensureDb()
-
     // Collect all relevant checkpoints
-    const tx = db.transaction(CHECKPOINTS_STORE, 'readonly')
+    const tx = await this.beginTx(CHECKPOINTS_STORE, 'readonly')
     const store = tx.objectStore(CHECKPOINTS_STORE)
     const threadId = config.configurable?.thread_id as string | undefined
     const configNs = config.configurable?.checkpoint_ns as string | undefined
@@ -260,8 +297,7 @@ export class IndexedDBCheckpointSaver extends BaseCheckpointSaver {
         this.serde.dumpsTyped(metadata),
       ])
 
-      const db = await this.ensureDb()
-      const tx = db.transaction(CHECKPOINTS_STORE, 'readwrite')
+      const tx = await this.beginTx(CHECKPOINTS_STORE, 'readwrite')
       const store = tx.objectStore(CHECKPOINTS_STORE)
 
       const key = generateKey(threadId, ns, checkpoint.id)
@@ -298,16 +334,16 @@ export class IndexedDBCheckpointSaver extends BaseCheckpointSaver {
     if (!cpId) throw new Error('Missing checkpoint_id')
 
     const outerKey = generateKey(threadId, ns, cpId)
-    const db = await this.ensureDb()
 
     // Read existing writes for this outer key to avoid duplicates
     const existingWrites = await this._getWrites(outerKey)
     const existingKeys = new Set(existingWrites.map(w => `${outerKey}|${w.taskId},${w.channel}`))
 
-    const tx = db.transaction(WRITES_STORE, 'readwrite')
-    const store = tx.objectStore(WRITES_STORE)
-
-    await Promise.all(
+    // Serialize BEFORE opening the transaction. An IDB transaction commits as
+    // soon as the microtask queue drains with no request outstanding, so
+    // awaiting `dumpsTyped` between `transaction()` and the first `put()` left
+    // the transaction inactive and the write threw instead of landing.
+    const records = (await Promise.all(
       writes.map(async ([channel, value], idx) => {
         const [, serializedValue] = await this.serde.dumpsTyped(value)
         const innerIdx = WRITES_IDX_MAP[channel as string] ?? idx
@@ -315,28 +351,30 @@ export class IndexedDBCheckpointSaver extends BaseCheckpointSaver {
         const fullKey = `${outerKey}|${innerKey}`
 
         // Skip if positive index and already exists (match MemorySaver behavior)
-        if (innerIdx >= 0 && existingKeys.has(fullKey)) return
+        if (innerIdx >= 0 && existingKeys.has(fullKey)) return null
 
-        await idbRequest(
-          store.put({
-            key: fullKey,
-            outerKey,
-            innerKey,
-            threadId,
-            taskId,
-            channel: channel as string,
-            value: serializedValue,
-          })
-        )
+        return {
+          key: fullKey,
+          outerKey,
+          innerKey,
+          threadId,
+          taskId,
+          channel: channel as string,
+          value: serializedValue,
+        }
       })
-    )
+    )).filter((record): record is NonNullable<typeof record> => record !== null)
+
+    if (records.length === 0) return
+
+    const tx = await this.beginTx(WRITES_STORE, 'readwrite')
+    const store = tx.objectStore(WRITES_STORE)
+    await Promise.all(records.map((record) => idbRequest(store.put(record))))
   }
 
   async deleteThread(threadId: string): Promise<void> {
-    const db = await this.ensureDb()
-
     // Delete checkpoints
-    const cpTx = db.transaction(CHECKPOINTS_STORE, 'readwrite')
+    const cpTx = await this.beginTx(CHECKPOINTS_STORE, 'readwrite')
     const cpStore = cpTx.objectStore(CHECKPOINTS_STORE)
     const cpIndex = cpStore.index('byThread')
     const cpRecords: any[] = await idbRequest(cpIndex.getAll(threadId))
@@ -345,7 +383,7 @@ export class IndexedDBCheckpointSaver extends BaseCheckpointSaver {
     }
 
     // Delete writes
-    const wTx = db.transaction(WRITES_STORE, 'readwrite')
+    const wTx = await this.beginTx(WRITES_STORE, 'readwrite')
     const wStore = wTx.objectStore(WRITES_STORE)
     const wIndex = wStore.index('byThread')
     const wRecords: any[] = await idbRequest(wIndex.getAll(threadId))

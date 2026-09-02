@@ -1,4 +1,4 @@
-import { remixAILogger } from '@remix/remix-ai-core'
+import { remixAILogger, DeepAgentErrorType } from '@remix/remix-ai-core'
 import type { DeepAgentInferencer } from '@remix/remix-ai-core'
 import type {
   IRemixAIPlugin,
@@ -107,6 +107,17 @@ export class DeepAgentEventBridge {
     // API error events (rate limits, quota exceeded, etc.)
     eventEmitter.on('onApiError', (data: ApiErrorData) => {
       plugin.emit('onApiError', data)
+      if (data?.type === DeepAgentErrorType.TOOL_USE_UNSUPPORTED) {
+        void (plugin as any).handleUnsupportedModel?.(data?.originalError)
+      }
+    })
+
+    // Stream went quiet for longer than the inactivity window. This was listed
+    // in EVENTS (so it got torn down) but never subscribed, leaving the
+    // StreamEventHandler timer with nowhere to report.
+    eventEmitter.on('onInactivityTimeout', (data: { message: string; timestamp: number; threadId?: string }) => {
+      remixAILogger.warn('[Bridge] onInactivityTimeout', data?.message)
+      plugin.emit('onInactivityTimeout', data)
     })
 
     // Human-in-the-loop: relay approval requests to UI

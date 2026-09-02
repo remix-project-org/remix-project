@@ -136,7 +136,7 @@ module.exports = {
       .click('*[data-id="terminalClearConsole"]')
       .clickFunction(0, 0, ['0xCA35b7d915458EF540aDe6068dFe2F44E8fa733c'])
       .journalLastChildIncludes('Ballot.delegate(address)')
-      .journalLastChildIncludes('data: 0x5c1...a733c')
+      .journalLastChildIncludes('data:0x5c1...a733c')
   },
 
   'Call method from Ballot to check return value using external web3  #group2': function (browser: NightwatchBrowser) {
@@ -182,7 +182,7 @@ module.exports = {
       .waitForElementPresent('[data-id="deployedContractItem-1"]')
       .journalLastChildIncludes('Contract.(constructor)')
       // .journalLastChildIncludes('data: 0x602...0565b')
-      .journalLastChildIncludes('data: 0x00') // This can be removed some time once YUL returns correct bytecode
+      .journalLastChildIncludes('data:0x00') // This can be removed some time once YUL returns correct bytecode
       .end()
   }
 }

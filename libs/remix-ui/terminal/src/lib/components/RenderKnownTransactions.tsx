@@ -58,6 +58,7 @@ const RenderKnownTransactions = ({ tx, receipt, resolvedData, logs, index, plugi
         <div className="remix_ui_terminal_buttons">
           <div
             className="remix_ui_terminal_debug btn btn-primary btn-sm"
+            style={{ padding:'.05rem .25rem', fontSize:'12px', fontWeight:700, fontFamily:'var(--bs-font-sans-serif)' }}
             data-shared="txLoggerDebugButton"
             data-id={`txLoggerDebugButton${tx.hash}`}
             onClick={(event) => debug(event, tx)}

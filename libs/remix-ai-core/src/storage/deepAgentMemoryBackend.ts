@@ -32,6 +32,17 @@ export class DeepAgentMemoryBackend {
 
       request.onsuccess = () => {
         this.db = request.result
+        // Clearing the handle is enough to recover: every method calls
+        // `ensureDb()`, which reopens when `this.db` is null. Without this the
+        // cached handle survives a closed connection and each later
+        // `transaction()` throws InvalidStateError.
+        this.db.onclose = () => {
+          this.db = null
+        }
+        this.db.onversionchange = () => {
+          this.db?.close()
+          this.db = null
+        }
         resolve()
       }
 

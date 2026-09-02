@@ -106,8 +106,8 @@ const RemixUIPanelHeader = (props: RemixPanelProps) => {
 
   return (
     <header className="d-flex flex-column">
-      <div className="swapitHeader ps-3 pe-2 pt-2 pb-0 d-flex flex-row">
-        <h6 className="pt-0 mb-1" data-id="sidePanelSwapitTitle">
+      <div className="swapitHeader p-2 d-flex flex-row">
+        <h6 className="pt-0 m-0" data-id="sidePanelSwapitTitle">
           {plugin?.profile?.name && <FormattedMessage id={`${plugin.profile.name}.displayName`} defaultMessage={plugin?.profile?.displayName || plugin?.profile?.name} />}
         </h6>
         <div className="d-flex flex-row">
@@ -143,9 +143,9 @@ const RemixUIPanelHeader = (props: RemixPanelProps) => {
                     </>
                   </RenderIf>
                   <RenderIfNot condition={plugin.pinned || plugin.profile.name === 'debugger' || plugin.profile.name === 'udapp'}>
-                    <div className='d-flex' data-id="movePluginToRight" data-pinnedplugin={`movePluginToRight-${plugin.profile.name}`} onClick={pinPlugin}>
+                    <div className='d-flex align-items-center' data-id="movePluginToRight" data-pinnedplugin={`movePluginToRight-${plugin.profile.name}`} onClick={pinPlugin}>
                       <CustomTooltip placement="auto-end" tooltipId="pinnedMsg" tooltipClasses="text-nowrap" tooltipText={<FormattedMessage id="panel.pinnedMsg" />}>
-                        <div className="codicon codicon-layout-sidebar-right-dock ms-2 fs-6 fw-bold lh-1" style={{ marginTop: '2px' }}></div>
+                        <div className="codicon codicon-layout-sidebar-right-dock fs-6 fw-bold lh-1"></div>
                       </CustomTooltip>
                     </div>
                   </RenderIfNot>

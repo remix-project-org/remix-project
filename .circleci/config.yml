@@ -146,7 +146,7 @@ commands:
 jobs:
   build:
     docker:
-      - image: cimg/node:20.19.0-browsers
+      - image: cimg/node:24.3.0-browsers
     resource_class: << pipeline.parameters.resource_class >>
     working_directory: ~/remix-project
     steps:
@@ -255,7 +255,7 @@ jobs:
 
   build-plugin:
     docker:
-      - image: cimg/node:20.19.0-browsers
+      - image: cimg/node:24.3.0-browsers
     resource_class: << pipeline.parameters.resource_class >>
     working_directory: ~/remix-project
     parameters:
@@ -277,7 +277,7 @@ jobs:
 
   lint:
     docker:
-      - image: cimg/node:20.19.0-browsers
+      - image: cimg/node:24.3.0-browsers
     resource_class: << pipeline.parameters.resource_class >>
     working_directory: ~/remix-project
     steps:
@@ -293,7 +293,7 @@ jobs:
 
   remix-libs:
     docker:
-      - image: cimg/node:20.19.0-browsers
+      - image: cimg/node:24.3.0-browsers
     resource_class: medium
     working_directory: ~/remix-project
     steps:
@@ -343,7 +343,7 @@ jobs:
 
   remix-ide-browser:
     docker:
-      - image: cimg/node:20.19.0-browsers
+      - image: cimg/node:24.3.0-browsers
     resource_class: << pipeline.parameters.resource_class >>
     working_directory: ~/remix-project
     parameters:
@@ -436,7 +436,7 @@ jobs:
 
   plan-e2e-shards:
     docker:
-      - image: cimg/node:20.19.0-browsers
+      - image: cimg/node:24.3.0-browsers
     resource_class: << pipeline.parameters.resource_class >>
     working_directory: ~/remix-project
     parameters:
@@ -498,7 +498,7 @@ jobs:
 
   rerun-failed-e2e:
     docker:
-      - image: cimg/node:20.19.0-browsers
+      - image: cimg/node:24.3.0-browsers
     resource_class: << pipeline.parameters.resource_class >>
     working_directory: ~/remix-project
     parameters:
@@ -558,7 +558,7 @@ jobs:
 
   post-failed-report:
     docker:
-      - image: cimg/node:20.19.0-browsers
+      - image: cimg/node:24.3.0-browsers
     resource_class: small
     working_directory: ~/remix-project
     steps:
@@ -607,7 +607,7 @@ jobs:
 
   remix-test-plugins:
     docker:
-      - image: cimg/node:20.19.0-browsers
+      - image: cimg/node:24.3.0-browsers
     resource_class: << pipeline.parameters.resource_class >>
     working_directory: ~/remix-project
     parameters:
@@ -642,7 +642,7 @@ jobs:
 
   playwright-tests:
     docker:
-      - image: cimg/node:20.19.0-browsers
+      - image: cimg/node:24.3.0-browsers
     resource_class: << pipeline.parameters.resource_class >>
     working_directory: ~/remix-project
     steps:
@@ -681,7 +681,7 @@ jobs:
 
   deploy-build:
     docker:
-      - image: cimg/node:20.19.0-browsers
+      - image: cimg/node:24.3.0-browsers
     resource_class: xlarge
     environment:
       COMMIT_AUTHOR_EMAIL: "yann@ethereum.org"

@@ -740,7 +740,7 @@ Use empty array if no relevant trusted docs.`
                 className="btn btn-link p-0 text-start"
                 style={{
                   fontSize: "0.7rem",
-                  color: "var(--bs-primary)",
+                  color: "var(--custom-primary)",
                   textDecoration: "none",
                   pointerEvents: "auto" // Enable pointer events for this button
                 }}
@@ -810,7 +810,7 @@ ${codeToAnalyze}
                 className="btn btn-link p-0 text-start"
                 style={{
                   fontSize: "0.7rem",
-                  color: "var(--bs-primary)",
+                  color: "var(--custom-primary)",
                   textDecoration: "none",
                   pointerEvents: "auto" // Enable pointer events for this button
                 }}
@@ -936,7 +936,7 @@ ${fileContent}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="text-decoration-none d-flex align-items-center justify-content-between"
-                      style={{ fontSize: '0.7rem', color: 'var(--bs-primary)' }}
+                      style={{ fontSize: '0.7rem', color: 'var(--custom-primary)' }}
                       title={doc.description || doc.title}
                       onClick={(e) => {
                         e.stopPropagation()

@@ -12,6 +12,7 @@ import {
   SyncOperation,
   StorageError
 } from './interfaces'
+import { titleFromPrompt, UNTITLED_CONVERSATION } from '../helpers/conversationTitle'
 
 export class ChatHistoryStorageManager {
   private localBackend: IChatHistoryBackend
@@ -65,7 +66,7 @@ export class ChatHistoryStorageManager {
 
     const metadata: ConversationMetadata = {
       id,
-      title: 'New Conversation', // Will be updated with first message
+      title: UNTITLED_CONVERSATION, // Replaced by titleFromPrompt on the first user message
       createdAt: now,
       updatedAt: now,
       lastAccessedAt: now,
@@ -163,9 +164,9 @@ export class ChatHistoryStorageManager {
     // matched reliably.  Checking the title directly is the stable condition.
     if (message.role === 'user') {
       const conversation = await this.getConversation(message.conversationId)
-      if (conversation && conversation.title === 'New Conversation') {
+      if (conversation && conversation.title === UNTITLED_CONVERSATION) {
         await this.updateConversation(message.conversationId, {
-          title: message.content.substring(0, 50),
+          title: titleFromPrompt(message.content),
           preview: message.content.substring(0, 100)
         })
       }
@@ -195,9 +196,9 @@ export class ChatHistoryStorageManager {
     const firstUserMsg = messages.find(m => m.role === 'user')
     if (firstUserMsg) {
       const conversation = await this.getConversation(conversationId)
-      if (conversation && conversation.title === 'New Conversation') {
+      if (conversation && conversation.title === UNTITLED_CONVERSATION) {
         await this.updateConversation(conversationId, {
-          title: firstUserMsg.content.substring(0, 50),
+          title: titleFromPrompt(firstUserMsg.content),
           preview: firstUserMsg.content.substring(0, 100)
         })
       }

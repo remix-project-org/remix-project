@@ -1,7 +1,4 @@
 
-element.style {
- height: 323px !important;
-}
 #terminalCliInput{
   width: 97%;
   font-weight: 800;
@@ -22,10 +19,23 @@ element.style {
   z-index           : 20;
 }
 .remix_ui_terminal_menu {
-  /* max-height           : 35px; */
   min-height           : 35px;
-  padding: .25em 0;
+  padding: .25em .75em;
   border-bottom: var(--custom-border-light) 1px solid;
+}
+.remix_ui_terminal_menu_leftgroup {
+  min-width: 0;
+  flex: 1 1 auto;
+  overflow: hidden;
+}
+.remix_ui_terminal_menu_left {
+  gap: 1rem;
+  min-width: 0;
+  flex: 1 1 auto;
+}
+.remix_ui_terminal_menu_right {
+  gap: .75rem;
+  flex-shrink: 0;
 }
 .remix_ui_terminal_toggleTerminal {
   cursor            : pointer;
@@ -50,7 +60,6 @@ element.style {
 .remix_ui_terminal_block {
   white-space       : pre-wrap;
   font-family       : monospace;
-  line-height       : 2ch;
 }
 .remix_ui_terminal_block > pre {
   max-height        : 200px;
@@ -74,21 +83,35 @@ element.style {
   font-family       : monospace;
 }
 .remix_ui_terminal_search {
-  width             : 19rem;
+  flex              : 1 1 auto;
+  min-width         : 4rem;
+  max-width         : 19rem;
+  position          : relative;
 }
 .remix_ui_terminal_filter {
   height                      : 80%;
+  width                       : 100%;
+  min-width                   : 0;
   white-space                 : nowrap;
   overflow                    : hidden;
   text-overflow               : ellipsis;
   font-size: 14px;
-  background-color: transparent;
+  background-color: var(--bs-body-bg);
+  padding-left: 28px;
+  border: 1px solid var(--bs-border-color);
+}
+.remix_ui_terminal_filter:focus {
+  background-color: var(--bs-body-bg);
+  box-shadow: none;
+  border-color: var(--custom-primary);
 }
 .remix_ui_terminal_searchIcon {
-  width                       : 25px;
-  border-top-left-radius      : 3px;
-  border-bottom-left-radius   : 3px;
-  margin-right                : 5px;
+  position                    : absolute;
+  left                        : 8px;
+  top                         : 50%;
+  transform                   : translateY(-50%);
+  pointer-events              : none;
+  color                       : var(--bs-secondary-color);
 }
 
 .remix_ui_terminal_console {
@@ -97,6 +120,7 @@ element.style {
 
 .remix_ui_terminal_listenOnNetwork {
   min-height: auto;
+  flex-shrink: 0;
 }
 
 .remix_ui_terminal_popup {
@@ -120,7 +144,8 @@ element.style {
   cursor           : pointer;
 }
 
-.call {
+.call,
+.remix_ui_terminal_call {
   font-size: 7px;
   border-radius: 50%;
   min-width: 20px;
@@ -128,19 +153,39 @@ element.style {
   display: flex;
   justify-content: center;
   align-items: center;
-  color: var(--text-info);
+  color: var(--bs-info);
   text-transform: uppercase;
   font-weight: bold;
 }
 
 .remix_ui_terminal_txItem {
-  color: var(--text-info);
-  margin-right: 5px;
-  float: left;
+  display: flex;
+  align-items: baseline;
+  color: var(--bs-body-color);
+  /* margin-right: 12px; */
+  padding-right: 8px;
+  /* border-right: 1px solid var(--bs-border-color); */
+}
+.remix_ui_terminal_txItem:last-child {
+  margin-right: 0;
+  padding-right: 0;
+  border-right: none;
 }
 
 .remix_ui_terminal_txItemTitle {
-  font-weight: bold;
+  font-weight: 400;
+  color: var(--bs-tertiary-color);
+  margin-right: 4px;
+}
+
+.remix_ui_terminal_txItemValue {
+  color: var(--bs-emphasis-color);
+  font-weight: 400;
+}
+.remix_ui_terminal_txItemValue--hex {
+  font-family: monospace;
+  color: var(--custom-primary);
+  font-weight: 400;
 }
 
 /* tx logger css*/
@@ -150,7 +195,9 @@ element.style {
   cursor: pointer;
   align-items: center;
   cursor: pointer;
-  padding-top: 0.5rem;
+  padding: 0.5rem .5rem;
+  background: var(--custom-onsurface-layer-1);
+  border-radius: 4px;
 }
 .remix_ui_terminal_log:hover {
   opacity: 0.8;
@@ -158,8 +205,8 @@ element.style {
 
 .remix_ui_terminal_txStatus {
   display: flex;
-  font-size: 20px;
-  margin-right: 20px;
+  font-size: 16px;
+  margin-right: 14px;
   float: left;
 }
 .remix_ui_terminal_succeeded {
@@ -170,55 +217,58 @@ element.style {
 }
 
 .remix_ui_terminal_arrow {
-  color: var(--text-info);
-  font-size: 20px;
+  color: var(--bs-secondary-color);
+  font-size: 14px;
   cursor: pointer;
   display: flex;
   margin-left: 10px;
 }
 .remix_ui_terminal_arrow:hover {
-  color: var(--bs-secondary);
-}
-.remix_ui_terminal_call {
-  font-size: 7px;
-  border-radius: 50%;
-  min-width: 20px;
-  min-height: 20px;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  color: var(--text-info);
-  text-transform: uppercase;
-  font-weight: bold;
+  color: var(--bs-info);
 }
 
 .remix_ui_terminal_tx {
-  color: var(--text-info);
-  font-weight: bold;
+  color: var(--bs-secondary-color);
+  font-weight: 400;
+  font-size: 11px;
   float: left;
   margin-right: 10px;
 }
 
-.remix_ui_terminal_tr,
-.remix_ui_terminal_td {
+#txTable {
   border-collapse: collapse;
-  font-size: 10px;
-  color: var(--text-info);
-  border: 1px solid var(--text-info);
+  /* background-color: var(--custom-onsurface-layer-1); */
+  border: 1px solid var(--bs-border-color);
+  border-radius: 0 0 4px 4px;
+  overflow: hidden;
+}
+
+.remix_ui_terminal_tr {
+  border-bottom: 1px solid var(--bs-border-color);
   transition: max-height 0.3s, padding 0.3s;
+}
+.remix_ui_terminal_tr:last-child {
+  border-bottom: none;
 }
 table .active {
   transition: max-height 0.6s, padding 0.6s;
 }
-.remix_ui_terminal_tr, .remix_ui_terminal_td {
-  padding: 4px;
-  vertical-align: baseline;
+.remix_ui_terminal_td {
+  font-size: 11px;
+  color: var(--bs-emphasis-color);
+  padding: 6px 10px;
+  vertical-align: center;
 }
 .remix_ui_terminal_td:first-child {
   min-width: 30%;
   width: 30%;
-  align-items: baseline;
-  font-weight: bold;
+  white-space: nowrap;
+  color: var(--bs-tertiary-color);
+  font-weight: 400;
+}
+.remix_ui_terminal_td:last-child {
+  font-family: monospace;
+  word-break: break-all;
 }
 .remix_ui_terminal_tableTitle {
   width: 25%;

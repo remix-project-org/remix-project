@@ -113,10 +113,11 @@ module.exports = {
       .waitForElementVisible('*[data-shared="tooltipPopup"]', 5000)
       .assert.containsText('*[data-shared="tooltipPopup"]', 'Credentials removed')
       .waitForElementNotPresent('*[data-shared="tooltipPopup"]', 10000)
-      .click('*[data-id="github-dropdown-toggle"]')
-    
-      .waitForElementNotPresent('*[data-id="github-dropdown-item-publish-to-gist"]')
-
+      .rightClick('*[data-id="treeViewLitreeViewItemREADME.txt"]')
+      .click('*[data-id="contextMenuItempublishFileToGist"]')
+      .click('*[data-id="fileSystem-modal-footer-ok-react"]')
+      .assert.containsText('*[data-id="fileSystemModalDialogModalTitle-react"]', 'Authorize Token')
+      .click('*[data-id="fileSystem-modal-footer-ok-react"]')
   },
 
   'Import From Gist For Valid Gist ID #group2': '' + function (browser: NightwatchBrowser) {

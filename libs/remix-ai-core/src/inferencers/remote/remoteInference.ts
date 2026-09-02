@@ -6,8 +6,38 @@ import EventEmitter from "events";
 import { ChatHistory } from "../../prompts/chat";
 import axios from 'axios';
 import { endpointUrls } from "@remix-endpoints-helper"
+// Shared with the agent path so both classify failures identically.
+import { classifyApiError, getErrorMessage } from "../deepagent/ApiErrorHandler"
+import { withRetryingFetch } from "../deepagent/retryTransport"
 
 const defaultErrorMessage = `Unable to get a response from AI server`
+
+/** Inline completion — a short suggestion, never a whole function body. */
+const COMPLETION_MAX_TOKENS = 30
+/** Mid-file insertion — a few lines. */
+const INSERTION_MAX_TOKENS = 100
+
+/**
+ * Provider name the `/ai/completion` proxy expects.
+ *
+ * This endpoint is NOT the OpenRouter-fronted chat route — it is the older
+ * static proxy that pins Codestral server-side, and it still speaks the
+ * pre-transport vendor-brand vocabulary. It only recognises `mistralai` /
+ * `openai` / `anthropic`; `openrouter` is rejected with
+ * `PROVIDER_NOT_SPECIFIED`, which is how inline completion broke when the
+ * chat models were collapsed onto the openrouter transport.
+ *
+ * A `model` is deliberately not sent: the proxy ignores it and serves its
+ * own Codestral regardless.
+ */
+const COMPLETION_PROVIDER = 'mistralai'
+
+/**
+ * The proxy requires a `stop` array. Without the key it falls through to a
+ * legacy branch that answers 404, so guarantee one even when the caller
+ * (anything other than the editor's inline provider) did not set it.
+ */
+const DEFAULT_COMPLETION_STOP = ['\n\n', '```']
 
 /**
  * Build an Error whose shape matches what `parseAIErrorEnvelope` expects on
@@ -39,7 +69,13 @@ export class RemoteInferencer implements ICompletions, IGeneration {
   event: EventEmitter
   test_env=false
   test_url="http://solcodertest.org"
-  protected currentAbortController: AbortController | null = null
+  /**
+   * One controller per in-flight request. A single shared controller meant the
+   * last request to start owned cancellation for all of them: a chat cancel
+   * could abort an inline completion instead, and a chat stream that started
+   * before a completion became impossible to cancel at all.
+   */
+  protected inFlightControllers: Set<AbortController> = new Set()
 
   constructor(apiUrl?:string, completionUrl?:string) {
     this.api_url = apiUrl!==undefined ? apiUrl: this.test_env? this.test_url : endpointUrls.solcoder
@@ -47,14 +83,14 @@ export class RemoteInferencer implements ICompletions, IGeneration {
     this.event = new EventEmitter()
   }
 
-  protected getProviderByteLimit(provider?: string): number {
-    const providerLimits: Record<string, number> = {
-      'mistralai': 70000,
-      'anthropic': 70000,
-      'openai': 70000
-    };
-
-    return provider ? (providerLimits[provider.toLowerCase()] || 70000) : 70000;
+  /**
+   * Prompt byte ceiling. This was a per-brand table in which every brand
+   * mapped to the same 70000, and the brands ('mistralai', 'anthropic',
+   * 'openai') no longer exist — so it was a lookup that could only ever
+   * return its own default.
+   */
+  protected getProviderByteLimit(_provider?: string): number {
+    return 70000;
   }
 
   protected sanitizePromptByteSize(prompt: string, provider?: string): string {
@@ -115,6 +151,30 @@ export class RemoteInferencer implements ICompletions, IGeneration {
     return this.sanitizePromptByteSize(prompt, provider);
   }
 
+  /**
+   * Emit the same classified `onApiError` the agent path emits.
+   *
+   * The completion / chat path used to throw raw errors with no
+   * classification at all, so a 429 here and a 429 in the agent produced two
+   * different behaviours in the UI. One classifier, one event shape.
+   */
+  protected emitClassifiedError(error: any, rType?: AIRequestType): void {
+    // Inline completions fire on every keystroke and time out at 3s by
+    // design; classifying those into a user-facing error would be pure noise.
+    if (rType === AIRequestType.COMPLETION) return
+    try {
+      const { type, retryable, retryAfter } = classifyApiError(error)
+      this.event.emit('onApiError', {
+        type,
+        message: getErrorMessage(type, error, retryAfter),
+        retryable,
+        retryAfter,
+        originalError: error?.message,
+        timestamp: Date.now()
+      })
+    } catch { /* classification must never mask the original failure */ }
+  }
+
   async _makeRequest(payload, rType:AIRequestType){
     this.event.emit("onInference")
     const requestURL = rType === AIRequestType.COMPLETION ? this.completion_url : this.api_url
@@ -129,7 +189,11 @@ export class RemoteInferencer implements ICompletions, IGeneration {
     try {
       const token = typeof window !== 'undefined' ? window.localStorage?.getItem('remix_access_token') : undefined
       const authHeader = token ? { 'Authorization': `Bearer ${token}` } : {}
-      const options = AIRequestType.COMPLETION
+      // `AIRequestType.COMPLETION` is 0, so testing the enum itself made this
+      // ternary always take the else branch and the completion timeout never
+      // applied — inline completions fire on every keystroke and were piling up
+      // against the browser's per-host connection limit.
+      const options = rType === AIRequestType.COMPLETION
         ? { headers: { 'Content-Type': 'application/json', ...authHeader }, timeout: 3000 }
         : { headers: { 'Content-Type': 'application/json', ...authHeader } }
       const result = await axios.post(requestURL, payload, options)
@@ -153,6 +217,7 @@ export class RemoteInferencer implements ICompletions, IGeneration {
 
     } catch (e) {
       ChatHistory.clearHistory()
+      this.emitClassifiedError(e, rType)
       remixAILogger.error('Error making request to Inference server:', e.message)
       // Always propagate so withAssistantGate can parse the AIError
       // envelope and report it to assistantState (cooldown banner,
@@ -167,12 +232,15 @@ export class RemoteInferencer implements ICompletions, IGeneration {
   }
 
   cancelRequest(): void {
-    this.currentAbortController?.abort()
-    this.currentAbortController = null
+    for (const controller of this.inFlightControllers) {
+      controller.abort()
+    }
+    this.inFlightControllers.clear()
   }
 
   async _streamInferenceRequest(payload, rType:AIRequestType){
     let resultText = ""
+    let controller: AbortController | null = null
     const historyPrompt = payload.originalPrompt || payload.prompt
     delete payload.originalPrompt
 
@@ -183,18 +251,23 @@ export class RemoteInferencer implements ICompletions, IGeneration {
 
     try {
       this.event.emit('onInference')
-      this.currentAbortController = new AbortController()
+      controller = new AbortController()
+      this.inFlightControllers.add(controller)
       const requestURL = rType === AIRequestType.COMPLETION ? this.completion_url : this.api_url
       const token = typeof window !== 'undefined' ? window.localStorage?.getItem('remix_access_token') : undefined
       const authHeader = token ? { 'Authorization': `Bearer ${token}` } : {}
-      const response = await fetch(requestURL, {
+      const streamingFetch = withRetryingFetch(
+        (input, init) => fetch(input as any, init),
+        rType === AIRequestType.COMPLETION ? 'completion' : 'chat'
+      )
+      const response = await streamingFetch(requestURL, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           ...authHeader,
         },
         body: JSON.stringify(payload),
-        signal: this.currentAbortController.signal,
+        signal: controller.signal,
       });
 
       // fetch() does not throw on 4xx/5xx — surface those as structured
@@ -236,27 +309,45 @@ export class RemoteInferencer implements ICompletions, IGeneration {
       return resultText
     } catch (error) {
       ChatHistory.clearHistory()
+      this.emitClassifiedError(error, rType)
       remixAILogger.error('Error making stream request to Inference server:', error.message);
       // Propagate so withAssistantGate / chat UI can react. Aborts (user
       // cancelled) are still recognised by name === 'AbortError' downstream.
       throw error
     }
     finally {
+      if (controller) this.inFlightControllers.delete(controller)
       this.event.emit('onInferenceDone')
     }
   }
 
+  /**
+   * Put the completion payload into the shape `/ai/completion` accepts:
+   * its own provider vocabulary, no `model`, and a `stop` array always
+   * present. See COMPLETION_PROVIDER — the chat selection's provider and
+   * model must never reach this endpoint.
+   */
+  protected completionRouting(options:IParams): IParams {
+    const { model, ...rest } = options as any
+    return {
+      ...rest,
+      provider: COMPLETION_PROVIDER,
+      stop: Array.isArray(options.stop) && options.stop.length > 0 ? options.stop : DEFAULT_COMPLETION_STOP
+    }
+  }
+
   async code_completion(prompt, promptAfter, ctxFiles, fileName, options:IParams=CompletionParams): Promise<any> {
-    options.max_tokens = 30
+    // `CompletionParams` is a shared module-level singleton and is the default
+    // argument here — assigning to `options.max_tokens` mutated it for every
+    // other caller. Spread first.
     const payload = { prompt, 'context':promptAfter, "endpoint":"code_completion",
-      'ctxFiles':ctxFiles, 'currentFileName':fileName, ...options }
+      'ctxFiles':ctxFiles, 'currentFileName':fileName, ...this.completionRouting(options), max_tokens: COMPLETION_MAX_TOKENS }
     return this._makeRequest(payload, AIRequestType.COMPLETION)
   }
 
   async code_insertion(msg_pfx, msg_sfx, ctxFiles, fileName, options:IParams=InsertionParams): Promise<any> {
-    options.max_tokens = 100
     const payload = { "endpoint":"code_insertion", msg_pfx, msg_sfx, 'ctxFiles':ctxFiles,
-      'currentFileName':fileName, ...options, prompt: '' }
+      'currentFileName':fileName, ...this.completionRouting(options), prompt: '', max_tokens: INSERTION_MAX_TOKENS }
     return this._makeRequest(payload, AIRequestType.COMPLETION)
   }
 

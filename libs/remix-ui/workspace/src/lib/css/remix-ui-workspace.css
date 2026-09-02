@@ -74,7 +74,9 @@
   .custom-dropdown-items {
     padding: 0.25rem 0.25rem;
     border-radius: .25rem;
-    background: var(--custom-select);
+    background: var(--custom-onsurface-layer-2) !important;
+    border: 1px solid var(--bs-border-color);
+    box-shadow: var(--bs-box-shadow);
   }
 
   .branches-dropdown {
@@ -93,7 +95,7 @@
     font-size: 0.875rem;
     padding: 0.25rem 0.5rem;
     width: auto;
-    color: var(--text);
+    color: var(--bs-body-color);
     text-align: left;
     display: flex;
     align-items: center;
@@ -126,7 +128,7 @@
   #workspacesMenuDropdown > div > ul > a:hover {
     background-color: var(--bs-secondary);
     border-radius: 2px;
-    color: var(--text)
+    color: var(--bs-body-color)
   }
 
   .checkout-input {

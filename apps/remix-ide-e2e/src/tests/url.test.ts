@@ -404,6 +404,7 @@ module.exports = {
       // .openFile('contracts/Lock.sol')
       .waitForElementVisible('*[data-id="treeViewLitreeViewItemcontracts/Lock.sol"]')
       .click('*[data-id="treeViewLitreeViewItemcontracts/Lock.sol"]')
+      .pause(1000)
       .getEditorValue((content) => {
         browser.assert.ok(content.indexOf('contract Lock {') !== -1, 'content does contain "contract Lock {"')
       })

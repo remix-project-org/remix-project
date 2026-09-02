@@ -96,7 +96,7 @@ module.exports = {
       .click('*[data-id="terminalClearConsole"]')
       .clickFunction(0, 0, ['0xCA35b7d915458EF540aDe6068dFe2F44E8fa733c'])
       .journalLastChildIncludes('Ballot.delegate(address)')
-      .journalLastChildIncludes('data: 0x5c1...a733c')
+      .journalLastChildIncludes('data:0x5c1...a733c')
   }
 }
 

@@ -24,8 +24,6 @@ interface AiChatPromptAreaProps {
     setMcpEnhanced: React.Dispatch<React.SetStateAction<boolean>>
     availableModels: AIModel[]
     selectedModel: any
-    autoModeEnabled: boolean
-    autoModeAvailable: boolean
     handleModelSelection: (modelName: string) => void
     onLockedModelClick?: (modelId: string, modelName: string) => void
     /** Permission-derived state of the per-model "Upgrade plan" pill. */
@@ -34,6 +32,10 @@ interface AiChatPromptAreaProps {
     buyCreditsPillState?: 'hidden' | 'coming_soon' | 'available'
     /** Called when the user clicks the "Buy credits" pill on a locked model. */
     onBuyCreditsClick?: (modelId: string, modelName: string) => void
+    /** Transport provider → whether the user stored a BYOK key for it. */
+    byokKeyPresence?: Record<string, boolean>
+    /** Opens the API key settings from a model waiting for a key. */
+    onAddApiKeyClick?: () => void
     input: string
     setInput: React.Dispatch<React.SetStateAction<string>>
     isStreaming: boolean
@@ -92,15 +94,15 @@ export default function AiChatPromptArea(props: AiChatPromptAreaProps) {
           <div className="text-uppercase ms-2 mb-2 small rai-selector-heading flex-shrink-0">Select a model</div>
           <ModelSelectorMenu
             availableModels={props.availableModels}
-            autoModeAvailable={props.autoModeAvailable}
-            autoModeEnabled={props.autoModeEnabled}
-            currentChoice={props.autoModeEnabled ? 'auto' : (props.selectedModel ? modelKey(props.selectedModel) : props.selectedModelId as string)}
+            currentChoice={props.selectedModel ? modelKey(props.selectedModel) : props.selectedModelId as string}
             setChoice={props.handleModelSelection}
             setShowOptions={props.setShowModelSelector}
             onLockedItemClick={handleLockedItemClick}
             upgradePillState={props.upgradePillState}
             buyCreditsPillState={props.buyCreditsPillState}
             onBuyCreditsClick={props.onBuyCreditsClick ? handleBuyCreditsClick : undefined}
+            byokKeyPresence={props.byokKeyPresence}
+            onAddApiKeyClick={props.onAddApiKeyClick ? () => props.onAddApiKeyClick?.() : undefined}
           />
           {false && props.mcpEnabled && (
             <div className="border-top mt-2 pt-2">
@@ -173,7 +175,6 @@ export default function AiChatPromptArea(props: AiChatPromptAreaProps) {
         ollamaModels={props.ollamaModels}
         selectedOllamaModel={props.selectedOllamaModel}
         modelSelectorBtnRef={props.modelSelectorBtnRef}
-        autoModeEnabled={props.autoModeEnabled}
         stopRequest={props.stopRequest}
         handleLoadSkills={props.handleLoadSkills}
         usingOwnApiKey={props.usingOwnApiKey}
