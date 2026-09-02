@@ -358,6 +358,11 @@
   border-color: var(--bs-primary);
 }
 
+.qd-ai-design-panel {
+  background-color: rgba(var(--bs-primary-rgb, 13, 110, 253), 0.04);
+  border-color: rgba(var(--bs-primary-rgb, 13, 110, 253), 0.45) !important;
+}
+
 .qd-settings-drawer {
   width: 420px;
   max-width: 100%;

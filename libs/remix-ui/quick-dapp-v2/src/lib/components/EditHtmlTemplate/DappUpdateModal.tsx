@@ -141,7 +141,9 @@ export default function DappUpdateModal({
   const bindingSelectionValid = updateKind === 'source' || (
     !!selectedCandidate && (updateKind === 'add' || !!replaceContractId)
   );
-  const canSubmit = !!description.trim() && bindingSelectionValid && !loadingCandidates;
+  const canSubmit = !!description.trim() && bindingSelectionValid && (
+    updateKind === 'source' || !loadingCandidates
+  );
 
   const handleConfirm = () => {
     if (!canSubmit) return;
@@ -207,6 +209,13 @@ export default function DappUpdateModal({
               const disabled = option.value === 'add'
                 ? !canChangeBindings || bindings.length >= 8
                 : option.value === 'replace' && !canChangeBindings;
+              const disabledReason = disabled && option.value !== 'source'
+                ? option.value === 'add' && bindings.length >= 8
+                  ? 'Maximum of 8 contracts reached. Replace a contract instead.'
+                  : loadingCandidates
+                    ? 'Checking the current contract environment...'
+                    : bindingUnavailableMessage || 'Contract changes are unavailable in the current environment.'
+                : '';
 
               return (
                 <label
@@ -226,26 +235,26 @@ export default function DappUpdateModal({
                   />
                   <span>
                     <span className="d-block fw-semibold">{option.label}</span>
-                    <span className="d-block small text-secondary">{option.description}</span>
+                    <span className="d-block small text-secondary">{disabledReason || option.description}</span>
                   </span>
                 </label>
               );
             })}
           </div>
-          {isContractDapp && (
+          {updateKind !== 'source' && isContractDapp && (
             <div className="small text-secondary text-break mt-2" data-id="quickDappUpdateEnvironment">
               DApp: {dappEnvironmentLabel} · Current environment: {currentEnvironmentLabel}
             </div>
           )}
         </Form.Group>
 
-        {bindingUnavailableMessage && (
+        {updateKind !== 'source' && bindingUnavailableMessage && (
           <Alert variant="info" className="small py-2">
             {bindingUnavailableMessage}
           </Alert>
         )}
 
-        {bindings.length >= 8 && isContractDapp && (
+        {updateKind !== 'source' && bindings.length >= 8 && isContractDapp && (
           <Alert variant="warning" className="small py-2">
             This DApp already uses the maximum of 8 contracts. You can replace a contract, but cannot add another.
           </Alert>
