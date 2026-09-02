@@ -68,6 +68,7 @@ export function QuickDappContractSelector({
   const [figmaError, setFigmaError] = useState('')
   const [isPreparingFigma, setIsPreparingFigma] = useState(false)
   const [subgraphFilePath, setSubgraphFilePath] = useState('')
+  const [showAdditionalContracts, setShowAdditionalContracts] = useState(false)
   const [showOptionalIntegrations, setShowOptionalIntegrations] = useState(false)
 
   const allContracts = useMemo(() => {
@@ -102,6 +103,7 @@ export function QuickDappContractSelector({
     setFigmaError('')
     setIsPreparingFigma(false)
     setSubgraphFilePath('')
+    setShowAdditionalContracts(false)
     setShowOptionalIntegrations(false)
   }, [show, primaryContract.address, fixedFrontendMode])
 
@@ -170,14 +172,21 @@ export function QuickDappContractSelector({
         <Modal.Title>Create DApp</Modal.Title>
       </Modal.Header>
       <Modal.Body>
-        <p className="mb-2 text-secondary">
-          Confirm the contracts and setup options before continuing with AI.
-        </p>
-
-        <div className="mb-3" data-id="quickDappContractsStep">
-          <div className="small text-uppercase text-primary fw-semibold mb-1">Step 1 of 3</div>
-          <div className="fw-semibold">Contract bindings</div>
-          <div className="small text-secondary">Choose the primary and additional contracts.</div>
+        <div className="d-flex align-items-center justify-content-between gap-2 mb-2" data-id="quickDappContractsStep">
+          <div className="fw-semibold">Contracts</div>
+          {candidates.length > 0 && (
+            <button
+              type="button"
+              className="btn btn-link btn-sm text-decoration-none p-0"
+              onClick={() => setShowAdditionalContracts((current) => !current)}
+              aria-expanded={showAdditionalContracts}
+              aria-controls="quickDappAdditionalContracts"
+              data-id="quickDappAdditionalContractsToggle"
+            >
+              {!showAdditionalContracts && <i className="fas fa-plus me-1" aria-hidden="true"></i>}
+              {showAdditionalContracts ? 'Done' : 'Add more contracts'}
+            </button>
+          )}
         </div>
 
         {primarySelectable && sourceFileName && matchingContractAddresses.length === 0 && (
@@ -188,7 +197,12 @@ export function QuickDappContractSelector({
 
         {primarySelectable ? (
           <Form.Group className="mb-3">
-            <Form.Label className="fw-semibold">Primary contract</Form.Label>
+            <div className="d-flex align-items-center justify-content-between gap-2 mb-1">
+              <Form.Label className="fw-semibold mb-0">Primary contract</Form.Label>
+              {selectedAddresses.length > 0 && (
+                <span className="small text-secondary">+{selectedAddresses.length} more</span>
+              )}
+            </div>
             <Form.Select
               value={primaryAddress}
               onChange={(event) => handlePrimaryChange(event.target.value)}
@@ -216,7 +230,12 @@ export function QuickDappContractSelector({
                   <div className="fw-semibold text-truncate">{selectedPrimary.name}</div>
                   <div className="small text-secondary">{shortenAddress(selectedPrimary.address)}</div>
                 </div>
-                <span className="badge bg-primary">Primary</span>
+                <div className="d-flex align-items-center gap-2 flex-shrink-0">
+                  <span className="badge bg-primary">Primary</span>
+                  {selectedAddresses.length > 0 && (
+                    <span className="small text-secondary">+{selectedAddresses.length} more</span>
+                  )}
+                </div>
               </div>
             </div>
             <div className="small text-secondary">
@@ -225,54 +244,54 @@ export function QuickDappContractSelector({
           </div>
         )}
 
-        <div className="d-flex align-items-center justify-content-between mb-2">
-          <span className="fw-semibold">Additional contracts</span>
-          <span className="small text-secondary">{selectedAddresses.length}/7</span>
-        </div>
+        {candidates.length === 0 && (
+          <div className="small text-secondary mb-3" data-id="quickDappNoAdditionalContracts">
+            No additional contracts are available in this environment.
+          </div>
+        )}
 
-        <div className="d-flex flex-column gap-2" style={{ maxHeight: 240, overflowY: 'auto' }}>
-          {candidates.length === 0 ? (
-            <div className="border rounded p-3 small text-secondary" data-id="quickDappNoAdditionalContracts">
-              No other deployed contracts are available in this environment.
+        {showAdditionalContracts && candidates.length > 0 && (
+          <div id="quickDappAdditionalContracts" className="border rounded p-2 mb-3" data-id="quickDappAdditionalContracts">
+            <div className="d-flex align-items-center justify-content-between mb-2">
+              <span className="fw-semibold">Additional contracts</span>
+              <span className="small text-secondary">{selectedAddresses.length}/7</span>
             </div>
-          ) : candidates.map((contract) => {
-            const key = contractKey(contract)
-            const selected = selectedAddresses.includes(key)
-            const disabled = !selected && selectedAddresses.length >= 7
 
-            return (
-              <label
-                key={key}
-                className={`d-flex align-items-center gap-2 border rounded p-2 mb-0 ${disabled ? 'opacity-50' : ''}`}
-                style={{ cursor: disabled ? 'not-allowed' : 'pointer' }}
-              >
-                <input
-                  className="form-check-input mt-0"
-                  type="checkbox"
-                  checked={selected}
-                  disabled={disabled}
-                  onChange={() => toggleContract(contract.address)}
-                  data-id={`quickDappAdditionalContract-${key}`}
-                />
-                <span className="flex-grow-1 text-truncate">
-                  <span className="d-block text-truncate">{contract.name}</span>
-                  <span className="d-block small text-secondary">{shortenAddress(contract.address)}</span>
-                </span>
-              </label>
-            )
-          })}
-        </div>
+            <div className="d-flex flex-column gap-2" style={{ maxHeight: 240, overflowY: 'auto' }}>
+              {candidates.map((contract) => {
+                const key = contractKey(contract)
+                const selected = selectedAddresses.includes(key)
+                const disabled = !selected && selectedAddresses.length >= 7
 
-        <p className="small text-secondary mt-3 mb-0">
-          Contract changes require confirmation from the target DApp update flow.
-        </p>
+                return (
+                  <label
+                    key={key}
+                    className={`d-flex align-items-center gap-2 border rounded p-2 mb-0 ${disabled ? 'opacity-50' : ''}`}
+                    style={{ cursor: disabled ? 'not-allowed' : 'pointer' }}
+                  >
+                    <input
+                      className="form-check-input mt-0"
+                      type="checkbox"
+                      checked={selected}
+                      disabled={disabled}
+                      onChange={() => toggleContract(contract.address)}
+                      data-id={`quickDappAdditionalContract-${key}`}
+                    />
+                    <span className="flex-grow-1 text-truncate">
+                      <span className="d-block text-truncate">{contract.name}</span>
+                      <span className="d-block small text-secondary">{shortenAddress(contract.address)}</span>
+                    </span>
+                  </label>
+                )
+              })}
+            </div>
+          </div>
+        )}
 
         <hr />
 
-        <div className="mb-3" data-id="quickDappLocationStep">
-          <div className="small text-uppercase text-primary fw-semibold mb-1">Step 2 of 3</div>
-          <div className="fw-semibold">Frontend location</div>
-          <div className="small text-secondary">Choose where the generated frontend is stored.</div>
+        <div className="fw-semibold mb-2" data-id="quickDappLocationStep">
+          Frontend location
         </div>
 
         <Form.Group className="mb-3">
@@ -300,14 +319,11 @@ export function QuickDappContractSelector({
 
         <hr />
 
-        <div className="mb-3" data-id="quickDappDesignStep">
-          <div className="small text-uppercase text-primary fw-semibold mb-1">Step 3 of 3</div>
-          <div className="fw-semibold">Design</div>
-          <div className="small text-secondary">Choose a starting style and add details only when needed.</div>
-        </div>
-
-        <Form.Group className="mb-3">
-          <Form.Label className="fw-semibold">Design</Form.Label>
+        <div className="border rounded p-3 mb-3 qd-ai-design-panel" data-id="quickDappDesignStep">
+          <div className="fw-semibold text-primary mb-2">
+            <i className="fas fa-robot me-1" aria-hidden="true"></i>
+            Generate with AI
+          </div>
           <div className="d-flex flex-wrap gap-2 mb-2" aria-label="Design presets" data-id="quickDappDesignPresets">
             {designPresets.map((preset) => {
               const label = preset || 'Default'
@@ -330,75 +346,76 @@ export function QuickDappContractSelector({
             rows={2}
             value={design}
             onChange={(event) => setDesign(event.target.value)}
-            placeholder="Add custom style notes"
+            placeholder="Describe your DApp frontend or add custom style notes"
             data-id="quickDappDesign"
           />
-          <Form.Text className="text-secondary">Choose a starting style or add your own notes.</Form.Text>
-        </Form.Group>
+          <button
+            type="button"
+            className="btn btn-sm qd-secondary-action mt-2"
+            onClick={() => {
+              setUseFigma((current) => !current)
+              setFigmaError('')
+            }}
+            aria-expanded={useFigma}
+            aria-controls="quickDappFigmaOptions"
+            data-id="quickDappUseFigma"
+          >
+            <i className="fas fa-link me-1" aria-hidden="true"></i>
+            {useFigma ? 'Unlink Figma design' : 'Link Figma design'}
+          </button>
 
-        <Form.Check
-          className="mb-3"
-          type="checkbox"
-          checked={useFigma}
-          onChange={(event) => {
-            setUseFigma(event.target.checked)
-            setFigmaError('')
-          }}
-          label="Use a Figma design"
-          data-id="quickDappUseFigma"
-        />
-
-        {useFigma && (
-          <div className="border rounded p-3 mb-3">
-            <Form.Group className="mb-3">
-              <Form.Label className="fw-semibold">Figma URL</Form.Label>
-              <Form.Control
-                type="url"
-                value={figmaUrl}
-                onChange={(event) => {
-                  setFigmaUrl(event.target.value)
-                  setFigmaError('')
-                }}
-                placeholder="https://www.figma.com/design/..."
-                disabled={isPreparingFigma}
-                data-id="quickDappFigmaUrl"
-              />
-            </Form.Group>
-            <Form.Group>
-              <Form.Label className="fw-semibold">Personal Access Token</Form.Label>
-              <Form.Control
-                type="password"
-                value={figmaToken}
-                onChange={(event) => {
-                  setFigmaToken(event.target.value)
-                  setFigmaError('')
-                }}
-                autoComplete="off"
-                disabled={isPreparingFigma}
-                data-id="quickDappFigmaToken"
-              />
-              <Form.Text className="text-secondary">Used once to validate the design. It is not added to the AI chat.</Form.Text>
-            </Form.Group>
-            {figmaError && (
-              <div className="alert alert-danger py-2 mt-3 mb-0" role="alert" data-id="quickDappFigmaError">
-                <div>{figmaError}</div>
-                <button
-                  type="button"
-                  className="btn btn-link text-start p-0 mt-1"
-                  onClick={() => {
-                    setUseFigma(false)
-                    setFigmaUrl('')
-                    setFigmaToken('')
+          {useFigma && (
+            <div id="quickDappFigmaOptions" className="border rounded p-3 mt-3">
+              <Form.Group className="mb-3">
+                <Form.Label className="fw-semibold">Figma URL</Form.Label>
+                <Form.Control
+                  type="url"
+                  value={figmaUrl}
+                  onChange={(event) => {
+                    setFigmaUrl(event.target.value)
                     setFigmaError('')
                   }}
-                  data-id="quickDappContinueWithoutFigma"
-                >
-                  Use default design instead
-                </button>
-              </div>
-            )}
-          </div>
-        )}
+                  placeholder="https://www.figma.com/design/..."
+                  disabled={isPreparingFigma}
+                  data-id="quickDappFigmaUrl"
+                />
+              </Form.Group>
+              <Form.Group>
+                <Form.Label className="fw-semibold">Personal Access Token</Form.Label>
+                <Form.Control
+                  type="password"
+                  value={figmaToken}
+                  onChange={(event) => {
+                    setFigmaToken(event.target.value)
+                    setFigmaError('')
+                  }}
+                  autoComplete="off"
+                  disabled={isPreparingFigma}
+                  data-id="quickDappFigmaToken"
+                />
+                <Form.Text className="text-secondary">Used once to validate the design. It is not added to the AI chat.</Form.Text>
+              </Form.Group>
+              {figmaError && (
+                <div className="alert alert-danger py-2 mt-3 mb-0" role="alert" data-id="quickDappFigmaError">
+                  <div>{figmaError}</div>
+                  <button
+                    type="button"
+                    className="btn btn-link text-start p-0 mt-1"
+                    onClick={() => {
+                      setUseFigma(false)
+                      setFigmaUrl('')
+                      setFigmaToken('')
+                      setFigmaError('')
+                    }}
+                    data-id="quickDappContinueWithoutFigma"
+                  >
+                    Use default design instead
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
 
         <button
           type="button"
@@ -409,7 +426,7 @@ export function QuickDappContractSelector({
           data-id="quickDappOptionalIntegrationsToggle"
         >
           <span className="fw-semibold">
-            Optional integrations
+            More options
             {optionalIntegrationCount > 0 && <span className="badge bg-secondary ms-2">{optionalIntegrationCount}</span>}
           </span>
           <i className={`fas ${showOptionalIntegrations ? 'fa-chevron-up' : 'fa-chevron-down'}`} aria-hidden="true"></i>
@@ -451,7 +468,7 @@ export function QuickDappContractSelector({
             Cancel
           </button>
           <button type="button" className="btn btn-primary" onClick={handleConfirm} disabled={isPreparingFigma} data-id="quickDappContractSelectorContinue">
-            {isPreparingFigma ? 'Checking Figma…' : useFigma ? 'Validate and continue' : 'Continue with AI'}
+            {isPreparingFigma ? 'Checking Figma…' : 'Generate DApp'}
           </button>
         </div>
       </Modal.Footer>
