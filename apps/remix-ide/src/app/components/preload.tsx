@@ -12,6 +12,8 @@ import { fileSystemUtility, migrationTestData } from '../files/filesystems/fileS
 import './styles/preload.css'
 import isElectron from 'is-electron'
 import { initEndpoints } from '@remix-endpoints-helper'
+import { isFreshBrowser, maybeRedirectFreshVisitor, setVisitFreshness } from '../utils/freshUserRedirect'
+import { redirectConfirmedVisitor } from '../utils/migrationConfirm'
 
 // _paq.push(['trackEvent', 'App', 'Preload', 'start'])
 
@@ -240,6 +242,19 @@ export const Preload = (props: PreloadProps) => {
     }
   }
 
+  // Navigation cancels in-flight tracker requests, so ask Matomo for a beacon first.
+  const trackDomainRedirect = (toDomain: string) => {
+    try {
+      const paq = (window as any)._paq
+      if (Array.isArray(paq)) paq.push(['alwaysUseSendBeacon'])
+    } catch (_) { /* tracker not loaded */ }
+    trackMatomoEvent?.({ category: 'App', action: 'FreshUserDomainRedirect', name: toDomain, isClick: false })
+  }
+
+  const trackConfirmedRedirect = (toDomain: string) => {
+    trackMatomoEvent?.({ category: 'App', action: 'ConfirmedMigrationRedirect', name: toDomain, isClick: false })
+  }
+
   useEffect(() => {
     // Remove pre-splash as soon as React preloader mounts
     try {
@@ -251,12 +266,27 @@ export const Preload = (props: PreloadProps) => {
       loadAppComponent()
       return
     }
+
+    // Started here rather than in loadAppComponent so the redirect checks below
+    // resolve against the right API; the call is deduped.
+    initEndpoints()
+
+    // A user who confirmed the move is sent on before anything else loads.
+    // Reads localStorage only, so everyone else pays nothing for it.
+    if (redirectConfirmedVisitor(trackConfirmedRedirect)) return
+
     async function loadStorage() {
       ; (await remixFileSystems.current.addFileSystem(remixIndexedDB.current)) || trackMatomoEvent?.({ category: 'Storage', action: 'error', name: 'indexedDB not supported', isClick: false })
       ; (await remixFileSystems.current.addFileSystem(localStorageFileSystem.current)) || trackMatomoEvent?.({ category: 'Storage', action: 'error', name: 'localstorage not supported', isClick: false })
       await testmigration()
       remixIndexedDB.current.loaded && (await remixIndexedDB.current.checkWorkspaces())
       localStorageFileSystem.current.loaded && (await localStorageFileSystem.current.checkWorkspaces())
+
+      // Last moment at which "fresh" is still knowable: the IDE creates a
+      // default workspace as soon as it boots.
+      setVisitFreshness(isFreshBrowser(!!remixIndexedDB.current.hasWorkSpaces || !!localStorageFileSystem.current.hasWorkSpaces))
+      if (await maybeRedirectFreshVisitor(trackDomainRedirect)) return
+
       remixIndexedDB.current.loaded && (remixIndexedDB.current.hasWorkSpaces || !localStorageFileSystem.current.hasWorkSpaces ? await setFileSystems() : setShowDownloader(true))
       !remixIndexedDB.current.loaded && (await setFileSystems())
     }

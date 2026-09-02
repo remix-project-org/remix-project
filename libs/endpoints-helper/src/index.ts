@@ -173,6 +173,7 @@ export async function fetchRemixConfig(baseUrl: string): Promise<RemixConfig> {
  * consumers see the updated values immediately.
  */
 export function updateEndpoints(config: RemixConfig): void {
+  //const base = 'https://api.remix.live'; // fallback
   const base = config.baseUrl.replace(/\/$/, '');
 
   // Map discovery keys back to EndpointUrls keys
@@ -202,23 +203,41 @@ export function updateEndpoints(config: RemixConfig): void {
 }
 
 /**
+ * In-flight/completed discovery per base URL, so the many callers that need
+ * resolved endpoints before booting don't each refetch the manifest.
+ */
+const discoveryAttempts = new Map<string, Promise<void>>();
+
+/**
  * Initialize endpoints from service discovery.
  * Uses NX_ENDPOINTS_URL as discovery base if set, otherwise 'https://api.remix.live'.
  * Falls back to current values silently on failure.
+ *
+ * Safe to call repeatedly: only the first call per base fetches, and a failed
+ * attempt is discarded so a later retry can try again.
  */
-export async function initEndpoints(baseUrl?: string): Promise<void> {
-  const base = baseUrl || ('https://api.remix.live').replace(/\/$/, '');
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 3000);
-  try {
-    const url = `${base}/.well-known/remix-config?v=${Date.now()}`;
-    const res = await fetch(url, { signal: controller.signal, cache: 'no-store' });
-    if (!res.ok) throw new Error(`Discovery HTTP ${res.status}`);
-    const config: RemixConfig = await res.json();
-    updateEndpoints(config);
-  } catch {
-    // Discovery failed — continue with defaults
-  } finally {
-    clearTimeout(timeout);
-  }
+export async function initEndpoints(baseUrl?: string, timeoutMs = 3000): Promise<void> {
+  const base = (baseUrl || 'https://api.remix.live').replace(/\/$/, '');
+  const existing = discoveryAttempts.get(base);
+  if (existing) return existing;
+
+  const attempt = (async () => {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), timeoutMs);
+    try {
+      const url = `${base}/.well-known/remix-config?v=${Date.now()}`;
+      const res = await fetch(url, { signal: controller.signal, cache: 'no-store' });
+      if (!res.ok) throw new Error(`Discovery HTTP ${res.status}`);
+      const config: RemixConfig = await res.json();
+      updateEndpoints(config);
+    } catch {
+      // Discovery failed — continue with defaults, and let a retry re-attempt.
+      discoveryAttempts.delete(base);
+    } finally {
+      clearTimeout(timeout);
+    }
+  })();
+
+  discoveryAttempts.set(base, attempt);
+  return attempt;
 }

@@ -54,7 +54,7 @@ module.exports = {
 
   'Should keep the delegation status after reload & switching accounts #group1': function (browser: NightwatchBrowser) {
     browser
-      .refresh()
+      .refreshPage()
       .clickLaunchIcon('udapp')
       .switchEnvironment('vm-prague', 'Remix_VM')
       .waitForElementVisible('*[data-id="delete-delegation"]')
@@ -71,7 +71,7 @@ module.exports = {
       .modalFooterOKClick('deleteDelegation')
       .waitForElementNotPresent('*[data-id="delete-delegation"]')
       .waitForElementContainsText('*[data-id="terminalJournal"]', `Delegation for 0x5B38Da6a701c568545dCfcB03FcB875f56beddC4 removed.`)
-      .refresh()
+      .refreshPage()
       .clickLaunchIcon('udapp')
       .switchEnvironment('vm-prague', 'Remix_VM')
       .waitForElementNotPresent('*[data-id="delete-delegation"]')

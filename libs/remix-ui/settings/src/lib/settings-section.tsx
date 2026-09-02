@@ -8,7 +8,7 @@ import type { ViewPlugin } from '@remixproject/engine-web'
 import { CustomTooltip } from '@remix-ui/helper'
 import { IMCPServerManager } from './mcp-server-manager'
 import { ProfileSection, CreditsBalance, ConnectedAccounts } from './account-settings'
-import { validateApiKeyFormat, testApiKey, getProviderFromSettingKey, type ModelProvider } from '@remix/remix-ai-core'
+import { validateApiKeyFormat, testApiKey, getProviderFromSettingKey } from '@remix/remix-ai-core'
 
 type SettingsSectionUIProps = {
   plugin: ViewPlugin,
@@ -235,7 +235,7 @@ export const SettingsSectionUI: React.FC<SettingsSectionUIProps> = ({ plugin, se
         setApiKeyTestStatus(prev => ({ ...prev, [key]: 'testing' }))
         let result: { isValid: boolean; error?: string }
         try {
-          result = await testApiKey(provider as ModelProvider, value)
+          result = await testApiKey(provider, value)
         } catch (error: any) {
           result = { isValid: false, error: error?.message || intl.formatMessage({ id: 'settings.apiKeyTestFailed' }) }
         }

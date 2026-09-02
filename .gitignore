@@ -99,3 +99,6 @@ apps/remix-ide-e2e/tmp/
 docker-compose.staging.yml
 Dockerfile.staging
 .dockerignore
+libs/remix-ai-core/test/*
+.claude/*
+.playwright-cli/*

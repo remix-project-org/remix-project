@@ -53,6 +53,9 @@ div.monaco-list-row > span.title {
 }
 
 .web3-tooltip-inner {
+    display: flex;
+    flex-direction: column;
+    width: fit-content;
     background: var(--bs-body-bg);
     border: 1px solid var(--bs-border-color);
     border-radius: 8px;

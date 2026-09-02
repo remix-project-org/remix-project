@@ -6,5 +6,8 @@ export type {
   ProvingScheme,
   QuickDappGraphContext,
   ZkCircuitConfig,
-  ZkVerifyNetwork
+  ZkVerifyNetwork,
+  ZkVerificationMethod,
+  ZkOnChainVerifierConfig,
+  NoirZkArtifacts
 } from '../types';

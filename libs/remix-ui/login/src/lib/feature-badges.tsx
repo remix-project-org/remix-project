@@ -9,13 +9,13 @@ interface FeatureBadgesProps {
   onClose?: () => void
 }
 
-const BADGE_CONFIG: Record<string, { icon: string; colorClass: string }> = {
+export const BADGE_CONFIG: Record<string, { icon: string; colorClass: string }> = {
   'beta': { icon: 'fas fa-flask', colorClass: 'feature-badge--beta' },
   'AI BASIC': { icon: 'fas fa-robot', colorClass: 'feature-badge--ai' },
   'ai-unlimited': { icon: 'fas fa-infinity', colorClass: 'feature-badge--ai-unlimited' },
 }
 
-const getDefaultBadgeConfig = (name: string) => ({
+export const getDefaultBadgeConfig = (name: string) => ({
   icon: 'fas fa-star',
   colorClass: 'feature-badge--default'
 })
@@ -75,7 +75,7 @@ export const FeatureBadges: React.FC<FeatureBadgesProps> = ({ plugin, onClose })
           })}
         </div>
       </div>
-      <div className="dropdown-divider user-menu-divider"></div>
+      {/* <div className="dropdown-divider user-menu-divider"></div> */}
 
       {showBetaModal && (
         <div

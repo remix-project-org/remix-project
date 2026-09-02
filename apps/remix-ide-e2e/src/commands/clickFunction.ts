@@ -10,28 +10,26 @@ class ClickFunction extends EventEmitter {
     functionIndex: number,
     expectedInput?: string[]
   ): NightwatchBrowser {
+    const functionRowSelector = `[data-id="deployedContractItem-${instanceIndex}-function-${functionIndex}"]`
+    const executeBtnSelector = `[data-id="btnExecute-${instanceIndex}-${functionIndex}"]`
+
     this.api
-      .click(`[data-id="functionDropdown-${instanceIndex}"] button`)
-      .pause(1000) // Wait for the dropdown to open
-      .click(`[data-id="deployedContractItem-${instanceIndex}-function-${functionIndex}"]`)
-      .pause(1000) // Wait for the function details to load
-      .waitForElementPresent(`[data-id="btnExecute-${instanceIndex}"]`)
-      .execute(function (instanceIndex) {
-        const executeBtn = document.querySelector(`[data-id="btnExecute-${instanceIndex}"]`) as HTMLElement
-        if (executeBtn) {
-          executeBtn.scrollIntoView({ behavior: 'auto', block: 'center' })
+      .waitForElementPresent(functionRowSelector)
+      .execute(function (selector) {
+        const row = document.querySelector(selector) as HTMLElement
+        if (row) {
+          row.scrollIntoView({ behavior: 'auto', block: 'center' })
         }
-      }, [instanceIndex])
+      }, [functionRowSelector])
       .perform(function (client, done) {
         (expectedInput || []).forEach((input, index) => {
-          client.setValue(
-            `[data-id="selectedFunction-${index}"]`,
-            input
-          )
+          const inputSelector = `[data-id="input-${instanceIndex}-${functionIndex}-${index}"]`
+          client.clearValue(inputSelector).setValue(inputSelector, input)
         })
         done()
       })
-      .click(`[data-id="btnExecute-${instanceIndex}"]`)
+      .waitForElementPresent(executeBtnSelector)
+      .click(executeBtnSelector)
       .pause(2000)
       .perform(() => {
         this.emit('complete')

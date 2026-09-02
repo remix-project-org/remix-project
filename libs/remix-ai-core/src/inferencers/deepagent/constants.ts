@@ -11,9 +11,6 @@ export const DEFAULT_TIMEOUT_MS = 300000
 /** Maximum tool executions per request */
 export const MAX_TOOL_EXECUTIONS = 10
 
-/** Supported model providers */
-export const SUPPORTED_PROVIDERS = ['anthropic', 'mistralai', 'ollama'] as const
-
 /** Prefix for session thread IDs */
 export const SESSION_THREAD_PREFIX = 'remix-session-'
 
@@ -72,5 +69,4 @@ export const LOCAL_STORAGE_KEYS = {
   REMIX_ACCESS_TOKEN: 'remix_access_token'
 } as const
 
-export type SupportedProvider = typeof SUPPORTED_PROVIDERS[number]
 export type MemoryBackendType = typeof MEMORY_BACKEND_TYPES[number]

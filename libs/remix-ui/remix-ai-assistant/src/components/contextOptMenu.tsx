@@ -30,6 +30,10 @@ export interface GroupListMenuProps {
   buyCreditsPillState?: LockedPillState
   /** Click handler for the "Buy credits" pill. Falls back to `onLockedItemClick`. */
   onBuyCreditsClick?: (item: groupListType) => void
+  /** Click handler for the "Add API key" pill on a row waiting for a BYOK key.
+   *  Rows with `keyState: 'needs-key'` route here instead of the plan-manager:
+   *  the gate is a missing key, not a plan tier. */
+  onAddApiKeyClick?: (item: groupListType) => void
 }
 
 export default function GroupListMenu(props: GroupListMenuProps) {
@@ -44,6 +48,10 @@ export default function GroupListMenu(props: GroupListMenuProps) {
   const visibleItems = props.groupList.filter(item => {
     if (!item.isLocked) return true
     if (item.stateValue === '__signin__' || (typeof item.stateValue === 'string' && item.stateValue.endsWith('::__signin__'))) return true
+    // A row locked only because its BYOK key is missing carries its own CTA
+    // ("Add API key"), so it stays visible regardless of the upgrade pills —
+    // hiding it would make a provider the user can unlock simply vanish.
+    if (item.keyState === 'needs-key') return true
     return hasVisibleLockedPill
   })
 
@@ -94,11 +102,37 @@ export default function GroupListMenu(props: GroupListMenuProps) {
     )
   }
 
+  /** BYOK affordance: a static "Own key" mark, or a clickable "Add API key". */
+  const renderKeyBadge = (item: groupListType) => {
+    if (!item.keyState) return null
+    const needsKey = item.keyState === 'needs-key'
+    const handleClick = (e: React.MouseEvent) => {
+      e.stopPropagation()
+      props.setShowOptions(false)
+      props.onAddApiKeyClick?.(item)
+    }
+    return (
+      <span
+        data-id={`${item.dataId}-${needsKey ? 'needs-key' : 'own-key'}-badge`}
+        data-key-state={item.keyState}
+        className={`badge ms-2 ${needsKey ? 'bg-primary text-white' : 'bg-success'}`}
+        style={{ fontSize: '0.65rem', padding: '2px 6px', cursor: needsKey && props.onAddApiKeyClick ? 'pointer' : 'default' }}
+        title={needsKey ? 'This model runs on your own API key — add it in Settings' : 'Running on your own API key'}
+        onClick={needsKey && props.onAddApiKeyClick ? handleClick : undefined}
+      >
+        <i className="fas fa-key me-1" style={{ fontSize: '0.6rem' }}></i>
+        {needsKey ? 'Add API key' : 'Own key'}
+      </span>
+    )
+  }
+
   return (
     <div className="btn-group-vertical w-100">
       {visibleItems.map((item, index) => {
-        const upgradePill = item.isLocked ? renderPill(item, 'upgrade', upgradeState) : null
-        const buyCreditsPill = item.isLocked ? renderPill(item, 'buy_credits', buyCreditsState) : null
+        const needsKey = item.keyState === 'needs-key'
+        // A key-gated row is never an upsell — suppress the plan pills on it.
+        const upgradePill = item.isLocked && !needsKey ? renderPill(item, 'upgrade', upgradeState) : null
+        const buyCreditsPill = item.isLocked && !needsKey ? renderPill(item, 'buy_credits', buyCreditsState) : null
         const isSelected = !item.isLocked && !item.disabled && props.choice === item.stateValue
         return (
           <button
@@ -111,7 +145,11 @@ export default function GroupListMenu(props: GroupListMenuProps) {
             title={item.disabled ? (item.disabledReason || 'This model is not supported') : undefined}
             onClick={() => {
               props.setShowOptions(false)
-              if (item.isLocked) {
+              if (needsKey && props.onAddApiKeyClick) {
+                // Missing key, not a missing entitlement — send the user to the
+                // key settings rather than the plan-manager paywall.
+                props.onAddApiKeyClick(item)
+              } else if (item.isLocked) {
                 props.onLockedItemClick?.(item)
               } else {
                 // Disabled rows (e.g. unsupported models) still route through
@@ -129,6 +167,7 @@ export default function GroupListMenu(props: GroupListMenuProps) {
                       {item.disabledReason || 'Unsupported'}
                     </span>
                   )}
+                  {renderKeyBadge(item)}
                   {upgradePill}
                   {buyCreditsPill}
                 </div>

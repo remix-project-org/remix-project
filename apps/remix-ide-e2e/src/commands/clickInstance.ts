@@ -9,6 +9,8 @@ class ClickInstance extends EventEmitter {
 
     this.api
       .closeBetaPopUp()
+      .waitForElementPresent('[data-id="udappDeployedContractsTab"]')
+      .click('[data-id="udappDeployedContractsTab"]')
       .waitForElementPresent({
         locateStrategy: 'css selector',
         selector,

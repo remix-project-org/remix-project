@@ -31,6 +31,19 @@ export class IndexedDBChatHistoryBackend implements IChatHistoryBackend {
 
       request.onsuccess = () => {
         this.db = request.result
+        // A connection can be closed underneath us — the browser closes it on
+        // an abnormal termination, and another tab running a schema upgrade
+        // forces one too. Nothing invalidated the cached handle, so every
+        // later `transaction()` threw
+        // `InvalidStateError: ... The database connection is closing`.
+        // Clearing it is enough: `ensureDb()` reopens on demand.
+        this.db.onclose = () => {
+          this.db = null
+        }
+        this.db.onversionchange = () => {
+          this.db?.close()
+          this.db = null
+        }
         resolve()
       }
 
@@ -54,6 +67,37 @@ export class IndexedDBChatHistoryBackend implements IChatHistoryBackend {
         }
       }
     })
+  }
+
+  /**
+   * Reopen the database when the cached handle has gone away.
+   *
+   * Every method used to guard with `if (!this.db) throw NOT_INITIALIZED` and
+   * then reach for `this.db!`, which meant a connection closed after init
+   * turned every later call into a hard failure with no recovery path.
+   */
+  private async ensureDb(): Promise<IDBDatabase> {
+    if (!this.db) await this.init()
+    if (!this.db) throw new StorageError('Database not initialized', 'NOT_INITIALIZED')
+    return this.db
+  }
+
+  /** Open a transaction, reopening once if the connection was closing. */
+  private async beginTx(
+    storeNames: string[],
+    mode: IDBTransactionMode
+  ): Promise<IDBTransaction> {
+    const db = await this.ensureDb()
+    try {
+      return db.transaction(storeNames, mode)
+    } catch (error: any) {
+      if (error?.name !== 'InvalidStateError') {
+        throw new StorageError('Transaction failed', 'TRANSACTION_ERROR')
+      }
+      this.db = null
+      const reopened = await this.ensureDb()
+      return reopened.transaction(storeNames, mode)
+    }
   }
 
   /**
@@ -81,11 +125,10 @@ export class IndexedDBChatHistoryBackend implements IChatHistoryBackend {
    * Save conversation metadata
    */
   async saveConversation(metadata: ConversationMetadata): Promise<void> {
-    if (!this.db) throw new StorageError('Database not initialized', 'NOT_INITIALIZED')
+    const transaction = await this.beginTx(['conversations'], 'readwrite')
 
     return new Promise((resolve, reject) => {
       try {
-        const transaction = this.db!.transaction(['conversations'], 'readwrite')
         const store = transaction.objectStore('conversations')
         const request = store.put(metadata)
 
@@ -107,10 +150,9 @@ export class IndexedDBChatHistoryBackend implements IChatHistoryBackend {
    * Get all conversations, optionally filtered by archived status
    */
   async getConversations(archived?: boolean): Promise<ConversationMetadata[]> {
-    if (!this.db) throw new StorageError('Database not initialized', 'NOT_INITIALIZED')
+    const transaction = await this.beginTx(['conversations'], 'readonly')
 
     return new Promise((resolve, reject) => {
-      const transaction = this.db!.transaction(['conversations'], 'readonly')
       const store = transaction.objectStore('conversations')
       const request = store.getAll()
 
@@ -138,10 +180,9 @@ export class IndexedDBChatHistoryBackend implements IChatHistoryBackend {
    * Get a single conversation by ID
    */
   async getConversation(id: string): Promise<ConversationMetadata | null> {
-    if (!this.db) throw new StorageError('Database not initialized', 'NOT_INITIALIZED')
+    const transaction = await this.beginTx(['conversations'], 'readonly')
 
     return new Promise((resolve, reject) => {
-      const transaction = this.db!.transaction(['conversations'], 'readonly')
       const store = transaction.objectStore('conversations')
       const request = store.get(id)
 
@@ -159,8 +200,6 @@ export class IndexedDBChatHistoryBackend implements IChatHistoryBackend {
    * Update conversation metadata
    */
   async updateConversation(id: string, updates: Partial<ConversationMetadata>): Promise<void> {
-    if (!this.db) throw new StorageError('Database not initialized', 'NOT_INITIALIZED')
-
     const existing = await this.getConversation(id)
     if (!existing) {
       throw new StorageError('Conversation not found', 'NOT_FOUND')
@@ -180,11 +219,9 @@ export class IndexedDBChatHistoryBackend implements IChatHistoryBackend {
    * Delete a conversation and all its messages
    */
   async deleteConversation(id: string): Promise<void> {
-    if (!this.db) throw new StorageError('Database not initialized', 'NOT_INITIALIZED')
+    const transaction = await this.beginTx(['conversations', 'messages'], 'readwrite')
 
     return new Promise((resolve, reject) => {
-      const transaction = this.db!.transaction(['conversations', 'messages'], 'readwrite')
-
       // Delete conversation metadata
       const convStore = transaction.objectStore('conversations')
       convStore.delete(id)
@@ -213,12 +250,10 @@ export class IndexedDBChatHistoryBackend implements IChatHistoryBackend {
    * Save a single message
    */
   async saveMessage(message: PersistedChatMessage): Promise<void> {
-    if (!this.db) throw new StorageError('Database not initialized', 'NOT_INITIALIZED')
+    const transaction = await this.beginTx(['messages', 'conversations'], 'readwrite')
 
     return new Promise((resolve, reject) => {
       try {
-        const transaction = this.db!.transaction(['messages', 'conversations'], 'readwrite')
-
         // Save message
         const msgStore = transaction.objectStore('messages')
         msgStore.put(message)
@@ -263,12 +298,10 @@ export class IndexedDBChatHistoryBackend implements IChatHistoryBackend {
    * Save multiple messages in a batch
    */
   async saveBatch(conversationId: string, messages: ChatMessage[]): Promise<void> {
-    if (!this.db) throw new StorageError('Database not initialized', 'NOT_INITIALIZED')
+    const transaction = await this.beginTx(['messages', 'conversations'], 'readwrite')
 
     return new Promise((resolve, reject) => {
       try {
-        const transaction = this.db!.transaction(['messages', 'conversations'], 'readwrite')
-
         // Save all messages
         const msgStore = transaction.objectStore('messages')
         messages.forEach(msg => {
@@ -318,10 +351,9 @@ export class IndexedDBChatHistoryBackend implements IChatHistoryBackend {
    * Get all messages for a conversation
    */
   async getMessages(conversationId: string): Promise<ChatMessage[]> {
-    if (!this.db) throw new StorageError('Database not initialized', 'NOT_INITIALIZED')
+    const transaction = await this.beginTx(['messages'], 'readonly')
 
     return new Promise((resolve, reject) => {
-      const transaction = this.db!.transaction(['messages'], 'readonly')
       const store = transaction.objectStore('messages')
       const index = store.index('conversationId')
       const request = index.getAll(conversationId)
@@ -351,10 +383,9 @@ export class IndexedDBChatHistoryBackend implements IChatHistoryBackend {
     messageId: string,
     sentiment: 'like' | 'dislike' | 'none'
   ): Promise<void> {
-    if (!this.db) throw new StorageError('Database not initialized', 'NOT_INITIALIZED')
+    const transaction = await this.beginTx(['messages'], 'readwrite')
 
     return new Promise((resolve, reject) => {
-      const transaction = this.db!.transaction(['messages'], 'readwrite')
       const store = transaction.objectStore('messages')
       const request = store.get(messageId)
 
@@ -377,10 +408,9 @@ export class IndexedDBChatHistoryBackend implements IChatHistoryBackend {
    * Get a single message by ID for conversationId lookup
    */
   async getMessage(messageId: string): Promise<PersistedChatMessage | null> {
-    if (!this.db) throw new StorageError('Database not initialized', 'NOT_INITIALIZED')
+    const transaction = await this.beginTx(['messages'], 'readonly')
 
     return new Promise((resolve, reject) => {
-      const transaction = this.db!.transaction(['messages'], 'readonly')
       const store = transaction.objectStore('messages')
       const request = store.get(messageId)
 
@@ -441,10 +471,9 @@ export class IndexedDBChatHistoryBackend implements IChatHistoryBackend {
    * Clear all data (for testing/reset)
    */
   async clearAll(): Promise<void> {
-    if (!this.db) throw new StorageError('Database not initialized', 'NOT_INITIALIZED')
+    const transaction = await this.beginTx(['conversations', 'messages'], 'readwrite')
 
     return new Promise((resolve, reject) => {
-      const transaction = this.db!.transaction(['conversations', 'messages'], 'readwrite')
 
       transaction.objectStore('conversations').clear()
       transaction.objectStore('messages').clear()

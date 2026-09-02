@@ -5,7 +5,7 @@ import { z } from 'zod'
 import { IMCPTool, IMCPToolCall, IMCPToolResult } from '../../../types/mcp'
 import { RemixToolDefinition, ToolRegistry } from '../../../remix-mcp-server/types/mcpTools'
 import { ToolApprovalGate } from './ToolApprovalGate'
-import { jsonSchemaToZod, mcpResultToString } from './schemaConverters'
+import { jsonSchemaToZod, mcpResultToString, sanitizeToolName, withTolerantKeys } from './schemaConverters'
 
 export class RemixToolAdapter {
   private plugin: Plugin
@@ -56,13 +56,25 @@ export class RemixToolAdapter {
     mcpInferencer: any
   ): DynamicStructuredTool[] {
     const tools: DynamicStructuredTool[] = []
+    const takenNames = new Map<string, string>()
 
     for (const tool of mcpTools) {
+      const serverName = tool._mcpServer || 'Unknown'
       try {
-        const serverName = tool._mcpServer || 'Unknown'
+        const wireName = sanitizeToolName(tool.name)
+        if (!wireName) {
+          remixAILogger.warn(`[RemixToolAdapter] Skipping "${tool.name}" from ${serverName}: no usable function name`)
+          continue
+        }
+        const owner = takenNames.get(wireName)
+        if (owner) {
+          remixAILogger.warn(`[RemixToolAdapter] Skipping "${tool.name}" from ${serverName}: name "${wireName}" already provided by ${owner}`)
+          continue
+        }
 
-        // Convert inputSchema to Zod schema
-        const zodSchema = jsonSchemaToZod(tool.inputSchema)
+        // Convert inputSchema to Zod schema. withTolerantKeys only affects
+        // validation — the JSON Schema the model is shown is unchanged.
+        const zodSchema = withTolerantKeys(jsonSchemaToZod(tool.inputSchema))
 
         let func = async (input: Record<string, any>): Promise<string> => {
           try {
@@ -84,17 +96,21 @@ export class RemixToolAdapter {
           func = this.approvalGate.wrap(tool.name, func)
         }
 
-        const description = serverName.toLowerCase().includes('remix') ? tool.description : `[${serverName}] ${tool.description}` // Prefix description with server name for non-Remix tools to provide context to the LLM.
+        const baseDescription = (tool.description || '').trim() || `The ${tool.name} tool.`
+        const description = serverName.toLowerCase().includes('remix')
+          ? baseDescription
+          : `[${serverName}] ${baseDescription}`
         const langChainTool = new DynamicStructuredTool({
-          name: tool.name,
+          name: wireName,
           description,
           schema: zodSchema,
           func
         })
 
+        takenNames.set(wireName, serverName)
         tools.push(langChainTool)
       } catch (error) {
-        remixAILogger.warn(`[RemixToolAdapter] Failed to convert tool ${tool.name}:`, error)
+        remixAILogger.warn(`[RemixToolAdapter] Failed to convert tool ${tool.name} from ${serverName}:`, error)
       }
     }
 
@@ -102,7 +118,7 @@ export class RemixToolAdapter {
   }
 
   private convertToLangChainTool(toolDef: RemixToolDefinition): DynamicStructuredTool {
-    const zodSchema = jsonSchemaToZod(toolDef.inputSchema)
+    const zodSchema = withTolerantKeys(jsonSchemaToZod(toolDef.inputSchema))
 
     let func = async (input: Record<string, any>): Promise<string> => {
       try {

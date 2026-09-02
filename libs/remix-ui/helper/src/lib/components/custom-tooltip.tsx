@@ -1,6 +1,7 @@
 import React, { useEffect, useState, Fragment } from 'react'
 import { OverlayTrigger, Popover } from 'react-bootstrap'
 import { CustomTooltipType } from '../../types/customtooltip'
+import '../css/helper.css'
 
 export function CustomTooltip({ children, placement, tooltipId, tooltipClasses, tooltipText, tooltipTextClasses, delay, hide, show }: CustomTooltipType) {
   // Global tooltip disable flag for E2E tests
@@ -20,7 +21,7 @@ export function CustomTooltip({ children, placement, tooltipId, tooltipClasses, 
 
   if (typeof tooltipText !== 'string') {
     tooltipText = React.cloneElement(tooltipText, {
-      className: ' bg-body text-wrap p-1 px-2 '
+      className: ' text-wrap p-1 px-2 '
     })
   }
 
@@ -35,13 +36,13 @@ export function CustomTooltip({ children, placement, tooltipId, tooltipClasses, 
       trigger={undefined}
       placement={placement}
       overlay={
-        <Popover id={`popover-positioned-${placement}`} style={{ zIndex: 10000 }}>
+        <Popover id={`popover-positioned-${placement}`} className="remixui-tooltip-popover" style={{ zIndex: 10000 }}>
           <Popover.Body
-            id={!tooltipId ? `${tooltipText}Tooltip` : tooltipId}
+            id={!tooltipId ? (typeof tooltipText === 'string' ? `${tooltipText}Tooltip` : undefined) : tooltipId}
             style={{ minWidth: 'fit-content' }}
-            className={'text-wrap p-1 px-2 bg-body w-100' + tooltipClasses}
+            className={`text-wrap p-1 px-2 w-100 ${tooltipClasses || ''}`}
           >
-            {typeof tooltipText === 'string' ? <span className={'text-wrap p-1 px-2 bg-body ' + tooltipTextClasses}>{tooltipText}</span> : tooltipText}
+            {typeof tooltipText === 'string' ? <span className={'text-wrap p-1 px-2 ' + tooltipTextClasses}>{tooltipText}</span> : tooltipText}
           </Popover.Body>
         </Popover>
       }>

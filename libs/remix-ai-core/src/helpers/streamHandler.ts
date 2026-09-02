@@ -122,7 +122,7 @@ export const HandleStreamResponse = async (streamResponse, cb: (streamText: stri
   }
 };
 
-export const HandleOpenAIResponse = async (aiResponse: IAIStreamResponse | any, cb: (streamText: string) => void, done_cb?: (result: string, thrID:string) => void, thinking_cb?: (isThinking: boolean) => void) => {
+export const HandleOpenAICompatibleResponse = async (aiResponse: IAIStreamResponse | any, cb: (streamText: string) => void, done_cb?: (result: string, thrID:string) => void, thinking_cb?: (isThinking: boolean) => void) => {
   // Handle both IAIStreamResponse format and plain response for backward compatibility
   const streamResponse = aiResponse?.streamResponse || aiResponse
   const uiToolCallback = aiResponse?.uiToolCallback
@@ -179,7 +179,7 @@ export const HandleOpenAIResponse = async (aiResponse: IAIStreamResponse | any, 
           const jsonStr = line.replace(/^data: /, "").trim();
           if (jsonStr === "[DONE]") {
             if (!abortSignal?.aborted) {
-              trackTokenUsage(usage, 'openai', modelId);
+              trackTokenUsage(usage, 'openai-compatible', modelId);
               done_cb?.(resultText, threadId);
             }
             settled = true;
@@ -238,7 +238,7 @@ export const HandleOpenAIResponse = async (aiResponse: IAIStreamResponse | any, 
               }
               cb("\n\n");
               settled = true; // the recursive call owns done_cb from here
-              HandleOpenAIResponse(response, cb, done_cb)
+              HandleOpenAICompatibleResponse(response, cb, done_cb)
               return;
             }
 
@@ -300,291 +300,8 @@ export const HandleOpenAIResponse = async (aiResponse: IAIStreamResponse | any, 
   }
 
   if (!settled && !abortSignal?.aborted) {
-    trackTokenUsage(usage, 'openai', modelId);
+    trackTokenUsage(usage, 'openai-compatible', modelId);
     done_cb?.(resultText, threadId);
-  }
-}
-
-export const HandleMistralAIResponse = async (aiResponse: IAIStreamResponse | any, cb: (streamText: string) => void, done_cb?: (result: string, thrID:string) => void) => {
-  // Handle both IAIStreamResponse format and plain response for backward compatibility
-  const streamResponse = aiResponse?.streamResponse || aiResponse
-  const tool_callback = aiResponse?.callback
-  const uiToolCallback = aiResponse?.uiToolCallback
-  const abortSignal = aiResponse?.abortSignal
-  const modelId = aiResponse?.modelId
-  const reader = streamResponse.body?.getReader();
-  const decoder = new TextDecoder("utf-8");
-  let buffer = "";
-  let threadId: string = ""
-  let resultText = "";
-  let usage: any = null; // Track token usage
-  // See HandleOpenAIResponse — guarantees done_cb fires exactly once.
-  let settled = false;
-
-  if (!reader) { // normal response, not a stream
-    if (streamResponse.result) {
-      cb(streamResponse.result)
-      done_cb?.(streamResponse.result, streamResponse?.threadId || "");
-    } else {
-      const errorMessage = "Error: Unable to to process your request. Try again!";
-      cb(errorMessage);
-      done_cb?.(errorMessage, streamResponse?.threadId || "");
-    }
-    return;
-  }
-
-  try {
-    // eslint-disable-next-line no-constant-condition
-    while (true) {
-      // Check if aborted
-      if (abortSignal?.aborted) {
-        reader.cancel().catch(() => {});
-        return;
-      }
-
-      const { done, value } = await reader.read();
-      if (done) break;
-
-      // Accumulate and keep the trailing partial line for the next read.
-      buffer += decoder.decode(value, { stream: true });
-
-      const lines = buffer.split("\n");
-      buffer = lines.pop() ?? "";
-      for (const line of lines) {
-        if (line.startsWith("data: ")) {
-          const jsonStr = line.replace(/^data: /, "").trim();
-          if (jsonStr === "[DONE]") {
-            trackTokenUsage(usage, 'mistralai', modelId);
-            done_cb?.(resultText, threadId);
-            settled = true;
-            return;
-          }
-
-          // Skip empty JSON strings
-          if (!jsonStr || jsonStr.length === 0) {
-            continue;
-          }
-
-          try {
-            const json = JSON.parse(jsonStr);
-            threadId = json?.id || threadId;
-
-            // Extract usage information if available
-            if (json.usage) {
-              usage = json.usage;
-            }
-
-            // Optional chaining: OpenRouter emits chunks that carry no
-            // `choices` (routing/usage frames). `json.choices[0]` threw on
-            // those and the catch below aborted the whole stream.
-            if (json.choices?.[0]?.delta?.tool_calls && tool_callback){
-              const toolCalls = json.choices[0].delta.tool_calls;
-              const response = await tool_callback(toolCalls, uiToolCallback)
-
-              // Preserve the uiToolCallback and abortSignal from the response if it exists (from subsequent calls)
-              if (response && typeof response === 'object') {
-                if (!response.uiToolCallback && uiToolCallback) {
-                  response.uiToolCallback = uiToolCallback;
-                }
-                if (!response.abortSignal && abortSignal) {
-                  response.abortSignal = abortSignal;
-                }
-              }
-              settled = true; // the recursive call owns done_cb from here
-              HandleMistralAIResponse(response, cb, done_cb)
-            } else if (json.choices?.[0]?.delta?.content){
-              const content = json.choices[0].delta.content
-              cb(content);
-              resultText += content;
-            } else {
-              continue
-            }
-          } catch (e) {
-            remixAILogger.error("MistralAI Stream parse error:", e);
-            remixAILogger.error("Problematic JSON string:", jsonStr);
-            const errorMessage = "Network Error: Unable to process the AI response. Please try again";
-            cb(errorMessage);
-            done_cb?.(errorMessage, threadId);
-            return;
-          }
-        }
-      }
-    }
-  } catch (error) {
-    if (error.name !== 'AbortError') {
-      remixAILogger.error('Error processing MistralAI stream:', error);
-    }
-  }
-
-  // No `[DONE]` frame — settle so the UI stops streaming (see OpenAI handler).
-  if (!settled && !abortSignal?.aborted) {
-    trackTokenUsage(usage, 'mistralai', modelId);
-    done_cb?.(resultText, threadId);
-  }
-}
-
-export const HandleAnthropicResponse = async (aiResponse: IAIStreamResponse | any, cb: (streamText: string) => void, done_cb?: (result: string, thrID:string) => void, thinking_cb?: (isThinking: boolean) => void) => {
-  // Handle both IAIStreamResponse format and plain response for backward compatibility
-  const streamResponse = aiResponse?.streamResponse || aiResponse
-  const uiToolCallback = aiResponse?.uiToolCallback
-  const tool_callback = aiResponse?.callback
-  const abortSignal = aiResponse?.abortSignal
-  const modelId = aiResponse?.modelId
-  const reader = streamResponse.body?.getReader();
-  const decoder = new TextDecoder("utf-8");
-  let buffer = "";
-  let resultText = "";
-  let inThinking = false;
-  const toolUseBlocks: Map<number, any> = new Map();
-  let currentBlockIndex: number = -1;
-  let usage: any = null; // Track token usage
-  // See HandleOpenAIResponse — guarantees done_cb fires exactly once.
-  let settled = false;
-
-  if (!reader) { // normal response, not a stream
-    if (streamResponse.result) {
-      cb(streamResponse.result)
-      done_cb?.(streamResponse.result, streamResponse?.threadId || "");
-    } else {
-      const errorMessage = "Error: Unable to to process your request. Try again!";
-      cb(errorMessage);
-      done_cb?.(errorMessage, streamResponse?.threadId || "");
-    }
-    return;
-  }
-
-  try {
-    // eslint-disable-next-line no-constant-condition
-    while (true) {
-      // Check if aborted
-      if (abortSignal?.aborted) {
-        reader.cancel().catch(() => {});
-        return;
-      }
-
-      const { done, value } = await reader.read();
-      if (done) break;
-
-      // Append — see HandleOpenAIResponse: overwriting drops the carried-over
-      // partial line and silently loses whatever event it belonged to.
-      buffer += decoder.decode(value, { stream: true });
-      const lines = buffer.split("\n");
-      buffer = lines.pop() ?? ""; // Keep the unfinished line for next chunk
-      for (const line of lines) {
-        if (line.startsWith("data: ")) {
-          const jsonStr = line.replace(/^data: /, "").trim();
-
-          try {
-            const json = JSON.parse(jsonStr);
-
-            if (json.type === "message_delta" && json.usage) {
-              usage = {
-                prompt_tokens: json.usage.input_tokens,
-                completion_tokens: json.usage.output_tokens,
-                total_tokens: (json.usage.input_tokens || 0) + (json.usage.output_tokens || 0)
-              };
-            }
-
-            if (json.type === "message_stop"){
-              trackTokenUsage(usage, 'anthropic', modelId);
-              done_cb?.(resultText, "");
-              settled = true;
-              return;
-            }
-
-            // Handle tool use block start in Anthropic format
-            if (json.type === "content_block_start" && json.content_block?.type === "tool_use") {
-              currentBlockIndex = json.index;
-              toolUseBlocks.set(currentBlockIndex, {
-                id: json.content_block.id,
-                name: json.content_block.name,
-                input: ""
-              });
-            }
-
-            // Accumulate tool input deltas
-            if (json.type === "content_block_delta" && json.delta?.type === "input_json_delta") {
-              if (currentBlockIndex >= 0 && toolUseBlocks.has(json.index)) {
-                const block = toolUseBlocks.get(json.index);
-                block.input += json.delta.partial_json;
-              }
-            }
-
-            // Handle tool calls when message stops for tool use
-            if (json.type === "message_delta" && json.delta?.stop_reason === "tool_use" && tool_callback) {
-
-              // Convert accumulated tool use blocks to tool calls format
-              const toolCalls = Array.from(toolUseBlocks.values()).map(block => ({
-                id: block.id,
-                function: {
-                  name: block.name,
-                  arguments: block.input
-                }
-              }));
-
-              if (toolCalls.length > 0) {
-                const response = await tool_callback(toolCalls, uiToolCallback)
-                if (response && typeof response === 'object') {
-                  if (!response.uiToolCallback && uiToolCallback) {
-                    response.uiToolCallback = uiToolCallback;
-                  }
-                  if (!response.abortSignal && abortSignal) {
-                    response.abortSignal = abortSignal;
-                  }
-                }
-                cb("\n\n");
-                settled = true; // the recursive call owns done_cb from here
-                HandleAnthropicResponse(response, cb, done_cb)
-                return;
-              }
-            }
-
-            // Handle thinking block start in Anthropic format
-            if (json.type === "content_block_start" && json.content_block?.type === "thinking") {
-              if (!inThinking) {
-                inThinking = true
-                thinking_cb?.(true)
-              }
-            }
-
-            // Handle thinking block stop
-            if (json.type === "content_block_stop" && inThinking) {
-              inThinking = false
-              thinking_cb?.(false)
-            }
-
-            // Suppress thinking deltas from regular content
-            if (json.type === "content_block_delta" && json.delta?.type === "thinking_delta") {
-              continue;
-            }
-
-            // Handle text content deltas
-            if (json.type === "content_block_delta" && json.delta?.type === "text_delta") {
-              cb(json.delta.text);
-              resultText += json.delta.text;
-            }
-          } catch (e) {
-            remixAILogger.error("Anthropic Stream parse error:", e);
-            remixAILogger.error("Problematic JSON string:", jsonStr);
-            const errorMessage = "Network Error: Unable to process the AI response. Please try again";
-            cb(errorMessage);
-            done_cb?.(errorMessage, "");
-            thinking_cb?.(false)
-            return;
-          }
-        }
-      }
-    }
-  } catch (error) {
-    if (error.name !== 'AbortError') {
-      remixAILogger.error('Error processing Anthropic stream:', error);
-    }
-  }
-
-  // No `message_stop` frame — settle so the UI stops streaming.
-  if (!settled && !abortSignal?.aborted) {
-    trackTokenUsage(usage, 'anthropic', modelId);
-    done_cb?.(resultText, "");
   }
 }
 

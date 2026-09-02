@@ -8,8 +8,111 @@ import {
 } from '../../helpers/quickDappGenerationContext'
 import { clearQuickDappDocsContext, getQuickDappDocsContext } from '../../helpers/quickDappDocsContext'
 
-// File size limit for auto-summarization (100KB)
 const MAX_FILE_SIZE = 100 * 1024
+const MAX_WALK_ENTRIES = 20000
+const SKIPPED_DIRECTORIES = new Set(['node_modules', '.git', '.nx', 'dist'])
+
+interface FileInfo {
+  name: string
+  path: string
+  is_dir: boolean
+}
+
+interface BackendError {
+  error: string
+}
+
+interface GrepMatch {
+  path: string
+  file: string
+  line: number
+  text: string
+}
+
+/** Path of `absolute` relative to `root`, with no leading slash. */
+const relativeTo = (root: string, absolute: string): string => {
+  const base = root.endsWith('/') ? root : `${root}/`
+  const relative = absolute.startsWith(base) ? absolute.slice(base.length) : absolute
+  return relative.replace(/^\//, '')
+}
+
+/**
+ * Translate a glob into a regex: a double star crosses directories, `*` and `?`
+ * do not, `{a,b}` alternates, `[abc]` / `[!abc]` are character classes. A
+ * leading double-star segment is optional so a recursive pattern also matches
+ * files sitting at the search root. Case-insensitive, since a workspace search
+ * that misses on capitalisation just reads as "file not found".
+ */
+const globToRegExp = (pattern: string): RegExp => {
+  let out = ''
+  let braceDepth = 0
+
+  for (let i = 0; i < pattern.length; i++) {
+    const char = pattern[i]
+    if (char === '*') {
+      if (pattern[i + 1] === '*') {
+        i++
+        if (pattern[i + 1] === '/') {
+          i++
+          out += '(?:[^\0]*/)?'
+        } else {
+          out += '[^\0]*'
+        }
+      } else {
+        out += '[^/]*'
+      }
+    } else if (char === '?') {
+      out += '[^/]'
+    } else if (char === '[') {
+      // Character class — pass it through, mapping the glob negation marker.
+      const close = pattern.indexOf(']', i + 1)
+      if (close === -1) {
+        out += '\\['
+      } else {
+        const body = pattern.slice(i + 1, close)
+        out += `[${body.startsWith('!') ? `^${body.slice(1)}` : body}]`
+        i = close
+      }
+    } else if (char === '{') {
+      braceDepth++
+      out += '(?:'
+    } else if (char === '}' && braceDepth > 0) {
+      braceDepth--
+      out += ')'
+    } else if (char === ',' && braceDepth > 0) {
+      // A comma only separates alternatives inside braces; elsewhere it is
+      // part of the filename.
+      out += '|'
+    } else {
+      out += char.replace(/[.+^$()|[\]\\{}]/g, '\\$&')
+    }
+  }
+
+  return new RegExp(`^${out}$`, 'i')
+}
+
+const matchesGlob = (relativePath: string, name: string, pattern: string): boolean => {
+  const cleaned = pattern.replace(/^\.\//, '').replace(/^\//, '')
+  if (!cleaned || cleaned === '*' || cleaned === '**') return true
+  let regex: RegExp
+  try {
+    regex = globToRegExp(cleaned)
+  } catch (e) {
+    return false
+  }
+  if (regex.test(relativePath)) return true
+  return !cleaned.includes('/') && regex.test(name)
+}
+
+const buildContentMatcher = (pattern: string): (line: string) => boolean => {
+  let regex: RegExp | null = null
+  try {
+    regex = new RegExp(pattern)
+  } catch (e) {
+    regex = null
+  }
+  return (line: string) => line.includes(pattern) || (regex ? regex.test(line) : false)
+}
 
 interface EditInstruction {
   oldText: string
@@ -191,6 +294,7 @@ export class RemixFilesystemBackend {
     await Promise.all(files.map(file => this.flushEditBatch(file)))
   }
 
+  /** Always absolute: `getCurrentFile` returns a workspace-relative path. */
   async cwd(): Promise<string> {
     await this.flushAllPendingBatches()
     try {
@@ -199,7 +303,7 @@ export class RemixFilesystemBackend {
       if (currentFile) {
         const lastSlash = currentFile.lastIndexOf('/')
         if (lastSlash > 0) {
-          return currentFile.substring(0, lastSlash)
+          return this.normalizePath(currentFile.substring(0, lastSlash))
         }
       }
     } catch (e) {
@@ -437,56 +541,24 @@ export class RemixFilesystemBackend {
     }
   }
 
-  async ls(path?: string): Promise<string[]> {
-    await this.flushAllPendingBatches()
-    try {
-
-      const targetPath = path ? this.normalizePath(path) : await this.cwd()
-
-      const exists = await this.plugin.call('fileManager', 'exists', targetPath)
-      if (!exists) {
-        throw new Error(`Path not found: ${targetPath}`)
-      }
-
-      const isDir = await this.plugin.call('fileManager', 'isDirectory', targetPath)
-      if (!isDir) {
-        throw new Error(`Not a directory: ${targetPath}`)
-      }
-
-      const files = await this.plugin.call('fileManager', 'readdir', targetPath)
-      return Object.keys(files).map(name => {
-        const fullPath = `${targetPath}/${name}`.replace('//', '/')
-        return files[name].isDirectory ? `${name}/` : name
-      })
-    } catch (error) {
-      return [`Failed to list directory ${path || 'cwd'}: ${error.message}`]
-    }
+  async ls(path?: string): Promise<FileInfo[] | BackendError> {
+    return this.lsInfo(path)
   }
 
-  async lsInfo(path?: string): Promise<{ name: string, path: string, is_dir: boolean }[]> {
+  async lsInfo(path?: string): Promise<FileInfo[] | BackendError> {
     await this.flushAllPendingBatches()
     try {
       const targetPath = path ? this.normalizePath(path) : await this.cwd()
       const exists = await this.plugin.call('fileManager', 'exists', targetPath)
-      if (!exists) {
-        throw new Error(`Path not found: ${targetPath}`)
-      }
+      if (!exists) return { error: `Path not found: ${targetPath}` }
 
       const isDir = await this.plugin.call('fileManager', 'isDirectory', targetPath)
-      if (!isDir) {
-        throw new Error(`Not a directory: ${targetPath}`)
-      }
+      if (!isDir) return { error: `Not a directory: ${targetPath}` }
 
-      const files = await this.plugin.call('fileManager', 'readdir', targetPath)
-
-      const res = Object.keys(files).map(name => ({
-        name,
-        path: `${name}`.replace('//', '/'),
-        is_dir: files[name].isDirectory
-      }))
-      return res
+      return await this.readEntries(targetPath)
     } catch (error) {
-      return []
+      remixAILogger.warn('[Backend] ls failed', path, error)
+      return { error: `Failed to list ${path || 'cwd'}: ${error.message}` }
     }
   }
 
@@ -499,87 +571,118 @@ export class RemixFilesystemBackend {
     }
   }
 
-  async globInfo(pattern: string, path?: string): Promise<{ name: string, path: string, is_dir: boolean }[]> {
+  async globInfo(pattern: string, path?: string): Promise<FileInfo[] | BackendError> {
     await this.flushAllPendingBatches()
     try {
-      const targetPath = path ? this.normalizePath(path) : await this.cwd()
+      const targetPath = path ? this.normalizePath(path) : this.workspaceRoot
       const exists = await this.plugin.call('fileManager', 'exists', targetPath)
-      if (!exists) {
-        return []
-      }
+      if (!exists) return { error: `Path not found: ${targetPath}` }
 
       const isDir = await this.plugin.call('fileManager', 'isDirectory', targetPath)
       if (!isDir) {
-        // Not a directory — return the file itself if it matches the pattern
         const name = targetPath.split('/').pop() || targetPath
-        const regex = new RegExp(pattern.replace(/\*/g, '.*'))
-        if (regex.test(name)) {
-          return [{ name, path: targetPath, is_dir: false }]
-        }
-        return []
+        return matchesGlob(name, name, pattern) ? [{ name, path: targetPath, is_dir: false }] : []
       }
 
-      const files = await this.plugin.call('fileManager', 'readdir', targetPath)
-      const regex = new RegExp(pattern.replace(/\*/g, '.*')) // Simple glob to regex conversion
-
-      return Object.keys(files)
-        .filter(name => regex.test(name))
-        .map(name => ({
-          name,
-          path: `${name}`.replace('//', '/'),
-          is_dir: files[name].isDirectory
-        }))
+      const entries = await this.walk(targetPath)
+      return entries
+        .filter(entry => !entry.is_dir && matchesGlob(relativeTo(targetPath, entry.path), entry.name, pattern))
+        .sort((a, b) => a.path.localeCompare(b.path))
     } catch (error) {
-      return []
+      remixAILogger.warn('[Backend] glob failed', pattern, path, error)
+      return { error: `Failed to glob '${pattern}': ${error.message}` }
     }
   }
 
-  async grepRaw(pattern: string, path?: string): Promise<{ file: string, line: number, text: string }[]> {
+  async grepRaw(
+    pattern: string, path?: string, glob?: string | null, maxCount?: number | null
+  ): Promise<GrepMatch[] | BackendError> {
+    await this.flushAllPendingBatches()
     try {
-      const targetPath = path ? this.normalizePath(path) : await this.cwd()
+      const targetPath = path ? this.normalizePath(path) : this.workspaceRoot
       const exists = await this.plugin.call('fileManager', 'exists', targetPath)
-      if (!exists) {
-        return [{ file: targetPath, line: 0, text: `[Error] Path not found: ${targetPath}` }]
-      }
+      if (!exists) return { error: `Path not found: ${targetPath}` }
 
       const isDir = await this.plugin.call('fileManager', 'isDirectory', targetPath)
+      const matcher = buildContentMatcher(pattern)
 
-      // If a file path was given, search just that single file
-      if (!isDir) {
-        const content = await this.plugin.call('fileManager', 'readFile', targetPath)
-        const regex = new RegExp(pattern)
-        const results: { file: string, line: number, text: string }[] = []
+      // `path` is the field deepagents groups matches by (`buildGrepResultsDict`);
+      // returning `file` instead is what produced tool output that read
+      // literally "undefined" with every match collapsed under one key.
+      const files: FileInfo[] = isDir
+        ? (await this.walk(targetPath)).filter(entry => !entry.is_dir)
+        : [{ name: targetPath.split('/').pop() || targetPath, path: targetPath, is_dir: false }]
+
+      const results: GrepMatch[] = []
+      const limit = maxCount && maxCount > 0 ? maxCount : Infinity
+
+      for (const file of files) {
+        if (results.length >= limit) break
+        if (glob && !matchesGlob(relativeTo(targetPath, file.path), file.name, glob)) continue
+
+        let content: string
+        try {
+          content = await this.plugin.call('fileManager', 'readFile', file.path)
+        } catch (e) {
+          continue
+        }
+        if (typeof content !== 'string') continue
+
         const lines = content.split('\n')
-        lines.forEach((line: string, index: number) => {
-          if (regex.test(line)) {
-            results.push({ file: targetPath, line: index + 1, text: line })
+        for (let i = 0; i < lines.length && results.length < limit; i++) {
+          if (matcher(lines[i])) {
+            results.push({ path: file.path, file: file.path, line: i + 1, text: lines[i] })
           }
-        })
-        return results
-      }
-
-      const files = await this.plugin.call('fileManager', 'readdir', targetPath)
-      const regex = new RegExp(pattern)
-
-      const results: { file: string, line: number, text: string }[] = []
-
-      for (const name of Object.keys(files)) {
-        if (!files[name].isDirectory) {
-          // Remix readdir returns full paths as keys (Ref: Yann PR #7080)
-          const content = await this.plugin.call('fileManager', 'readFile', name)
-          const lines = content.split('\n')
-          lines.forEach((line: string, index: number) => {
-            if (regex.test(line)) {
-              results.push({ file: name, line: index + 1, text: line })
-            }
-          })
         }
       }
       return results
     } catch (error) {
-      // Return error as result instead of throwing — prevents fatal agent crash
-      return [{ file: path || 'unknown', line: 0, text: `[Error] grep failed: ${error.message}` }]
+      remixAILogger.warn('[Backend] grep failed', pattern, path, error)
+      return { error: `Failed to grep '${pattern}': ${error.message}` }
     }
+  }
+
+  /** One directory level, as absolute paths. */
+  private async readEntries(dir: string): Promise<FileInfo[]> {
+    const entries = await this.plugin.call('fileManager', 'readdir', dir)
+    return Object.keys(entries || {}).map(key => {
+      const absolute = key.startsWith('/') ? key : `/${key}`
+      return {
+        name: absolute.split('/').pop() || absolute,
+        path: absolute,
+        is_dir: !!entries[key]?.isDirectory
+      }
+    })
+  }
+
+  /** Every entry under `root`, depth-first. */
+  private async walk(root: string): Promise<FileInfo[]> {
+    const collected: FileInfo[] = []
+    const queue = [root]
+    const seen = new Set<string>([root])
+
+    while (queue.length > 0 && collected.length < MAX_WALK_ENTRIES) {
+      const dir = queue.shift() as string
+      let entries: FileInfo[]
+      try {
+        entries = await this.readEntries(dir)
+      } catch (e) {
+        continue
+      }
+
+      for (const entry of entries) {
+        collected.push(entry)
+        if (entry.is_dir && !SKIPPED_DIRECTORIES.has(entry.name) && !seen.has(entry.path)) {
+          seen.add(entry.path)
+          queue.push(entry.path)
+        }
+      }
+    }
+
+    if (collected.length >= MAX_WALK_ENTRIES) {
+      remixAILogger.warn(`[Backend] walk of ${root} hit the ${MAX_WALK_ENTRIES}-entry cap`)
+    }
+    return collected
   }
 
   private normalizePath(path: string): string {

@@ -50,8 +50,13 @@ export interface AppEvent extends MatomoEventBase {
     | 'error'
     | 'PreloadError'
     | 'queryParams-calls'
+    | 'queryParams-migrate'
+    | 'ConfirmedMigrationRedirect'
+    | 'MigrationConfirmed'
+    | 'MigrationConfirmFailed'
     | 'MobileRedirect'
-    | 'MobileRedirectOverride';
+    | 'MobileRedirectOverride'
+    | 'FreshUserDomainRedirect';
 }
 
 export interface MigrateEvent extends MatomoEventBase {

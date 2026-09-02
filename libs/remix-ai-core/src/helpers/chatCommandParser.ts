@@ -75,7 +75,8 @@ export class ChatCommandParser {
   }
 
   private async handleAssistant(provider: string, ref) {
-    if (provider === 'openai' || provider === 'mistralai' || provider === 'anthropic' || provider === 'ollama') {
+    // Only the three transports are selectable; the vendor brands are gone.
+    if (provider === 'openrouter' || provider === 'bedrock' || provider === 'ollama') {
       try {
         // Special handling for Ollama - check availability first
         if (provider === 'ollama') {

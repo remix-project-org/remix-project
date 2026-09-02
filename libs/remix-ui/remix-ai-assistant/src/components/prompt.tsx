@@ -110,7 +110,6 @@ export interface PromptAreaProps {
   ollamaModels: any[]
   themeTracker: any
   stopRequest: () => void
-  autoModeEnabled?: boolean
   handleLoadSkills?: () => void
   usingOwnApiKey?: boolean
   aiRoute?: 'initializing' | 'agent' | 'tools' | 'chat'
@@ -154,7 +153,6 @@ export const PromptArea: React.FC<PromptAreaProps> = ({
   showOllamaModelSelector,
   selectedOllamaModel,
   modelSelectorBtnRef,
-  autoModeEnabled,
   usingOwnApiKey,
   aiRoute = 'chat',
   aiRouteReady = true,
@@ -669,7 +667,7 @@ export const PromptArea: React.FC<PromptAreaProps> = ({
               >
                 <div className="d-flex flex-row flex-nowrap align-items-center justify-content-center">
                   <span className="text-nowrap">
-                    {autoModeEnabled ? 'Auto Mode' : (selectedModel?.displayName || 'Select Model')}
+                    {selectedModel?.displayName || 'Select Model'}
                   </span>
                   {usingOwnApiKey && (
                     <CustomTooltip tooltipText="Using your own API key">

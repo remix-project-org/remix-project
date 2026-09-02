@@ -12,7 +12,7 @@ import { generateWalletSelectionScript } from '../../utils/wallet-selection-scri
 import { validateEnsName } from '../../utils/ens-utils';
 import { buildGraphRuntimeConfigScript, hasTheGraphGatewaySources } from '../../utils/graph-runtime-config';
 import { buildQuickDappRuntimeConfigScript } from '../../utils/quick-dapp-runtime-config';
-import { buildZkRuntimeConfigScript, hasZkCircuit } from '../../utils/zkverify-runtime-config';
+import { buildZkRuntimeConfigScript, hasZkCircuit, getZkDappSummary } from '../../utils/zkverify-runtime-config';
 import { getQuickDappPublishLabel, getQuickDappPublishState } from '../../utils/publish-state';
 import {
   clearQuickDappWorkspaceLock,
@@ -694,6 +694,22 @@ function DeployPanel({ isDeleteInFlight, publishRequestId = 0 }: DeployPanelProp
                 {renderInfoRow('Path', activeDapp.sourceWorkspace?.filePath, true)}
               </div>
             )}
+
+            {hasZkCircuit(activeDapp) && (() => {
+              const zkSummary = getZkDappSummary(activeDapp);
+              return (
+                <div className="mb-3">
+                  <div className="text-uppercase text-muted mb-1">ZK Verification</div>
+                  {renderInfoRow('Method', zkSummary.verificationMethod === 'onchain' ? 'On-chain verifier contract' : 'zkVerify (off-chain)')}
+                  {zkSummary.verificationMethod === 'onchain' && (
+                    <>
+                      {renderInfoRow('Verifier network', zkSummary.onChainVerifier?.networkName || zkSummary.onChainVerifier?.chainId)}
+                      {renderInfoRow('Verifier address', zkSummary.onChainVerifier?.address, true)}
+                    </>
+                  )}
+                </div>
+              );
+            })()}
 
             <div className="mb-3">
               <div className="text-uppercase text-muted mb-1">Workspace</div>

@@ -415,6 +415,7 @@ export class ResolveConflictsHandler extends BaseToolHandler {
             },
             recommendations: {
               type: 'array',
+              description: 'The competing recommendations to resolve.',
               items: {
                 type: 'object',
                 properties: {

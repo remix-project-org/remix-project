@@ -19,13 +19,13 @@ import { processScopes } from '../../helpers/scopeProcessor';
  */
 export class StartDebugSessionHandler extends BaseToolHandler {
   name = 'start_debug_session';
-  description = '';
+  description = 'Open the debugger on a transaction. Required before any other debug tool.';
   inputSchema = {
     type: 'object',
     properties: {
       transactionHash: {
         type: 'string',
-        description: '',
+        description: 'Transaction to debug (0x..., 32 bytes).',
         pattern: '^0x[a-fA-F0-9]{64}$'
       },
       /*
@@ -725,7 +725,7 @@ export function createDebuggingTools(): RemixToolDefinition[] {
   return [
     {
       name: 'start_debug_session',
-      description: 'Start a debugging session for a smart contract',
+      description: new StartDebugSessionHandler().description,
       inputSchema: new StartDebugSessionHandler().inputSchema,
       category: ToolCategory.DEBUGGING,
       permissions: ['debug:start'],

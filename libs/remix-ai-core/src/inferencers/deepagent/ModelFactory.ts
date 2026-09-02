@@ -1,505 +1,107 @@
-import { remixAILogger } from '../../helpers/logger'
-import { ChatAnthropic } from '@langchain/anthropic'
-import { ChatMistralAI } from '@langchain/mistralai'
-import { ChatOpenAI } from '@langchain/openai'
-import { ChatOpenRouter } from '@langchain/openrouter'
-import { ChatOllama } from '@langchain/ollama'
-import { ChatBedrockConverse } from '@langchain/aws'
 import { BaseChatModel } from '@langchain/core/language_models/chat_models'
-import { HTTPClient } from '@mistralai/mistralai/lib/http.js'
-import { endpointUrls } from '@remix-endpoints-helper'
-import { ModelSelection, IUserApiKeyConfig } from '../../types/deepagent'
+import { remixAILogger } from '../../helpers/logger'
+import { IUserApiKeyConfig, ModelSelection } from '../../types/deepagent'
 import { DAPP_MAX_TOKENS } from './constants'
-import { getRemixAuthHeader } from '../auth'
-import { discoverOllamaHost, getBestAvailableModel, getModelCapabilities } from '../local/ollama'
+import { resolveModelParams, ResolvedModelParams } from './modelParams'
+import { getProviderAdapter } from './providers'
+import { onApiKeysChange } from './deepAgentSettingsEvents'
 
-const AI_DEBUG = (() => {
-  try { return typeof window !== 'undefined' && window.localStorage?.getItem('AI_DEBUG') === 'true' } catch { return false }
-})()
-
-const DEFAULT_BEDROCK_REGION = 'us-east-1'
-
-/**
- * fetch wrapper that injects the user's Remix bearer token on every request.
- * Reads the token fresh from localStorage so login/logout takes effect
- * without rebuilding the cached ChatAnthropic instance.
- */
-const authedFetch: typeof fetch = (input, init = {}) => {
-  const headers = new Headers(init.headers || {})
-  const auth = getRemixAuthHeader()
-  if (auth.Authorization) {
-    headers.set('Authorization', auth.Authorization)
+function fingerprint(value: string | undefined): string {
+  if (!value) return '0'
+  let h = 0
+  for (let i = 0; i < value.length; i++) {
+    h = ((h << 5) - h + value.charCodeAt(i)) | 0
   }
-  return fetch(input as any, { ...init, headers })
+  return `${value.length}.${(h >>> 0).toString(36)}`
 }
 
-const moonshotReasoningByToolCallKey = new Map<string, string>()
-const MOONSHOT_REASONING_CACHE_MAX = 200
-
-function moonshotToolCallKey(toolCalls: any[]): string {
-  const ids = toolCalls
-    .map((tc) => tc?.id)
-    .filter((id): id is string => typeof id === 'string' && id.length > 0)
-    .sort()
-  return ids.join('|')
+function cacheKey(selection: ModelSelection, params: ResolvedModelParams, userApiKeys?: IUserApiKeyConfig): string {
+  const keyPart = [
+    userApiKeys?.useOwnKeys ? '1' : '0',
+    fingerprint(userApiKeys?.openrouterApiKey),
+    fingerprint(userApiKeys?.bedrockBearerToken)
+  ].join('.')
+  return [
+    selection.provider,
+    selection.routeProvider ?? '-',
+    selection.modelId,
+    params.maxOutputTokens,
+    params.temperature,
+    params.topP ?? '-',
+    keyPart
+  ].join('::')
 }
 
-function cacheMoonshotReasoning(key: string, reasoning: string): void {
-  if (!key || !reasoning) return
-  if (moonshotReasoningByToolCallKey.size >= MOONSHOT_REASONING_CACHE_MAX) {
-    const firstKey = moonshotReasoningByToolCallKey.keys().next().value
-    if (firstKey !== undefined) moonshotReasoningByToolCallKey.delete(firstKey)
+const instanceCache = new Map<string, BaseChatModel>()
+/** In-flight builds, so two concurrent callers share one instance. */
+const pendingCache = new Map<string, Promise<BaseChatModel>>()
+
+export function clearModelCache(): void {
+  if (instanceCache.size || pendingCache.size) {
+    remixAILogger.log(`[ModelFactory] clearing model cache (${instanceCache.size} instance(s))`)
   }
-  moonshotReasoningByToolCallKey.set(key, reasoning)
+  instanceCache.clear()
+  pendingCache.clear()
 }
 
-async function captureMoonshotReasoningFromSSE(stream: ReadableStream<Uint8Array>): Promise<void> {
-  const reader = stream.getReader()
-  const decoder = new TextDecoder()
-  let buf = ''
-  let reasoning = ''
-  const toolCallsByIndex: Record<number, { id?: string }> = {}
-  try {
-    // eslint-disable-next-line no-constant-condition
-    while (true) {
-      const { done, value } = await reader.read()
-      if (done) break
-      buf += decoder.decode(value, { stream: true })
-      const lines = buf.split('\n')
-      buf = lines.pop() || ''
-      for (const line of lines) {
-        const trimmed = line.trim()
-        if (!trimmed.startsWith('data:')) continue
-        const data = trimmed.slice(5).trim()
-        if (!data || data === '[DONE]') continue
-        try {
-          const json = JSON.parse(data)
-          const delta = json?.choices?.[0]?.delta
-          if (!delta) continue
-          if (typeof delta.reasoning_content === 'string') reasoning += delta.reasoning_content
-          if (Array.isArray(delta.tool_calls)) {
-            for (const tc of delta.tool_calls) {
-              const idx = typeof tc?.index === 'number' ? tc.index : 0
-              if (!toolCallsByIndex[idx]) toolCallsByIndex[idx] = {}
-              if (typeof tc?.id === 'string' && tc.id) toolCallsByIndex[idx].id = tc.id
-            }
-          }
-        } catch {
-          /* not JSON, ignore */
-        }
-      }
-    }
-    const ids = Object.values(toolCallsByIndex)
-      .map((t) => t.id)
-      .filter((id): id is string => typeof id === 'string' && id.length > 0)
-    if (ids.length > 0 && reasoning.length > 0) {
-      cacheMoonshotReasoning(ids.sort().join('|'), reasoning)
-      if (AI_DEBUG) remixAILogger.log('[Moonshot←] cached reasoning_content for tool_calls', ids, `(${reasoning.length} chars)`)
-    }
-  } catch (e) {
-    if (AI_DEBUG) remixAILogger.warn('[Moonshot←] capture failed', e)
-  }
-}
+// A changed BYOK key changes the transport (proxy ↔ direct API), so every
+// cached instance built under the old keys is stale.
+onApiKeysChange(() => clearModelCache())
 
-function injectMoonshotReasoning(bodyText: string): string {
-  try {
-    const body = JSON.parse(bodyText)
-    if (!Array.isArray(body?.messages)) return bodyText
-    let mutated = false
-    for (const m of body.messages) {
-      if (
-        m &&
-        m.role === 'assistant' &&
-        Array.isArray(m.tool_calls) &&
-        m.tool_calls.length > 0 &&
-        (m.reasoning_content === undefined || m.reasoning_content === null)
-      ) {
-        const key = moonshotToolCallKey(m.tool_calls)
-        const cached = key ? moonshotReasoningByToolCallKey.get(key) : undefined
-        // Moonshot validates presence; supply a single-space fallback when we
-        // don't have the original (e.g. cache miss across page reload).
-        m.reasoning_content = cached ?? ' '
-        mutated = true
-        if (AI_DEBUG) remixAILogger.log('[Moonshot→] injected reasoning_content', { key, fromCache: !!cached })
-      }
-    }
-    return mutated ? JSON.stringify(body) : bodyText
-  } catch {
-    return bodyText
-  }
-}
-
-const moonshotFetch: typeof fetch = async (input, init = {}) => {
-  const headers = new Headers(init.headers || {})
-  const auth = getRemixAuthHeader()
-  if (auth.Authorization) headers.set('Authorization', auth.Authorization)
-
-  let nextInit: RequestInit = { ...init, headers }
-  if (typeof nextInit.body === 'string') {
-    nextInit = { ...nextInit, body: injectMoonshotReasoning(nextInit.body) }
-  }
-
-  const response = await fetch(input as any, nextInit)
-  const ct = response.headers.get('content-type') || ''
-  if (response.ok && response.body && ct.includes('event-stream')) {
-    const [a, b] = response.body.tee()
-    void captureMoonshotReasoningFromSSE(b)
-    return new Response(a, {
-      status: response.status,
-      statusText: response.statusText,
-      headers: response.headers
-    })
-  }
-  if (response.ok && ct.includes('application/json')) {
-    response
-      .clone()
-      .json()
-      .then((json) => {
-        const msg = json?.choices?.[0]?.message
-        if (msg?.tool_calls?.length && typeof msg.reasoning_content === 'string') {
-          const key = moonshotToolCallKey(msg.tool_calls)
-          if (key) cacheMoonshotReasoning(key, msg.reasoning_content)
-        }
-      })
-      .catch(() => {})
-  }
-  return response
+export interface CreateModelOptions {
+  /** Bypass the cache and build a fresh instance. */
+  fresh?: boolean
 }
 
 /**
- * HTTPClient (Mistral SDK) with a beforeRequest hook that injects the user's
- * Remix bearer token — evaluated per-request so login state stays in sync.
- *
- * Also dumps the outbound request body when AI_DEBUG is enabled, so we can
- * see exactly which message blocks trigger
- *   `Mistral only supports types "text" or "image_url" for complex message types.`
+ * @param maxTokens Ceiling on the output budget — the model's own advertised
+ *   limit still wins when it is lower. Defaults to the DApp generator's
+ *   budget, which is the largest any caller asks for.
  */
-
-async function dumpMistralRequest(req: Request): Promise<void> {
-  try {
-    const cloned = req.clone()
-    const text = await cloned.text()
-    let parsed: any = text
-    try { parsed = JSON.parse(text) } catch { /* not json */ }
-    // Print the messages array — that's where the offending content blocks live.
-    const msgs = parsed?.messages
-    remixAILogger.groupCollapsed(`[Mistral→] ${req.method} ${req.url}`)
-    if (Array.isArray(msgs)) {
-      msgs.forEach((m: any, i: number) => {
-        const c = m?.content
-        const shape = typeof c === 'string'
-          ? `string(${c.length})`
-          : Array.isArray(c)
-            ? `array[${c.length}]: ${c.map((b: any) => b?.type ?? typeof b).join(',')}`
-            : typeof c
-        remixAILogger.log(`  msg[${i}] role=${m?.role} content=${shape}`)
-        if (Array.isArray(c)) {
-          c.forEach((b: any, j: number) => {
-            if (b?.type !== 'text' && b?.type !== 'image_url') {
-              remixAILogger.warn(`    ⚠ block[${j}] OFFENDING type=${b?.type}`, b)
-            }
-          })
-        }
-      })
-    }
-    remixAILogger.log('full body:', parsed)
-    remixAILogger.groupEnd()
-  } catch (e) {
-    remixAILogger.warn('[Mistral→] failed to dump request', e)
-  }
-}
-
-function createAuthedMistralHttpClient(): HTTPClient {
-  const client = new HTTPClient()
-  client.addHook('beforeRequest', (req) => {
-    const auth = getRemixAuthHeader()
-    let next: Request = req
-    if (auth.Authorization) {
-      // Always overwrite: the Mistral SDK stamps a placeholder
-      // 'Authorization: Bearer proxy-handled' from the dummy apiKey, which
-      // would shadow the real Remix bearer token if we only set-when-missing.
-      next = new Request(req, { headers: new Headers(req.headers) })
-      next.headers.set('Authorization', auth.Authorization)
-    }
-    if (AI_DEBUG) void dumpMistralRequest(next)
-    return next
-  })
-  return client
-}
-
-function summarizeMessages(label: string, messages: any): void {
-  try {
-    const arr: any[] = Array.isArray(messages)
-      ? messages
-      : (messages?.messages && Array.isArray(messages.messages) ? messages.messages : [])
-    remixAILogger.groupCollapsed(`[ModelInput ${label}] ${arr.length} message(s)`)
-    arr.forEach((m, i) => {
-      const role = m?._getType?.() || m?.role || m?.constructor?.name || 'unknown'
-      const c = m?.content
-      let shape: string
-      if (typeof c === 'string') shape = `string(${c.length})`
-      else if (Array.isArray(c)) shape = `array[${c.length}]: ${c.map((b: any) => b?.type ?? typeof b).join(',')}`
-      else shape = typeof c
-      remixAILogger.log(`  [${i}] role=${role} content=${shape}`)
-      if (Array.isArray(c)) {
-        c.forEach((b: any, j: number) => {
-          if (b?.type !== 'text' && b?.type !== 'image_url') {
-            remixAILogger.warn(`     ⚠ block[${j}] OFFENDING-FOR-MISTRAL type=${b?.type}`, b)
-          }
-        })
-      }
-    })
-    remixAILogger.log('full messages:', messages)
-    remixAILogger.groupEnd()
-  } catch (e) {
-    remixAILogger.warn(`[ModelInput ${label}] dump failed`, e)
-  }
-}
-
-/**
- * Wrap a chat model so every call to invoke/stream/streamEvents logs the
- * messages being passed in. Helps diagnose the
- *   `Mistral only supports types "text" or "image_url" ...`
- * error which is raised during message conversion (before any HTTP request).
- * Enable via `localStorage.setItem('AI_DEBUG', 'true')`.
- */
-function wrapModelForDebug<T extends BaseChatModel>(model: T, label: string): T {
-  if (!AI_DEBUG) return model
-  const methodsToWrap = ['invoke', 'stream', 'streamEvents', '_generate', '_streamResponseChunks'] as const
-  for (const method of methodsToWrap) {
-    const original = (model as any)[method]
-    if (typeof original !== 'function') continue
-    ;(model as any)[method] = function (...args: any[]) {
-      summarizeMessages(`${label}.${method}`, args[0])
-      try {
-        const result = original.apply(this, args)
-        if (result && typeof result.then === 'function') {
-          return result.catch((err: any) => {
-            remixAILogger.error(`[ModelInput ${label}.${method}] threw:`, err?.message || err)
-            throw err
-          })
-        }
-        return result
-      } catch (err: any) {
-        remixAILogger.error(`[ModelInput ${label}.${method}] threw sync:`, err?.message || err)
-        throw err
-      }
-    }
-  }
-  return model
-}
-
-/**
- * AWS Bedrock's Converse API rejects any tool whose `toolSpec.description`
- * is empty ("Member must have length greater than or equal to 1"), unlike
- * Anthropic / OpenAI / Mistral which tolerate blank descriptions. The
- * deepagents runtime binds several built-in tools (todo / task / filesystem)
- * whose descriptions can be empty. Backfill a non-empty description so the
- * request passes Bedrock validation.
- */
-function ensureBedrockToolDescriptions<T>(tools: T[]): T[] {
-  if (!Array.isArray(tools)) return tools
-  const fallback = (name?: unknown) =>
-    (typeof name === 'string' && name.length > 0 ? `The ${name} tool.` : 'No description provided.')
-  return tools.map((tool: any) => {
-    if (!tool || typeof tool !== 'object') return tool
-    try {
-      // StructuredTool / DynamicStructuredTool and plain { name, description }.
-      if ('description' in tool && (!tool.description || String(tool.description).trim().length === 0)) {
-        tool.description = fallback(tool.name)
-      }
-      // OpenAI-style function tool: { type: 'function', function: { name, description } }.
-      const fn = tool.function
-      if (fn && typeof fn === 'object' && (!fn.description || String(fn.description).trim().length === 0)) {
-        fn.description = fallback(fn.name)
-      }
-    } catch {
-      /* description may be read-only on some tool classes — best effort. */
-    }
-    return tool
-  })
-}
-
-function bedrockGeoForRegion(region: string): string {
-  if (region.startsWith('us-gov-')) return 'us-gov'
-  if (region.startsWith('eu-')) return 'eu'
-  if (region.startsWith('ap-')) return 'apac'
-  return 'us'
-}
-
-/**
- * Normalise a Bedrock model id for the caller's region.
- *
- * Newer Anthropic / Meta models on Bedrock are only reachable through a
- * cross-region inference profile (e.g. `us.anthropic.claude-haiku-4-5-…`) —
- */
-function resolveBedrockModelId(modelId: string, region: string): string {
-  const m = modelId.match(/^(us-gov|us|eu|apac)\.(.+)$/)
-  if (!m) return modelId
-  return `${bedrockGeoForRegion(region)}.${m[2]}`
-}
-
-function patchBedrockBindTools<T extends BaseChatModel>(model: T): T {
-  const original = typeof (model as any).bindTools === 'function' ? (model as any).bindTools.bind(model) : null
-  if (!original) return model
-  ;(model as any).bindTools = (tools: any[], kwargs?: any) =>
-    original(ensureBedrockToolDescriptions(tools), kwargs)
-  return model
-}
-
 export async function createModelInstance(
   modelSelection: ModelSelection,
   maxTokens: number = DAPP_MAX_TOKENS,
-  userApiKeys?: IUserApiKeyConfig
+  userApiKeys?: IUserApiKeyConfig,
+  options: CreateModelOptions = {}
 ): Promise<BaseChatModel> {
-  const { modelId } = modelSelection
   const provider = modelSelection.routeProvider ?? modelSelection.provider
+  const params = resolveModelParams(modelSelection, maxTokens)
+  const key = cacheKey(modelSelection, params, userApiKeys)
 
-  switch (provider) {
-  case 'ollama': {
-    const host = await discoverOllamaHost()
-    console.log('Discovered Ollama host:', host)
-    if (!host) {
-      throw new Error('[ModelFactory] Ollama is not running or unreachable')
-    }
-
-    const chosenModel = (modelId && modelId !== 'ollama')
-      ? modelId
-      : await getBestAvailableModel()
-    console.log('Chosen Ollama model:', chosenModel)
-    if (!chosenModel) {
-      throw new Error('[ModelFactory] No tool-capable Ollama model is installed. The Remix agent requires a model that supports tool calling — install one (e.g. `ollama pull qwen2.5-coder`) and try again.')
-    }
-
-    const caps = await getModelCapabilities(chosenModel)
-    if (!caps.tools) {
-      throw new Error(`[ModelFactory] Ollama model "${chosenModel}" does not support tool calling, which the Remix agent requires. Choose a tool-capable model (e.g. qwen2.5-coder, llama3.1, mistral-nemo).`)
-    }
-    remixAILogger.log(`[ModelFactory] Creating Ollama model: ${chosenModel} @ ${host} (thinking: ${caps.thinking})`)
-    return wrapModelForDebug(new ChatOllama({
-      baseUrl: host,
-      model: chosenModel,
-      temperature: 0.7,
-      numPredict: maxTokens,
-      streaming: true,
-      ...(caps.thinking ? { think: true } : {})
-    }), `ollama/${chosenModel}`)
+  if (!options.fresh) {
+    const cached = instanceCache.get(key)
+    if (cached) return cached
+    const pending = pendingCache.get(key)
+    if (pending) return pending
   }
 
-  case 'mistralai': {
-    remixAILogger.log(`[ModelFactory] Creating MistralAI model: ${modelId} (proxy)`)
-    return wrapModelForDebug(new ChatMistralAI({
-      apiKey: 'proxy-handled',
-      model: modelId,
-      temperature: 0.7,
-      maxTokens: maxTokens,
-      streaming: true,
-      maxRetries: 0,
-      serverURL: `${endpointUrls.langchain}/mistral`,
-      httpClient: createAuthedMistralHttpClient()
-    }), `mistralai/${modelId}`)
-  }
+  const adapter = getProviderAdapter(provider)
+  const label = `${provider}/${modelSelection.modelId}`
 
-  case 'openai': {
-    remixAILogger.log(`[ModelFactory] Creating OpenAI model: ${modelId} (proxy)`)
-    return wrapModelForDebug(new ChatOpenAI({
-      apiKey: 'proxy-handled',
-      model: modelId,
-      temperature: 0.7,
-      maxTokens: maxTokens,
-      streaming: true,
-      maxRetries: 0,
-      configuration: {
-        baseURL: `${endpointUrls.langchain}/openai`,
-        fetch: authedFetch
-      }
-    }), `openai/${modelId}`)
-  }
+  const build = adapter
+    .create({ selection: modelSelection, params, userApiKeys, label })
+    .then((model) => {
+      if (!options.fresh) instanceCache.set(key, model)
+      return model
+    })
+    .finally(() => {
+      pendingCache.delete(key)
+    })
 
-  case 'moonshot': {
-    remixAILogger.log(`[ModelFactory] Creating Moonshot model: ${modelId} (proxy)`)
-    return wrapModelForDebug(new ChatOpenAI({
-      apiKey: 'proxy-handled',
-      model: modelId,
-      temperature: 1,
-      topP: 0.95,
-      maxTokens: maxTokens,
-      streaming: true,
-      maxRetries: 0,
-      configuration: {
-        baseURL: `${endpointUrls.langchain}/moonshot/v1`,
-        fetch: moonshotFetch
-      }
-    }), `moonshot/${modelId}`)
-  }
+  if (!options.fresh) pendingCache.set(key, build)
+  return build
+}
 
-  case 'openrouter': {
-    const useDirectApi = !!(userApiKeys?.useOwnKeys && userApiKeys?.openrouterApiKey)
-    remixAILogger.log(`[ModelFactory] Creating OpenRouter model: ${modelId}${useDirectApi ? ' (direct API)' : ' (proxy)'}`)
-    // Own key → talk to OpenRouter directly through its dedicated LangChain SDK.
-    if (useDirectApi) {
-      return wrapModelForDebug(new ChatOpenRouter({
-        apiKey: userApiKeys!.openrouterApiKey as string,
-        model: modelId,
-        temperature: 0.7,
-        maxTokens: maxTokens,
-        maxRetries: 0,
-        modelKwargs: {
-          usage: { include: true },
-          include_reasoning: true
-        }
-      }), `openrouter/${modelId}`)
-    }
-    // No key → route through the Remix proxy (OpenAI-compatible endpoint).
-    return wrapModelForDebug(new ChatOpenAI({
-      apiKey: 'proxy-handled',
-      model: modelId,
-      temperature: 0.7,
-      maxTokens: maxTokens,
-      streaming: true,
-      maxRetries: 0,
-      configuration: {
-        baseURL: `${endpointUrls.langchain}/openrouter`,
-        fetch: authedFetch
-      }
-    }), `openrouter/${modelId}`)
-  }
-
-  case 'bedrock': {
-    // AWS Bedrock is BYOK-only — the Remix proxy no longer fronts it. Without
-    // the user's own bearer token there is no route to build, and the picker
-    // hides Bedrock models until that token is set (see `hasBedrockApiKey`),
-    // so reaching here without one means a stale selection.
-    const bedrockBearerToken = userApiKeys?.bedrockBearerToken?.trim()
-    if (!bedrockBearerToken) {
-      throw new Error('[ModelFactory] AWS Bedrock requires your own Bedrock API key. Add it under Settings → RemixAI Assistant → Bring Your Own API Keys.')
-    }
-    const region = DEFAULT_BEDROCK_REGION
-    const bedrockModelId = resolveBedrockModelId(modelId, region)
-
-    remixAILogger.log(`[ModelFactory] Creating AWS Bedrock model: ${bedrockModelId} @ ${region} (own key)`)
-    return wrapModelForDebug(patchBedrockBindTools(new ChatBedrockConverse({
-      model: bedrockModelId,
-      region,
-      bedrockBearerToken,
-    })), `bedrock/${bedrockModelId}`)
-  }
-
-  case 'anthropic':
-  default: {
-    remixAILogger.log(`[ModelFactory] Creating Anthropic model: ${modelId} (proxy)`)
-    return wrapModelForDebug(new ChatAnthropic({
-      apiKey: 'proxy-handled',
-      model: modelId,
-      temperature: 0.7,
-      maxTokens: maxTokens,
-      streaming: true,
-      maxRetries: 0,
-      clientOptions: {
-        baseURL: endpointUrls.langchain,
-        fetch: authedFetch
-      }
-    }), `anthropic/${modelId}`)
-  }
-  }
+/**
+ * Whether a built model instance can call tools, per the provider SDK's own
+ * capability profile. Independent of the backend catalogue, which advertises
+ * `capabilities` by hand and can disagree with what the provider actually
+ * serves — a code-tuned model is routinely code-capable and tool-incapable at
+ * the same time, and binding tools to one fails the whole request.
+ *
+ * Permissive when the provider ships no profile (Bedrock, Ollama): silence is
+ * not evidence of missing support.
+ */
+export function modelInstanceSupportsTools(model: BaseChatModel): boolean {
+  return (model as any)?.profile?.toolCalling !== false
 }

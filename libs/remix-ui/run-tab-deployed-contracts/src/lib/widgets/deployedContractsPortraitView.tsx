@@ -177,10 +177,10 @@ export default function DeployedContractsPortraitView() {
   }
 
   return (
-    <div className="deployed-contracts-container card mx-2 my-2" data-id="deployedContractsContainer" style={{ backgroundColor: 'var(--custom-onsurface-layer-1)', '--theme-text-color': themeQuality === 'dark' ? 'white' : 'black', position: 'relative' } as React.CSSProperties}>
-      <div className="p-3 d-flex align-items-center justify-content-between" style={{ cursor: 'pointer' }}>
+    <div className="d-flex flex-column gap-2 text-theme-contrast" data-id="deployedContractsContainer">
+      <div className="d-flex align-items-center justify-content-between px-3 py-1">
         <div className='d-flex align-items-center gap-2 text-nowrap'>
-          <h6 className="my-auto" style={{ color: themeQuality === 'dark' ? 'white' : 'black', margin: 0 }}>
+          <h6 className="my-auto" style={{ margin: '0px', fontSize: '14px', fontWeight: '700', color: 'var(--bs-emphasis-color)' }}>
             <FormattedMessage id="udapp.deployedContracts" defaultMessage="Deployed Contracts" />
           </h6>
           <span className="text-secondary" data-id="deployedContractsBadge">{deployedContracts.length}</span>
@@ -202,7 +202,7 @@ export default function DeployedContractsPortraitView() {
           )}
         </div>
       </div>
-      { !showClearAllDialog && <p className='text-muted px-3' style={{ fontSize: '0.8rem' }}>Interact with a deployed contract</p>}
+      { !showClearAllDialog && deployedContracts.length > 0 && <p className='text-muted px-3 mb-0' style={{ fontSize: '0.8rem' }}>Interact with a deployed contract</p>}
       {/* Add Contract Dialog */}
       {showAddDialog && (
         <div className="m-3 mt-0 p-3 rounded" style={{ backgroundColor: 'var(--custom-onsurface-layer-2)' }}>
@@ -311,30 +311,24 @@ export default function DeployedContractsPortraitView() {
 
       {/* Contract List or Empty State */}
       {deployedContracts.length === 0 && !showClearAllDialog ? (
-        <div className="text-muted px-3 pb-1">
-          <div className="empty-state-text">
+        <div className="text-muted px-3 pb-3">
+          <div className="empty-state-text mb-1">
             <FormattedMessage
               id="udapp.noDeployedContracts"
-              defaultMessage="There is no contract to show."
+              defaultMessage="No contracts deployed yet."
             />
           </div>
-          <div className='pb-3'>
-            <span>
-              <FormattedMessage
-                id="udapp.orLearnMoreDeploying"
-                defaultMessage="Learn how to deploy "
-              /></span>
-            <a href="https://remix-ide.readthedocs.io/en/latest/run.html" target='_blank'>
-              <FormattedMessage
-                id="udapp.learnEth"
-                defaultMessage='"your first contract".'
-              /></a>
+          <div>
+            <FormattedMessage
+              id="udapp.orLearnMoreDeploying"
+              defaultMessage="Go to the Deploy tab to deploy your first contract."
+            />
           </div>
         </div>
       ) : (
         !showClearAllDialog && (
-          <div className='px-3'>
-            <div className="contracts-list">
+          <div className=''>
+            <div className="contracts-list p-2 d-flex flex-column gap-2">
               {deployedContracts.map((contract, index) => (
                 <DeployedContractItem
                   key={`${contract.address}-${index}`}

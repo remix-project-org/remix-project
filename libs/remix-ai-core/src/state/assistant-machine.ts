@@ -598,45 +598,6 @@ export function selectPlanManagerHandoff(snap: AssistantSnapshot): PlanManagerHa
   }
 }
 
-/**
- * Allowed provider/model IDs. Drives the model picker without scattering
- * `if (features['ai:foo'])` checks across the codebase. Pass in the static
- * model registry; we filter by `ai:<provider>` feature flags.
- *
- * Convention (matches the live /permissions/ shape):
- *   feature_name === 'ai:Mistral'   → mistralai provider models
- *   feature_name === 'ai:Anthropic' → anthropic provider models
- *   feature_name === 'ai:OpenAI'    → openai provider models
- *   feature_name === 'ai:completion' → models with capabilities including 'completion'
- */
-export function selectAllowedModelIds(
-  snap: AssistantSnapshot,
-  models: ReadonlyArray<{ id: string; provider: string; capabilities?: string[] }>
-): string[] {
-  if (!snap.permissions?.features) {
-    // No permissions yet — fall back to anything that doesn't require auth.
-    // (Mirrors getDefaultModel() behaviour.)
-    return models.filter((m) => m.provider === 'mistralai').map((m) => m.id)
-  }
-  const allowed: string[] = []
-  for (const m of models) {
-    if (m.provider === 'ollama') { allowed.push(m.id); continue }
-    // Provider key is capitalised in /permissions/ (`ai:Mistral`, not `ai:mistralai`).
-    const providerKey = providerToFeatureKey(m.provider)
-    if (providerKey && isFeatureEnabled(snap.permissions, providerKey)) allowed.push(m.id)
-  }
-  return allowed
-}
-
-function providerToFeatureKey(provider: string): string | null {
-  switch (provider) {
-  case 'mistralai': return Features.AI_PROVIDER_MISTRAL
-  case 'anthropic': return Features.AI_PROVIDER_ANTHROPIC
-  case 'openai': return Features.AI_PROVIDER_OPENAI
-  default: return null
-  }
-}
-
 /** Seconds remaining on the current cooldown, or null if none. */
 export function selectCooldownRemaining(snap: AssistantSnapshot, now: number = Date.now()): number | null {
   if (snap.cooldown === 'blocked') return Number.POSITIVE_INFINITY
@@ -725,11 +686,6 @@ export function selectTaskParam(
   const row = tp?.[taskId]
   if (!row || row[key] === undefined || row[key] === null) return null
   return row[key]
-}
-
-/** Sugar over selectFeatureEnabled — Auto Mode is just `ai:auto`. */
-export function selectAutoModeEnabled(snap: AssistantSnapshot): boolean {
-  return selectFeatureEnabled(snap, Features.AI_AUTO)
 }
 
 /**
@@ -892,6 +848,18 @@ export function selectChatNotice(snap: AssistantSnapshot): ChatNotice | null {
       code: err.code,
       title: 'AI service error',
       message: err.message || 'The AI service ran into an issue. Please try again.',
+      actionable: true
+    }
+  case 'MODEL_TOOLS_UNSUPPORTED':
+    // Client-side code, raised by the RemixAI plugin when the active model
+    // turns out not to support tool calling. It has already rolled the
+    // selection back — its message names the model that failed and the one
+    // restored, so prefer it over the generic line.
+    return {
+      severity: 'warning',
+      code: err.code,
+      title: 'Model not supported',
+      message: err.message || 'The selected model cannot call tools, which the assistant requires.',
       actionable: true
     }
   case 'BAD_REQUEST':

@@ -5,13 +5,14 @@ import { PluginViewWrapper } from '@remix-ui/helper'
 import { ChatMessage, RemixUiRemixAiAssistant, RemixUiRemixAiAssistantHandle, ConversationMetadata } from '@remix-ui/remix-ai-assistant'
 import { EventEmitter } from 'events'
 import { trackMatomoEvent, ChatPromptMetadata } from '@remix-api'
-import { ChatHistory, ChatHistoryStorageManager, IndexedDBChatHistoryBackend, remixAILogger } from '@remix/remix-ai-core'
+import { ChatHistory, ChatHistoryStorageManager, IndexedDBChatHistoryBackend, remixAILogger,
+  titleFromPrompt, clampTitleWords, needsDerivedTitle, MAX_TITLE_WORDS, UNTITLED_CONVERSATION } from '@remix/remix-ai-core'
 import { appActionTypes, AppAction } from '@remix-ui/app'
 
 const profile = {
   name: 'remixaiassistant',
   displayName: 'RemixAI Assistant',
-  icon: 'assets/img/remixai-logoAI.webp',
+  icon: 'assets/img/remixai-logoAI.svg',
   description: 'AI code assistant for Remix IDE',
   kind: '',
   location: 'sidePanel',
@@ -20,7 +21,7 @@ const profile = {
   maintainedBy: 'Remix',
   permission: true,
   events: ['toolApprovalResponse', 'stopRequested'],
-  methods: ['chatPipe', 'handleExternalMessage', 'getProfile', 'deleteConversation','loadConversations', 'newConversation', 'archiveConversation', 'respondToToolApproval', 'stopRequest', 'submitChatInput']
+  methods: ['chatPipe', 'handleExternalMessage', 'getProfile', 'deleteConversation','loadConversations', 'newConversation', 'archiveConversation', 'respondToToolApproval', 'stopRequest', 'submitChatInput', 'refineQueuedConversationTitle']
 }
 
 export class RemixAIAssistant extends ViewPlugin {
@@ -33,6 +34,8 @@ export class RemixAIAssistant extends ViewPlugin {
   history: ChatMessage[] = []
   externalMessage: { text: string, timestamp: number } | null = null
   storageManager: ChatHistoryStorageManager | null = null
+  /** Title refinement deferred until the user's own turn has finished. */
+  private pendingTitleRefinement: { conversationId: string; prompt: string } | null = null
   currentConversationId: string | null = null
   conversations: ConversationMetadata[] = []
   showHistorySidebar: boolean = false
@@ -124,10 +127,10 @@ export class RemixAIAssistant extends ViewPlugin {
       const allConversations = await this.storageManager.getConversations()
 
       const emptyNewConversations = allConversations.filter(
-        conv => conv.title === 'New Conversation' && conv.messageCount === 0
+        conv => conv.title === UNTITLED_CONVERSATION && conv.messageCount === 0
       )
       const otherConversations = allConversations.filter(
-        conv => !(conv.title === 'New Conversation' && conv.messageCount === 0)
+        conv => !(conv.title === UNTITLED_CONVERSATION && conv.messageCount === 0)
       )
 
       // Purge stale empty "New Conversation" duplicates that accumulate every
@@ -167,7 +170,7 @@ export class RemixAIAssistant extends ViewPlugin {
       // DB record on every call.  Multiple page reloads without sending a message
       // were the root cause of "different IDs, same title" in the sidebar.
       const emptyExisting = this.conversations.find(
-        c => c.title === 'New Conversation' && c.messageCount === 0
+        c => c.title === UNTITLED_CONVERSATION && c.messageCount === 0
       )
       if (emptyExisting) {
         remixAILogger.log('[DeepAgent-Thread] newConversation → reusing empty conversation:', emptyExisting.id)
@@ -219,6 +222,11 @@ export class RemixAIAssistant extends ViewPlugin {
 
       trackMatomoEvent(this, { category: 'ai', action: 'remixAI', name: 'load_conversation', isClick: true })
       this.renderComponent()
+
+      // Backfill a title for conversations saved before titles were inferred,
+      // or whose refinement never ran (the tab closed mid-turn, the model was
+      // unreachable). Opening one is the natural moment to fix it.
+      void this.ensureConversationTitle(id, messages)
     } catch (error) {
       remixAILogger.error('Failed to load conversation:', error)
     }
@@ -293,7 +301,7 @@ export class RemixAIAssistant extends ViewPlugin {
   onFirstPromptSent(conversationId: string, prompt: string) {
     if (!conversationId) return
 
-    const title = prompt.substring(0, 50)
+    const title = titleFromPrompt(prompt)
     const preview = prompt.substring(0, 100)
 
     // Optimistic in-memory update so the sidebar shows the title immediately.
@@ -318,36 +326,63 @@ export class RemixAIAssistant extends ViewPlugin {
       }).catch(err => remixAILogger.error('Failed to persist conversation title:', err))
     }
 
-    this.generateConversationTitle(conversationId, prompt)
+    this.pendingTitleRefinement = { conversationId, prompt }
+  }
+
+  private async ensureConversationTitle(id: string, messages: ChatMessage[]): Promise<void> {
+    try {
+      const conversation = this.conversations.find(c => c.id === id)
+      if (!conversation) return
+
+      const firstUserMessage = messages.find(m => m.role === 'user' && typeof m.content === 'string' && m.content.trim())
+      if (!firstUserMessage) return
+      const prompt = String(firstUserMessage.content)
+
+      const current = (conversation.title || '').trim()
+      if (!needsDerivedTitle(current, prompt)) return
+
+      const derived = titleFromPrompt(prompt)
+      if (derived && derived !== current) await this.applyConversationTitle(id, derived)
+      await this.generateConversationTitle(id, prompt)
+    } catch (err) {
+      remixAILogger.warn('Failed to backfill conversation title:', err)
+    }
+  }
+
+  /** Write a title to memory and storage, and repaint the sidebar. */
+  private async applyConversationTitle(conversationId: string, title: string): Promise<void> {
+    if (!this.conversations.some(c => c.id === conversationId)) return
+    this.conversations = this.conversations.map(conv =>
+      conv.id === conversationId ? { ...conv, title, updatedAt: Date.now() } : conv
+    )
+    this.renderComponent()
+    if (this.storageManager) {
+      await this.storageManager.updateConversation(conversationId, { title, updatedAt: Date.now() })
+    }
+  }
+
+  async refineQueuedConversationTitle(): Promise<void> {
+    const pending = this.pendingTitleRefinement
+    if (!pending) return
+    this.pendingTitleRefinement = null
+    await this.generateConversationTitle(pending.conversationId, pending.prompt)
   }
 
   private async generateConversationTitle(conversationId: string, prompt: string) {
     try {
       const titlePrompt =
-        'Generate a concise, descriptive title (at most 6 words) for a chat that begins with the following user message. ' +
+        `Generate a title of at most ${MAX_TITLE_WORDS} words for a chat that begins with the following user message. ` +
         'Reply with ONLY the title — no quotes, no punctuation at the end, no preamble.\n\n' +
         `User message: ${prompt}`
       const raw = await this.call('remixAI', 'basic_prompt', titlePrompt)
       if (typeof raw !== 'string') return
 
-      // Keep the first line, strip surrounding quotes/backticks, clamp length.
-      let title = raw.split('\n').map(l => l.trim()).find(Boolean) || ''
-      title = title.replace(/^["'`]+|["'`]+$/g, '').trim()
+      const firstLine = raw.split('\n').map(l => l.trim()).find(Boolean) || ''
+      const title = clampTitleWords(firstLine)
       if (!title) return
-      if (title.length > 60) title = title.slice(0, 59).trimEnd() + '…'
 
-      console.log('[RemixAI] Generated conversation title:', title)
-      // Only apply if the conversation still exists.
-      if (!this.conversations.some(c => c.id === conversationId)) return
-
-      this.conversations = this.conversations.map(conv =>
-        conv.id === conversationId ? { ...conv, title, updatedAt: Date.now() } : conv
-      )
-      this.renderComponent()
-
-      if (this.storageManager) {
-        await this.storageManager.updateConversation(conversationId, { title, updatedAt: Date.now() })
-      }
+      remixAILogger.log('[RemixAI] Generated conversation title:', title)
+      await this.applyConversationTitle(conversationId, title)
     } catch (err) {
       remixAILogger.warn('Failed to generate AI conversation title:', err)
     }

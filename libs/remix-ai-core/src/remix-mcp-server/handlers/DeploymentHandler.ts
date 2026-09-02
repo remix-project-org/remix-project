@@ -22,6 +22,7 @@ import {
 } from '../types/mcpTools';
 import { Plugin } from '@remixproject/engine';
 import { getContractData } from '@remix-project/core-plugin'
+import { remixAILogger } from '../../helpers/logger'
 import type { TxResult } from '@remix-project/remix-lib';
 import { BrowserProvider, formatEther } from "ethers"
 import { toNumber } from 'ethers'
@@ -34,23 +35,23 @@ const { txFormat, txHelper: { makeFullTypeDefinition } } = execution;
  */
 export class DeployContractHandler extends BaseToolHandler {
   name = 'deploy_contract';
-  description = '';
+  description = 'Deploy a compiled contract to the selected environment. Compile the file first — deployment reads the latest compilation result.';
   inputSchema = {
     type: 'object',
     properties: {
       contractName: {
         type: 'string',
-        description: ''
+        description: 'Name of the contract to deploy (the contract name, not the file name), as it appears in the compilation result'
       },
       constructorArgs: {
         type: 'array',
-        description: '',
+        description: 'Constructor arguments in declaration order. Empty when the constructor takes none.',
         items: {},
         default: []
       },
       gasLimit: {
         type: 'number',
-        description: '',
+        description: 'Gas limit for the deployment transaction. Omit to use the value set in Deploy & Run.',
         minimum: 21000
       },
       gasPrice: {
@@ -64,7 +65,7 @@ export class DeployContractHandler extends BaseToolHandler {
       },
       account: {
         type: 'string',
-        description: 'address or index'
+        description: 'Sender address to deploy from. Omit to use the account currently selected in Deploy & Run.'
       },
     },
     required: ['contractName']
@@ -99,9 +100,33 @@ export class DeployContractHandler extends BaseToolHandler {
       // Get compilation result to find contract
       const compilerArtefact = await plugin.call('compilerArtefacts', 'getCompilerAbstractByContractName', args.contractName) as CompilerAbstract;
       if (!compilerArtefact) {
-        return this.createErrorResult(`Could not retrieve contract data for '${args.contractName}'`);
+        return this.createErrorResult(
+          `No compilation result for '${args.contractName}'. Compile the file that defines it first (compile_solidity), then deploy. ` +
+          'Note that contractName is the contract name, not the file name.'
+        );
       }
-      const data = getContractData(args.contractName, compilerArtefact)
+      // getContractData dereferences the lookup result unguarded, so a name
+      // that is not in this artefact used to surface as a TypeError.
+      let data: ReturnType<typeof getContractData>
+      try {
+        data = getContractData(args.contractName, compilerArtefact)
+      } catch {
+        data = null
+      }
+      if (!data) {
+        return this.createErrorResult(`'${args.contractName}' was not found in the latest compilation. Compile it first, then deploy.`);
+      }
+
+      // Honour the requested sender — it was accepted in the schema and then
+      // ignored, so deployments silently went out from the selected account.
+      if (args.account) {
+        try {
+          await plugin.call('udapp' as any, 'setAccount', args.account)
+        } catch (e) {
+          return this.createErrorResult(`Could not select account '${args.account}': ${(e as any)?.message || e}`)
+        }
+      }
+
       await plugin.call('sidePanel', 'showContent', 'udapp' )
       plugin.emit('setValueRequest', args.value || '0', 'wei')
       if (args.value && args.value !== '0') {
@@ -115,23 +140,38 @@ export class DeployContractHandler extends BaseToolHandler {
           data,
           args.constructorArgs ? args.constructorArgs : [],
           null,
-          compilerArtefact.getData().contracts
+          // blockchain reads `compilerContracts?.data?.contracts`, so this must
+          // be the CompilerAbstract itself (same value the Deploy & Run panel
+          // passes). Handing it the already-drilled `.getData().contracts` left
+          // library linking with no compilation data, so every contract that
+          // links a library failed with 'Cannot find compilation data of library'.
+          compilerArtefact
         )
       } catch (e) {
         return this.createErrorResult(`Deployment error: ${e.message || e}`)
       }
 
-      const receipt = (txReturn.txResult.receipt)
+      const receipt = txReturn?.txResult?.receipt
+      if (!receipt) {
+        return this.createErrorResult('Deployment returned no transaction receipt — the transaction may not have been sent.')
+      }
       const result: DeploymentResult = {
         transactionHash: receipt.hash,
         gasUsed: toNumber(receipt.gasUsed),
         effectiveGasPrice: args.gasPrice || '20000000000',
         blockNumber: toNumber(receipt.blockNumber),
         logs: receipt.logs,
-        contractAddress: receipt.contractAddress,
+        contractAddress: receipt.contractAddress || txReturn.address,
         success: receipt.status === 1 ? true : false
       }
-      plugin.call('udappDeployedContracts', 'addInstance', result.contractAddress, data.abi, args.contractName, data)
+      // Registering the instance in the UI must not turn a successful
+      // deployment into a failed tool call (it also used to float an
+      // unhandled rejection when the panel was not active).
+      try {
+        await plugin.call('udappDeployedContracts', 'addInstance', result.contractAddress, data.abi, args.contractName, data)
+      } catch (e) {
+        remixAILogger.warn('[DeployContractHandler] addInstance failed after a successful deployment', e)
+      }
 
       return this.createSuccessResult(result);
 
@@ -141,38 +181,103 @@ export class DeployContractHandler extends BaseToolHandler {
   }
 }
 
+/** Parse an ABI that arrived as a JSON string; returns null when it is not a usable array. */
+function coerceAbi(abi: any): any[] | null {
+  if (Array.isArray(abi)) return abi;
+  if (typeof abi === 'string' && abi.trim()) {
+    try {
+      const parsed = JSON.parse(abi);
+      return Array.isArray(parsed) ? parsed : null;
+    } catch {
+      return null;
+    }
+  }
+  return null;
+}
+
+/**
+ * The ABI for a contract the IDE already knows about.
+ */
+async function resolveContractAbi(
+  plugin: Plugin,
+  args: { abi?: any; address?: string; contractName?: string }
+): Promise<{ abi?: any[]; error?: string }> {
+  const supplied = coerceAbi(args.abi);
+  if (supplied) return { abi: supplied };
+  if (args.abi !== undefined && args.abi !== null) {
+    return { error: 'ABI must be an array (or a JSON string holding one)' };
+  }
+
+  // A deployed instance at this address — the most specific match there is.
+  if (args.address) {
+    try {
+      const deployed = await plugin.call('udappDeployedContracts', 'getDeployedContracts') as any[];
+      const instance = (deployed ?? []).find(
+        (c: any) => typeof c?.address === 'string' && c.address.toLowerCase() === args.address.toLowerCase()
+      );
+      const abi = coerceAbi(instance?.abi ?? instance?.contractData?.abi);
+      if (abi) return { abi };
+    } catch (e) {
+      remixAILogger.debug('[resolveContractAbi] deployed-contract lookup failed', e);
+    }
+  }
+
+  // Otherwise the latest compilation of that contract.
+  if (args.contractName) {
+    try {
+      const artefact = await plugin.call(
+        'compilerArtefacts', 'getCompilerAbstractByContractName', args.contractName
+      ) as CompilerAbstract;
+      if (artefact) {
+        const data = getContractData(args.contractName, artefact);
+        const abi = coerceAbi((data as any)?.abi);
+        if (abi) return { abi };
+      }
+    } catch (e) {
+      remixAILogger.debug('[resolveContractAbi] compilation lookup failed', e);
+    }
+  }
+
+  return {
+    error:
+      `Could not resolve the ABI for '${args.contractName ?? args.address}'. ` +
+      'Compile the contract (solidity_compile) or attach it at its address (add_instance) first, ' +
+      'or pass the abi argument explicitly.'
+  };
+}
+
 /**
  * Call Contract Method Tool Handler
  */
 export class CallContractHandler extends BaseToolHandler {
   name = 'call_contract';
-  description = '';
+  description = 'Call a method on a deployed contract. Sends a transaction unless the method is view/pure.';
   inputSchema = {
     type: 'object',
     properties: {
       contractName: {
         type: 'string',
-        description: '',
+        description: 'Contract name, as compiled.',
       },
       address: {
         type: 'string',
-        description: '',
+        description: 'Deployed address (0x...).',
         pattern: '^0x[a-fA-F0-9]{40}$'
       },
       abi: {
         type: 'array',
-        description: '',
+        description: 'Optional. Leave it out — the ABI is resolved from the deployed instance at this address, or from the last compilation of contractName.',
         items: {
           type: 'object'
         }
       },
       methodName: {
         type: 'string',
-        description: ''
+        description: 'Function to call.'
       },
       args: {
         type: 'array',
-        description: '',
+        description: 'Arguments in declaration order.',
         items: {
           type: 'string'
         },
@@ -180,12 +285,12 @@ export class CallContractHandler extends BaseToolHandler {
       },
       gasLimit: {
         type: 'number',
-        description: '',
+        description: 'Gas limit. Omit to use the Deploy & Run value.',
         minimum: 21000
       },
       gasPrice: {
         type: 'string',
-        description: ''
+        description: 'in wei'
       },
       value: {
         type: 'string',
@@ -197,7 +302,8 @@ export class CallContractHandler extends BaseToolHandler {
         description: 'Account to call from'
       }
     },
-    required: ['address', 'abi', 'methodName', 'contractName']
+    // `abi` is deliberately not required — see resolveContractAbi.
+    required: ['address', 'methodName', 'contractName']
   };
 
   getPermissions(): string[] {
@@ -205,7 +311,7 @@ export class CallContractHandler extends BaseToolHandler {
   }
 
   validate(args: CallContractArgs): boolean | string {
-    const required = this.validateRequired(args, ['address', 'abi', 'methodName', 'contractName']);
+    const required = this.validateRequired(args, ['address', 'methodName', 'contractName']);
     if (required !== true) return required;
 
     const types = this.validateTypes(args, {
@@ -222,15 +328,9 @@ export class CallContractHandler extends BaseToolHandler {
       return 'Invalid contract address format';
     }
 
-    if (!Array.isArray(args.abi)) {
-      try {
-        args.abi = JSON.parse(args.abi as any)
-        if (!Array.isArray(args.abi)) {
-          return 'ABI must be an array'
-        }
-      } catch (e) {
-        return 'ABI must be an array'
-      }
+    // An omitted ABI is resolved in execute(); only a malformed one is rejected here.
+    if (args.abi !== undefined && args.abi !== null && !coerceAbi(args.abi)) {
+      return 'ABI must be an array (or a JSON string holding one)'
     }
 
     return true;
@@ -238,7 +338,23 @@ export class CallContractHandler extends BaseToolHandler {
 
   async execute(args: CallContractArgs, plugin: Plugin): Promise<IMCPToolResult> {
     try {
-      const funcABI = args.abi.find((item: any) => item.name === args.methodName && item.type === 'function')
+      const resolved = await resolveContractAbi(plugin, args)
+      if (!resolved.abi) {
+        return this.createErrorResult(resolved.error);
+      }
+      const abi = resolved.abi
+
+      const funcABI = abi.find((item: any) => item.name === args.methodName && item.type === 'function')
+      if (!funcABI) {
+        // Reading .stateMutability off this used to throw a bare TypeError.
+        const callable = abi
+          .filter((item: any) => item.type === 'function')
+          .map((item: any) => item.name)
+        return this.createErrorResult(
+          `'${args.methodName}' is not a function on ${args.contractName}. ` +
+          (callable.length ? `Available methods: ${callable.join(', ')}` : 'This ABI declares no callable functions.')
+        );
+      }
       const isView = funcABI.stateMutability === 'view' || funcABI.stateMutability === 'pure';
       let txReturn
       try {
@@ -251,7 +367,7 @@ export class CallContractHandler extends BaseToolHandler {
         const params = funcABI.type !== 'fallback' ? (args.args? args.args.join(',') : ''): ''
         txReturn = await plugin.call('blockchain', 'runOrCallContractMethod',
           args.contractName,
-          args.abi,
+          abi,
           funcABI,
           undefined,
           args.args ? args.args : [],
@@ -286,13 +402,13 @@ export class CallContractHandler extends BaseToolHandler {
  */
 export class RunScriptHandler extends BaseToolHandler {
   name = 'run_script';
-  description = '';
+  description = 'Run a workspace JS/TS script in the Remix script runner.';
   inputSchema = {
     type: 'object',
     properties: {
       filePath: {
         type: 'string',
-        description: ''
+        description: 'Workspace-relative path, e.g. scripts/deploy.ts. No leading slash.'
       }
     },
     required: ['filePath']
@@ -329,13 +445,13 @@ export class RunScriptHandler extends BaseToolHandler {
  */
 export class SendTransactionHandler extends BaseToolHandler {
   name = 'send_transaction';
-  description = '';
+  description = 'Send a raw transaction. Omit `to` and pass `data` to deploy bytecode.';
   inputSchema = {
     type: 'object',
     properties: {
       to: {
         type: 'string',
-        description: '',
+        description: 'Recipient address (0x...). Omit for contract creation.',
         pattern: '^0x[a-fA-F0-9]{40}$'
       },
       value: {
@@ -350,7 +466,7 @@ export class SendTransactionHandler extends BaseToolHandler {
       },
       gasLimit: {
         type: 'number',
-        description: '',
+        description: 'Gas limit. Omit for the default.',
         minimum: 21000
       },
       gasPrice: {
@@ -359,10 +475,13 @@ export class SendTransactionHandler extends BaseToolHandler {
       },
       from: {
         type: 'string',
-        description: ''
+        description: 'Sender address. Omit to use the selected account.'
       }
     },
-    required: ['to']
+    // `to` is NOT required: a contract-creation transaction has no recipient,
+    // and requiring it rejected every deployment at the tool boundary with
+    // `expected string, received undefined at to`.
+    required: []
   };
 
   getPermissions(): string[] {
@@ -370,9 +489,6 @@ export class SendTransactionHandler extends BaseToolHandler {
   }
 
   validate(args: SendTransactionArgs): boolean | string {
-    const required = this.validateRequired(args, ['to']);
-    if (required !== true) return required;
-
     const types = this.validateTypes(args, {
       to: 'string',
       value: 'string',
@@ -383,7 +499,7 @@ export class SendTransactionHandler extends BaseToolHandler {
     });
     if (types !== true) return types;
 
-    if (!args.to.match(/^0x[a-fA-F0-9]{40}$/)) {
+    if (args.to !== undefined && !args.to.match(/^0x[a-fA-F0-9]{40}$/)) {
       return 'Invalid recipient address format';
     }
 
@@ -391,22 +507,28 @@ export class SendTransactionHandler extends BaseToolHandler {
       return 'Invalid data format (must be hex)';
     }
 
+    if (!args.to && !args.data) {
+      return 'Pass `to` for a normal transaction, or `data` to deploy bytecode';
+    }
+
     return true;
   }
 
   async execute(args: SendTransactionArgs, plugin: Plugin): Promise<IMCPToolResult> {
     try {
-      // Get accounts
-      const sendAccount = args.from
-
-      if (!sendAccount) {
-        return this.createErrorResult('No account available for sending transaction');
+      if (!args.to && !args.data) {
+        return this.createErrorResult('Pass `to` for a normal transaction, or `data` to deploy bytecode');
       }
       const ethersProvider: BrowserProvider = await plugin.call('blockchain', 'web3')
       const signer = await ethersProvider.getSigner();
+      // The schema says `from` is optional, but this used to reject the call
+      // when it was absent instead of using the selected account.
+      const sendAccount = args.from || await signer.getAddress()
+
       const tx = await signer.sendTransaction({
-        from: args.from,
-        to: args.to,
+        from: sendAccount,
+        // Omitted entirely for a creation — ethers reads `to: undefined` as one.
+        ...(args.to ? { to: args.to } : {}),
         value: args.value || '0',
         data: args.data,
         gasLimit: args.gasLimit,
@@ -418,8 +540,9 @@ export class SendTransactionHandler extends BaseToolHandler {
       const result = {
         success: true,
         transactionHash: receipt.hash,
-        from: args.from,
+        from: sendAccount,
         to: args.to,
+        contractAddress: receipt.contractAddress ?? undefined,
         value: args.value || '0',
         gasUsed: toNumber(receipt.gasUsed),
         blockNumber: receipt.blockNumber
@@ -438,7 +561,7 @@ export class SendTransactionHandler extends BaseToolHandler {
  */
 export class GetDeployedContractsHandler extends BaseToolHandler {
   name = 'get_deployed_contracts';
-  description = '';
+  description = 'Contracts currently in the Deploy & Run instance list, with their ABIs.';
   inputSchema = {
     type: 'object',
     properties: {}
@@ -475,19 +598,19 @@ export class GetDeployedContractsHandler extends BaseToolHandler {
  */
 export class SetExecutionEnvironmentHandler extends BaseToolHandler {
   name = 'set_execution_environment';
-  description = '';
+  description = 'Switch the Deploy & Run environment (VM, injected wallet, RPC provider).';
   inputSchema = {
     type: 'object',
     properties: {
       environment: {
         type: 'string',
         enum: ['vm-osaka', 'vm-prague', 'vm-cancun', 'vm-shanghai', 'vm-paris', 'vm-london', 'vm-berlin', 'vm-mainnet-fork', 'vm-sepolia-fork', 'vm-custom-fork', 'walletconnect', 'basic-http-provider', 'hardhat-provider', 'ganache-provider', 'foundry-provider', 'injected-Rabby Wallet', 'injected-MetaMask', 'injected-metamask-optimism', 'injected-metamask-arbitrum', 'injected-metamask-sepolia', 'injected-metamask-ephemery', 'injected-metamask-gnosis', 'injected-metamask-chiado', 'injected-metamask-linea'],
-        description: '',
+        description: 'Environment id. get_current_environment reports the active one.',
         default: 'vm-osaka'
       },
       networkUrl: {
         type: 'string',
-        description: ''
+        description: 'RPC URL, for the external-provider environments only.'
       }
     },
     required: ['environment']
@@ -507,15 +630,20 @@ export class SetExecutionEnvironmentHandler extends BaseToolHandler {
 
     try {
       const providers = await plugin.call('blockchain', 'getAllProviders')
-      const provider = Object.keys(providers).find((p) => p === args.environment)
+      const names = Object.keys(providers ?? {})
+      const normalize = (v: string) => v.toLowerCase().replace(/[\s_-]+/g, '')
+      const provider = names.find((p) => p === args.environment)
+        ?? names.find((p) => normalize(p) === normalize(args.environment ?? ''))
       if (!provider) {
-        return this.createErrorResult(`Could not find provider for environment '${args.environment}'`);
+        return this.createErrorResult(
+          `Could not find provider for environment '${args.environment}'. Available environments: ${names.join(', ')}`
+        );
       }
-      await plugin.call('udappEnv', 'changeExecutionContext', { context: args.environment })
+      await plugin.call('udappEnv', 'changeExecutionContext', { context: provider })
       return this.createSuccessResult({
         success: true,
-        message: `Execution environment set to: ${args.environment}`,
-        environment: args.environment,
+        message: `Execution environment set to: ${provider}`,
+        environment: provider,
       });
 
     } catch (error) {
@@ -529,13 +657,13 @@ export class SetExecutionEnvironmentHandler extends BaseToolHandler {
  */
 export class GetAccountBalanceHandler extends BaseToolHandler {
   name = 'get_account_balance';
-  description = '';
+  description = 'Balance of an account in the current environment.';
   inputSchema = {
     type: 'object',
     properties: {
       account: {
         type: 'string',
-        description: '',
+        description: 'Address to query (0x...).',
         pattern: '^0x[a-fA-F0-9]{40}$'
       }
     },
@@ -578,13 +706,13 @@ export class GetAccountBalanceHandler extends BaseToolHandler {
  */
 export class GetUserAccountsHandler extends BaseToolHandler {
   name = 'get_user_accounts';
-  description = '';
+  description = 'Accounts available in the current environment.';
   inputSchema = {
     type: 'object',
     properties: {
       includeBalances: {
         type: 'boolean',
-        description: '',
+        description: 'Include each account balance.',
         default: true
       }
     }
@@ -656,13 +784,13 @@ export class GetUserAccountsHandler extends BaseToolHandler {
  */
 export class SetSelectedAccountHandler extends BaseToolHandler {
   name = 'set_selected_account';
-  description = '';
+  description = 'Choose the account Deploy & Run sends from.';
   inputSchema = {
     type: 'object',
     properties: {
       address: {
         type: 'string',
-        description: ''
+        description: 'Address to select (0x...). Must be one of get_user_accounts.'
       }
     },
     required: ['address']
@@ -718,7 +846,7 @@ export class SetSelectedAccountHandler extends BaseToolHandler {
  */
 export class GetCurrentEnvironmentHandler extends BaseToolHandler {
   name = 'get_current_environment';
-  description = '';
+  description = 'Current Deploy & Run environment, network and selected account.';
   inputSchema = {
     type: 'object',
     properties: {}
@@ -760,13 +888,13 @@ export class GetCurrentEnvironmentHandler extends BaseToolHandler {
  */
 export class SimulateTransactionHandler extends BaseToolHandler {
   name = 'simulate_transaction';
-  description = '';
+  description = 'Dry-run a transaction and return the trace. Sends nothing.';
   inputSchema = {
     type: 'object',
     properties: {
       from: {
         type: 'string',
-        description: '',
+        description: 'Sender address (0x...).',
         pattern: '^0x[a-fA-F0-9]{40}$'
       },
       to: {
@@ -786,22 +914,22 @@ export class SimulateTransactionHandler extends BaseToolHandler {
       },
       data: {
         type: 'string',
-        description: '',
+        description: 'Calldata (hex).',
         pattern: '^0x[a-fA-F0-9]*$'
       },
       validation: {
         type: 'boolean',
-        description: '',
+        description: 'Fail on invalid state instead of simulating anyway.',
         default: true
       },
       traceTransfers: {
         type: 'boolean',
-        description: '',
+        description: 'Include ETH transfers in the trace.',
         default: true
       },
       shouldDecodeLogs: {
         type: 'boolean',
-        description: '',
+        description: 'Decode event logs in the trace.',
         default: true
       }
     },
@@ -883,32 +1011,33 @@ export class SimulateTransactionHandler extends BaseToolHandler {
  */
 export class AddInstanceHandler extends BaseToolHandler {
   name = 'add_instance';
-  description = 'to the deployed contracts list';
+  description = 'Attach an already-deployed contract at an address to the Deploy & Run list.';
   inputSchema = {
     type: 'object',
     properties: {
       contractAddress: {
         type: 'string',
-        description: '',
+        description: 'Deployed address (0x...).',
         pattern: '^0x[a-fA-F0-9]{40}$'
       },
       abi: {
         type: 'array',
-        description: '',
+        description: 'Optional. Resolved from the last compilation of contractName when omitted.',
         items: {
           type: 'object'
         }
       },
       contractName: {
         type: 'string',
-        description: ''
+        description: 'Contract name, as compiled.'
       },
       contractData: {
         type: 'object',
-        description: ''
+        description: 'Optional compilation artefact. Resolved automatically when omitted.'
       }
     },
-    required: ['contractAddress', 'abi', 'contractName']
+    // `abi` is deliberately not required — see resolveContractAbi.
+    required: ['contractAddress', 'contractName']
   };
 
   getPermissions(): string[] {
@@ -916,7 +1045,7 @@ export class AddInstanceHandler extends BaseToolHandler {
   }
 
   validate(args: AddInstanceArgs): boolean | string {
-    const required = this.validateRequired(args, ['contractAddress', 'abi', 'contractName']);
+    const required = this.validateRequired(args, ['contractAddress', 'contractName']);
     if (required !== true) return required;
 
     const types = this.validateTypes(args, {
@@ -929,15 +1058,9 @@ export class AddInstanceHandler extends BaseToolHandler {
       return 'Invalid contract address format';
     }
 
-    if (!Array.isArray(args.abi)) {
-      try {
-        args.abi = JSON.parse(args.abi as any);
-        if (!Array.isArray(args.abi)) {
-          return 'ABI must be an array';
-        }
-      } catch (e) {
-        return 'ABI must be an array or valid JSON string';
-      }
+    // An omitted ABI is resolved in execute(); only a malformed one is rejected here.
+    if (args.abi !== undefined && args.abi !== null && !coerceAbi(args.abi)) {
+      return 'ABI must be an array or valid JSON string';
     }
 
     return true;
@@ -945,17 +1068,11 @@ export class AddInstanceHandler extends BaseToolHandler {
 
   async execute(args: AddInstanceArgs, plugin: Plugin): Promise<IMCPToolResult> {
     try {
-      let abi = args.abi
-      if (typeof args.abi === 'string') {
-        try {
-          abi = JSON.parse(args.abi)
-          if (!Array.isArray(abi)) {
-            return this.createErrorResult('ABI must be an array');
-          }
-        } catch (e) {
-          return this.createErrorResult('ABI must be a valid JSON string');
-        }
+      const resolved = await resolveContractAbi(plugin, { abi: args.abi, address: args.contractAddress, contractName: args.contractName })
+      if (!resolved.abi) {
+        return this.createErrorResult(resolved.error);
       }
+      const abi = resolved.abi
       await plugin.call('sidePanel', 'showContent', 'udapp');
 
       let data
@@ -995,102 +1112,29 @@ export class AddInstanceHandler extends BaseToolHandler {
  * Create deployment and interaction tool definitions
  */
 export function createDeploymentTools(): RemixToolDefinition[] {
+  // description comes from the handler — the copies here were vaguer than the
+  // handler's own text and drifted from it.
+  const define = (handler: BaseToolHandler, permissions: string[]): RemixToolDefinition => ({
+    name: handler.name,
+    description: handler.description,
+    inputSchema: handler.inputSchema,
+    category: ToolCategory.DEPLOYMENT,
+    permissions,
+    handler
+  })
+
   return [
-    {
-      name: 'deploy_contract',
-      description: 'Deploy a smart contract',
-      inputSchema: new DeployContractHandler().inputSchema,
-      category: ToolCategory.DEPLOYMENT,
-      permissions: ['deploy:contract'],
-      handler: new DeployContractHandler()
-    },
-    {
-      name: 'call_contract',
-      description: 'Call a smart contract method',
-      inputSchema: new CallContractHandler().inputSchema,
-      category: ToolCategory.DEPLOYMENT,
-      permissions: ['contract:interact'],
-      handler: new CallContractHandler()
-    },
-    {
-      name: 'send_transaction',
-      description: 'Send a raw transaction',
-      inputSchema: new SendTransactionHandler().inputSchema,
-      category: ToolCategory.DEPLOYMENT,
-      permissions: ['transaction:send'],
-      handler: new SendTransactionHandler()
-    },
-    {
-      name: 'get_deployed_contracts',
-      description: 'Get list of deployed contracts',
-      inputSchema: new GetDeployedContractsHandler().inputSchema,
-      category: ToolCategory.DEPLOYMENT,
-      permissions: ['deploy:read'],
-      handler: new GetDeployedContractsHandler()
-    },
-    {
-      name: 'set_execution_environment',
-      description: 'Set the execution environment for deployments',
-      inputSchema: new SetExecutionEnvironmentHandler().inputSchema,
-      category: ToolCategory.DEPLOYMENT,
-      permissions: ['environment:config'],
-      handler: new SetExecutionEnvironmentHandler()
-    },
-    {
-      name: 'get_account_balance',
-      description: 'Get account balance',
-      inputSchema: new GetAccountBalanceHandler().inputSchema,
-      category: ToolCategory.DEPLOYMENT,
-      permissions: ['account:read'],
-      handler: new GetAccountBalanceHandler()
-    },
-    {
-      name: 'get_user_accounts',
-      description: 'Get user accounts from the current execution environment',
-      inputSchema: new GetUserAccountsHandler().inputSchema,
-      category: ToolCategory.DEPLOYMENT,
-      permissions: ['accounts:read'],
-      handler: new GetUserAccountsHandler()
-    },
-    {
-      name: 'set_selected_account',
-      description: 'Set the currently selected account in the execution environment',
-      inputSchema: new SetSelectedAccountHandler().inputSchema,
-      category: ToolCategory.DEPLOYMENT,
-      permissions: ['accounts:write'],
-      handler: new SetSelectedAccountHandler()
-    },
-    {
-      name: 'get_current_environment',
-      description: 'Get information about the current execution environment',
-      inputSchema: new GetCurrentEnvironmentHandler().inputSchema,
-      category: ToolCategory.DEPLOYMENT,
-      permissions: ['environment:read'],
-      handler: new GetCurrentEnvironmentHandler()
-    },
-    {
-      name: 'run_script',
-      description: 'Run a script in the current environment',
-      inputSchema: new RunScriptHandler().inputSchema,
-      category: ToolCategory.DEPLOYMENT,
-      permissions: ['transaction:send'],
-      handler: new RunScriptHandler()
-    },
-    {
-      name: 'simulate_transaction',
-      description: 'Simulate a transaction using eth_simulateV1 RPC endpoint',
-      inputSchema: new SimulateTransactionHandler().inputSchema,
-      category: ToolCategory.DEPLOYMENT,
-      permissions: ['transaction:simulate'],
-      handler: new SimulateTransactionHandler()
-    },
-    {
-      name: 'add_instance',
-      description: 'Add a new contract instance to the deployed contracts list',
-      inputSchema: new AddInstanceHandler().inputSchema,
-      category: ToolCategory.DEPLOYMENT,
-      permissions: ['deploy:write'],
-      handler: new AddInstanceHandler()
-    }
+    define(new DeployContractHandler(), ['deploy:contract']),
+    define(new CallContractHandler(), ['contract:interact']),
+    define(new SendTransactionHandler(), ['transaction:send']),
+    define(new GetDeployedContractsHandler(), ['deploy:read']),
+    define(new SetExecutionEnvironmentHandler(), ['environment:config']),
+    define(new GetAccountBalanceHandler(), ['account:read']),
+    define(new GetUserAccountsHandler(), ['accounts:read']),
+    define(new SetSelectedAccountHandler(), ['accounts:write']),
+    define(new GetCurrentEnvironmentHandler(), ['environment:read']),
+    define(new RunScriptHandler(), ['transaction:send']),
+    define(new SimulateTransactionHandler(), ['transaction:simulate']),
+    define(new AddInstanceHandler(), ['deploy:write'])
   ];
 }

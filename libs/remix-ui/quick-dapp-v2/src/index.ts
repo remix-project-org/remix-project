@@ -5,3 +5,4 @@ export type { QuickDappContractCandidate, QuickDappSetupOptions, QuickDappFigmaP
 export * from './lib/types'
 export * from './lib/contexts'
 export * from './lib/utils/networks'
+export * from './lib/components/ZkVerificationMethodModal'

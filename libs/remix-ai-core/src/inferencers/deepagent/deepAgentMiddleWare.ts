@@ -86,43 +86,24 @@ const removePeviousContextFromMessages = (request: ModelRequest) => {
   }
 }
 
+const SHORT_TOOL_DESCRIPTIONS: Record<string, string> = {
+  write_todos: 'Track and display task progress to the user. Use for multi-step tasks.',
+  ls: 'List a directory. Absolute path.',
+  read_file: 'Read a whole file. Absolute path.',
+  write_file: 'Write a file, replacing it if it exists. Absolute path.',
+  edit_file: 'Replace an exact string in a file. Absolute path.',
+  glob: 'Find files by name pattern, e.g. **/*.sol.',
+  grep: 'Search file contents by regex.',
+  task: 'Delegate an independent piece of work to a subagent.'
+}
+
 const shortenToolDescription = async (request: ModelRequest, plugin: Plugin, inferencer: DeepAgentInferencer) => {
-  request.tools.find((tool) => {
-    if (tool.name === 'write_todos') {
-      // Keep a minimal description - full guidance is in system prompt
-      const minDesc = 'Track and display task progress to the user. Use for multi-step tasks.'
-      tool.description = minDesc;
-      (tool as any).lc_kwargs.description = minDesc
-    }
-    if (tool.name === 'ls') {
-      tool.description = '';
-      (tool as any).lc_kwargs.description = ''
-    }
-    if (tool.name === 'read_file') {
-      tool.description = '';
-      (tool as any).lc_kwargs.description = ''
-    }
-    if (tool.name === 'write_file') {
-      tool.description = '';
-      (tool as any).lc_kwargs.description = ''
-    }
-    if (tool.name === 'edit_file') {
-      tool.description = '';
-      (tool as any).lc_kwargs.description = ''
-    }
-    if (tool.name === 'glob') {
-      tool.description = '';
-      (tool as any).lc_kwargs.description = ''
-    }
-    if (tool.name === 'grep') {
-      tool.description = '';
-      (tool as any).lc_kwargs.description = ''
-    }
-    if (tool.name === 'task') {
-      tool.description = '';
-      (tool as any).lc_kwargs.description = ''
-    }
-  });
+  for (const tool of request.tools) {
+    const short = SHORT_TOOL_DESCRIPTIONS[(tool as any).name as string]
+    if (!short) continue
+    tool.description = short;
+    (tool as any).lc_kwargs.description = short
+  }
 
   let skills = null
   try {

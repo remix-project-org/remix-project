@@ -3,6 +3,7 @@ import React from 'react'
 import { PluginViewWrapper } from '@remix-ui/helper'
 import { NudgeEngine, all, any } from '@remix-project/remix-lib'
 import { PRO_DEMOS } from '@remix-ui/modal-help'
+import { isMigrationHandoff, isMigrationPromptSnoozed, parseMigrationConfig, shouldPromptMigration } from '@remix-ui/domain-migration'
 import type { NudgeRule, NudgeAction, SerializedNudgeRule } from '@remix-project/remix-lib'
 import { trackMatomoEvent as baseTrackMatomoEvent, NudgeEvent, MatomoEvent, Features, PendingCheckout } from '@remix-api'
 import * as packageJson from '../../../../../package.json'
@@ -120,7 +121,11 @@ export class NudgePlugin extends Plugin {
 
     // Subscribe to nudge triggers from the engine
     this.engine_.onNudge((rule) => {
-      if (rule.action.type === 'hint') {
+      if (rule.action.autoTrigger && rule.action.actionTarget) {
+        // Announcement-style nudges that open their own rich UI instead of
+        // rendering one of the built-in cards.
+        this._invokeTarget(rule.action.actionTarget)
+      } else if (rule.action.type === 'hint') {
         this._handleHint(rule)
       } else if (rule.action.type === 'widget' || rule.action.type === 'toast' || rule.action.type === 'modal') {
         this._enqueue(rule)
@@ -350,6 +355,15 @@ export class NudgePlugin extends Plugin {
 
       if (getConfigValue('auth.sign_in_button_mode') !== 'hidden') {
         this.engine_.fire('config:login_enabled')
+      }
+
+      // Domain migration — only prompt on an origin that is actually being
+      // retired, and only if the user hasn't snoozed it or already arrived
+      // here from the handoff link with the wizard open.
+      const migration = parseMigrationConfig(getConfigValue)
+      if (shouldPromptMigration(migration) && !isMigrationPromptSnoozed(migration.toDomain) && !isMigrationHandoff()) {
+        this.log('[NudgePlugin] Migration required ->', migration.toDomain)
+        this.engine_.fire('config:migration_required')
       }
     } catch {
       // Auth plugin may not be ready yet — config events won't fire, which is fine
@@ -604,6 +618,25 @@ export class NudgePlugin extends Plugin {
   /* ─── Built-in rules ─── */
 
   private _setupBuiltinRules(): void {
+
+    /* ─── Domain migration ─── */
+
+    // Announced once per session while this origin is being retired. The
+    // workspace menu keeps a permanent entry point, so this only needs to be a
+    // reminder rather than something the user must act on immediately.
+    this.engine_.addRule({
+      id: 'domain-migration-announce',
+      condition: all('config:migration_required', 'lifecycle:APP_LOADED'),
+      action: {
+        type: 'modal',
+        autoTrigger: true,
+        actionTarget: 'helpPlugin::showModal::domain-migration',
+        title: 'Remix is moving',
+        message: 'Move your Workspaces to the new domain.'
+      },
+      showOnce: 'session',
+      priority: 100
+    })
 
     /* ─── Unauthenticated nudges ─── */
 
@@ -1005,17 +1038,20 @@ export class NudgePlugin extends Plugin {
   async handleAction(target: string): Promise<void> {
     const activeId = this.state.activeNudge?.id || 'unknown'
     this.trackMatomoEvent({ category: 'nudge', action: 'ctaClicked', name: activeId, value: target, isClick: true })
-    // Parse actionTarget format: 'pluginName::method::arg1::arg2'
-    const parts = target.split('::')
-    if (parts.length >= 2) {
-      const [pluginName, method, ...args] = parts
-      try {
-        await this.call(pluginName as any, method as any, ...args)
-      } catch (e) {
-        this.warn(`[NudgePlugin] Failed to call ${pluginName}.${method}:`, e)
-      }
-    }
+    await this._invokeTarget(target)
     this.dismiss()
+  }
+
+  /** Route a 'pluginName::method::arg1::arg2' target to a plugin call. */
+  private async _invokeTarget(target: string): Promise<void> {
+    const parts = target.split('::')
+    if (parts.length < 2) return
+    const [pluginName, method, ...args] = parts
+    try {
+      await this.call(pluginName as any, method as any, ...args)
+    } catch (e) {
+      this.warn(`[NudgePlugin] Failed to call ${pluginName}.${method}:`, e)
+    }
   }
 
   /* ─── Queue management ─── */

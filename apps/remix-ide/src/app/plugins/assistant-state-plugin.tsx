@@ -13,7 +13,6 @@ import {
   selectDefaultModel,
   selectModelForTask,
   selectTaskParam,
-  selectAutoModeEnabled,
   remixAILogger,
   type AssistantSnapshot,
   type AIError,
@@ -60,7 +59,6 @@ const profile = {
     'getDefaultModel',
     'getModelForTask',
     'getTaskParam',
-    'isAutoModeEnabled',
     'hasFeature',
     'getCooldownRemaining',
     'getCooldownDisplay',
@@ -209,11 +207,6 @@ export class AssistantStatePlugin extends Plugin {
    */
   getTaskParam(taskId: string, key: string): number | string | boolean | null {
     return selectTaskParam(this.cachedSnapshot, taskId, key)
-  }
-
-  /** Sugar — Auto Mode is `ai:auto`. */
-  isAutoModeEnabled(): boolean {
-    return selectAutoModeEnabled(this.cachedSnapshot)
   }
 
   /**

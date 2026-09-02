@@ -139,7 +139,7 @@ export interface DeployContractArgs {
 export interface CallContractArgs {
   contractName: string;
   address: string;
-  abi: any[];
+  abi?: any[] | string;
   methodName: string;
   args?: any[];
   gasLimit?: number;
@@ -149,7 +149,8 @@ export interface CallContractArgs {
 }
 
 export interface SendTransactionArgs {
-  to: string;
+  /** Omitted for a contract-creation transaction. */
+  to?: string;
   value?: string;
   data?: string;
   gasLimit?: number;
@@ -174,7 +175,7 @@ export interface RunScriptArgs {
 
 export interface AddInstanceArgs {
   contractAddress: string;
-  abi: any[] | string;
+  abi?: any[] | string;
   contractName: string;
 }
 

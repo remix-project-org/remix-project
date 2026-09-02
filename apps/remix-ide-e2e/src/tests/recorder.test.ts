@@ -40,6 +40,8 @@ module.exports = {
       .closeBetaPopUp()
       .clickInstance(0)
       .clickFunction(0, 0, ['34'])
+      .waitForElementPresent('[data-id="udappTransactionsHistoryTab"]')
+      .click('[data-id="udappTransactionsHistoryTab"]')
       .execute(function () {
         const saveScenarioBtn = document.querySelector('[data-id="save-transactions"]') as HTMLElement
         if (saveScenarioBtn) {
@@ -77,6 +79,8 @@ module.exports = {
       .selectContract('t2est')
       .pause(1000)
       .createContract('')
+      .waitForElementPresent('[data-id="udappTransactionsHistoryTab"]')
+      .click('[data-id="udappTransactionsHistoryTab"]')
       .execute(function () {
         const saveScenarioBtn = document.querySelector('[data-id="save-transactions"]') as HTMLElement
         if (saveScenarioBtn) {

@@ -21,9 +21,9 @@ module.exports = {
         selectedElements.push(el)
       })
     browser.selectFiles(selectedElements)
-      .assert.visible('.bg-secondary[data-id="treeViewLitreeViewItemcontracts/1_Storage.sol"]')
-      .assert.visible('.bg-secondary[data-id="treeViewLitreeViewItemcontracts/2_Owner.sol"]')
-      .assert.visible('.bg-secondary[data-id="treeViewLitreeViewItemtests"]')
+      .assert.visible('.remixui_selected[data-id="treeViewLitreeViewItemcontracts/1_Storage.sol"]')
+      .assert.visible('.remixui_selected[data-id="treeViewLitreeViewItemcontracts/2_Owner.sol"]')
+      .assert.visible('.remixui_selected[data-id="treeViewLitreeViewItemtests"]')
   },
   'Should drag and drop multiple files in file explorer to tests folder #group1': function (browser: NightwatchBrowser) {
     const selectedElements = []

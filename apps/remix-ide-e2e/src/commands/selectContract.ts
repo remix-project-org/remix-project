@@ -6,6 +6,8 @@ class SelectContract extends EventEmitter {
     this.api
       .useCss()
       .closeBetaPopUp()
+      .waitForElementPresent('[data-id="udappDeployTab"]', 10000)
+      .click('[data-id="udappDeployTab"]')
       .waitForElementPresent('[data-id="contractDropdownToggle"]', 10000)
       .execute(function () {
         // Use JavaScript to click the dropdown, avoiding sticky header issues

@@ -360,3 +360,13 @@ mark,
 .aiMarkup :where(h3) { margin-top: .85rem; }
 
 .aiMarkup hr { margin: .95rem 0; }
+
+/* CustomTooltip's popover otherwise inherits --bs-popover-bg: var(--bs-body-bg), which is
+   identical to the page background it often sits over — making it nearly invisible. Mixing
+   in a bit of the body text color always yields a visible, theme-adaptive elevation, and a
+   solid border + real shadow give it a defined edge instead of relying on color alone. */
+.remixui-tooltip-popover {
+  --bs-popover-bg: color-mix(in srgb, var(--bs-body-color) 8%, var(--bs-body-bg));
+  --bs-popover-border-color: var(--bs-border-color);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35);
+}

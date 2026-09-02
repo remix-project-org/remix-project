@@ -278,11 +278,17 @@ export class MCPClient {
     // Include session ID if it exists for this endpoint
     if (this.sessionId) headers['mcp-session-id'] = this.sessionId
 
+    // disconnect() clears the controller, and an aborted one would abort every
+    // later request instantly — re-arm it when it is missing or already spent.
+    if (!this.httpAbortController || this.httpAbortController.signal.aborted) {
+      this.httpAbortController = new AbortController();
+    }
+
     const response = await fetch(this.server.url, {
       method: 'POST',
       headers,
       body: JSON.stringify(request),
-      signal: this.httpAbortController!.signal
+      signal: this.httpAbortController.signal
     });
 
     if (!response.ok) {
@@ -692,6 +698,10 @@ export class MCPClient {
 
   getServerName(): string {
     return this.server.name;
+  }
+
+  getTransport(): string {
+    return this.server.transport;
   }
 
   on(event: string, listener: (...args: any[]) => void): void {

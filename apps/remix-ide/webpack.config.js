@@ -137,7 +137,8 @@ module.exports = composePlugins(withNx(), withReact(), (config) => {
     solc: 'solc',
     // Do not bundle Monaco: it's copied as static assets and loaded by @monaco-editor/react
     'monaco-editor': 'monaco'
-    // NOTE: @langchain packages (including @langchain/anthropic) MUST be bundled, not externalized
+    // NOTE: @langchain packages (@langchain/aws, /ollama, /openrouter, /core,
+    // /langgraph) MUST be bundled, not externalized
   }
 
   // uncomment this to enable react profiling

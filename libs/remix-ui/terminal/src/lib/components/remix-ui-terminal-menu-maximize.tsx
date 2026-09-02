@@ -19,7 +19,7 @@ export const RemixUITerminalMenuMaximize = (props: RemixUiTerminalProps) => {
         tooltipText={props.isMaximized ? "Minimize Panel" : "Maximize Panel"}
       >
         <div
-          className="codicon-screen-icon mx-2"
+          className="codicon-screen-icon"
           data-id="maximizeBottomPanel"
           onClick={handleMaximizeTerminal}
           style={{ cursor: 'pointer' }}
