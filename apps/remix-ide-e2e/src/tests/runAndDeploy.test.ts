@@ -71,6 +71,8 @@ module.exports = {
       .addFile('checkBalance.sol', sources[0]['checkBalance.sol'])
       .pause(2000)
       .clickLaunchIcon('udapp')
+      .click('[data-id="udappDeployTab"]')
+      .waitForElementVisible('*[data-id="udapp_value"]')
       .setValue('*[data-id="udapp_value"]', '111')
       .createContract('')
       .pause(1000)
