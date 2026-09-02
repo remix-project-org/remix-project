@@ -1,16 +1,38 @@
 export type DappStatus = 'draft' | 'creating' | 'updating' | 'created' | 'deployed';
 export type DappMode = 'workspace' | 'inline';
-export type ProvingScheme = 'groth16';
+export type ProvingScheme = 'groth16' | 'plonk';
 export type PrimeValue = 'bn128' | 'bls12381';
 export type ZkVerifyNetwork = 'testnet' | 'mainnet';
+
+export type ZkVerificationMethod = 'zkverify' | 'onchain';
+
+export interface ZkOnChainVerifierConfig {
+  address: string;
+  abi: any[];
+  chainId: number | string;
+  networkName?: string;
+  contractName?: string;
+}
+
+export interface NoirZkArtifacts {
+  nargoTomlPath: string;
+  circuitSourcePaths: string[];
+  proverTomlPath: string;
+  programJsonPath: string;
+  backendUrl: string;
+  wsUrl: string;
+}
 
 export interface ZkCircuitConfig {
   circuitName: string;
   circuitPath: string;
-  provingScheme: ProvingScheme;
-  primeValue: PrimeValue;
-  signalInputs: string[];
-  zkArtifacts: {
+  // Defaults to 'circom' for back-compat with dapps created before Noir support existed.
+  circuitType?: 'circom' | 'noir';
+  // Circom-only fields (absent/unused when circuitType === 'noir').
+  provingScheme?: ProvingScheme;
+  primeValue?: PrimeValue;
+  signalInputs?: string[];
+  zkArtifacts?: {
     wasmPath: string;
     zkeyPath: string;
     vkeyPath: string;
@@ -18,6 +40,12 @@ export interface ZkCircuitConfig {
   zkVerifyConfig?: {
     network: ZkVerifyNetwork;
   };
+  // Noir-only fields (absent/unused when circuitType === 'circom').
+  noirArtifacts?: NoirZkArtifacts;
+  // Optional for back-compat with dapps created before verification-method selection existed;
+  // treated as 'zkverify' when absent. Noir circuits always use 'onchain'.
+  verificationMethod?: ZkVerificationMethod;
+  onChainVerifier?: ZkOnChainVerifierConfig;
 }
 
 export interface DappConfig {
