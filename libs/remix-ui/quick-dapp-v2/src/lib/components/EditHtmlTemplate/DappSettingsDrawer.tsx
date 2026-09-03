@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Button, Modal } from 'react-bootstrap';
 import { getPrimaryQuickDappContract, getQuickDappContracts, shortenAddress } from '@remix-ui/helper';
 import type { DappConfig } from '../../types';
@@ -18,9 +18,18 @@ export default function DappSettingsDrawer({
   onClose,
   onUpdate
 }: DappSettingsDrawerProps): JSX.Element {
+  const [showAdditionalBindings, setShowAdditionalBindings] = useState(false);
   const bindings = useMemo(() => getQuickDappContracts(dapp), [dapp]);
   const primary = useMemo(() => getPrimaryQuickDappContract(dapp), [dapp]);
+  const primaryBinding = primary || bindings[0];
+  const additionalBindings = primaryBinding
+    ? bindings.filter((binding) => binding.id !== primaryBinding.id)
+    : [];
   const networkLabel = primary?.networkName || dapp.contract?.networkName || 'Unknown network';
+
+  useEffect(() => {
+    setShowAdditionalBindings(false);
+  }, [show, dapp.slug]);
 
   return (
     <Modal
@@ -41,15 +50,43 @@ export default function DappSettingsDrawer({
         </div>
 
         <div className="mb-3">
-          {bindings.length > 0 ? bindings.map((binding) => (
-            <div className="border rounded p-2 mb-2" key={binding.id} data-id={`quickDappSettingsBinding-${binding.id}`}>
-              <div className="d-flex align-items-center justify-content-between gap-2 mb-1">
-                <span className="fw-semibold text-break">{binding.alias}</span>
-                {binding.id === primary?.id && <span className="badge bg-secondary">Primary</span>}
+          {primaryBinding ? (
+            <>
+              <div className="border rounded p-2" data-id={`quickDappSettingsBinding-${primaryBinding.id}`}>
+                <div className="d-flex align-items-center justify-content-between gap-2 mb-1">
+                  <span className="fw-semibold text-break">{primaryBinding.alias}</span>
+                  <span className="badge bg-secondary">Primary</span>
+                </div>
+                <div className="small font-monospace text-break" title={primaryBinding.address}>{shortenAddress(primaryBinding.address)}</div>
               </div>
-              <div className="small font-monospace text-break" title={binding.address}>{shortenAddress(binding.address)}</div>
-            </div>
-          )) : (
+
+              {additionalBindings.length > 0 && (
+                <>
+                  <button
+                    type="button"
+                    className="btn btn-link btn-sm text-decoration-none p-0 mt-2"
+                    onClick={() => setShowAdditionalBindings((current) => !current)}
+                    aria-expanded={showAdditionalBindings}
+                    aria-controls="quickDappSettingsAdditionalBindings"
+                    data-id="quickDappSettingsAdditionalBindingsToggle"
+                  >
+                    {showAdditionalBindings ? 'Hide additional contracts' : `+${additionalBindings.length} more`}
+                  </button>
+
+                  {showAdditionalBindings && (
+                    <div id="quickDappSettingsAdditionalBindings" className="mt-2">
+                      {additionalBindings.map((binding) => (
+                        <div className="border rounded p-2 mb-2" key={binding.id} data-id={`quickDappSettingsBinding-${binding.id}`}>
+                          <div className="fw-semibold text-break mb-1">{binding.alias}</div>
+                          <div className="small font-monospace text-break" title={binding.address}>{shortenAddress(binding.address)}</div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </>
+              )}
+            </>
+          ) : (
             <div className="border rounded p-3 text-secondary small" data-id="quickDappSettingsNoBindings">
               This DApp has no contract bindings.
             </div>

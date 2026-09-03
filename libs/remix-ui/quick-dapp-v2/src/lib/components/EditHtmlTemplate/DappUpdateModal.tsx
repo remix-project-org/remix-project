@@ -324,7 +324,7 @@ export default function DappUpdateModal({
       <Modal.Footer>
         <Button variant="secondary" onClick={onCancel}>Cancel</Button>
         <Button variant="primary" onClick={handleConfirm} disabled={!canSubmit} data-id="quickDappUpdateContinue">
-          Continue with AI
+          Update with AI
         </Button>
       </Modal.Footer>
     </Modal>
