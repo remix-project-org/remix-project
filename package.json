@@ -275,7 +275,7 @@
     "svg2pdf.js": "^2.2.1",
     "text-encoding": "^0.7.0",
     "time-stamp": "^2.2.0",
-    "toml": "^3.0.0",
+    "toml": "^4.2.0",
     "tree-kill": "^1.2.2",
     "ts-loader": "^9.2.6",
     "tslib": "^2.3.0",
