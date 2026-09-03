@@ -9,8 +9,6 @@ import { MatomoEvent, EditorEvent, AIEvent, Features } from '@remix-api'
 //@ts-ignore
 import { TrackingContext } from '@remix-ide/tracking'
 import { ConsoleLogs, EventManager, QueryParams } from '@remix-project/remix-lib'
-import { useSwarmDoc, SwarmDocSettings } from './hooks/useSwarmDoc'
-import { SwarmCollabModal } from './SwarmCollabModal'
 import { reducerActions, reducerListener, initialState } from './actions/editor'
 import { useSwarmDoc, SwarmDocSettings } from './hooks/useSwarmDoc'
 import { SwarmCollabModal } from './SwarmCollabModal'
@@ -111,10 +109,7 @@ type errorMarker = {
   }
   file: string
 }
-<<<<<<< HEAD
 
-=======
->>>>>>> a93cf853ed (fix: y-webrtc transport methond and peer connections)
 // relative path necessary for asset path resolution
 loader.config({ paths: { vs: './assets/js/monaco-editor/min/vs' } })
 
