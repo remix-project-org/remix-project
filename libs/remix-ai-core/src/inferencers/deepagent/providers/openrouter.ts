@@ -13,7 +13,7 @@ const OPENROUTER_MODEL_KWARGS = {
 
 export const openrouterAdapter: ProviderAdapter = {
   id: 'openrouter',
-  capabilities: { tools: true, streaming: true, reasoning: true, injectableFetch: false },
+  capabilities: { tools: true, streaming: true, reasoning: true, vision: true, injectableFetch: false },
   async create({ selection, params, userApiKeys, label }) {
     const useDirectApi = !!(userApiKeys?.useOwnKeys && userApiKeys?.openrouterApiKey)
     remixAILogger.log(`[ModelFactory] OpenRouter ${selection.modelId}${useDirectApi ? ' (direct API)' : ' (proxy)'} maxTokens=${params.maxOutputTokens}`)

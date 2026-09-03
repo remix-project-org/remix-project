@@ -10,6 +10,9 @@ import { CustomTooltip } from '@remix-ui/helper'
 import { AIModel } from '@remix/remix-ai-core'
 import { PromptDefault } from "./promptDefault";
 import { AutocompletePanel, AVAILABLE_COMMANDS, Command } from './AutocompletePanel'
+import { AttachmentStrip } from './attachmentStrip'
+import { ACCEPTED_IMAGE_TYPES, AttachmentError, imagesFromClipboard } from '../hooks/useAttachments'
+import type { ChatAttachment } from '@remix/remix-ai-core'
 
 const getActiveCommandName = (text: string): string | null => {
   const lastSpaceSlash = text.lastIndexOf(' /')
@@ -93,7 +96,6 @@ export interface PromptAreaProps {
   handleSend: () => void
   assistantChoice: AiAssistantType
   selectedOllamaModel: any
-  handleAddContext?: () => void
   handleSetModel: () => void
   handleModelSelection: (modelId: string) => void
   setShowOllamaModelSelector: React.Dispatch<React.SetStateAction<boolean>>
@@ -134,6 +136,16 @@ export interface PromptAreaProps {
   // Resolves a missing feature to the cheapest plan that grants it (e.g.
   // "Pro") so locked commands can label their badge with the target tier.
   getRequiredPlanName?: (feature: string) => string | null
+  // --- Image attachments ---
+  attachments?: ChatAttachment[]
+  attachmentErrors?: AttachmentError[]
+  onAddFiles?: (files: FileList | File[] | null) => void
+  onRemoveAttachment?: (id: string) => void
+  onDismissAttachmentErrors?: () => void
+  onCaptureScreenshot?: () => void
+  // False when the selected model cannot read images: the attach affordances
+  // are disabled rather than hidden, so the reason stays discoverable.
+  supportsVision?: boolean
 }
 
 export const PromptArea: React.FC<PromptAreaProps> = ({
@@ -165,7 +177,14 @@ export const PromptArea: React.FC<PromptAreaProps> = ({
   hasAuditorPermission = false,
   hasSkillsPermission = false,
   onUpgradeRequired,
-  getRequiredPlanName
+  getRequiredPlanName,
+  attachments = [],
+  attachmentErrors = [],
+  onAddFiles,
+  onRemoveAttachment,
+  onDismissAttachmentErrors,
+  onCaptureScreenshot,
+  supportsVision = true
 }) => {
   const { trackMatomoEvent: baseTrackEvent } = useContext(TrackingContext)
   const trackMatomoEvent = <T extends MatomoEvent = MatomoEvent>(event: T) => {
@@ -190,6 +209,39 @@ export const PromptArea: React.FC<PromptAreaProps> = ({
   const promptAreaRef = useRef<HTMLDivElement>(null)
   const shortcutsRef = useRef<HTMLDivElement>(null)
   const [activeShortcut, setActiveShortcut] = useState<string | null>(null)
+  const [isDragging, setIsDragging] = useState(false)
+  const fileInputRef = useRef<HTMLInputElement>(null)
+
+  const attachDisabledReason = !supportsVision
+    ? `${selectedModel?.displayName || 'This model'} cannot read images. Pick a vision-capable model to attach one.`
+    : null
+  const canAttach = Boolean(onAddFiles) && supportsVision && !isStreaming
+
+  const handlePaste = useCallback((e: React.ClipboardEvent) => {
+    if (!canAttach) return
+    const images = imagesFromClipboard(e)
+    if (images.length === 0) return
+    // Only swallow the paste when it really was an image; a mixed
+    // text+image clipboard should still deliver its text.
+    e.preventDefault()
+    onAddFiles?.(images)
+  }, [canAttach, onAddFiles])
+
+  const handleDrop = useCallback((e: React.DragEvent) => {
+    setIsDragging(false)
+    if (!canAttach) return
+    const files = e.dataTransfer?.files
+    if (!files || files.length === 0) return
+    e.preventDefault()
+    onAddFiles?.(files)
+  }, [canAttach, onAddFiles])
+
+  const handleDragOver = useCallback((e: React.DragEvent) => {
+    if (!canAttach) return
+    if (!Array.from(e.dataTransfer?.types || []).includes('Files')) return
+    e.preventDefault()
+    setIsDragging(true)
+  }, [canAttach])
 
   useEffect(() => {
     if (textareaRef?.current) {
@@ -589,9 +641,12 @@ export const PromptArea: React.FC<PromptAreaProps> = ({
       </div>
       <div
         ref={promptAreaRef}
-        className="prompt-area d-flex flex-column mx-2 p-1 rounded-3 border border-text position-relative"
+        className={`prompt-area d-flex flex-column mx-2 p-1 rounded-3 border position-relative ${isDragging ? 'border-primary' : 'border-text'}`}
         style={{ backgroundColor: themeTracker && themeTracker?.name.toLowerCase() === 'light' ? '#d9dee8' : '#222336' }}
         data-id="remix-ai-prompt-area"
+        onDragOver={handleDragOver}
+        onDragLeave={() => setIsDragging(false)}
+        onDrop={handleDrop}
       >
         {showAutocomplete && (
           <AutocompletePanel
@@ -619,6 +674,12 @@ export const PromptArea: React.FC<PromptAreaProps> = ({
               border: 'none'
             }}
           >
+            <AttachmentStrip
+              attachments={attachments}
+              errors={attachmentErrors}
+              onRemove={id => onRemoveAttachment?.(id)}
+              onDismissErrors={onDismissAttachmentErrors}
+            />
             <textarea
               ref={textareaRef}
               style={{
@@ -644,6 +705,7 @@ export const PromptArea: React.FC<PromptAreaProps> = ({
                 setInput(e.target.value)
               }}
               onKeyDown={handleKeyDown}
+              onPaste={handlePaste}
               placeholder={placeholderText}
             />
             {activeCommandHint && (
@@ -732,6 +794,59 @@ export const PromptArea: React.FC<PromptAreaProps> = ({
                     <span className={showOllamaModelSelector ? "fa fa-caret-up ms-1" : "fa fa-caret-down ms-1"}></span>
                   </div>
                 </button>
+              )}
+              {onAddFiles && (
+                <>
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept={ACCEPTED_IMAGE_TYPES.join(',')}
+                    multiple
+                    className="d-none"
+                    data-id="remix-ai-attach-input"
+                    onChange={e => {
+                      onAddFiles(e.target.files)
+                      // Reset so picking the same file twice still fires onChange.
+                      e.target.value = ''
+                    }}
+                  />
+                  <CustomTooltip tooltipText={attachDisabledReason || 'Attach an image'}>
+                    <span className="d-inline-block align-self-end">
+                      <button
+                        type="button"
+                        className="btn btn-text btn-sm border-0 rounded text-secondary"
+                        data-id="remix-ai-attach-btn"
+                        disabled={!canAttach}
+                        onClick={() => {
+                          trackMatomoEvent({ category: 'ai', action: 'remixAI', name: 'attachImage', isClick: true })
+                          fileInputRef.current?.click()
+                        }}
+                        aria-label="Attach an image"
+                      >
+                        <i className="fas fa-paperclip"></i>
+                      </button>
+                    </span>
+                  </CustomTooltip>
+                </>
+              )}
+              {onCaptureScreenshot && (
+                <CustomTooltip tooltipText={attachDisabledReason || 'Attach a screenshot of the IDE'}>
+                  <span className="d-inline-block align-self-end">
+                    <button
+                      type="button"
+                      className="btn btn-text btn-sm border-0 rounded text-secondary"
+                      data-id="remix-ai-screenshot-btn"
+                      disabled={!canAttach}
+                      onClick={() => {
+                        trackMatomoEvent({ category: 'ai', action: 'remixAI', name: 'captureScreenshot', isClick: true })
+                        onCaptureScreenshot()
+                      }}
+                      aria-label="Attach a screenshot of the IDE"
+                    >
+                      <i className="fas fa-camera"></i>
+                    </button>
+                  </span>
+                </CustomTooltip>
               )}
               <PromptDefault
                 // Only render the cancel/stop affordance for an actual

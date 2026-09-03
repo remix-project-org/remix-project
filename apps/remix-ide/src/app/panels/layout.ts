@@ -6,7 +6,7 @@ import { QueryParams } from '@remix-project/remix-lib'
 const profile: Profile = {
   name: 'layout',
   description: 'layout',
-  methods: ['minimize', 'minimizeSidePanel', 'maximiseSidePanel', 'resetSidePanel', 'maximizeTerminal', 'maximiseRightSidePanel', 'resetRightSidePanel']
+  methods: ['minimize', 'minimizeSidePanel', 'maximiseSidePanel', 'resetSidePanel', 'maximizeTerminal', 'maximiseRightSidePanel', 'resetRightSidePanel', 'getLayoutState']
 }
 
 interface panelState {
@@ -56,6 +56,24 @@ export class Layout extends Plugin {
       'udapp': true
     }
     this.event = new EventEmitter()
+  }
+
+  /**
+   * A serializable snapshot of which panels are up. Read by the assistant's
+   * `get_ui_state` tool — `panels` holds live Plugin instances, so it cannot be
+   * handed across the plugin boundary as-is.
+   */
+  getLayoutState () {
+    const panels = this.panels || ({} as panels)
+    const describe = (p?: panelState) => p ? { active: !!p.active, minimized: !!p.minimized } : undefined
+    return {
+      tabs: describe(panels.tabs),
+      editor: describe(panels.editor),
+      main: describe(panels.main),
+      bottomBar: describe(panels.bottomBar),
+      terminal: describe(panels.terminal),
+      maximized: Object.keys(this.maximized).filter((name) => this.maximized[name]?.maximized)
+    }
   }
 
   private isEnhancedPanel(name: string) {

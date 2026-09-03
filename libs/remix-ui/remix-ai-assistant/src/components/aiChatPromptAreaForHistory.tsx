@@ -2,7 +2,8 @@ import React, { Dispatch } from 'react'
 import GroupListMenu from './contextOptMenu'
 import ModelSelectorMenu from './modelSelectorMenu'
 import { PromptArea } from './prompt'
-import { ChatMessage, AIModel, modelKey } from '@remix/remix-ai-core'
+import { ChatMessage, AIModel, modelKey, ChatAttachment } from '@remix/remix-ai-core'
+import type { AttachmentError } from '../hooks/useAttachments'
 import { groupListType } from '../types/componentTypes'
 
 interface AiChatPromptAreaForHistoryProps {
@@ -66,6 +67,14 @@ interface AiChatPromptAreaForHistoryProps {
       hasSkillsPermission?: boolean
       onUpgradeRequired?: (commandName: string, missingFeature: string) => void
       getRequiredPlanName?: (feature: string) => string | null
+      // --- Image attachments ---
+      attachments?: ChatAttachment[]
+      attachmentErrors?: AttachmentError[]
+      onAddFiles?: (files: FileList | File[] | null) => void
+      onRemoveAttachment?: (id: string) => void
+      onDismissAttachmentErrors?: () => void
+      onCaptureScreenshot?: () => void
+      supportsVision?: boolean
 }
 
 export default function AiChatPromptAreaForHistory(props: AiChatPromptAreaForHistoryProps) {
@@ -188,6 +197,13 @@ export default function AiChatPromptAreaForHistory(props: AiChatPromptAreaForHis
         hasSkillsPermission={props.hasSkillsPermission}
         onUpgradeRequired={props.onUpgradeRequired}
         getRequiredPlanName={props.getRequiredPlanName}
+        attachments={props.attachments}
+        attachmentErrors={props.attachmentErrors}
+        onAddFiles={props.onAddFiles}
+        onRemoveAttachment={props.onRemoveAttachment}
+        onDismissAttachmentErrors={props.onDismissAttachmentErrors}
+        onCaptureScreenshot={props.onCaptureScreenshot}
+        supportsVision={props.supportsVision}
       />
       <span className="mb-2 mx-4 small w-100 text-dark">RemixAI can make mistakes. Always check important info.</span>
     </section>

@@ -32,6 +32,28 @@ export interface IContextType {
   files?: { fileName: string; content: string }[]
 }
 
+/**
+ * An image attached to a chat prompt — either picked/pasted/dropped by the user
+ * or produced by the composer's "capture the IDE" button.
+ *
+ * `dataUrl` carries the full-size image and is only ever kept for the lifetime of
+ * the request. `thumbnailDataUrl` is the small copy that gets persisted with the
+ * chat history so old conversations still render without bloating IndexedDB.
+ */
+export interface ChatAttachment {
+  id: string;
+  name: string;
+  /** image/png | image/jpeg | image/webp | image/gif */
+  mimeType: string;
+  /** Full-size data URL. Send-time only — never persisted. */
+  dataUrl?: string;
+  /** Small downscaled data URL kept for history rendering. */
+  thumbnailDataUrl?: string;
+  /** Byte size of the processed image. */
+  size?: number;
+  source?: 'upload' | 'screenshot';
+}
+
 export interface ISimilaritySearchConfig {
   maxFiles?: number;
   similarityThreshold?: number;
@@ -88,6 +110,8 @@ export interface IParams {
   tool_choice?: string;
   toolsMessages?: any[];
   format?: string;
+  /** Images attached to this turn. Honoured by the DeepAgent route only. */
+  attachments?: ChatAttachment[];
 }
 
 export interface IAIStreamResponse{

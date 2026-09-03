@@ -1,3 +1,5 @@
+import { ChatAttachment } from '../types/types'
+
 /**
  * Storage abstraction layer for RemixAI chat history persistence.
  * Supports pluggable backends (IndexedDB, S3, etc.)
@@ -37,6 +39,24 @@ export interface ChatMessage {
   streamingSubagentName?: string
   /** Post-update review data for DApp updates */
   dappUpdateReview?: DAppUpdateReview
+  /**
+   * Images the user attached to this turn. Only the thumbnail survives
+   * persistence — see `stripAttachmentPayloads`.
+   */
+  attachments?: ChatAttachment[]
+}
+
+/**
+ * Drops the full-size image data before a message is written to storage.
+ * A handful of screenshots at full resolution would otherwise add megabytes
+ * of base64 to IndexedDB per conversation.
+ */
+export function stripAttachmentPayloads<T extends ChatMessage>(message: T): T {
+  if (!message.attachments || message.attachments.length === 0) return message
+  return {
+    ...message,
+    attachments: message.attachments.map(({ dataUrl, ...rest }) => rest)
+  }
 }
 
 /**

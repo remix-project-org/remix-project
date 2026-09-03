@@ -3,7 +3,7 @@ import React, { useState, useEffect, useCallback, useMemo, useRef, useImperative
 //@ts-ignore
 import '../css/remix-ai-assistant.css'
 
-import { ChatCommandParser, GenerationParams, ChatHistory, HandleStreamResponse, AIModel, ANONYMOUS_FALLBACK_MODELS, remixAILogger, modelKey, parseModelKey, findModel, applyByokKeyPolicy, BYOK_API_KEY_SETTINGS, modelTransportProvider, onApiKeysChange, isAutoModelId, type ModelTransport } from '@remix/remix-ai-core'
+import { ChatCommandParser, GenerationParams, ChatHistory, HandleStreamResponse, AIModel, ANONYMOUS_FALLBACK_MODELS, remixAILogger, modelKey, parseModelKey, findModel, applyByokKeyPolicy, BYOK_API_KEY_SETTINGS, modelTransportProvider, onApiKeysChange, isAutoModelId, modelSupportsVision, describeCaptureError, type ChatAttachment, type ModelTransport } from '@remix/remix-ai-core'
 import { ToolApprovalRequest, ApiKeyErrorEvent } from '@remix/remix-ai-core'
 import { HandleOpenAICompatibleResponse, HandleOllamaResponse } from '@remix/remix-ai-core'
 //@ts-ignore
@@ -23,6 +23,7 @@ import AiChatPromptArea from './aiChatPromptArea'
 import { CooldownBanner } from './cooldownBanner'
 import { ChatNoticeStrip, type ChatNoticeDisplay, type ChatNoticeActionDisplay } from './chatNoticeStrip'
 import { useModelAccess } from '../hooks/useModelAccess'
+import { useAttachments, captureIdeScreenshot } from '../hooks/useAttachments'
 import { ToolApprovalModal } from './ToolApprovalModal'
 
 export interface RemixUiRemixAiAssistantProps {
@@ -137,6 +138,9 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
     route: 'initializing' | 'agent' | 'tools' | 'chat'
     ready: boolean
   }>({ route: 'initializing', ready: false })
+  // Mirrored for sendPrompt, which is memoized without the route in its deps.
+  const aiRouteRef = useRef<'initializing' | 'agent' | 'tools' | 'chat'>('initializing')
+  useEffect(() => { aiRouteRef.current = aiRouteStatus.route }, [aiRouteStatus.route])
 
   // Authentication signal — mirrored from the assistantState snapshot.
   // Drives the composer's sign-in CTA so an anonymous user gets a clear
@@ -247,6 +251,8 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
   // ISN'T a plan-manager hand-off (PROVIDER_DENIED, server errors,
   // validation, unknown codes). Non-blocking: input stays editable.
   const [chatNotice, setChatNotice] = useState<ChatNoticeDisplay | null>(null)
+  // Images staged on the composer for the next prompt.
+  const attachmentState = useAttachments()
 
   const dismissChatNotice = useCallback(() => {
     setChatNotice(null)
@@ -1768,9 +1774,11 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
 
   // reusable sender (used by both UI button and imperative ref)
   const sendPrompt = useCallback(
-    async (prompt: string, isEditorCodeAnalysis: boolean = false, metadata?: ChatPromptMetadata) => {
+    async (prompt: string, isEditorCodeAnalysis: boolean = false, metadata?: ChatPromptMetadata, attachments: ChatAttachment[] = []) => {
       const trimmed = prompt.trim()
-      if (!trimmed || isStreaming) return
+      // An image on its own is a valid prompt ("what is this?"), so only an
+      // entirely empty turn is rejected.
+      if ((!trimmed && attachments.length === 0) || isStreaming) return
 
       // Gate via assistantState — if the user is anonymous, unverified or
       // feature-blocked this opens planManager with the right reason and
@@ -1817,7 +1825,8 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
         id: crypto.randomUUID(),
         role: isEditorCodeAnalysis ? 'editor_code_analysis' : 'user',
         content: trimmed,
-        timestamp: Date.now()
+        timestamp: Date.now(),
+        ...(attachments.length > 0 ? { attachments } : {})
       }
       setMessages(prev => [...prev, userMsg])
 
@@ -1891,6 +1900,24 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
         GenerationParams.stream = true
         GenerationParams.return_stream_response = true
         GenerationParams.threadId = await props.plugin.call('remixAI', 'getAssistantThrId') || ""
+
+        // Images only travel on the DeepAgent route, and only to a model that
+        // can read them. When either is missing we still send the text — losing
+        // the whole prompt over an attachment would be worse — and say so.
+        const modelReadsImages = modelSupportsVision(selectedModelRef.current || undefined)
+        const routeCarriesImages = aiRouteRef.current === 'agent'
+        if (attachments.length > 0 && (!modelReadsImages || !routeCarriesImages)) {
+          setChatNotice({
+            severity: 'warning',
+            code: 'MODEL_NO_VISION',
+            title: 'Images not sent',
+            message: !modelReadsImages
+              ? `${selectedModelRef.current?.displayName || 'The selected model'} cannot read images. Your message was sent as text only — pick a vision-capable model to include the image.`
+              : 'Images are only supported by the agent route. Your message was sent as text only.',
+            actionable: true
+          })
+        }
+        GenerationParams.attachments = (modelReadsImages && routeCarriesImages) ? attachments : undefined
 
         const pending = await props.plugin.call('remixAI', 'isChatRequestPending')
         const response = pending
@@ -2162,7 +2189,8 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
     // only. If the user wants to retry while rate-limited, that's their
     // call; the backend will reject it and we surface the error normally.
     const trimmed = input.trim()
-    if (!trimmed || isStreaming) return
+    const staged = attachmentState.attachments
+    if ((!trimmed && staged.length === 0) || isStreaming) return
 
     // Pre-flight the assistant gate so we only clear the textarea when
     // the prompt will actually be processed. If the user is anonymous,
@@ -2175,8 +2203,26 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
     } catch { /* assistantState not active — fall through, sendPrompt will retry the check */ }
 
     setInput('')
-    await sendPrompt(trimmed, false, { source: 'user' })
-  }, [input, isStreaming, props.plugin, sendPrompt])
+    attachmentState.clear()
+    await sendPrompt(trimmed, false, { source: 'user' }, staged)
+  }, [input, isStreaming, props.plugin, sendPrompt, attachmentState])
+
+  /** Rasterizes the IDE and stages it as an attachment. */
+  const handleCaptureScreenshot = useCallback(async () => {
+    try {
+      const dataUrl = await captureIdeScreenshot()
+      await attachmentState.addDataUrl(dataUrl, 'remix-ide-screenshot.png', 'screenshot')
+    } catch (e: any) {
+      remixAILogger.error('[RemixAI] screenshot capture failed', e)
+      setChatNotice({
+        severity: 'warning',
+        code: 'SCREENSHOT_FAILED',
+        title: 'Could not capture the IDE',
+        message: `Rendering the interface to an image failed: ${describeCaptureError(e)}. Try attaching a screenshot taken with your OS instead.`,
+        actionable: false
+      })
+    }
+  }, [attachmentState])
 
   /*
   useEffect(() => {
@@ -2980,6 +3026,13 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
               hasSkillsPermission={hasSkillsPermission}
               onUpgradeRequired={handleFeatureUpgradeRequired}
               getRequiredPlanName={getRequiredPlanName}
+              attachments={attachmentState.attachments}
+              attachmentErrors={attachmentState.errors}
+              onAddFiles={attachmentState.addFiles}
+              onRemoveAttachment={attachmentState.remove}
+              onDismissAttachmentErrors={attachmentState.dismissErrors}
+              onCaptureScreenshot={handleCaptureScreenshot}
+              supportsVision={modelSupportsVision(selectedModel || undefined)}
             />
           ) : (
             <AiChatPromptArea
@@ -3038,6 +3091,13 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
               hasSkillsPermission={hasSkillsPermission}
               onUpgradeRequired={handleFeatureUpgradeRequired}
               getRequiredPlanName={getRequiredPlanName}
+              attachments={attachmentState.attachments}
+              attachmentErrors={attachmentState.errors}
+              onAddFiles={attachmentState.addFiles}
+              onRemoveAttachment={attachmentState.remove}
+              onDismissAttachmentErrors={attachmentState.dismissErrors}
+              onCaptureScreenshot={handleCaptureScreenshot}
+              supportsVision={modelSupportsVision(selectedModel || undefined)}
             />
           )
         }
