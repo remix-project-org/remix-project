@@ -1,5 +1,5 @@
-import React, { useContext } from 'react';
-import { Card } from 'react-bootstrap';
+import React, { useContext, useState } from 'react';
+import { Button, Card } from 'react-bootstrap';
 import { AppContext } from '../../contexts';
 import { GenerationProgress } from '../../types';
 
@@ -17,8 +17,27 @@ const statusMessages: Record<string, string> = {
 };
 
 const CreateInstance: React.FC<CreateInstanceProps> = ({ isAiLoading }) => {
-  const { appState } = useContext(AppContext);
+  const { appState, plugin } = useContext(AppContext);
   const progress: GenerationProgress | null = appState.generationProgress;
+  const [isOpeningDeployRun, setIsOpeningDeployRun] = useState(false);
+
+  const handleOpenDeployRun = async () => {
+    if (isOpeningDeployRun) return;
+
+    setIsOpeningDeployRun(true);
+    try {
+      await plugin.call('manager', 'activatePlugin', 'udapp');
+      const isPanelHidden = await plugin.call('sidePanel', 'isPanelHidden');
+      if (isPanelHidden) {
+        await plugin.call('sidePanel', 'togglePanel');
+      }
+      await plugin.call('sidePanel', 'showContent', 'udapp');
+    } catch (_) {
+      await plugin.call('notification', 'toast', 'Could not open Deploy & Run Transactions.');
+    } finally {
+      setIsOpeningDeployRun(false);
+    }
+  };
 
   if (isAiLoading) {
     const currentFile = progress?.filename;
@@ -52,10 +71,26 @@ const CreateInstance: React.FC<CreateInstanceProps> = ({ isAiLoading }) => {
   return (
     <div className="py-4">
       <div className="text-center mb-4">
-        <h2 className="mb-2">Welcome to QuickDapp</h2>
+        <h2 className="mb-2">Welcome to QuickDApp</h2>
         <p className="text-muted mb-0 fs-5">
           Transform your smart contracts into interactive DApps with AI.
         </p>
+        <Button
+          variant="primary"
+          className="mt-3"
+          onClick={handleOpenDeployRun}
+          disabled={isOpeningDeployRun}
+          data-id="quickDappGettingStartedOpenDeployRun"
+        >
+          {isOpeningDeployRun ? (
+            <><i className="fas fa-spinner fa-spin me-2"></i>Opening Deploy & Run...</>
+          ) : (
+            <><i className="fas fa-rocket me-2"></i>Open Deploy & Run</>
+          )}
+        </Button>
+        <div className="small text-secondary mt-2">
+          Deploy a contract, then create a DApp from the deployed instance.
+        </div>
       </div>
 
       <Card className="border-info" data-id="quickdapp-getting-started">
@@ -66,7 +101,7 @@ const CreateInstance: React.FC<CreateInstanceProps> = ({ isAiLoading }) => {
           </h4>
         </Card.Header>
         <Card.Body>
-          <p className="mb-4 fs-5">After deploying your contract, create a DApp using one of these options:</p>
+          <p className="mb-4 fs-5">Already deployed? Create a DApp using one of these entry points:</p>
 
           <div className="row g-4">
             <div className="col-12 col-md-6 qd-grid-col">
@@ -104,7 +139,7 @@ const CreateInstance: React.FC<CreateInstanceProps> = ({ isAiLoading }) => {
                 </p>
                 <img
                   src='assets/img/create-a-dapp.png'
-                  alt="Create a dapp guide"
+                  alt="Create a DApp guide"
                   className="img-fluid rounded shadow-sm w-80"
                   style={{
                     border: '1px solid var(--secondary)',

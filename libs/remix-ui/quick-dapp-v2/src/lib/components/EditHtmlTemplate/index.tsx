@@ -2,14 +2,20 @@
 import React, { useContext, useState, useEffect, useRef, useCallback } from 'react';
 import { Button, Row, Col, Card, Modal } from 'react-bootstrap';
 import { FormattedMessage, useIntl } from 'react-intl';
+import isElectron from 'is-electron';
 import { toPng } from 'html-to-image';
 import { AppContext } from '../../contexts';
 import DeployPanel from '../DeployPanel';
 // remixClient removed - using plugin from context instead
 import { InBrowserVite } from '../../InBrowserVite';
 import { buildGraphRuntimeConfigScript } from '../../utils/graph-runtime-config';
+import { buildQuickDappRuntimeConfigScript } from '../../utils/quick-dapp-runtime-config';
 import { buildZkRuntimeConfigScript } from '../../utils/zkverify-runtime-config';
+import { getQuickDappPublishState } from '../../utils/publish-state';
 import { buildQuickDappUpdateGraphContextBlock } from '@remix/remix-ai-core/quick-dapp-thegraph-prompts';
+import { getPrimaryQuickDappContract, getQuickDappContracts, getQuickDappWorkspaceLock } from '@remix-ui/helper';
+import DappSettingsDrawer from './DappSettingsDrawer';
+import DappUpdateModal, { DappUpdateRequest } from './DappUpdateModal';
 
 interface Pages {
   [key: string]: string
@@ -19,6 +25,16 @@ interface PreviewIssue {
   type: 'runtime' | 'build' | 'preview'
   message: string
 }
+
+interface NotificationModalState {
+  show: boolean
+  title: string
+  message: React.ReactNode
+  variant: string
+  action?: 'publish'
+}
+
+type DesktopWalletPreviewStatus = 'checking' | 'ready' | 'select-browser-wallet' | 'browser-disconnected';
 
 export const readDappFiles = async (
   plugin: any,
@@ -58,12 +74,17 @@ function EditHtmlTemplate(): JSX.Element {
   const [runtimeErrors, setRuntimeErrors] = useState<string[]>([]);
 
   const isAiUpdating = activeDapp ? (appState.dappProcessing[activeDapp.slug] || false) : false;
+  const isActiveDappPublishing = () => {
+    const lock = getQuickDappWorkspaceLock();
+    return lock?.operation === 'publish' && lock.workspaceName === activeDapp?.workspaceName;
+  };
 
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const builderRef = useRef<InBrowserVite | null>(null);
   const runBuildRef = useRef<(showNotification?: boolean) => Promise<void>>();
+  const deleteInFlightRef = useRef(false);
 
-  const [notificationModal, setNotificationModal] = useState({
+  const [notificationModal, setNotificationModal] = useState<NotificationModalState>({
     show: false,
     title: '',
     message: '' as React.ReactNode,
@@ -71,8 +92,11 @@ function EditHtmlTemplate(): JSX.Element {
   });
 
   const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [showSettingsDrawer, setShowSettingsDrawer] = useState(false);
+  const [showUpdateModal, setShowUpdateModal] = useState(false);
   const [showTips, setShowTips] = useState(false);
   const [showVmTips, setShowVmTips] = useState(false);
+  const [publishRequestId, setPublishRequestId] = useState(0);
 
   useEffect(() => {
     if (!plugin) return;
@@ -90,27 +114,27 @@ function EditHtmlTemplate(): JSX.Element {
           payload: { slug: activeDapp.slug, isProcessing: false }
         });
 
-        if (activeDapp.status === 'deployed') {
+        if (getQuickDappPublishState(activeDapp) !== 'created') {
           setNotificationModal({
             show: true,
             title: 'Code Updated',
             message: (
               <div>
-                <p>The AI has successfully updated your dapp code.</p>
+                <p>The AI has successfully updated your DApp code.</p>
                 <div className="alert alert-warning mb-0">
                   <i className="fas fa-exclamation-triangle me-2"></i>
-                  <strong>Action Required:</strong> The live IPFS deployment is outdated.
-                  Please <strong>"Deploy to IPFS"</strong> again.
+                  <strong>Published · Unpublished changes.</strong> Publish again to update the live IPFS deployment.
                 </div>
               </div>
             ),
-            variant: 'warning'
+            variant: 'warning',
+            action: 'publish'
           });
         } else {
           setNotificationModal({
             show: true,
             title: 'Update Successful',
-            message: 'The AI has successfully updated your dapp code.',
+            message: 'The AI has successfully updated your DApp code.',
             variant: 'success'
           });
         }
@@ -165,10 +189,15 @@ function EditHtmlTemplate(): JSX.Element {
       await plugin.call('notification', 'toast', 'Please wait until the AI update finishes before deleting this DApp.');
       return;
     }
+    if (isActiveDappPublishing()) {
+      await plugin.call('notification', 'toast', 'Please wait until publishing finishes before deleting this DApp.');
+      return;
+    }
 
+    const slugToDelete = activeDapp.slug;
+    deleteInFlightRef.current = true;
     // Hide modal immediately to prevent UI hang during async deletion
     setShowDeleteModal(false);
-    const slugToDelete = activeDapp.slug;
 
     try {
       await dappManager.deleteDapp(slugToDelete);
@@ -186,6 +215,8 @@ function EditHtmlTemplate(): JSX.Element {
 
     } catch (e: any) {
       console.error('[QuickDapp] Delete failed:', e);
+    } finally {
+      deleteInFlightRef.current = false;
     }
   };
 
@@ -193,7 +224,34 @@ function EditHtmlTemplate(): JSX.Element {
     setNotificationModal(prev => ({ ...prev, show: false }));
   };
 
+  const handlePublishChanges = async () => {
+    closeNotificationModal();
+
+    if (!dappManager || !activeDapp) return;
+
+    try {
+      const updatedConfig = await dappManager.getDappConfig(activeDapp.slug);
+      if (!updatedConfig) throw new Error('Updated DApp configuration is unavailable.');
+
+      dispatch({ type: 'SET_ACTIVE_DAPP', payload: updatedConfig });
+      dispatch({
+        type: 'SET_DAPPS',
+        payload: appState.dapps.map((dapp: any) => dapp.slug === updatedConfig.slug ? updatedConfig : dapp)
+      });
+    } catch (e: any) {
+      console.warn('[EditHtmlTemplate] Failed to refresh DApp config before publishing', e);
+      await plugin.call('notification', 'toast', `Could not prepare the updated DApp for publishing: ${e.message || e}`);
+      return;
+    }
+
+    setPublishRequestId((requestId) => requestId + 1);
+  };
+
   const handleBack = async () => {
+    if (isActiveDappPublishing()) {
+      await plugin.call('notification', 'toast', 'Please wait until publishing finishes before returning to the dashboard.');
+      return;
+    }
     if (!isAiUpdating && !isBuilding) {
       await captureAndSaveThumbnail();
     }
@@ -210,6 +268,11 @@ function EditHtmlTemplate(): JSX.Element {
       } catch (e) {
         console.warn('[EditHtmlTemplate] Failed to update single dapp config', e);
       }
+    }
+
+    if (isActiveDappPublishing()) {
+      await plugin.call('notification', 'toast', 'Please wait until publishing finishes before returning to the dashboard.');
+      return;
     }
 
     dispatch({ type: 'SET_ACTIVE_DAPP', payload: null });
@@ -335,15 +398,11 @@ function EditHtmlTemplate(): JSX.Element {
       logoDataUrl = logo;
     }
 
-    const injectionScript = `
-      <script>
-        window.__QUICK_DAPP_CONFIG__ = {
-          logo: ${JSON.stringify(logoDataUrl || '')},
-          title: ${JSON.stringify(title || '')},
-          details: ${JSON.stringify(details || '')}
-        };
-      </script>
-    `;
+    const injectionScript = buildQuickDappRuntimeConfigScript(activeDapp, {
+      logo: logoDataUrl,
+      title,
+      details
+    });
     const graphRuntimeScript = await buildGraphRuntimeConfigScript(plugin, activeDapp, { includeApiKey: true, target: 'preview' });
     const zkRuntimeScript = await buildZkRuntimeConfigScript(plugin, activeDapp, { includeApiKey: false, target: 'preview' });
     const debugScript = `<script>
@@ -414,6 +473,65 @@ window.addEventListener('unhandledrejection', function(e) {
     window.ethereum.selectedAddress = null;
     window.__remixVMUpdateAccounts = function(accounts) {
       return setAccounts(accounts, true);
+    };
+  } else if (parent.__quickDappDesktopWalletBridge) {
+    var _desktopListeners = {};
+    function emitDesktopEvent(event, payload) {
+      (_desktopListeners[event] || []).slice().forEach(function(cb) {
+        try { cb(payload); } catch (e) { setTimeout(function() { throw e; }, 0); }
+      });
+    }
+    function syncDesktopProvider(method, result) {
+      if (method === 'eth_accounts' || method === 'eth_requestAccounts') {
+        window.ethereum.selectedAddress = result && result[0] ? result[0] : null;
+      }
+      if (method === 'eth_chainId') {
+        window.ethereum.chainId = result || null;
+      }
+      return result;
+    }
+    window.ethereum = {
+      isMetaMask: false,
+      isRemixDesktop: true,
+      chainId: null,
+      selectedAddress: null,
+      request: function(args) {
+        return parent.__quickDappDesktopWalletBridge.request(args).then(function(result) {
+          return syncDesktopProvider(args && args.method, result);
+        });
+      },
+      send: function(method, params) {
+        var requestArgs = typeof method === 'object' ? method : { method: method, params: params || [] };
+        return parent.__quickDappDesktopWalletBridge.request(requestArgs).then(function(result) {
+          return syncDesktopProvider(requestArgs && requestArgs.method, result);
+        });
+      },
+      on: function(event, cb) {
+        if (!_desktopListeners[event]) _desktopListeners[event] = [];
+        _desktopListeners[event].push(cb);
+        return this;
+      },
+      removeListener: function(event, cb) {
+        if (_desktopListeners[event]) {
+          _desktopListeners[event] = _desktopListeners[event].filter(function(listener) { return listener !== cb; });
+        }
+        return this;
+      },
+      removeAllListeners: function() { _desktopListeners = {}; return this; }
+    };
+    window.__quickDappDesktopWalletUpdate = function(update) {
+      if (update && update.accounts) {
+        window.ethereum.selectedAddress = update.accounts[0] || null;
+        emitDesktopEvent('accountsChanged', update.accounts);
+      }
+      if (update && update.chainId && update.chainId !== window.ethereum.chainId) {
+        window.ethereum.chainId = update.chainId;
+        emitDesktopEvent('chainChanged', update.chainId);
+      }
+      if (update && update.disconnected) {
+        window.ethereum.selectedAddress = null;
+        emitDesktopEvent('disconnect', { code: 4900, message: 'Browser Wallet disconnected.' });
+      }
     };
   } else if (parent.window && parent.window.ethereum) {
     window.ethereum = parent.window.ethereum;
@@ -500,6 +618,20 @@ window.addEventListener('unhandledrejection', function(e) {
     });
   };
 
+  const handleOpenUpdateModal = async () => {
+    if (isActiveDappPublishing()) {
+      await plugin.call('notification', 'toast', 'Please wait until publishing finishes before updating this DApp.');
+      return;
+    }
+    if (isAiAssistantStreaming()) {
+      showAiAssistantBusyNotification();
+      return;
+    }
+
+    setShowSettingsDrawer(false);
+    setShowUpdateModal(true);
+  };
+
   const openAiAssistantPanel = async () => {
     try {
       await plugin.call('manager', 'activatePlugin', 'remix-ai-assistant');
@@ -531,7 +663,7 @@ window.addEventListener('unhandledrejection', function(e) {
     };
   };
 
-  const handleOpenAIAssistant = async () => {
+  const handleOpenAIAssistant = async (request: DappUpdateRequest) => {
     if (!activeDapp || !plugin) return;
     console.log('[QuickDapp] Opening AI Assistant for DApp update:', activeDapp.slug);
 
@@ -565,7 +697,12 @@ window.addEventListener('unhandledrejection', function(e) {
     // Build rich context prompt
     const dappName = activeDapp.config?.title || activeDapp.name || 'Untitled';
     const contractInfo = activeDapp.contract;
+    const contractBindings = getQuickDappContracts(activeDapp);
+    const primaryContract = getPrimaryQuickDappContract(activeDapp);
     const isGraphOnlyTarget = activeDapp.appKind === 'graph-only';
+    const isZkCircuitTarget = activeDapp.appKind === 'zk-circuit';
+    const zkCircuit = activeDapp.zkCircuit;
+    const targetAppKind = isGraphOnlyTarget ? 'graph-only' : isZkCircuitTarget ? 'zk-circuit' : 'contract';
     const graphSources = Array.isArray(activeDapp.dataSources?.theGraph) ? activeDapp.dataSources.theGraph : [];
     const promptParts = [
       `DApp update target context:`,
@@ -576,7 +713,7 @@ window.addEventListener('unhandledrejection', function(e) {
       `Target slug: "${activeDapp.slug}"`,
       `Target mode: "${targetMode}"`,
       `Target source root: "${targetSourceRoot}"`,
-      `Target app kind: "${isGraphOnlyTarget ? 'graph-only' : 'contract'}"`,
+      `Target app kind: "${targetAppKind}"`,
       ``,
     ];
 
@@ -584,6 +721,27 @@ window.addEventListener('unhandledrejection', function(e) {
       promptParts.push(
         `Contract: none (Graph-only read-only DApp)`,
         `Update scope: UI/source updates only. Preserve Graph data fetching and do not add contract, wallet, provider, signer, ethers, transaction, or network switching code.`
+      );
+    } else if (isZkCircuitTarget) {
+      promptParts.push(
+        `Contract: none (ZK circuit DApp)`,
+        `ZK circuit binding is fixed at creation:`,
+        `- Circuit: ${zkCircuit?.circuitName || activeDapp.name || 'not recorded'}`,
+        `- Circuit source: ${zkCircuit?.circuitPath || 'not recorded'}`,
+        `- Proving scheme: ${zkCircuit?.provingScheme || 'not recorded'}`,
+        `- Prime field: ${zkCircuit?.primeValue || 'not recorded'}`,
+        `- Signal inputs: ${zkCircuit?.signalInputs?.join(', ') || 'none recorded'}`,
+        `- Artifact paths: wasm=${zkCircuit?.zkArtifacts?.wasmPath || 'not recorded'}, zkey=${zkCircuit?.zkArtifacts?.zkeyPath || 'not recorded'}, vkey=${zkCircuit?.zkArtifacts?.vkeyPath || 'not recorded'}`,
+        `- zkVerify network: ${zkCircuit?.zkVerifyConfig?.network || 'not recorded'}`,
+        `Update scope: UI/source updates only. Preserve window.__ZK_DAPP_CONFIG__, snarkjs proof generation, zkVerify runtime integration, existing wallet behavior, circuit metadata, and artifact files.`
+      );
+    } else if (contractBindings.length > 1) {
+      promptParts.push(
+        `Current contract bindings:`,
+        ...contractBindings.map((contract) =>
+          `- ${contract.alias}${contract.id === primaryContract?.id ? ' (primary)' : ''}: ${contract.name} at ${contract.address}`
+        ),
+        `Chain: ${primaryContract?.chainId || 'unknown'}`
       );
     } else {
       promptParts.push(
@@ -602,12 +760,26 @@ window.addEventListener('unhandledrejection', function(e) {
 
     promptParts.push(
       ``,
-      `I want to update this exact DApp.`,
-      `For this first response, do not call list_dapps, update_dapp, generate_dapp, read_file, write_file, or finalize_dapp_generation.`,
-      `Only ask me one concise question: what changes would I like to make?`,
-      `After my next reply, call update_dapp with workspaceName="${activeDapp.workspaceName}" and description set to my requested changes.`,
-      `Use exactly the target workspaceName above if calling update_dapp.`,
-      `Never call generate_dapp for this update flow.`
+      `The user confirmed these update options in the QuickDapp UI.`,
+      `Requested changes: ${JSON.stringify(request.description)}`
+    );
+
+    if (request.bindingChange) {
+      promptParts.push(
+        `Confirmed contract binding change: ${JSON.stringify(request.bindingChange)}`,
+        `Call update_dapp now with workspaceName="${activeDapp.workspaceName}", description=${JSON.stringify(request.description)}, bindingChange set to the exact confirmed object above, and bindingChangeConfirmed=true.`,
+        `Do not ask the user to select another contract and do not substitute an address, target binding, or workspace.`
+      );
+    } else {
+      promptParts.push(
+        `Call update_dapp now with workspaceName="${activeDapp.workspaceName}" and description=${JSON.stringify(request.description)}.`,
+        `Do not add, remove, replace, or reprioritize contracts, and do not change an address, ABI, chain, app kind, or managed ZK metadata.`
+      );
+    }
+
+    promptParts.push(
+      `Use exactly the target workspaceName above.`,
+      `Never call a DApp generation tool for this update flow.`
     );
 
     const prompt = promptParts.join('\n');
@@ -616,7 +788,11 @@ window.addEventListener('unhandledrejection', function(e) {
 
     // Send prompt to AI
     try {
-      await plugin.call('remixaiassistant' as any, 'chatPipe', prompt, false, { source: 'quick-dapp', presetId: 'dapp-update' });
+      await plugin.call('remixaiassistant' as any, 'chatPipe', prompt, false, {
+        source: 'quick-dapp',
+        presetId: 'dapp-update',
+        displayText: `Update DApp\n${dappName}`
+      });
     } catch (e) {
       console.warn('[QuickDapp] Could not send prompt to AI Assistant:', e);
     }
@@ -637,7 +813,12 @@ window.addEventListener('unhandledrejection', function(e) {
     const targetSourceRoot = targetMode === 'inline' ? '/frontend' : '/';
     const dappName = activeDapp.config?.title || activeDapp.name || 'Untitled';
     const contractInfo = activeDapp.contract;
+    const contractBindings = getQuickDappContracts(activeDapp);
+    const primaryContract = getPrimaryQuickDappContract(activeDapp);
     const isGraphOnlyTarget = activeDapp.appKind === 'graph-only';
+    const isZkCircuitTarget = activeDapp.appKind === 'zk-circuit';
+    const zkCircuit = activeDapp.zkCircuit;
+    const targetAppKind = isGraphOnlyTarget ? 'graph-only' : isZkCircuitTarget ? 'zk-circuit' : 'contract';
     const graphSources = Array.isArray(activeDapp.dataSources?.theGraph) ? activeDapp.dataSources.theGraph : [];
 
     const promptParts = [
@@ -649,7 +830,7 @@ window.addEventListener('unhandledrejection', function(e) {
       `Target slug: "${activeDapp.slug}"`,
       `Target mode: "${targetMode}"`,
       `Target source root: "${targetSourceRoot}"`,
-      `Target app kind: "${isGraphOnlyTarget ? 'graph-only' : 'contract'}"`,
+      `Target app kind: "${targetAppKind}"`,
       `Base mini app: ${activeDapp.config?.isBaseMiniApp ? 'yes' : 'no'}`,
       `Deployment status: "${activeDapp.status || 'unknown'}"`,
       ``
@@ -659,6 +840,28 @@ window.addEventListener('unhandledrejection', function(e) {
       promptParts.push(
         `Contract: none (Graph-only read-only DApp)`,
         `Fix scope: UI/source fixes only. Preserve Graph data fetching and do not add contract, wallet, provider, signer, ethers, transaction, or network switching code.`
+      );
+    } else if (isZkCircuitTarget) {
+      promptParts.push(
+        `Contract: none (ZK circuit DApp)`,
+        `ZK circuit binding is fixed at creation:`,
+        `- Circuit: ${zkCircuit?.circuitName || activeDapp.name || 'not recorded'}`,
+        `- Circuit source: ${zkCircuit?.circuitPath || 'not recorded'}`,
+        `- Proving scheme: ${zkCircuit?.provingScheme || 'not recorded'}`,
+        `- Prime field: ${zkCircuit?.primeValue || 'not recorded'}`,
+        `- Signal inputs: ${zkCircuit?.signalInputs?.join(', ') || 'none recorded'}`,
+        `- Artifact paths: wasm=${zkCircuit?.zkArtifacts?.wasmPath || 'not recorded'}, zkey=${zkCircuit?.zkArtifacts?.zkeyPath || 'not recorded'}, vkey=${zkCircuit?.zkArtifacts?.vkeyPath || 'not recorded'}`,
+        `- zkVerify network: ${zkCircuit?.zkVerifyConfig?.network || 'not recorded'}`,
+        `Fix scope: UI/source fixes only. Preserve window.__ZK_DAPP_CONFIG__, snarkjs proof generation, zkVerify runtime integration, existing wallet behavior, circuit metadata, and artifact files.`
+      );
+    } else if (contractBindings.length > 1) {
+      promptParts.push(
+        `Current contract bindings (preserve them for this preview fix):`,
+        ...contractBindings.map((contract) =>
+          `- ${contract.alias}${contract.id === primaryContract?.id ? ' (primary)' : ''}: ${contract.name} at ${contract.address}`
+        ),
+        `Chain: ${primaryContract?.chainId || 'unknown'}`,
+        `Network: ${primaryContract?.networkName || 'unknown'}`
       );
     } else {
       promptParts.push(
@@ -672,6 +875,10 @@ window.addEventListener('unhandledrejection', function(e) {
       promptParts.push(...buildQuickDappUpdateGraphContextBlock(graphSources));
     }
 
+    const previewPreservationInstruction = isZkCircuitTarget
+      ? `Preserve window.__ZK_DAPP_CONFIG__, circuit metadata, ZK artifact paths/files, snarkjs proof generation, zkVerify runtime integration, existing wallet behavior, and deployment configuration.`
+      : `Preserve the existing contract bindings, Graph, Base mini app, and deployment configuration.`;
+
     promptParts.push(
       ``,
       `Observed preview issue type: "${previewIssue.type}"`,
@@ -682,8 +889,8 @@ window.addEventListener('unhandledrejection', function(e) {
       `Call update_dapp with workspaceName="${activeDapp.workspaceName}" and description set to a concise summary of the preview issue above.`,
       `Fix only the cause of this preview issue.`,
       `Do not redesign the DApp or change unrelated UI/behavior.`,
-      `Preserve the existing contract, Graph, Base mini app, and deployment configuration.`,
-      `Never call generate_dapp for this fix flow.`,
+      previewPreservationInstruction,
+      `Never call a DApp generation tool for this fix flow.`,
       `After editing files, finalize the DApp update.`
     );
 
@@ -692,7 +899,11 @@ window.addEventListener('unhandledrejection', function(e) {
     await openAiAssistantPanel();
 
     try {
-      await plugin.call('remixaiassistant' as any, 'chatPipe', prompt, false, { source: 'quick-dapp', presetId: 'dapp-fix-preview' });
+      await plugin.call('remixaiassistant' as any, 'chatPipe', prompt, false, {
+        source: 'quick-dapp',
+        presetId: 'dapp-fix-preview',
+        displayText: `Fix DApp preview\n${dappName} · ${previewIssue.type}`
+      });
     } catch (e) {
       console.warn('[QuickDapp] Could not send preview fix prompt to AI Assistant:', e);
     }
@@ -718,11 +929,128 @@ window.addEventListener('unhandledrejection', function(e) {
     return () => { mounted = false; };
   }, []);
 
+  const activeContractBindings = getQuickDappContracts(activeDapp);
+  const activePrimaryContract = getPrimaryQuickDappContract(activeDapp);
+  const activeContractAddressKey = activeContractBindings.map((contract) => contract.address.toLowerCase()).join(',');
   const isVM = !!activeDapp?.contract?.chainId && activeDapp.contract.chainId.toString().startsWith('vm');
   const isGraphOnly = activeDapp?.appKind === 'graph-only';
   const dappNetworkLabel = isGraphOnly ? 'The Graph' : activeDapp?.contract?.networkName || 'Unknown Network';
+  const contractBindingSummary = activeContractBindings.length > 0
+    ? `${activeContractBindings.length} contract${activeContractBindings.length > 1 ? 's' : ''} · ${dappNetworkLabel} · Primary: ${activePrimaryContract?.alias || activePrimaryContract?.name || 'Unknown'}`
+    : isGraphOnly
+      ? 'The Graph · No contract bindings'
+      : activeDapp?.appKind === 'zk-circuit'
+        ? 'ZK circuit · No contract bindings'
+        : 'No contract bindings';
   const [isCurrentProviderVM, setIsCurrentProviderVM] = useState(false);
   const [vmContractStatus, setVmContractStatus] = useState<'checking' | 'deployed' | 'not-found'>('checking');
+  const isDesktopWalletPreview = isElectron() && !isVM && !isGraphOnly && !!activeDapp?.contract;
+  const [desktopWalletStatus, setDesktopWalletStatus] = useState<DesktopWalletPreviewStatus>('checking');
+
+  // Desktop has no injected provider in the renderer. Keep its Browser Wallet bridge scoped to this preview.
+  useEffect(() => {
+    if (!isDesktopWalletPreview || !plugin) {
+      setDesktopWalletStatus('checking');
+      return;
+    }
+
+    let isMounted = true;
+
+    const setStatus = (status: DesktopWalletPreviewStatus) => {
+      if (isMounted) setDesktopWalletStatus(status);
+    };
+
+    const getDesktopWalletStatus = async (): Promise<DesktopWalletPreviewStatus> => {
+      const provider = await plugin.call('blockchain', 'getProvider');
+      if (provider !== 'desktopHost') return 'select-browser-wallet';
+
+      const connected = await plugin.call('desktopHost', 'getIsConnected').catch(() => false);
+      return connected ? 'ready' : 'browser-disconnected';
+    };
+
+    const refreshStatus = async () => {
+      try {
+        setStatus(await getDesktopWalletStatus());
+      } catch (e) {
+        setStatus('browser-disconnected');
+      }
+    };
+
+    const bridge = {
+      request: async ({ method, params }: { method: string; params?: any[] }) => {
+        if (!method || typeof method !== 'string') {
+          throw new Error('A valid wallet RPC method is required.');
+        }
+
+        const status = await getDesktopWalletStatus();
+        setStatus(status);
+
+        if (status === 'select-browser-wallet') {
+          const error: any = new Error('Select Browser Wallet in Deploy & Run to use the wallet in Desktop Preview.');
+          error.code = 4900;
+          throw error;
+        }
+        if (status !== 'ready') {
+          const error: any = new Error('Open Browser Wallet in Deploy & Run and complete the connection in your browser.');
+          error.code = 4900;
+          throw error;
+        }
+
+        return plugin.call('blockchain', 'sendRpc', method, params || []);
+      }
+    };
+
+    (window as any).__quickDappDesktopWalletBridge = bridge;
+
+    const notifyIframe = (update: { accounts?: string[]; chainId?: string; disconnected?: boolean }) => {
+      const updateWallet = (iframeRef.current?.contentWindow as any)?.__quickDappDesktopWalletUpdate;
+      if (typeof updateWallet === 'function') updateWallet(update);
+    };
+
+    const refreshIframeWallet = async () => {
+      let status: DesktopWalletPreviewStatus;
+      try {
+        status = await getDesktopWalletStatus();
+        setStatus(status);
+      } catch (e) {
+        setStatus('browser-disconnected');
+        return;
+      }
+      if (!isMounted || status !== 'ready') return;
+
+      try {
+        const [accounts, chainId] = await Promise.all([
+          plugin.call('blockchain', 'sendRpc', 'eth_accounts'),
+          plugin.call('blockchain', 'sendRpc', 'eth_chainId')
+        ]);
+        if (isMounted) notifyIframe({ accounts: Array.isArray(accounts) ? accounts : [], chainId });
+      } catch (e) {
+        // The next wallet request will surface the actionable connection error.
+      }
+    };
+
+    const onDisconnected = () => {
+      setStatus('browser-disconnected');
+      notifyIframe({ disconnected: true });
+    };
+
+    refreshStatus();
+    plugin.on('blockchain', 'contextChanged', refreshIframeWallet);
+    plugin.on('blockchain', 'networkStatus', refreshIframeWallet);
+    plugin.on('desktopHost', 'accountsChanged', refreshIframeWallet);
+    plugin.on('desktopHost', 'disconnected', onDisconnected);
+
+    return () => {
+      isMounted = false;
+      try { plugin.off('blockchain', 'contextChanged', refreshIframeWallet); } catch (e) {}
+      try { plugin.off('blockchain', 'networkStatus', refreshIframeWallet); } catch (e) {}
+      try { plugin.off('desktopHost', 'accountsChanged', refreshIframeWallet); } catch (e) {}
+      try { plugin.off('desktopHost', 'disconnected', onDisconnected); } catch (e) {}
+      if ((window as any).__quickDappDesktopWalletBridge === bridge) {
+        delete (window as any).__quickDappDesktopWalletBridge;
+      }
+    };
+  }, [isDesktopWalletPreview, plugin, activeDapp?.slug]);
 
   useEffect(() => {
     if (isBuilderReady && activeDapp && !isAiUpdating) {
@@ -808,7 +1136,7 @@ window.addEventListener('unhandledrejection', function(e) {
   }, [plugin, isVM]);
 
   useEffect(() => {
-    if (!isVM || !isCurrentProviderVM || !plugin || !activeDapp?.contract?.address) {
+    if (!isVM || !isCurrentProviderVM || !plugin || !activeContractAddressKey) {
       setVmContractStatus('checking');
       return;
     }
@@ -822,9 +1150,11 @@ window.addEventListener('unhandledrejection', function(e) {
           setVmContractStatus('deployed');
           return;
         }
-        const result = await web3.send('eth_getCode', [activeDapp.contract.address, 'latest']);
+        const results = await Promise.all(activeContractAddressKey.split(',').map((address) =>
+          web3.send('eth_getCode', [address, 'latest'])
+        ));
         if (cancelled) return;
-        if (result && result !== '0x' && result !== '0x0' && result.length > 2) {
+        if (results.every((result: string) => result && result !== '0x' && result !== '0x0' && result.length > 2)) {
           setVmContractStatus('deployed');
         } else {
           setVmContractStatus('not-found');
@@ -838,7 +1168,7 @@ window.addEventListener('unhandledrejection', function(e) {
 
     checkContract();
     return () => { cancelled = true; };
-  }, [isVM, isCurrentProviderVM, plugin, activeDapp?.contract?.address]);
+  }, [isVM, isCurrentProviderVM, plugin, activeContractAddressKey]);
 
   // Bridge setup: provides window.__remixVMBridge for DApp iframe to call VM directly.
   useEffect(() => {
@@ -966,9 +1296,12 @@ window.addEventListener('unhandledrejection', function(e) {
     };
   }, [isVM, isCurrentProviderVM, plugin]);
 
-  if (!activeDapp) return <div className="p-3">No active dapp selected.</div>;
+  if (!activeDapp) return <div className="p-3">No active DApp selected.</div>;
 
   const currentPreviewIssue = getFixablePreviewIssue();
+  const previewPublishLabel = getQuickDappPublishState(activeDapp) === 'published-with-unpublished-changes'
+    ? 'Publish changes'
+    : 'Publish';
 
   return (
     <div className="d-flex flex-column h-100">
@@ -1018,24 +1351,16 @@ window.addEventListener('unhandledrejection', function(e) {
               </button>
             )}
             <Button
-              variant="success"
+              variant="outline-secondary"
               size="sm"
-              onClick={handleOpenAIAssistant}
+              className="qd-secondary-action"
+              onClick={handleOpenUpdateModal}
               disabled={isAiUpdating}
               title={isGraphOnly ? 'AI update is limited to Graph-only UI/source changes.' : undefined}
               data-id="update-with-ai-btn"
             >
               <i className="fas fa-robot me-1"></i>
               Ask AI to Update
-            </Button>
-            <Button
-              variant="primary"
-              size="sm"
-              onClick={() => runBuild(true)}
-              disabled={isBuilding || isAiUpdating}
-              data-id="refresh-preview-btn"
-            >
-              {isBuilding ? <><i className="fas fa-spinner fa-spin me-1"></i> Building...</> : <><i className="fas fa-play me-1"></i> Refresh Preview</>}
             </Button>
             <Button
               variant="outline-danger"
@@ -1076,7 +1401,9 @@ window.addEventListener('unhandledrejection', function(e) {
                         {vmContractStatus === 'not-found' && (
                           <div className="text-danger mb-1">
                             <i className="fas fa-exclamation-circle me-1"></i>
-                            No contract found at <code>{activeDapp.contract.address}</code>. The VM state may have been reset. Please redeploy the contract.
+                            {activeContractBindings.length > 1
+                              ? 'One or more selected contracts are missing. The VM state may have been reset. Create a new DApp after redeploying the contracts.'
+                              : <>No contract found at <code>{activeDapp.contract.address}</code>. The VM state may have been reset. Please redeploy the contract.</>}
                           </div>
                         )}
                         {vmContractStatus === 'checking' && isCurrentProviderVM && (
@@ -1097,7 +1424,46 @@ window.addEventListener('unhandledrejection', function(e) {
                     </div>
                   )}
 
+                  {isDesktopWalletPreview && desktopWalletStatus !== 'ready' && (
+                    <div className="alert alert-info py-2 px-3 mb-2 small shadow-sm d-flex align-items-start" data-id="desktop-wallet-preview-banner">
+                      <i className={`fas ${desktopWalletStatus === 'checking' ? 'fa-spinner fa-spin' : 'fa-wallet'} me-2 mt-1`}></i>
+                      <div>
+                        <div className="fw-bold mb-1">Desktop Preview Wallet</div>
+                        {desktopWalletStatus === 'checking' && 'Checking Browser Wallet connection...'}
+                        {desktopWalletStatus === 'select-browser-wallet' && 'Select Browser Wallet in Deploy & Run to test wallet actions in this preview.'}
+                        {desktopWalletStatus === 'browser-disconnected' && 'Open Browser Wallet in Deploy & Run, then complete the wallet connection in your browser.'}
+                      </div>
+                    </div>
+                  )}
+
                   <Card className="border flex-grow-1 d-flex position-relative">
+                    <Card.Header className="d-flex align-items-center justify-content-between gap-2 flex-wrap py-2 px-3 bg-transparent qd-preview-toolbar">
+                      <div className="fw-semibold text-body">
+                        <i className="fas fa-desktop me-2 text-secondary"></i>
+                        Preview
+                      </div>
+                      <div className="d-flex align-items-center gap-2">
+                        <Button
+                          variant="outline-secondary"
+                          size="sm"
+                          className="qd-secondary-action"
+                          onClick={() => runBuild(true)}
+                          disabled={isBuilding || isAiUpdating}
+                          data-id="refresh-preview-btn"
+                        >
+                          {isBuilding ? <><i className="fas fa-spinner fa-spin me-1"></i> Building...</> : <><i className="fas fa-sync-alt me-1"></i> Refresh Preview</>}
+                        </Button>
+                        <Button
+                          variant="primary"
+                          size="sm"
+                          onClick={() => setPublishRequestId((requestId) => requestId + 1)}
+                          data-id="preview-publish-btn"
+                        >
+                          <i className="fas fa-cloud-upload-alt me-1"></i>
+                          {previewPublishLabel}
+                        </Button>
+                      </div>
+                    </Card.Header>
                     <Card.Body className="p-0 d-flex flex-column position-relative" style={{ overflow: 'hidden' }}>
                       {isAiUpdating && (() => {
                         const progress = appState.generationProgress;
@@ -1136,7 +1502,7 @@ window.addEventListener('unhandledrejection', function(e) {
                       <iframe
                         ref={iframeRef}
                         style={{ width: '100%', height: '100%', minHeight: '800px', border: 'none', backgroundColor: 'white', display: iframeError ? 'none' : 'block' }}
-                        title="dApp Preview"
+                        title="DApp Preview"
                         sandbox="allow-popups allow-scripts allow-same-origin allow-forms allow-top-navigation"
                         data-id="dapp-preview-iframe"
                       />
@@ -1158,7 +1524,12 @@ window.addEventListener('unhandledrejection', function(e) {
                               <i className="fas fa-robot me-1"></i>
                               Ask AI to fix
                             </Button>
-                            <button className="btn-close ms-2 flex-shrink-0" style={{ fontSize: '0.6rem' }} onClick={() => setRuntimeErrors([])}></button>
+                            <button
+                              className="btn-close ms-2 flex-shrink-0"
+                              style={{ fontSize: '0.6rem' }}
+                              onClick={() => setRuntimeErrors([])}
+                              aria-label="Dismiss runtime error"
+                            ></button>
                           </div>
                         </div>
                       )}
@@ -1183,18 +1554,56 @@ window.addEventListener('unhandledrejection', function(e) {
                         </div>
                       )}
                     </Card.Body>
+                    <Card.Footer className="d-flex align-items-center justify-content-between gap-2 flex-wrap py-2" data-id="quickDappBindingStatus">
+                      <div className="small text-secondary text-break">
+                        <i className="fas fa-link me-1"></i>
+                        {contractBindingSummary}
+                      </div>
+                      <Button
+                        variant="link"
+                        size="sm"
+                        className="p-0 text-decoration-none"
+                        onClick={() => setShowSettingsDrawer(true)}
+                        data-id="quickDappSettingsBtn"
+                      >
+                        <i className="fas fa-cog me-1"></i>
+                        Contract bindings
+                      </Button>
+                    </Card.Footer>
                   </Card>
                 </Col>
               </Row>
             </Col>
             <Col xs={12} lg={4} className="d-flex flex-column qd-side-col">
               <div className="flex-shrink-0">
-                <DeployPanel />
+                <DeployPanel
+                  isDeleteInFlight={() => deleteInFlightRef.current}
+                  publishRequestId={publishRequestId}
+                />
               </div>
             </Col>
           </Row>
         </div>
       </div>
+
+      <DappUpdateModal
+        show={showUpdateModal}
+        dapp={activeDapp}
+        plugin={plugin}
+        onCancel={() => setShowUpdateModal(false)}
+        onConfirm={(request) => {
+          setShowUpdateModal(false);
+          void handleOpenAIAssistant(request);
+        }}
+      />
+
+      <DappSettingsDrawer
+        show={showSettingsDrawer}
+        dapp={activeDapp}
+        isUpdating={isAiUpdating}
+        onClose={() => setShowSettingsDrawer(false)}
+        onUpdate={handleOpenUpdateModal}
+      />
 
       <Modal show={notificationModal.show} onHide={closeNotificationModal} centered data-id="notification-modal">
         <Modal.Header closeButton>
@@ -1205,6 +1614,12 @@ window.addEventListener('unhandledrejection', function(e) {
         <Modal.Body>{notificationModal.message}</Modal.Body>
         <Modal.Footer>
           <Button variant="secondary" onClick={closeNotificationModal} data-id="notification-modal-close-btn">Close</Button>
+          {notificationModal.action === 'publish' && (
+            <Button variant="primary" onClick={handlePublishChanges} data-id="notification-modal-publish-btn">
+              <i className="fas fa-cloud-upload-alt me-1"></i>
+              Publish changes
+            </Button>
+          )}
         </Modal.Footer>
       </Modal>
 

@@ -157,6 +157,16 @@
   flex-direction: column;
 }
 
+.qd-card-menu-toggle {
+  width: 32px;
+  height: 32px;
+  padding: 0;
+}
+
+.qd-card-menu-toggle::after {
+  display: none;
+}
+
 /* Wide container (>= 600px): side-by-side layout */
 @container qd-main (min-width: 600px) {
   .qd-grid-col {
@@ -304,4 +314,63 @@
 
 .qd-progress-log__write::before {
   content: 'write ';
+}
+
+.qd-secondary-action {
+  color: var(--bs-body-color, var(--text)) !important;
+  background-color: var(--bs-secondary-bg, transparent) !important;
+  border-color: var(--bs-border-color, var(--bs-secondary-color)) !important;
+  font-weight: 500;
+}
+
+.qd-secondary-action:hover,
+.qd-secondary-action:focus-visible {
+  color: var(--bs-body-color, var(--text)) !important;
+  background-color: rgba(var(--bs-primary-rgb, 13, 110, 253), 0.12) !important;
+  border-color: var(--bs-primary) !important;
+}
+
+.qd-secondary-action:disabled {
+  color: var(--bs-body-color, var(--text)) !important;
+  background-color: var(--bs-secondary-bg, transparent) !important;
+  border-color: var(--bs-border-color, var(--bs-secondary-color)) !important;
+  opacity: 0.55;
+}
+
+.qd-choice-chip {
+  color: var(--bs-body-color, var(--text));
+  background-color: transparent;
+  border: 1px solid var(--bs-border-color, var(--bs-secondary-color));
+}
+
+.qd-choice-chip:hover,
+.qd-choice-chip:focus-visible {
+  color: var(--bs-body-color, var(--text));
+  background-color: rgba(var(--bs-primary-rgb, 13, 110, 253), 0.12);
+  border-color: var(--bs-primary);
+}
+
+.qd-choice-chip--active,
+.qd-choice-chip--active:hover,
+.qd-choice-chip--active:focus-visible {
+  color: var(--bs-btn-active-color, var(--bs-body-color));
+  background-color: rgba(var(--bs-primary-rgb, 13, 110, 253), 0.18);
+  border-color: var(--bs-primary);
+}
+
+.qd-ai-design-panel {
+  background-color: rgba(var(--bs-primary-rgb, 13, 110, 253), 0.04);
+  border-color: rgba(var(--bs-primary-rgb, 13, 110, 253), 0.45) !important;
+}
+
+.qd-settings-drawer {
+  width: 420px;
+  max-width: 100%;
+  min-height: 100%;
+  margin: 0 0 0 auto !important;
+}
+
+.qd-settings-drawer .modal-content {
+  min-height: 100vh;
+  border-radius: 0;
 }

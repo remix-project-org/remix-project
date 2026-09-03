@@ -1,86 +1,10 @@
-export type DappStatus = 'draft' | 'creating' | 'updating' | 'created' | 'deployed';
-export type DappMode = 'workspace' | 'inline';
-export type ProvingScheme = 'groth16';
-export type PrimeValue = 'bn128' | 'bls12381';
-export type ZkVerifyNetwork = 'testnet' | 'mainnet';
-
-export interface ZkCircuitConfig {
-  circuitName: string;
-  circuitPath: string;
-  provingScheme: ProvingScheme;
-  primeValue: PrimeValue;
-  signalInputs: string[];
-  zkArtifacts: {
-    wasmPath: string;
-    zkeyPath: string;
-    vkeyPath: string;
-  };
-  zkVerifyConfig?: {
-    network: ZkVerifyNetwork;
-  };
-}
-
-export interface DappConfig {
-  _warning?: string;
-  slug: string;
-  name: string;
-  workspaceName: string;
-  mode?: DappMode;
-  appKind?: 'contract' | 'graph-only' | 'zk-circuit';
-
-  contract?: {
-    address: string;
-    name: string;
-    abi: any[];
-    chainId: number | string;
-    networkName: string;
-  };
-
-  zkCircuit?: ZkCircuitConfig;
-
-  sourceWorkspace?: {
-    name: string;
-    filePath: string;
-  };
-
-  status: DappStatus;
-  processingStartedAt?: number | null;
-  createdAt: number;
-  updatedAt: number;
-  lastDeployedAt?: number;
-
-  deployment?: {
-    ipfsCid?: string;
-    gatewayUrl?: string;
-    ensDomain?: string;
-  };
-
-  config: {
-    title: string;
-    details: string;
-    logo?: string;
-    isBaseMiniApp?: boolean;
-  };
-
-  dataSources?: {
-    theGraph?: QuickDappGraphContext[];
-  };
-
-  thumbnailPath?: string;
-}
-
-export interface QuickDappGraphContext {
-  source: 'subgraph-file' | 'remixai-chat' | 'manual';
-  filePath?: string;
-  endpoint: string;
-  endpointKind?: 'local' | 'thegraph-gateway' | 'generic-graphql';
-  endpointNeedsApiKey?: boolean;
-  apiKeySource?: 'remix-settings' | 'none';
-  subgraphId?: string;
-  network?: string;
-  description?: string;
-  query: string;
-  variables?: Record<string, any>;
-  operationName?: string;
-  operationType?: 'query' | 'mutation' | 'subscription';
-}
+export type {
+  DappConfig,
+  DappMode,
+  DappStatus,
+  PrimeValue,
+  ProvingScheme,
+  QuickDappGraphContext,
+  ZkCircuitConfig,
+  ZkVerifyNetwork
+} from '../types';

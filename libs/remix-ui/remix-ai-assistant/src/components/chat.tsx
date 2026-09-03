@@ -74,6 +74,16 @@ export const ChatHistoryComponent: React.FC<ChatHistoryComponentProps> = ({
   handleLoadSkills
 }) => {
   const [btnColor, setBtnColor] = useState('')
+  const [expandedPromptIds, setExpandedPromptIds] = useState<Set<string>>(new Set())
+
+  const togglePromptDetails = (messageId: string) => {
+    setExpandedPromptIds(current => {
+      const next = new Set(current)
+      next.has(messageId) ? next.delete(messageId) : next.add(messageId)
+      return next
+    })
+  }
+
   // The thinking box belongs to the message currently being produced.
   const lastAssistantId = [...messages].reverse().find(m => m.role === 'assistant')?.id
   return (
@@ -87,6 +97,9 @@ export const ChatHistoryComponent: React.FC<ChatHistoryComponentProps> = ({
         messages.map(msg => {
           const isCorrupted = msg.role === 'assistant' && (msg.content === null || msg.content === undefined)
           const displayContent = isCorrupted ? '*Unable to load response.*' : (msg.content ?? '')
+          const hasCollapsiblePrompt = msg.role === 'user' && !!msg.displayContent && msg.displayContent !== msg.content
+          const isPromptExpanded = hasCollapsiblePrompt && expandedPromptIds.has(msg.id)
+          const visibleUserContent = hasCollapsiblePrompt && !isPromptExpanded ? msg.displayContent : msg.content
           // A turn that only reasoned and called tools leaves nothing but the
           // `---` turn separators behind; that rendered as a bubble of bare
           // horizontal rules. Separators alone are not content.
@@ -142,10 +155,22 @@ export const ChatHistoryComponent: React.FC<ChatHistoryComponentProps> = ({
                         RemixMarkdownViewer(theme, normalizeTurnSeparators(displayContent), btnColor, setBtnColor)
                       ) : (
                         <div className="ai-paragraph pb-0">
-                          {msg.content}
+                          {visibleUserContent}
                         </div>
                       )}
                     </div>
+
+                    {hasCollapsiblePrompt && (
+                      <button
+                        type="button"
+                        className="btn btn-link btn-sm p-0 mt-2 text-secondary text-decoration-none"
+                        aria-expanded={isPromptExpanded}
+                        onClick={() => togglePromptDetails(msg.id)}
+                      >
+                        <i className={`fas fa-chevron-${isPromptExpanded ? 'up' : 'down'} me-1`}></i>
+                        {isPromptExpanded ? 'Hide request details' : 'Show request details'}
+                      </button>
+                    )}
 
                     {/* Copy button for user messages */}
                     {msg.role === 'user' && (
@@ -155,7 +180,7 @@ export const ChatHistoryComponent: React.FC<ChatHistoryComponentProps> = ({
                             role="button"
                             aria-label="copy message"
                             className="message-copy-btn"
-                            onClick={() => copy(msg.content)}
+                            onClick={() => copy(visibleUserContent)}
                             onMouseDown={(e) => e.preventDefault()}
                           >
                             <i className="far fa-copy"></i>

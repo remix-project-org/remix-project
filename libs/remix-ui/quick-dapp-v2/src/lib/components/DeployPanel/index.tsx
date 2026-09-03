@@ -11,7 +11,16 @@ import { InBrowserVite } from '../../InBrowserVite';
 import { generateWalletSelectionScript } from '../../utils/wallet-selection-script';
 import { validateEnsName } from '../../utils/ens-utils';
 import { buildGraphRuntimeConfigScript, hasTheGraphGatewaySources } from '../../utils/graph-runtime-config';
+import { buildQuickDappRuntimeConfigScript } from '../../utils/quick-dapp-runtime-config';
 import { buildZkRuntimeConfigScript, hasZkCircuit } from '../../utils/zkverify-runtime-config';
+import { getQuickDappPublishLabel, getQuickDappPublishState } from '../../utils/publish-state';
+import {
+  clearQuickDappWorkspaceLock,
+  getQuickDappWorkspaceLock,
+  logQuickDappBinding,
+  readQuickDappContractConfig,
+  trySetQuickDappWorkspaceLock
+} from '@remix-ui/helper';
 // remixClient removed - using plugin from context instead
 import { trackMatomoEvent } from '@remix-api';
 import { endpointUrls } from '@remix-endpoints-helper';
@@ -30,7 +39,12 @@ import {
 
 const REMIX_ENDPOINT_IPFS = endpointUrls.quickdappIpfs;
 
-function DeployPanel(): JSX.Element {
+interface DeployPanelProps {
+  isDeleteInFlight?: () => boolean;
+  publishRequestId?: number;
+}
+
+function DeployPanel({ isDeleteInFlight, publishRequestId = 0 }: DeployPanelProps): JSX.Element {
   const { features } = useAuth()
   const hasQuickdappPublishPermission = features[Features.DAPP_PUBLISH]?.is_enabled === true
   const intl = useIntl();
@@ -39,6 +53,14 @@ function DeployPanel(): JSX.Element {
   const { title, details, logo } = appState.instance;
   const isVM = !!activeDapp?.contract?.chainId && activeDapp.contract.chainId.toString().startsWith('vm');
   const hasGraphGateway = hasTheGraphGatewaySources(activeDapp);
+  const isAiUpdating = activeDapp ? (appState.dappProcessing[activeDapp.slug] || false) : false;
+  const publishState = getQuickDappPublishState(activeDapp);
+  const publishLabel = getQuickDappPublishLabel(activeDapp);
+  const hasUnpublishedChanges = publishState === 'published-with-unpublished-changes';
+  const isUpdateLocked = () => {
+    const lock = getQuickDappWorkspaceLock();
+    return lock?.operation === 'update' && lock.workspaceName === activeDapp?.workspaceName;
+  };
 
   const [deployResult, setDeployResult] = useState({
     cid: activeDapp?.deployment?.ipfsCid || '',
@@ -67,25 +89,65 @@ function DeployPanel(): JSX.Element {
   const [isShareOpen, setIsShareOpen] = useState(true);
   const [copiedField, setCopiedField] = useState('');
   const [showEnsModal, setShowEnsModal] = useState(false);
+  const ensPublishLockRef = useRef<{ workspaceName: string; operationId: string } | null>(null);
+  const ensRegistrationInFlightRef = useRef(false);
+  const isMountedRef = useRef(true);
+  const publishSectionRef = useRef<HTMLDivElement>(null);
+  const lastPublishRequestIdRef = useRef(0);
 
   const [isSavingConfig, setIsSavingConfig] = useState(false);
+  const configSaveInFlightRef = useRef(false);
   const logoInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    if (activeDapp?.deployment) {
-      setDeployResult(prev => ({
-        ...prev,
-        cid: activeDapp.deployment?.ipfsCid || prev.cid,
-        gatewayUrl: activeDapp.deployment?.gatewayUrl || prev.gatewayUrl
-      }));
-      if (activeDapp.deployment.ensDomain) {
-        setEnsResult(prev => ({
-          ...prev,
-          success: `Linked: ${activeDapp.deployment.ensDomain}`,
-          domain: activeDapp.deployment.ensDomain!
-        }));
-      }
+    if (!publishRequestId || publishRequestId === lastPublishRequestIdRef.current) return;
+
+    lastPublishRequestIdRef.current = publishRequestId;
+    if (!activeDapp?.config?.isBaseMiniApp) setIsPublishOpen(true);
+
+    const frameId = window.requestAnimationFrame(() => {
+      publishSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+
+    return () => window.cancelAnimationFrame(frameId);
+  }, [publishRequestId, activeDapp?.config?.isBaseMiniApp]);
+
+  const handleAccordionKeyDown = (event: React.KeyboardEvent, toggle: () => void) => {
+    if (event.key !== 'Enter' && event.key !== ' ') return;
+    event.preventDefault();
+    toggle();
+  };
+
+  const clearEnsPublishLock = () => {
+    const publishLock = ensPublishLockRef.current;
+    if (!publishLock) return;
+    clearQuickDappWorkspaceLock(publishLock.workspaceName, publishLock.operationId);
+    ensPublishLockRef.current = null;
+  };
+
+  useEffect(() => () => {
+    isMountedRef.current = false;
+    if (ensRegistrationInFlightRef.current) return;
+    const publishLock = ensPublishLockRef.current;
+    if (publishLock) {
+      clearQuickDappWorkspaceLock(publishLock.workspaceName, publishLock.operationId);
+      ensPublishLockRef.current = null;
     }
+  }, []);
+
+  useEffect(() => {
+    const deployment = activeDapp?.deployment;
+    setDeployResult({
+      cid: deployment?.ipfsCid || '',
+      gatewayUrl: deployment?.gatewayUrl || '',
+      error: ''
+    });
+    setEnsResult({
+      success: deployment?.ensDomain ? `Linked: ${deployment.ensDomain}` : '',
+      error: '',
+      txHash: '',
+      domain: deployment?.ensDomain || ''
+    });
   }, [activeDapp?.slug, activeDapp?.deployment]);
 
   useEffect(() => {
@@ -134,6 +196,13 @@ function DeployPanel(): JSX.Element {
 
   const handleSaveConfig = async () => {
     if (!dappManager || !activeDapp) return;
+    const activeLock = getQuickDappWorkspaceLock();
+    if (activeLock?.workspaceName === activeDapp.workspaceName) {
+      await plugin.call('notification', 'toast', 'Please wait until the current QuickDApp operation finishes before saving configuration.');
+      return;
+    }
+    if (configSaveInFlightRef.current) return;
+    configSaveInFlightRef.current = true;
     setIsSavingConfig(true);
     try {
       const updatedConfig = await dappManager.updateDappConfig(activeDapp.slug, {
@@ -154,6 +223,7 @@ function DeployPanel(): JSX.Element {
       // @ts-ignore
       await plugin.call('notification', 'toast', 'Failed to save configuration: ' + e.message);
     } finally {
+      configSaveInFlightRef.current = false;
       setIsSavingConfig(false);
     }
   };
@@ -168,6 +238,24 @@ function DeployPanel(): JSX.Element {
         }
       };
       reader.readAsDataURL(file);
+    }
+  };
+
+  const ensureActiveDappWorkspace = async () => {
+    if (!activeDapp?.workspaceName) throw new Error('DApp workspace is not configured');
+
+    const currentWorkspace = await plugin.call('filePanel', 'getCurrentWorkspace');
+    if (currentWorkspace?.name !== activeDapp.workspaceName) {
+      await plugin.call('filePanel', 'switchToWorkspace', {
+        name: activeDapp.workspaceName,
+        isLocalhost: false
+      });
+      await new Promise(resolve => setTimeout(resolve, 300));
+    }
+
+    const confirmedWorkspace = await plugin.call('filePanel', 'getCurrentWorkspace');
+    if (confirmedWorkspace?.name !== activeDapp.workspaceName) {
+      throw new Error(`Could not switch to DApp workspace "${activeDapp.workspaceName}"`);
     }
   };
 
@@ -264,7 +352,12 @@ function DeployPanel(): JSX.Element {
       ].join('\n');
 
       await openAiAssistantPanel();
-      await plugin.call('remixaiassistant' as any, 'chatPipe', prompt, false, { source: 'quick-dapp', presetId: 'dapp-docs' });
+      const dappName = activeDapp.config?.title || activeDapp.name || 'Untitled';
+      await plugin.call('remixaiassistant' as any, 'chatPipe', prompt, false, {
+        source: 'quick-dapp',
+        presetId: 'dapp-docs',
+        displayText: `Generate DApp documentation\n${dappName}`
+      });
 
       await plugin.call('notification', 'toast', `${DOCS_FILENAME} request sent to RemixAI.`);
     } catch (e: any) {
@@ -281,19 +374,43 @@ function DeployPanel(): JSX.Element {
       return
     }
     if (!activeDapp) return;
+    if (isDeleteInFlight?.()) {
+      await plugin.call('notification', 'toast', 'Please wait until DApp deletion finishes before publishing.');
+      return;
+    }
+    if (configSaveInFlightRef.current) {
+      await plugin.call('notification', 'toast', 'Please wait until configuration saving finishes before publishing.');
+      return;
+    }
+    if (isAiUpdating || isUpdateLocked()) {
+      await plugin.call('notification', 'toast', 'Please wait until the AI update finishes before publishing.');
+      return;
+    }
+    const publishOperationId = `publish-${Date.now().toString(36)}`;
+    const publishLock = trySetQuickDappWorkspaceLock({
+      workspaceName: activeDapp.workspaceName,
+      slug: activeDapp.slug,
+      operationId: publishOperationId,
+      operation: 'publish',
+      reason: 'ipfs_publish'
+    });
+    if (!publishLock) {
+      await plugin.call('notification', 'toast', 'Please wait until the current QuickDApp operation finishes.');
+      return;
+    }
     setDeployResult({ cid: '', gatewayUrl: '', error: '' });
     setIsDeploying(true);
-
-    trackMatomoEvent(plugin as any, {
-      category: 'quick-dapp-v2',
-      action: 'deploy_ipfs',
-      name: 'start',
-      isClick: true
-    });
 
     let builder: InBrowserVite;
 
     try {
+      trackMatomoEvent(plugin as any, {
+        category: 'quick-dapp-v2',
+        action: 'deploy_ipfs',
+        name: 'start',
+        isClick: true
+      });
+      await ensureActiveDappWorkspace();
       builder = new InBrowserVite();
       await builder.initialize();
       const isInlineMode = activeDapp?.mode === 'inline';
@@ -314,10 +431,11 @@ function DeployPanel(): JSX.Element {
         logoDataUrl = logo;
       }
 
-      // Escape </  to <\/ inside JSON strings to prevent HTML parser from
-      // seeing </script> in user text as the closing tag for this script element.
-      const safeJson = (val: string) => JSON.stringify(val).replace(/<\//g, '<\\/');
-      const injectionScript = `<script>window.__QUICK_DAPP_CONFIG__={logo:${safeJson(logoDataUrl || '')},title:${safeJson(title || '')},details:${safeJson(details || '')}};</script>`;
+      const injectionScript = buildQuickDappRuntimeConfigScript(activeDapp, {
+        logo: logoDataUrl,
+        title,
+        details
+      });
       const graphRuntimeScript = await buildGraphRuntimeConfigScript(plugin, activeDapp, { includeApiKey: false, target: 'ipfs-deploy' });
       const zkRuntimeScript = await buildZkRuntimeConfigScript(plugin, activeDapp, { includeApiKey: false, target: 'ipfs-deploy' });
       const walletScript = generateWalletSelectionScript();
@@ -458,19 +576,43 @@ function DeployPanel(): JSX.Element {
       });
 
       if (dappManager) {
+        const publishedAt = Date.now();
         const newConfig = await dappManager.updateDappConfig(activeDapp.slug, {
           status: 'deployed',
-          lastDeployedAt: Date.now(),
-          deployment: { ...activeDapp.deployment, ipfsCid: data.ipfsHash, gatewayUrl: data.gatewayUrl },
+          lastDeployedAt: publishedAt,
+          deployment: {
+            ipfsCid: data.ipfsHash,
+            gatewayUrl: data.gatewayUrl,
+            hasUnpublishedChanges: false
+          },
           config: { ...activeDapp.config, title: title || '', details: details || '', logo: logoDataUrl || undefined }
         });
-        if (newConfig) dispatch({ type: 'SET_ACTIVE_DAPP', payload: newConfig });
+        if (newConfig) {
+          dispatch({ type: 'SET_ACTIVE_DAPP', payload: newConfig });
+          logQuickDappBinding('publish.completed', {
+            workspaceName: newConfig.workspaceName,
+            outcome: 'success',
+            isRepublish: Boolean(activeDapp.deployment?.ipfsCid),
+            cidChanged: Boolean(activeDapp.deployment?.ipfsCid && activeDapp.deployment.ipfsCid !== data.ipfsHash),
+            publishStateAfter: 'published'
+          });
+        }
       }
 
     } catch (e: any) {
       console.error(e);
+      logQuickDappBinding('publish.completed', {
+        workspaceName: activeDapp.workspaceName,
+        outcome: 'failed',
+        isRepublish: Boolean(activeDapp.deployment?.ipfsCid),
+        cidChanged: false,
+        publishStateAfter: activeDapp.deployment?.ipfsCid
+          ? activeDapp.deployment.hasUnpublishedChanges ? 'unpublished-changes' : 'published'
+          : 'not-published'
+      });
       setDeployResult({ cid: '', gatewayUrl: '', error: `Upload failed: ${e.message}` });
     } finally {
+      clearQuickDappWorkspaceLock(activeDapp.workspaceName, publishOperationId);
       setIsDeploying(false);
     }
   };
@@ -495,31 +637,63 @@ function DeployPanel(): JSX.Element {
     const isBaseMiniApp = !!activeDapp.config?.isBaseMiniApp;
     const sourceRoot = getDappSourceRoot(activeDapp);
     const configPath = 'dapp.config.json';
+    const { bindings: contractBindings, representativeBinding } = readQuickDappContractConfig(activeDapp);
 
     return (
       <Card className="mb-2">
-        <Card.Header onClick={() => setIsInfoOpen(!isInfoOpen)} style={{ cursor: 'pointer' }} className="d-flex justify-content-between bg-transparent border-0">
-          Dapp info <i className={`fas ${isInfoOpen ? 'fa-chevron-up' : 'fa-chevron-down'}`}></i>
+        <Card.Header
+          onClick={() => setIsInfoOpen(!isInfoOpen)}
+          onKeyDown={(event) => handleAccordionKeyDown(event, () => setIsInfoOpen(!isInfoOpen))}
+          role="button"
+          tabIndex={0}
+          aria-expanded={isInfoOpen}
+          style={{ cursor: 'pointer' }}
+          className="d-flex justify-content-between bg-transparent border-0"
+        >
+          DApp info <i className={`fas ${isInfoOpen ? 'fa-chevron-up' : 'fa-chevron-down'}`}></i>
         </Card.Header>
         <Collapse in={isInfoOpen}>
           <Card.Body>
             <div className="mb-3">
               <div className="text-uppercase text-muted mb-1">Summary</div>
               {renderInfoRow('Type', getAppKindLabel(activeDapp))}
-              {renderInfoRow('Status', activeDapp.status)}
+              {renderInfoRow('Status', publishLabel)}
               {renderInfoRow('Mode', getDappMode(activeDapp))}
               {renderInfoRow('Source root', sourceRoot, true)}
               {renderInfoRow('Updated', formatTimestamp(activeDapp.updatedAt))}
             </div>
 
-            <div className="mb-3">
-              <div className="text-uppercase text-muted mb-1">Contract</div>
-              {renderInfoRow('Network', activeDapp.contract?.networkName)}
-              {renderInfoRow('Chain ID', activeDapp.contract?.chainId)}
-              {renderInfoRow('Name', activeDapp.contract?.name)}
-              {renderInfoRow('Address', activeDapp.contract?.address, true)}
-              {renderInfoRow('Path', activeDapp.sourceWorkspace?.filePath, true)}
-            </div>
+            {contractBindings.length > 0 ? (
+              <div className="mb-3" data-id="dapp-contract-bindings">
+                <div className="text-uppercase text-muted mb-1">Contract bindings</div>
+                {renderInfoRow('Count', contractBindings.length)}
+                {contractBindings.map((binding) => (
+                  <div className="border rounded p-2 mb-2" key={binding.id}>
+                    <div className="d-flex justify-content-between align-items-center gap-2 mb-1">
+                      <span className="fw-bold text-break">{binding.alias}</span>
+                      {binding.id === representativeBinding?.id && (
+                        <span className="badge bg-secondary">Primary</span>
+                      )}
+                    </div>
+                    <div className="small text-muted text-break">{binding.name}</div>
+                    <div className="small font-monospace text-break">{binding.address}</div>
+                    <div className="small text-muted text-break">
+                      {binding.networkName || 'Unknown network'} · Chain {binding.chainId}
+                    </div>
+                  </div>
+                ))}
+                {renderInfoRow('Path', activeDapp.sourceWorkspace?.filePath, true)}
+              </div>
+            ) : (
+              <div className="mb-3">
+                <div className="text-uppercase text-muted mb-1">Contract</div>
+                {renderInfoRow('Network', activeDapp.contract?.networkName)}
+                {renderInfoRow('Chain ID', activeDapp.contract?.chainId)}
+                {renderInfoRow('Name', activeDapp.contract?.name)}
+                {renderInfoRow('Address', activeDapp.contract?.address, true)}
+                {renderInfoRow('Path', activeDapp.sourceWorkspace?.filePath, true)}
+              </div>
+            )}
 
             <div className="mb-3">
               <div className="text-uppercase text-muted mb-1">Workspace</div>
@@ -559,8 +733,16 @@ function DeployPanel(): JSX.Element {
 
   const renderDappDocs = () => (
     <Card className="mb-2">
-      <Card.Header onClick={() => setIsDocsOpen(!isDocsOpen)} style={{ cursor: 'pointer' }} className="d-flex justify-content-between bg-transparent border-0">
-        Dapp documentation <i className={`fas ${isDocsOpen ? 'fa-chevron-up' : 'fa-chevron-down'}`}></i>
+      <Card.Header
+        onClick={() => setIsDocsOpen(!isDocsOpen)}
+        onKeyDown={(event) => handleAccordionKeyDown(event, () => setIsDocsOpen(!isDocsOpen))}
+        role="button"
+        tabIndex={0}
+        aria-expanded={isDocsOpen}
+        style={{ cursor: 'pointer' }}
+        className="d-flex justify-content-between bg-transparent border-0"
+      >
+        DApp documentation <i className={`fas ${isDocsOpen ? 'fa-chevron-up' : 'fa-chevron-down'}`}></i>
       </Card.Header>
       <Collapse in={isDocsOpen}>
         <Card.Body>
@@ -587,12 +769,20 @@ function DeployPanel(): JSX.Element {
   const renderEditForm = () => (
     <div className="mb-3">
       <Form.Group className="mb-3">
-        <Form.Label className="text-uppercase mb-0 form-label">Dapp logo</Form.Label>
+        <Form.Label className="text-uppercase mb-0 form-label">DApp logo</Form.Label>
         <input ref={logoInputRef} type="file" accept="image/*" onChange={handleImageChange} style={{ display: 'none' }} />
         {logo && typeof logo === 'string' ? (
           <div className="mt-2 mb-2 position-relative d-inline-block border bg-white rounded p-1">
-            <img src={logo} alt="Preview" style={{ height: '60px', maxWidth: '100%', objectFit: 'contain' }} onError={(e) => e.currentTarget.style.display = 'none'} />
-            <span onClick={handleRemoveLogo} style={{ cursor: 'pointer', position: 'absolute', top: -10, right: -10 }} className="badge bg-danger rounded-circle"><i className="fas fa-times"></i></span>
+            <img src={logo} alt="DApp logo preview" style={{ height: '60px', maxWidth: '100%', objectFit: 'contain' }} onError={(e) => e.currentTarget.style.display = 'none'} />
+            <button
+              type="button"
+              onClick={handleRemoveLogo}
+              aria-label="Remove DApp logo"
+              style={{ position: 'absolute', top: -10, right: -10 }}
+              className="badge bg-danger rounded-circle border-0"
+            >
+              <i className="fas fa-times" aria-hidden="true"></i>
+            </button>
           </div>
         ) : (
           <div className="mt-1">
@@ -603,11 +793,11 @@ function DeployPanel(): JSX.Element {
         )}
       </Form.Group>
       <Form.Group className="mb-3">
-        <Form.Label className="text-uppercase mb-0 form-label">Dapp Title</Form.Label>
+        <Form.Label className="text-uppercase mb-0 form-label">DApp title</Form.Label>
         <Form.Control value={title} onChange={({ target: { value } }) => dispatch({ type: 'SET_INSTANCE', payload: { title: value } })} />
       </Form.Group>
       <Form.Group className="mb-3">
-        <Form.Label className="text-uppercase mb-0 form-label">Dapp Description</Form.Label>
+        <Form.Label className="text-uppercase mb-0 form-label">DApp description</Form.Label>
         <Form.Control as="textarea" rows={3} value={details} onChange={({ target: { value } }) => dispatch({ type: 'SET_INSTANCE', payload: { details: value } })} />
       </Form.Group>
 
@@ -630,7 +820,12 @@ function DeployPanel(): JSX.Element {
       <div data-id="deploy-panel">
         {renderDappInfo()}
         {renderDappDocs()}
-        <BaseAppWizard />
+        <div ref={publishSectionRef}>
+          <BaseAppWizard
+            isConfigSaveInFlight={() => configSaveInFlightRef.current}
+            isDeleteInFlight={isDeleteInFlight}
+          />
+        </div>
       </div>
     );
   }
@@ -640,8 +835,16 @@ function DeployPanel(): JSX.Element {
       {renderDappInfo()}
 
       <Card className="mb-2">
-        <Card.Header onClick={() => setIsDetailsOpen(!isDetailsOpen)} style={{ cursor: 'pointer' }} className="d-flex justify-content-between bg-transparent border-0">
-          Dapp configuration <i className={`fas ${isDetailsOpen ? 'fa-chevron-up' : 'fa-chevron-down'}`}></i>
+        <Card.Header
+          onClick={() => setIsDetailsOpen(!isDetailsOpen)}
+          onKeyDown={(event) => handleAccordionKeyDown(event, () => setIsDetailsOpen(!isDetailsOpen))}
+          role="button"
+          tabIndex={0}
+          aria-expanded={isDetailsOpen}
+          style={{ cursor: 'pointer' }}
+          className="d-flex justify-content-between bg-transparent border-0"
+        >
+          DApp configuration <i className={`fas ${isDetailsOpen ? 'fa-chevron-up' : 'fa-chevron-down'}`}></i>
         </Card.Header>
         <Collapse in={isDetailsOpen}>
           <Card.Body>
@@ -652,14 +855,22 @@ function DeployPanel(): JSX.Element {
 
       {renderDappDocs()}
 
-      <Card className="mb-2">
-        <Card.Header onClick={() => setIsPublishOpen(!isPublishOpen)} style={{ cursor: 'pointer' }} className="d-flex justify-content-between bg-transparent border-0">
+      <Card ref={publishSectionRef} className="mb-2">
+        <Card.Header
+          onClick={() => setIsPublishOpen(!isPublishOpen)}
+          onKeyDown={(event) => handleAccordionKeyDown(event, () => setIsPublishOpen(!isPublishOpen))}
+          role="button"
+          tabIndex={0}
+          aria-expanded={isPublishOpen}
+          style={{ cursor: 'pointer' }}
+          className="d-flex justify-content-between bg-transparent border-0"
+        >
           Publish to IPFS <i className={`fas ${isPublishOpen ? 'fa-chevron-up' : 'fa-chevron-down'}`}></i>
         </Card.Header>
         <Collapse in={isPublishOpen}>
           <Card.Body>
-            <Button variant="primary" className="w-100" onClick={() => handleIpfsDeploy()} disabled={isDeploying || isVM} data-id="deploy-ipfs-btn">
-              {isDeploying ? <><i className="fas fa-spinner fa-spin me-1"></i> Uploading...</> : <FormattedMessage id="quickDapp.deployToIPFS" defaultMessage="Deploy to IPFS" />}
+            <Button variant="primary" className="w-100" onClick={() => handleIpfsDeploy()} disabled={isDeploying || isVM || isAiUpdating} data-id="deploy-ipfs-btn">
+              {isDeploying ? <><i className="fas fa-spinner fa-spin me-1"></i> Uploading...</> : <FormattedMessage id="quickDapp.publishToIPFS" defaultMessage="Publish to IPFS" />}
             </Button>
             {isVM && (
               <Alert variant="warning" className="mt-2 small mb-0">
@@ -674,9 +885,10 @@ function DeployPanel(): JSX.Element {
               </Alert>
             )}
             {displayCid && (
-              <Alert variant="success" className="mt-3" style={{ wordBreak: 'break-all' }} data-id="deploy-ipfs-success">
-                <div className="fw-bold">Deployed Successfully!</div>
+              <Alert variant={hasUnpublishedChanges ? 'warning' : 'success'} className="mt-3" style={{ wordBreak: 'break-all' }} data-id="deploy-ipfs-success">
+                <div className="fw-bold">{publishLabel}</div>
                 <div><strong>CID:</strong> {displayCid}</div>
+                {hasUnpublishedChanges && <div className="mt-1">Publish again to update the live IPFS deployment.</div>}
                 {displayGateway && <div className="mt-1"><a href={displayGateway} target="_blank" rel="noopener noreferrer" className="text-primary fw-bold text-decoration-underline">View DApp</a></div>}
               </Alert>
             )}
@@ -687,7 +899,16 @@ function DeployPanel(): JSX.Element {
 
       {(
         <Card className="mb-2">
-          <Card.Header onClick={() => setIsEnsOpen(!isEnsOpen)} style={{ cursor: 'pointer' }} className="d-flex justify-content-between bg-transparent border-0" data-id="ens-section-header">
+          <Card.Header
+            onClick={() => setIsEnsOpen(!isEnsOpen)}
+            onKeyDown={(event) => handleAccordionKeyDown(event, () => setIsEnsOpen(!isEnsOpen))}
+            role="button"
+            tabIndex={0}
+            aria-expanded={isEnsOpen}
+            style={{ cursor: 'pointer' }}
+            className="d-flex justify-content-between bg-transparent border-0"
+            data-id="ens-section-header"
+          >
             Register ENS Name <i className={`fas ${isEnsOpen ? 'fa-chevron-up' : 'fa-chevron-down'}`}></i>
           </Card.Header>
           <Collapse in={isEnsOpen}>
@@ -705,7 +926,19 @@ function DeployPanel(): JSX.Element {
                 </div>
                 {ensNameError && <small className="text-danger mt-1 d-block">{ensNameError}</small>}
               </Form.Group>
-              <Button variant="secondary" className="w-100" onClick={() => {
+              <Button variant="secondary" className="w-100" onClick={async () => {
+                if (isDeleteInFlight?.()) {
+                  plugin.call('notification', 'toast', 'Please wait until DApp deletion finishes before publishing.');
+                  return
+                }
+                if (configSaveInFlightRef.current) {
+                  plugin.call('notification', 'toast', 'Please wait until configuration saving finishes before publishing.');
+                  return
+                }
+                if (isAiUpdating || isUpdateLocked()) {
+                  plugin.call('notification', 'toast', 'Please wait until the AI update finishes before publishing.')
+                  return
+                }
                 if (!hasQuickdappPublishPermission) {
                   plugin.call('planManager', 'open', { reason: 'feature-required', requiredFeature: Features.DAPP_PUBLISH })
                   return
@@ -717,26 +950,60 @@ function DeployPanel(): JSX.Element {
                   name: 'start',
                   isClick: true
                 });
+                const ensPublishOperationId = `publish-ens-${Date.now().toString(36)}`;
+                const ensPublishLock = trySetQuickDappWorkspaceLock({
+                  workspaceName: activeDapp.workspaceName,
+                  slug: activeDapp.slug,
+                  operationId: ensPublishOperationId,
+                  operation: 'publish',
+                  reason: 'ens_registration'
+                });
+                if (!ensPublishLock) {
+                  plugin.call('notification', 'toast', 'Please wait until the current QuickDApp operation finishes.');
+                  return;
+                }
+                ensPublishLockRef.current = {
+                  workspaceName: ensPublishLock.workspaceName,
+                  operationId: ensPublishOperationId
+                };
+                try {
+                  await ensureActiveDappWorkspace();
+                } catch (error: any) {
+                  clearEnsPublishLock();
+                  await plugin.call('notification', 'toast', `Could not open the DApp workspace: ${error.message || error}`);
+                  return;
+                }
                 setShowEnsModal(true);
-              }} disabled={!displayCid || !ensName || !!ensNameError}>{ensButtonText}</Button>
+              }} disabled={!displayCid || !ensName || !!ensNameError || isAiUpdating}>{ensButtonText}</Button>
               <EnsRegistrationModal
                 show={showEnsModal}
-                onHide={() => setShowEnsModal(false)}
+                onHide={() => {
+                  setShowEnsModal(false);
+                  clearEnsPublishLock();
+                }}
                 ensName={ensName}
                 contentHash={deployResult.cid || activeDapp?.deployment?.ipfsCid || ''}
                 plugin={plugin}
+                onRegistrationStateChange={(isRegistering) => {
+                  ensRegistrationInFlightRef.current = isRegistering;
+                  if (!isRegistering && !isMountedRef.current) clearEnsPublishLock();
+                }}
                 onSuccess={async (result) => {
                   setShowEnsModal(false);
-                  setEnsResult({ success: 'Success!', error: '', txHash: result.txHash, domain: result.domain });
-                  trackMatomoEvent(plugin as any, {
-                    category: 'quick-dapp-v2',
-                    action: 'register_ens',
-                    name: 'success',
-                    isClick: false
-                  });
-                  if (dappManager) {
-                    const newConfig = await dappManager.updateDappConfig(activeDapp.slug, { deployment: { ...activeDapp.deployment, ensDomain: result.domain } });
-                    if (newConfig) dispatch({ type: 'SET_ACTIVE_DAPP', payload: newConfig });
+                  try {
+                    setEnsResult({ success: 'Success!', error: '', txHash: result.txHash, domain: result.domain });
+                    trackMatomoEvent(plugin as any, {
+                      category: 'quick-dapp-v2',
+                      action: 'register_ens',
+                      name: 'success',
+                      isClick: false
+                    });
+                    if (dappManager) {
+                      const newConfig = await dappManager.updateDappConfig(activeDapp.slug, { deployment: { ensDomain: result.domain } });
+                      if (newConfig) dispatch({ type: 'SET_ACTIVE_DAPP', payload: newConfig });
+                    }
+                  } finally {
+                    clearEnsPublishLock();
                   }
                 }}
               />
@@ -782,7 +1049,15 @@ function DeployPanel(): JSX.Element {
 
       {currentEnsDomain && (
         <Card className="mb-2">
-          <Card.Header onClick={() => setIsShareOpen(!isShareOpen)} style={{ cursor: 'pointer' }} className="d-flex justify-content-between bg-transparent border-0">
+          <Card.Header
+            onClick={() => setIsShareOpen(!isShareOpen)}
+            onKeyDown={(event) => handleAccordionKeyDown(event, () => setIsShareOpen(!isShareOpen))}
+            role="button"
+            tabIndex={0}
+            aria-expanded={isShareOpen}
+            style={{ cursor: 'pointer' }}
+            className="d-flex justify-content-between bg-transparent border-0"
+          >
             <span><i className="fas fa-share-alt me-2"></i>Share</span>
             <i className={`fas ${isShareOpen ? 'fa-chevron-up' : 'fa-chevron-down'}`}></i>
           </Card.Header>
@@ -809,7 +1084,7 @@ function DeployPanel(): JSX.Element {
                 <Button
                   variant="dark"
                   size="sm"
-                  onClick={() => window.open(`https://x.com/intent/post?text=${encodeURIComponent(`AI-generated DApp, powered by @EthereumRemix QuickDapp ⚡\n\nhttps://${currentEnsDomain}.limo`)}`, '_blank')}
+                  onClick={() => window.open(`https://x.com/intent/post?text=${encodeURIComponent(`AI-generated DApp, powered by @EthereumRemix QuickDApp ⚡\n\nhttps://${currentEnsDomain}.limo`)}`, '_blank')}
                 >
                   <i className="fab fa-x-twitter me-1"></i> Post on X
                 </Button>

@@ -574,16 +574,17 @@ export class GetDeployedContractsHandler extends BaseToolHandler {
   async execute(args: any, plugin: Plugin): Promise<IMCPToolResult> {
     try {
       const deployedContracts = await plugin.call('udappDeployedContracts', 'getDeployedContracts')
-      deployedContracts.forEach((contract: any) => {
-        if (!contract.abi) {
-          contract.abi = contract.contractData?.abi
-        }
-        delete contract.contractData // take too much space for the context.
-      })
+      const contracts = deployedContracts.map((contract: any) => {
+        const { contractData, ...deployedContract } = contract;
+        return {
+          ...deployedContract,
+          abi: contract.abi || contractData?.abi
+        };
+      });
       return this.createSuccessResult({
         success: true,
-        contracts: deployedContracts,
-        count: deployedContracts.length
+        contracts,
+        count: contracts.length
       });
 
     } catch (error) {

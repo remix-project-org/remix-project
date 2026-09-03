@@ -1,3 +1,5 @@
+import type { QuickDappContractBinding } from '@remix-ui/helper';
+
 export type DappStatus = 'draft' | 'creating' | 'updating' | 'created' | 'deployed';
 export type ProvingScheme = 'groth16';
 export type PrimeValue = 'bn128' | 'bls12381';
@@ -36,6 +38,8 @@ export interface DappConfig {
   };
 
   zkCircuit?: ZkCircuitConfig;
+  contracts?: QuickDappContractBinding[];
+  primaryContractId?: string;
 
   sourceWorkspace?: {
     name: string;
@@ -52,6 +56,7 @@ export interface DappConfig {
     ipfsCid?: string;
     gatewayUrl?: string;
     ensDomain?: string;
+    hasUnpublishedChanges?: boolean;
   };
 
   config: {

@@ -722,7 +722,7 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
         setMessages(prev => {
           const userMsg = prev[prev.length - 2]
           if (userMsg && userMsg.role === 'user' && finalText) {
-            Promise.resolve(ChatHistory.pushHistory(userMsg.content, finalText)).then(() => props.plugin.loadConversations())
+            Promise.resolve(ChatHistory.pushHistory(userMsg.content, finalText, userMsg.displayContent)).then(() => props.plugin.loadConversations())
           }
           // Clear streaming states but preserve subagent name for persistent styling
           return prev.map(m =>
@@ -1583,6 +1583,7 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
           id: crypto.randomUUID(),
           role: isEditorCodeAnalysis ? 'editor_code_analysis' : 'user',
           content: text,
+          ...(metadata?.displayText ? { displayContent: metadata.displayText } : {}),
           timestamp
         }
       ])
@@ -1648,7 +1649,7 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
       const streamedContent = (idx >= 0 ? messages[idx].content || '' : '').trim()
       const userMsg = idx > 0 ? messages[idx - 1] : null
       if (userMsg && userMsg.role === 'user' && streamedContent) {
-        Promise.resolve(ChatHistory.pushHistory(userMsg.content, streamedContent))
+        Promise.resolve(ChatHistory.pushHistory(userMsg.content, streamedContent, userMsg.displayContent))
           .then(() => props.plugin.loadConversations())
           .catch((err) => remixAILogger.warn('[RemixAI Assistant] failed to persist stopped stream:', err))
       }
@@ -1751,13 +1752,14 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
         id: crypto.randomUUID(),
         role: isEditorCodeAnalysis ? 'editor_code_analysis' : 'user',
         content: trimmed,
+        ...(metadata?.displayText ? { displayContent: metadata.displayText.trim() } : {}),
         timestamp: Date.now()
       }
       setMessages(prev => [...prev, userMsg])
 
       const { count: priorMessageCount, conversationId: activeConversationId } = firstPromptStateRef.current
       if (priorMessageCount === 0 && activeConversationId) {
-        props.plugin.onFirstPromptSent(activeConversationId, trimmed)
+        props.plugin.onFirstPromptSent(activeConversationId, metadata?.displayText?.trim() || trimmed)
       }
 
       /** append streaming chunks helper - clears tool status when content arrives */
@@ -1873,7 +1875,7 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
             ...prev,
             { id: assistantId, role: 'assistant', content: response, timestamp: Date.now(), sentiment: 'none' }
           ])
-          Promise.resolve(ChatHistory.pushHistory(trimmed, response)).then(() => props.plugin.loadConversations())
+          Promise.resolve(ChatHistory.pushHistory(trimmed, response, metadata?.displayText?.trim())).then(() => props.plugin.loadConversations())
           setIsStreaming(false)
           streamingAssistantIdRef.current = null
           return
@@ -1994,7 +1996,7 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
             (finalText: string, threadId) => {
               if (abortControllerRef.current?.signal.aborted) return
               setIsThinking(false)
-              Promise.resolve(ChatHistory.pushHistory(trimmed, finalText)).then(() => props.plugin.loadConversations())
+              Promise.resolve(ChatHistory.pushHistory(trimmed, finalText, metadata?.displayText?.trim())).then(() => props.plugin.loadConversations())
               setIsStreaming(false)
               props.plugin.call('remixAI', 'setAssistantThrId', threadId)
             },
@@ -2018,7 +2020,7 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
             (finalText: string) => {
               if (abortControllerRef.current?.signal.aborted) return
               setIsThinking(false)
-              Promise.resolve(ChatHistory.pushHistory(trimmed, finalText)).then(() => props.plugin.loadConversations())
+              Promise.resolve(ChatHistory.pushHistory(trimmed, finalText, metadata?.displayText?.trim())).then(() => props.plugin.loadConversations())
               setIsStreaming(false)
             },
             undefined,
@@ -2035,7 +2037,7 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
             },
             (finalText: string) => {
               if (abortControllerRef.current?.signal.aborted) return
-              Promise.resolve(ChatHistory.pushHistory(trimmed, finalText)).then(() => props.plugin.loadConversations())
+              Promise.resolve(ChatHistory.pushHistory(trimmed, finalText, metadata?.displayText?.trim())).then(() => props.plugin.loadConversations())
               setIsStreaming(false)
             }
           )
