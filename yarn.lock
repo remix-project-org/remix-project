@@ -19387,9 +19387,9 @@ ffjavascript@^0.2.48:
     web-worker "^1.2.0"
 
 fflate@^0.8.1:
-  version "0.8.2"
-  resolved "https://registry.yarnpkg.com/fflate/-/fflate-0.8.2.tgz#fc8631f5347812ad6028bbe4a2308b2792aa1dea"
-  integrity sha512-cPJU47OaAoCbg0pBvzsgpTPhmhqI5eJjh/JIu8tPj5q+T7iLvW/JAYUqmE7KOB4R1ZyEhzBaIQpQpardBF5z8A==
+  version "0.8.3"
+  resolved "https://registry.yarnpkg.com/fflate/-/fflate-0.8.3.tgz#bc27d8eb30343d4d512abb03480202ce65d825fc"
+  integrity sha512-tbZNuJrLwGUp3zshBtdy4W+ORxZuIh8a5ilyIEQDC5rY1f3U20JMry0Ll3WBzU58EZKsEuJFXhb5gwv8CsPvgA==
 
 figgy-pudding@^3.4.1, figgy-pudding@^3.5.1:
   version "3.5.2"
