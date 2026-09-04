@@ -383,14 +383,12 @@ export const DomainMigration: React.FC<DomainMigrationProps> = ({ targetOrigin, 
                 {confirmUrl ? (
                   <>
                     <p className="dm-body mt-3 mb-2">
-                      <span className="dm-strong">One last step.</span> Tell {sourceHost} you&apos;ve moved, and it will
-                      bring you straight here from now on instead of loading the old Remix. It sends you right back
-                      here — nothing there is deleted.
+                      <span className="dm-strong">One last step.</span> Click on the button below to set up a redirect on remix.ethereum.org so that you don’t accidentally work in two different instances of the tool. The redirect will bring you right back here.
                     </p>
                     <div className="d-flex flex-wrap gap-2 align-items-center">
                       <a className="btn btn-primary" href={confirmUrl} data-id="domainMigrationConfirmLink">
                         <i className="fas fa-circle-check me-2" />
-                        Finish up on {sourceHost}
+                        Setup the redirect on {sourceHost}
                       </a>
                       <button className="btn btn-secondary" onClick={() => window.location.reload()} data-id="domainMigrationReload">
                         <i className="fas fa-rotate-right me-2" /> Reload to see my workspaces

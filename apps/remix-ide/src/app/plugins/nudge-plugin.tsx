@@ -632,7 +632,7 @@ export class NudgePlugin extends Plugin {
         autoTrigger: true,
         actionTarget: 'helpPlugin::showModal::domain-migration',
         title: 'Remix is moving',
-        message: 'Move your workspaces to the new domain.'
+        message: 'Move your Workspaces to the new domain.'
       },
       showOnce: 'session',
       priority: 100

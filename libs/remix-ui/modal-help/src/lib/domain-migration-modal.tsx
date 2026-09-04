@@ -71,7 +71,7 @@ const DomainMigrationModal: React.FC<DomainMigrationModalProps> = ({
             </div>
           </div>
 
-          <div className="dmm__title mb-2">Bring your workspaces to {toDomain}</div>
+          <div className="dmm__title mb-2">Bring your Workspaces to {toDomain}</div>
 
           <div className="d-flex align-items-center gap-2 flex-wrap">
             <span className="dmm__chip dmm__chip--old">{from}</span>
@@ -93,8 +93,8 @@ const DomainMigrationModal: React.FC<DomainMigrationModalProps> = ({
 
       {/* ── Why ── */}
       <div className="dmm__why">
-        Your workspaces are stored by your browser and tied to <span className="dmm__strong">{from}</span>. Browsers keep
-        that storage separate per domain, so your workspaces will not appear on the new address by themselves — you need
+        Your Workspaces are stored by your browser and tied to <span className="dmm__strong">{from}</span>. Browsers keep
+        that storage separate per domain, so your Workspaces will not appear on the new address by themselves — you need
         to move them once.
       </div>
 
@@ -110,7 +110,7 @@ const DomainMigrationModal: React.FC<DomainMigrationModalProps> = ({
           <Step
             n={1}
             title="Export an archive here"
-            body="Every workspace and your settings are packed into one file, with a checksum for each file."
+            body="Every Workspace and your settings are packed into one file, with a checksum for each file."
           />
           <Step
             n={2}
@@ -136,7 +136,7 @@ const DomainMigrationModal: React.FC<DomainMigrationModalProps> = ({
             <path d="M5.6 8l1.7 1.7L10.6 6.4" />
           </svg>
           <div>
-            Nothing is deleted here. The archive is a <span className="dmm__strong">copy</span>, and your workspaces stay
+            Nothing is deleted here. The archive is a <span className="dmm__strong">copy</span>, and your Workspaces stay
             on this domain until you remove them yourself.
           </div>
         </div>
@@ -146,7 +146,7 @@ const DomainMigrationModal: React.FC<DomainMigrationModalProps> = ({
       <div className="dmm__section">
         <button className="btn btn-primary w-100 mb-2" onClick={onStartMigration} data-id="domainMigrationModalStart">
           <i className="fas fa-download me-2" />
-          Move my workspaces
+          Move my Workspaces
         </button>
         <div className="d-flex gap-2">
           <button className="btn btn-secondary btn-sm flex-fill" onClick={() => onDismiss('remind')}>
@@ -164,7 +164,7 @@ const DomainMigrationModal: React.FC<DomainMigrationModalProps> = ({
 
       {/* ── Footer ── */}
       <div className="dmm__footer">
-        You can start this any time from the workspace menu → <span className="dmm__strong">Move your workspaces</span>
+        You can start this any time from the Workspace menu → <span className="dmm__strong">Move your Workspaces</span>
       </div>
     </div>
   )
