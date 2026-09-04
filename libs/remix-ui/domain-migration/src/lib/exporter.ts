@@ -48,7 +48,7 @@ export async function pickSaveTarget(): Promise<SaveTarget> {
   try {
     const handle = await picker.call(window, {
       suggestedName: suggestedFileName(),
-      types: [{ description: 'Remix migration archive', accept: { 'application/zip': ['.zip'] } }]
+      types: [{ description: 'Remix migration archive', accept: { 'application/zip': ['.zip']} }]
     })
     return { handle }
   } catch {

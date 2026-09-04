@@ -55,7 +55,6 @@ export const MigrationConfirmed: React.FC<MigrationConfirmedProps> = ({ onTrack 
       splash?.parentNode?.removeChild(splash)
     } catch { /* noop */ }
     run()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   return (
