@@ -144,10 +144,9 @@ const tests = {
     const remixVMSpanXPath = "//span[contains(@class,'dropdown-item') and normalize-space()='Remix VM']"
     browser
       .clickLaunchIcon('udapp')
-      .waitForElementVisible('[data-id="settingsSelectEnvOptions"]')
-      .click('[data-id="settingsSelectEnvOptions"] button')
+      .waitForElementVisible('[data-id="settingsSelectEnvCategoryOptions"]', 10000)
+      .click('[data-id="settingsSelectEnvCategoryOptions"]')
       .waitForElementVisible(`[data-id="dropdown-item-vm-fs-forkedState_1"]`)
-      .click('[data-id="settingsSelectEnvOptions"] button')
       .switchEnvironment('vm-osaka', 'Remix_VM')
       .openFile('contracts/1_Storage.sol')
       .clickLaunchIcon('solidity')
@@ -166,9 +165,8 @@ const tests = {
       .waitForElementContainsText('*[data-shared="tooltipPopup"]', `New environment 'forkedState_2' created with forked state.`)
       .assert.elementPresent('*[data-id="selected-provider-vm-fs-forkedState_2"]')
 
-      .click('[data-id="settingsSelectEnvOptions"] button')
+      .click('[data-id="settingsSelectEnvCategoryOptions"]')
       .waitForElementVisible(`[data-id="dropdown-item-vm-fs-forkedState_2"]`)
-      .click('[data-id="settingsSelectEnvOptions"] button')
       .pause(2000)
       .createContract('')
       .closeBetaPopUp()

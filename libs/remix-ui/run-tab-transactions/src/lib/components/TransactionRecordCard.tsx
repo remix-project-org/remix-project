@@ -70,7 +70,7 @@ export const TransactionRecordCard = ({ deployment, openKebabMenuId, onKebabMenu
   }
 
   return (
-    <div className="contract-card my-2 rounded" style={{ backgroundColor: 'var(--custom-onsurface-layer-2' }}>
+    <div className="contract-card rounded" style={{ backgroundColor: 'var(--custom-onsurface-layer-2' }}>
       <div className="d-flex align-items-center justify-content-between w-100 p-3 text-nowrap text-truncate overflow-hidden" onClick={handleCardClick}>
         <div className='d-flex flex-column align-items-start'>
           <div className="text-truncate text-secondary d-flex align-items-center">

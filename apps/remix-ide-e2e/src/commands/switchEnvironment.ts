@@ -4,30 +4,7 @@ import EventEmitter from 'events'
 
 class switchEnvironment extends EventEmitter {
   command (this: NightwatchBrowser, provider: string, category?: string, returnWhenInitialized?: boolean): NightwatchBrowser {
-    const submenuLabels = ['Remix VM', 'Browser extension', 'Dev']
-
-    const clickAndMaybeWait = (
-      browser: NightwatchBrowser,
-      cssSelector: string,
-      providerName: string,
-      shouldWait?: boolean
-    ) => {
-      browser
-        .waitForElementVisible(cssSelector, 10000)
-        .click(cssSelector)
-        .perform((done) => {
-          if (shouldWait) {
-            browser
-              .waitForElementVisible(`[data-id="dropdown-item-${providerName}"]`, 15000)
-              .pause(1000)
-              .perform(() => done())
-          } else {
-            done()
-          }
-        })
-    }
-
-    const waitForSelectedOrModal = (
+    const waitForSelected = (
       browser: NightwatchBrowser,
       providerName: string,
       timeoutMs = 10000,
@@ -50,121 +27,49 @@ class switchEnvironment extends EventEmitter {
       poll()
     }
 
-    const tryOpenSubmenusAndClick = (
-      browser: NightwatchBrowser,
-      labels: string[],
-      providerName: string,
-      shouldWait: boolean,
-      onDone: VoidFunction
-    ) => {
-      const tryOne = (i: number) => {
-        if (i >= labels.length) return onDone()
-        const submenuXPath = `//span[contains(@class,'dropdown-item') and normalize-space()='${labels[i]}']`
-
-        browser
-          .useXpath()
-          .isPresent({
-            selector: submenuXPath,
-            suppressNotFoundErrors: true,
-            timeout: 0
-          }, (present) => {
-            if (!present.value) {
-              browser.useCss()
-              return tryOne(i + 1)
-            }
-            browser
-              .execute(function(xpath) {
-                const element = document.evaluate(xpath, document, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null).singleNodeValue
-                if (element) {
-                  const event = new MouseEvent('mouseover', { 'view': window, 'bubbles': true, 'cancelable': true })
-                  element.dispatchEvent(event)
-                }
-              },
-              [submenuXPath])
-              .useCss()
-              .isPresent({
-                selector: `body .dropdown-menu.show [data-id="dropdown-item-${providerName}"]`,
-                suppressNotFoundErrors: true,
-                timeout: 2000
-              }, (inPortal) => {
-                if (inPortal.value) {
-                  clickAndMaybeWait(browser, `body .dropdown-menu.show [data-id="dropdown-item-${providerName}"]`, providerName, shouldWait)
-                  onDone()
-                } else {
-                  tryOne(i + 1)
-                }
-              })
-          })
-      }
-      tryOne(0)
-    }
-
-    const attemptSelect = (
-      browser: NightwatchBrowser,
-      providerName: string,
-      shouldWait?: boolean,
-      onComplete?: VoidFunction
-    ) => {
-      browser
-        .isPresent({ selector: `[data-id="dropdown-item-${providerName}"]`, suppressNotFoundErrors: true, timeout: 1500 }, (topLevel) => {
-          console.log('attemptSelect result: ', topLevel)
-          if (topLevel.value) {
-            clickAndMaybeWait(browser, `[data-id="dropdown-item-${providerName}"]`, providerName, shouldWait)
-            onComplete && browser.perform(() => onComplete())
-          } else {
-            tryOpenSubmenusAndClick(browser, submenuLabels, providerName, !!shouldWait, () => {
-              onComplete && browser.perform(() => onComplete())
-            })
-          }
-        })
-    }
-
     this.api
       .useCss()
       .waitForElementVisible('[data-id="settingsSelectEnvOptions"]', 10000)
-      .execute(function() {
-        // Use JavaScript to click the button element directly, avoiding any overlapping elements
-        const button = document.querySelector('[data-id="settingsSelectEnvOptions"]') as HTMLElement
-        if (button) {
-          button.click()
-        }
-      }, [])
+      .click('[data-id="settingsSelectEnvOptions"]')
       .perform((done) => {
-        this.api.isVisible({ selector: `[data-id="dropdown-item-${provider}"]`, suppressNotFoundErrors: true, timeout: 1000 }, (result) => {
-          console.log('provider result: ', result)
-          if (result.value) {
-            this.api.click(`[data-id="dropdown-item-${provider}"]`)
-            return done()
-          } else {
-            this.api.isVisible({ selector: `[data-id="dropdown-item-${category}"]`, suppressNotFoundErrors: true, timeout: 1000 }, (result) => {
-              console.log('category result: ', result)
-              if (result.value) {
-                this.api
-                  .click(`[data-id="dropdown-item-${category}"]`)
-                  .click('[data-id="settingsSelectEnvOptions"] button')
-                  .waitForElementVisible('body .dropdown-menu.show', 3000)
-                  .perform(() => {
-                    attemptSelect(this.api, provider, returnWhenInitialized, () => {
-                      waitForSelectedOrModal(this.api, provider, 10000, (ok) => {
-                        if (ok) {
-                          return done()
-                        } else {
-                          this.api.assert.fail(`Environment "${provider}" could not be selected or found in the dropdown.`)
-                          return done()
-                        }
-                      })
-                    })
-                  })
-                return done()
-              } {
-                this.api.assert.fail(`Environment "${provider}" could not be selected or found in the dropdown.`)
-                done()
-              }
-            })
+        this.api.isVisible({ selector: `[data-id="dropdown-item-${provider}"]`, suppressNotFoundErrors: true, timeout: 1000 }, (topLevel) => {
+          if (topLevel.value) {
+            // Directly-selectable provider, no category submenu involved.
+            this.api.click(`[data-id="dropdown-item-${provider}"]`).perform(() => done())
+            return
           }
+          if (!category) {
+            this.api.assert.fail(`Environment "${provider}" could not be found in the dropdown.`)
+            return done()
+          }
+          this.api.isVisible({ selector: `[data-id="dropdown-item-${category}"]`, suppressNotFoundErrors: true, timeout: 1000 }, (categoryVisible) => {
+            if (!categoryVisible.value) {
+              this.api.assert.fail(`Environment category "${category}" could not be found in the dropdown.`)
+              return done()
+            }
+            this.api
+              .click(`[data-id="dropdown-item-${category}"]`)
+              .perform(() => {
+                // The category may already have applied the target provider as its default.
+                this.api.isPresent({ selector: `[data-id="selected-provider-${provider}"]`, suppressNotFoundErrors: true, timeout: 500 }, (already) => {
+                  if (already.value) return done()
+                  this.api
+                    .waitForElementVisible('[data-id="settingsSelectEnvCategoryOptions"]', 10000)
+                    .click('[data-id="settingsSelectEnvCategoryOptions"]')
+                    .waitForElementVisible(`[data-id="dropdown-item-${provider}"]`, 10000)
+                    .click(`[data-id="dropdown-item-${provider}"]`)
+                    .perform(() => done())
+                })
+              })
+          })
         })
       })
-      .perform(() => this.emit('complete'))
+      .perform(() => {
+        waitForSelected(this.api, provider, 10000, (ok) => {
+          if (!ok) this.api.assert.fail(`Environment "${provider}" could not be selected or found in the dropdown.`)
+          this.emit('complete')
+        })
+      })
 
     return this
   }

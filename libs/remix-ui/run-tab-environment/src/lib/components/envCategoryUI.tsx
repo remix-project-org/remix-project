@@ -59,12 +59,8 @@ export const EnvCategoryUI: React.FC<EnvCategoryUIProps> = ({ isOpen, onToggle }
         e.stopPropagation()
       }}
     >
-      <Dropdown.Toggle as={CustomToggle} data-id="settingsSelectEnvCategoryOptions" className="btn btn-secondary w-100 d-inline-block pe-0" icon="fas fa-caret-down text-secondary ms-2" useDefaultIcon={false} style={{ backgroundColor: 'var(--custom-onsurface-layer-3)', border: '1px solid var(--bs-border-color)' }}>
-        <div style={{ flexGrow: 1, overflow: 'hidden', display:'flex', justifyContent:'left' }}>
-          <div className="text-truncate text-secondary text-truncate" style={{ maxWidth: '200px' }}>
-            {<span data-id="selectedVersion">{enforceSelect ? '<select>' : provider?.displayName}</span>}
-          </div>
-        </div>
+      <Dropdown.Toggle as={CustomToggle} data-id="settingsSelectEnvCategoryOptions" className="env-subcategory-toggle" icon="fas fa-caret-down text-secondary ms-2" useDefaultIcon={false}>
+        <span data-id="selectedVersion" className="text-secondary text-truncate">{enforceSelect ? '<select>' : provider?.displayName}</span>
       </Dropdown.Toggle>
 
       <Dropdown.Menu as={CustomMenu} className="custom-dropdown-items overflow-hidden" style={{ backgroundColor: 'var(--custom-onsurface-layer-3)', border: '1px solid var(--bs-border-color)', zIndex: 1000, '--theme-text-color': themeQuality === 'dark' ? 'white' : 'black', padding: 0, minWidth: 'max-content', width: 'auto' } as React.CSSProperties}>

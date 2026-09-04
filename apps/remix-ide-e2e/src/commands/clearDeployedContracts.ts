@@ -25,6 +25,8 @@ function clearContracts (browser: NightwatchBrowser, callback: VoidFunction) {
         browser.clickLaunchIcon('udapp')
       }
     })
+    .waitForElementPresent('[data-id="udappDeployedContractsTab"]')
+    .click('[data-id="udappDeployedContractsTab"]')
     .waitForElementVisible('[data-id="deployedContractsContainer"]')
     .waitForElementVisible('[data-id="clearAllDeployedContracts"]')
     .pause(500)

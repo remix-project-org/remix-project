@@ -10,6 +10,8 @@ module.exports = {
   'Should show badge in deployed contracts section #group1': function (browser: NightwatchBrowser) {
     browser
       .clickLaunchIcon('udapp')
+      .waitForElementPresent('[data-id="udappDeployedContractsTab"]')
+      .click('[data-id="udappDeployedContractsTab"]')
       .assert.elementPresent('*[data-id="deployedContractsContainer"]')
       .assert.textContains('*[data-id="deployedContractsBadge"]', '0')
   },
@@ -49,7 +51,6 @@ module.exports = {
       .click('*[data-id="workspacecreate"]')
       .waitForElementVisible('*[data-id="template-explorer-modal-react"]')
       .waitForElementVisible('*[data-id="template-explorer-template-container"]')
-      .click('*[data-id="template-explorer-template-container"]')
       .waitForElementPresent('*[data-id="template-card-remixDefault-0"]')
       .click('*[data-id="template-card-remixDefault-0"]')
       .waitForElementVisible('*[data-id="workspace-details-section"]')
