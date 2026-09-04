@@ -1,4 +1,4 @@
-
+# Replace these version tags with the specific commit SHAs for each action
 name: Running Solidity Unit Tests
 on: [push]
 
@@ -8,13 +8,13 @@ jobs:
     name: A job to run solidity unit tests on github actions CI
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@<full-commit-sha>
       - name: Environment Setup
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@<full-commit-sha>
         with:
           node-version: 20.19.0
       - name: Run SUT Action
-        uses: EthereumRemix/sol-test@v1.2
+        uses: ethereumremix/sol-test@<full-commit-sha>
         with:
           test-path: 'apps/remix-ide/contracts/tests'
           compiler-version: '0.8.15'
