@@ -172,6 +172,7 @@ export interface IChatHistoryBackend {
 
   // Sync operations (for cloud backends)
   supportsSync(): boolean
+  queueSync?(operation: SyncOperation): void
   push?(): Promise<SyncResult>
   pull?(): Promise<SyncResult>
   getLastSyncTime?(): Promise<number | null>

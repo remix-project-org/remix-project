@@ -375,6 +375,7 @@ export class ChatHistoryStorageManager {
    */
   private queueSync(operation: SyncOperation): void {
     this.syncQueue.push(operation)
+    this.cloudBackend?.queueSync?.(operation)
 
     // Limit queue size to prevent memory issues (keep last 1000 operations)
     if (this.syncQueue.length > 1000) {
