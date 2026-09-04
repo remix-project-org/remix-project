@@ -23,6 +23,7 @@ import { useCloneRepositoryModal } from '../components/CloneRepositoryModal'
 import { TrackingContext } from '@remix-ide/tracking'
 import { MatomoEvent, TopbarEvent, WorkspaceEvent, LoginMode, LoginModeResponse, Features } from '@remix-api'
 import { LoginButton } from '@remix-ui/login'
+import { parseMigrationConfig, shouldPromptMigration } from '@remix-ui/domain-migration'
 import { LoginModal } from 'libs/remix-ui/login/src/lib/modals/login-modal'
 import { appActionTypes } from 'libs/remix-ui/app/src/lib/remix-app/actions/app'
 import { NotificationBell } from '../components/NotificationBell'
@@ -115,6 +116,13 @@ export function RemixUiTopbar() {
   const notificationMode = appContext?.appConfig?.['notifications.mode'] || 'all_users'
   const supportEnabled = appContext?.appConfig?.['app.supportenabled'] !== false
   const showJoinBetaTopButton = appContext?.appConfig?.['show_join_beta_top_button'] !== false
+
+  // Destination host when this origin is being retired, otherwise null so the
+  // menu entry stays hidden.
+  const migrationTarget = (() => {
+    const config = parseMigrationConfig((key) => appContext?.appConfig?.[key])
+    return shouldPromptMigration(config) ? config.toDomain : null
+  })()
 
   const isVisibleByAudience = (mode: 'off' | 'authenticated_users' | 'all_users', authenticated: boolean): boolean => {
     if (mode === 'off') return false
@@ -553,6 +561,15 @@ export function RemixUiTopbar() {
     }
   }
 
+  const openDomainMigration = async () => {
+    try {
+      await plugin.call('manager', 'activatePlugin', 'domainMigration')
+      await plugin.call('domainMigration', 'showMigration')
+    } catch (e) {
+      console.error(e)
+    }
+  }
+
   const onFinishDeleteAllWorkspaces = async () => {
     try {
       await deleteAllWorkspacesAction()
@@ -838,6 +855,8 @@ export function RemixUiTopbar() {
               downloadCurrentWorkspace={downloadCurrentWorkspace}
               deleteCurrentWorkspace={deleteCurrentWorkspace}
               downloadWorkspaces={downloadWorkspaces}
+              openDomainMigration={openDomainMigration}
+              migrationTarget={migrationTarget}
               restoreBackup={restoreBackup}
               deleteAllWorkspaces={deleteAllWorkspaces}
               setCurrentMenuItemName={setCurrentMenuItemName}

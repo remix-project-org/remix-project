@@ -9,6 +9,8 @@ import { createRoot, Root } from 'react-dom/client';
 import { TrackingProvider } from '../contexts/TrackingContext';
 import { Preload } from '../components/preload';
 import { GitHubPopupCallback } from '../pages/GitHubPopupCallback';
+import { MigrationConfirmed } from '../pages/MigrationConfirmed';
+import { isConfirmingMigration } from './migrationConfirm';
 import { TrackingFunction } from './TrackingFunction';
 
 export interface RenderAppOptions {
@@ -33,6 +35,18 @@ export function renderApp(options: RenderAppOptions): Root | null {
     root.render(
       <TrackingProvider trackingFunction={trackingFunction}>
         <GitHubPopupCallback />
+      </TrackingProvider>
+    );
+  } else if (isConfirmingMigration()) {
+    // The user is only passing through to confirm they have moved, so the IDE
+    // never needs to start.
+    root.render(
+      <TrackingProvider trackingFunction={trackingFunction}>
+        <MigrationConfirmed
+          onTrack={(action, name) =>
+            trackingFunction?.({ category: 'App', action, name, isClick: false } as any)
+          }
+        />
       </TrackingProvider>
     );
   } else {

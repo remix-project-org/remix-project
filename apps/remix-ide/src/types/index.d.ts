@@ -125,6 +125,7 @@ export type PluginNames = 'manager' |
   'solidityumlgen' |
   'compilationDetails' |
   'vyperCompilationDetails' |
+  'domainMigration' |
   'contractflattener' |
   'solidity-script' |
   'home' |

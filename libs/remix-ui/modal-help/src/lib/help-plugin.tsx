@@ -1,11 +1,13 @@
 import { ViewPlugin } from '@remixproject/engine-web'
 import React from 'react'
+import { createPortal } from 'react-dom'
 import { PluginViewWrapper, DISCORD_URL, REMIX_DOCS_URL } from '@remix-ui/helper'
 import { useAuth } from '@remix-ui/app'
+import { MigrationConfig, parseMigrationConfig, snoozeMigrationPrompt } from '@remix-ui/domain-migration'
 import { trackMatomoEvent as baseTrackMatomoEvent, HelpEvent, MatomoEvent, Features } from '@remix-api'
 import * as packageJson from '../../../../../package.json'
 
-export type HelpTopic = 'beta-reel' | 'beta-info' | 'mcp' | 'cloud' | 'quickdapp' | 'beta-farewell' | 'free-guide' | 'starter-guide' | 'pro-guide'
+export type HelpTopic = 'beta-reel' | 'beta-info' | 'mcp' | 'cloud' | 'quickdapp' | 'beta-farewell' | 'free-guide' | 'starter-guide' | 'pro-guide' | 'domain-migration'
 
 /**
  * Survey users complete to unlock their 50% off Pro reward. Kept here
@@ -73,6 +75,10 @@ export class HelpPlugin extends ViewPlugin {
     this.renderComponent()
     this.emit('modalOpened', topic)
     this.trackMatomoEvent({ category: 'help', action: 'modalOpened', name: topic, isClick: true })
+
+    // The migration modal's CTA opens a different panel, so pulling the Help
+    // panel up behind it would only be confusing.
+    if (topic === 'domain-migration') return
 
     // Also focus the side panel on this plugin
     try {
@@ -499,9 +505,27 @@ import McpHelpModal from './mcp-help-modal'
 import CloudHelpModal from './cloud-help-modal'
 import QuickDAppHelpModal from './quickdapp-help-modal'
 import PlanGuideModal from './plan-guide-modal'
+import DomainMigrationModal from './domain-migration-modal'
 
 /** Snooze duration when the user picks "Remind me later" on the farewell modal. */
 const BETA_FAREWELL_REMIND_DELAY_MS = 24 * 60 * 60 * 1000 // 1 day
+
+/** Reads the backend `migration.*` keys so the modal can name the new domain. */
+const useMigrationConfig = (plugin: HelpPlugin): MigrationConfig | null => {
+  const [config, setConfig] = React.useState<MigrationConfig | null>(null)
+  React.useEffect(() => {
+    let cancelled = false
+    plugin.call('auth' as any, 'getAppConfig')
+      .then((raw: any) => {
+        const read = (key: string) =>
+          Array.isArray(raw) ? raw.find((entry: any) => entry?.key === key)?.value : raw?.[key]
+        if (!cancelled) setConfig(parseMigrationConfig(read))
+      })
+      .catch(() => { /* auth not ready — modal falls back to generic copy */ })
+    return () => { cancelled = true }
+  }, [plugin])
+  return config
+}
 
 const HelpModalOverlay: React.FC<{
   topic: HelpTopic
@@ -510,6 +534,7 @@ const HelpModalOverlay: React.FC<{
 }> = ({ topic, plugin, onClose }) => {
   const { featureGroups } = useAuth()
   const betaGroup = featureGroups?.find(fg => fg.name === 'beta')
+  const migrationConfig = useMigrationConfig(plugin)
 
   // Type-safe tracker defaulting to HelpEvent
   const trackMatomoEvent = <T extends MatomoEvent = HelpEvent>(event: T) => {
@@ -624,6 +649,31 @@ const HelpModalOverlay: React.FC<{
       return <CloudHelpModal open onClose={onClose} onShowReel={showReel} />
     case 'quickdapp':
       return <QuickDAppHelpModal open onClose={onClose} onShowReel={showReel} />
+    case 'domain-migration':
+      return (
+        <DomainMigrationModal
+          open
+          toDomain={migrationConfig?.toDomain || 'the new domain'}
+          deadline={migrationConfig?.deadline}
+          onStartMigration={async () => {
+            trackMatomoEvent({ category: 'help', action: 'domainMigrationStarted', isClick: true })
+            onClose()
+            try {
+              await plugin.call('manager', 'activatePlugin', 'domainMigration')
+              await plugin.call('domainMigration' as any, 'showMigration')
+            } catch { /* migration plugin unavailable */ }
+          }}
+          onDismiss={(kind) => {
+            trackMatomoEvent({ category: 'help', action: 'domainMigrationDismissed', name: kind, isClick: true })
+            if (migrationConfig?.toDomain) snoozeMigrationPrompt(migrationConfig.toDomain, kind)
+            onClose()
+          }}
+          onClose={() => {
+            trackMatomoEvent({ category: 'help', action: 'domainMigrationClosed', isClick: true })
+            onClose()
+          }}
+        />
+      )
     case 'beta-farewell':
       return (
         <BetaFarewellModal
@@ -653,7 +703,7 @@ const HelpModalOverlay: React.FC<{
     }
   }
 
-  return (
+  return createPortal(
     <div
       className="help-modal-backdrop"
       data-id="help-modal-backdrop"
@@ -666,6 +716,9 @@ const HelpModalOverlay: React.FC<{
       >
         {renderContent()}
       </div>
-    </div>
+    </div>,
+    // Side-panel plugin views stay mounted but hidden with `d-none`, and a
+    // fixed-position modal inside a display:none ancestor renders invisibly.
+    document.body
   )
 }

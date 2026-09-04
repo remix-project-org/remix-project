@@ -52,6 +52,9 @@ interface WorkspacesDropdownProps {
   downloadCurrentWorkspace: () => void
   deleteCurrentWorkspace: (workspaceName?: string) => void
   downloadWorkspaces: () => void
+  openDomainMigration: () => void
+  /** Host this origin is being retired in favour of, or null when not migrating. */
+  migrationTarget?: string | null
   restoreBackup: () => void
   deleteAllWorkspaces: () => void
   setCurrentMenuItemName: (workspaceName: string) => void
@@ -75,7 +78,7 @@ function useClickOutside(refs: React.RefObject<HTMLElement>[], handler: () => vo
   }, [refs, handler])
 }
 
-export const WorkspacesDropdown: React.FC<WorkspacesDropdownProps> = ({ menuItems, NO_WORKSPACE, switchWorkspace, CustomToggle, createWorkspace, downloadCurrentWorkspace, restoreBackup, deleteAllWorkspaces, setCurrentMenuItemName, setMenuItems, renameCurrentWorkspace, deleteCurrentWorkspace, downloadWorkspaces, connectToLocalhost, openTemplateExplorer, onMigrateToCloud, cloneGitRepository }) => {
+export const WorkspacesDropdown: React.FC<WorkspacesDropdownProps> = ({ menuItems, NO_WORKSPACE, switchWorkspace, CustomToggle, createWorkspace, downloadCurrentWorkspace, restoreBackup, deleteAllWorkspaces, setCurrentMenuItemName, setMenuItems, renameCurrentWorkspace, deleteCurrentWorkspace, downloadWorkspaces, openDomainMigration, migrationTarget, connectToLocalhost, openTemplateExplorer, onMigrateToCloud, cloneGitRepository }) => {
   const [showMain, setShowMain] = useState(false)
   const [dropdownOpen, setDropdownOpen] = useState(false)
   const [openSubmenuId, setOpenSubmenuId] = useState<number | null>(null)
@@ -584,6 +587,16 @@ export const WorkspacesDropdown: React.FC<WorkspacesDropdownProps> = ({ menuItem
                 <i className="fas fa-upload text-body-secondary fws-action-icon" />
                 <span>Restore</span>
               </button>
+              {migrationTarget && (
+                <button
+                  className="dropdown-item d-flex align-items-center gap-2 small rounded py-2"
+                  onClick={() => { openDomainMigration(); setDropdownOpen(false) }}
+                  data-id="workspaceOpenDomainMigration"
+                >
+                  <i className="fas fa-truck-fast text-body-secondary fws-action-icon" />
+                  <span>Migrate your Workspaces to {migrationTarget}</span>
+                </button>
+              )}
               <div className="dropdown-divider my-1" />
               <button
                 className="dropdown-item d-flex align-items-center gap-2 small rounded py-2"

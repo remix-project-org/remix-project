@@ -9,17 +9,16 @@
  * result is cached in localStorage. If that request is slow or fails, the auth
  * plugin still redirects the moment the config lands.
  *
- * Nothing here touches users who already have projects — they get the normal
+ * Nothing here touches users who already have workspaces — they get the normal
  * migration flow instead.
  */
 
-import { endpointUrls } from '@remix-endpoints-helper'
+import { endpointUrls, initEndpoints } from '@remix-endpoints-helper'
 
 /** Set by preload for the current page load; not persisted, it is per-boot. */
 const FRESH_FLAG = '__remixVisitIsFresh'
 
 const CONFIG_CACHE_KEY = 'remix:migration-redirect-config'
-const OPT_OUT_KEY = 'remix:no-migration-redirect'
 const OPT_OUT_FLAG = 'nomigrationredirect'
 /** Keyed on the destination so a changed target can still redirect once. */
 const redirectedKey = (toDomain: string) => `remix:migration-redirected:${toDomain}`
@@ -130,15 +129,15 @@ export function readCachedRedirectConfig(): RedirectConfig {
 /**
  * `?nomigrationredirect` in the URL (or hash) pins the visitor to this origin,
  * for support, e2e runs and anyone deliberately coming back.
+ *
+ * Deliberately not persisted: the flag holds only while it is in the URL, so
+ * one visit to fetch an old file cannot silently disable the redirect forever.
+ * Remix keeps the parameter across its own search-to-hash rewrite, which is
+ * why both are checked.
  */
 export function isRedirectOptedOut(): boolean {
   try {
-    const inUrl = `${window.location.search || ''}${window.location.hash || ''}`.indexOf(OPT_OUT_FLAG) !== -1
-    if (inUrl) {
-      try { localStorage.setItem(OPT_OUT_KEY, 'true') } catch { /* storage blocked */ }
-      return true
-    }
-    return localStorage.getItem(OPT_OUT_KEY) === 'true'
+    return `${window.location.search || ''}${window.location.hash || ''}`.indexOf(OPT_OUT_FLAG) !== -1
   } catch {
     return false
   }
@@ -157,6 +156,54 @@ function markRedirected(toDomain: string): void {
     localStorage.setItem(redirectedKey(toDomain), new Date().toISOString())
   } catch {
     // storage blocked — worst case the back button bounces once more
+  }
+}
+
+// ─── Settled on the new domain ───────────────────────────────────
+
+/**
+ * Records that this browser belongs on the new domain from now on. Written
+ * either by an explicit confirmation after migrating, or by the fresh-visitor
+ * redirect below — a visitor with no workspaces here has nothing to come back
+ * for, so both cases behave the same afterwards.
+ *
+ * Lives here rather than alongside the confirmation flow so that flow can
+ * import it without a cycle.
+ */
+const COMPLETION_KEY = 'remix:migration-completed'
+
+export interface MigrationCompletion {
+  /** Host this browser was migrated to. */
+  toDomain: string
+  /** ISO timestamp. */
+  at: string
+}
+
+export function readMigrationCompletion(): MigrationCompletion | null {
+  try {
+    const raw = localStorage.getItem(COMPLETION_KEY)
+    if (!raw) return null
+    const parsed = JSON.parse(raw)
+    const toDomain = normalizeDomain(parsed?.toDomain)
+    return toDomain ? { toDomain, at: String(parsed?.at || '') } : null
+  } catch {
+    return null
+  }
+}
+
+export function writeMigrationCompletion(toDomain: string): void {
+  try {
+    localStorage.setItem(COMPLETION_KEY, JSON.stringify({ toDomain, at: new Date().toISOString() }))
+  } catch {
+    // storage blocked — the visitor is simply re-evaluated next time
+  }
+}
+
+export function clearMigrationCompletion(): void {
+  try {
+    localStorage.removeItem(COMPLETION_KEY)
+  } catch {
+    // nothing to undo
   }
 }
 
@@ -193,6 +240,9 @@ export function redirectFreshVisitor(
   if (hasAlreadyRedirected(config.toDomain)) return false
 
   markRedirected(config.toDomain)
+  // Nothing was ever created on this origin, so there is no reason to send
+  // them back here again on a later visit.
+  writeMigrationCompletion(config.toDomain)
   onRedirect?.(config.toDomain)
   window.location.replace(redirectTarget(config.toDomain))
   return true
@@ -202,7 +252,12 @@ export function redirectFreshVisitor(
  * Public config endpoint, fetched directly rather than through the auth
  * plugin, which only starts once the IDE is already booting.
  */
-async function fetchRedirectConfig(timeoutMs = 1200): Promise<RedirectConfig | null> {
+export async function fetchRedirectConfig(timeoutMs = 1200): Promise<RedirectConfig | null> {
+  // Endpoint URLs come from /.well-known/remix-config, which staging and
+  // preview builds point elsewhere. Both callers run before the IDE boots, so
+  // without this they would read production config.
+  await initEndpoints()
+
   const controller = new AbortController()
   const timer = setTimeout(() => controller.abort(), timeoutMs)
   try {

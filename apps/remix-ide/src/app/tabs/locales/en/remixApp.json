@@ -33,6 +33,12 @@
   "remixApp.originWarningUnstable": "This UNSTABLE ALPHA branch of Remix has been moved to http://ethereum.github.io/remix-live-alpha.",
   "remixApp.originWarningAlpha": "Welcome to the Remix alpha instance. Please use it to try out latest features. But use preferably https://remix.ethereum.org for any production work.",
   "remixApp.originWarningMoved": "The Remix IDE has moved to http://remix.ethereum.org. This instance of Remix you are visiting WILL NOT BE UPDATED. Please make a backup of your contracts and start using http://remix.ethereum.org",
+  "remixApp.migrationBannerOld": "Remix is moving to {toDomain}. Your Workspaces live in this browser and won't follow you automatically.",
+  "remixApp.migrationBannerOldAction": "Move my Workspaces",
+  "remixApp.migrationBannerNew": "Welcome to the new home of Remix. Bookmark {toDomain} so you always land here.",
+  "remixApp.migrationBannerNewAction": "Still need your files from {fromDomain}?",
+  "remixApp.migrationBannerPending": "Almost done. Let {fromDomain} know you've moved so it stops loading the old Remix.",
+  "remixApp.migrationBannerPendingAction": "Finish up",
   "remixApp.aiWorkspaceGenerating": "Your workspace is being generated. Please wait while I generate the workspace for you. It won't be long.",
   "remixApp.closeNotification": "Close",
 
