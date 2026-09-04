@@ -35,7 +35,8 @@ export interface TopbarEvent extends MatomoEventBase {
     | 'header'
     | 'feedback'
     | 'support'
-    | 'upgrade';
+    | 'upgrade'
+    | 'aiReviewMode'
 }
 
 export interface LayoutEvent extends MatomoEventBase {
