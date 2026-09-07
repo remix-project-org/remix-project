@@ -638,14 +638,8 @@ export const TabsUI = (props: TabsUIProps) => {
 
   const handleQuickDappStartNow = async () => {
     // Permission gate: non-beta users see the QuickDapp lock screen
-    const quickdappFeature = features?.[Features.DAPP_QUICKDAPP]
-    if (!quickdappFeature?.is_enabled) {
-      try {
-        await props.plugin.call('manager', 'activatePlugin', 'quick-dapp-v2')
-        await props.plugin.call('tabs' as any, 'focus', 'quick-dapp-v2')
-      } catch (e) { /* best-effort */ }
-      return
-    }
+    await props.plugin.call('manager', 'activatePlugin', 'quick-dapp-v2')
+    await props.plugin.call('tabs' as any, 'focus', 'quick-dapp-v2')
 
     const currentFile = tabsState.name
     const currentFileName = currentFile?.split('/').pop() || ''

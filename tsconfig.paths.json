@@ -70,6 +70,9 @@
             "@remix-ui/home-tab": [
               "libs/remix-ui/home-tab/src/index.ts"
             ],
+            "@remix-ui/domain-migration": [
+              "libs/remix-ui/domain-migration/src/index.ts"
+            ],
             "@remix-ui/modal-dialog": [
               "libs/remix-ui/modal-dialog/src/index.ts"
             ],
