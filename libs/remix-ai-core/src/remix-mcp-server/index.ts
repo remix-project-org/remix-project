@@ -31,6 +31,7 @@ export { createFoundryHardhatTools } from './handlers/FoundryHardhatHandler';
 export { createCoordinationTools } from './handlers/CoordinationHandler';
 export { createDAppGeneratorTools } from './handlers/DAppGeneratorHandler';
 export { createContractClassificationTools } from './handlers/ContractClassifierHandler';
+export { createUIAutomationTools, UI_AUTOMATION_TOOL_NAMES } from './handlers/UIAutomationHandler';
 export * from './prompts/quickDappTheGraphPrompts';
 
 // Resource Providers

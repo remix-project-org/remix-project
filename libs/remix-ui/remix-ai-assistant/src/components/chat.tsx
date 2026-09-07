@@ -138,6 +138,23 @@ export const ChatHistoryComponent: React.FC<ChatHistoryComponentProps> = ({
                         marginLeft: '4px'
                       } : undefined}
                     >
+                      {msg.role === 'user' && msg.attachments?.length > 0 && (
+                        // Rendered as real elements rather than through the
+                        // markdown viewer: rehypeSanitize strips data: URLs.
+                        <div className="d-flex flex-row flex-wrap gap-2" data-id="ai-user-attachments">
+                          {msg.attachments.map(att => (
+                            <img
+                              key={att.id}
+                              src={att.thumbnailDataUrl || att.dataUrl}
+                              alt={att.name}
+                              title={att.name}
+                              className="rounded"
+                              style={{ maxWidth: 120, maxHeight: 120, objectFit: 'cover', border: '1px solid var(--bs-border-color)', cursor: 'pointer' }}
+                              onClick={() => window.open(att.dataUrl || att.thumbnailDataUrl, '_blank')}
+                            />
+                          ))}
+                        </div>
+                      )}
                       {msg.role === 'assistant' || msg.role === 'editor_code_analysis' ? (
                         RemixMarkdownViewer(theme, normalizeTurnSeparators(displayContent), btnColor, setBtnColor)
                       ) : (

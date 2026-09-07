@@ -11,7 +11,7 @@ import { ThemeModule } from '@remix-ui/theme-module'
 import { ThemeContext, themes } from '@remix-ui/home-tab'
 import { FormattedMessage, useIntl } from 'react-intl'
 import { Registry, QueryParams } from '@remix-project/remix-lib'
-import { SettingsSectionUI } from './settings-section'
+import { SettingsSectionUI, subSectionAnchorId } from './settings-section'
 import { SettingsSection } from '../types'
 import './remix-ui-settings.css'
 
@@ -222,9 +222,14 @@ const settingsSections: SettingsSection[] = [
         title: 'settings.deepAgentApiKeysSection',
         options: [{
           name: 'deepagent-api-keys-config' as keyof typeof initialState,
-          label: 'settings.useOwnApiKeys',
+          // No label and no enable switch: the subsection heading already reads
+          // "Bring Your Own API Keys", and filling in a key is itself the act
+          // of opting in — the toggle was a redundant second step.
+          // `deepagent-api-keys-config` remains the stored flag, now derived
+          // from whether a key is present (see settingsReducer).
           description: 'settings.useOwnApiKeysDescription',
-          type: 'toggle' as const,
+          type: 'custom' as const,
+          alwaysShowSubOptions: true,
           toggleUIOptions: [{
             name: 'deepagent-openrouter-api-key' as keyof typeof initialState,
             type: 'password'
@@ -472,14 +477,29 @@ export const RemixUiSettings = (props: RemixUiSettingsProps) => {
       dispatch({ type: 'SET_VALUE', payload: { name: 'matomo-perf-analytics', value: isChecked } })
     })
 
-    // Listen for plugin event to open a specific settings section
-    const onOpenSection = ({ sectionKey }: { sectionKey: string }) => {
+    const onOpenSection = ({ sectionKey, subSectionTitle }: { sectionKey: string, subSectionTitle?: string }) => {
       // Validate section key exists; fallback to 'general'
       const keys = settingsSections.map(s => s.key)
       const target = keys.includes(sectionKey) ? sectionKey : 'general'
       setSelected(target)
       const section = settingsSections.find(s => s.key === target)
       if (section) setFilteredSection(section)
+      if (!subSectionTitle) return
+
+      const anchorId = subSectionAnchorId(subSectionTitle)
+      let attempts = 0
+      const scrollToAnchor = () => {
+        const el = document.getElementById(anchorId)
+        if (el) {
+          el.scrollIntoView({ behavior: 'smooth', block: 'start' })
+          // Brief flash so the eye lands on the right block after the scroll.
+          el.classList.add('remix-settings-anchor-flash')
+          setTimeout(() => el.classList.remove('remix-settings-anchor-flash'), 1600)
+          return
+        }
+        if (++attempts < 40) setTimeout(scrollToAnchor, 50)
+      }
+      setTimeout(scrollToAnchor, 0)
     }
 
     props.plugin.on('settings', 'openSection', onOpenSection)

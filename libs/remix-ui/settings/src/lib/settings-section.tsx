@@ -19,6 +19,16 @@ type SettingsSectionUIProps = {
 
 type ButtonOptions = SettingsSection['subSections'][0]['options'][0]['buttonOptions']
 
+/**
+ * Stable DOM id for a settings subsection, derived from its translation key.
+ * Lets callers deep-link straight to a subsection — e.g. the assistant's
+ * "API keys" button jumping to "Bring Your Own API Keys", which sits at the
+ * very bottom of a long AI section.
+ */
+export function subSectionAnchorId(title: string): string {
+  return `settings-subsection-${title.replace(/[^a-zA-Z0-9]+/g, '-')}`
+}
+
 export const SettingsSectionUI: React.FC<SettingsSectionUIProps> = ({ plugin, section, state, dispatch }) => {
   const [formUIData, setFormUIData] = useState<{ [key in keyof SettingsState]: Record<keyof SettingsState, string> }>({} as any)
   const [isLoggedIn, setIsLoggedIn] = useState<boolean>(true) // Default to true for non-auth sections
@@ -290,7 +300,11 @@ export const SettingsSectionUI: React.FC<SettingsSectionUIProps> = ({ plugin, se
         const isLastItem = subSectionIndex === section.subSections.length - 1
 
         return (
-          <div key={subSectionIndex} className='pt-3'>
+          <div
+            key={subSectionIndex}
+            className='pt-3'
+            id={subSection.title ? subSectionAnchorId(subSection.title) : undefined}
+          >
             {subSection.title && <h5 className={`${isDark ? 'text-white' : 'text-black'}`} style={{ fontSize: '1.2rem' }}><FormattedMessage id={subSection.title} /></h5>}
             {subSection.description && <p className={`text-muted mb-3`} style={{ fontSize: '0.85rem' }}><FormattedMessage id={subSection.description} /></p>}
             <div className={`card ${isDark ? 'text-light' : 'text-dark'} border-0 ${isLastItem ? 'mb-4' : ''}`}>
@@ -301,6 +315,12 @@ export const SettingsSectionUI: React.FC<SettingsSectionUIProps> = ({ plugin, se
                   const toggleValue = state[option.name] && typeof state[option.name].value === 'boolean' ? state[option.name].value as boolean : false
                   const selectValue = state[option.name] && typeof state[option.name].value === 'string' ? state[option.name].value as string : ''
 
+                  const hasLabel = !!option.label && option.label.length > 0
+                  // 'custom' options render their component below the row, not
+                  // in it, so they contribute nothing to the header.
+                  const hasHeaderControl = option.type === 'toggle' || option.type === 'select' || option.type === 'button'
+                  const showSubOptions = option.alwaysShowSubOptions || toggleValue
+
                   const isAccountSection = section.key === 'account'
                   const paddingClass = isAccountSection
                     ? (isLastOption ? 'pt-0 pb-0' : isFirstOption ? 'border-bottom pb-1' : 'border-bottom py-1')
@@ -308,27 +328,30 @@ export const SettingsSectionUI: React.FC<SettingsSectionUIProps> = ({ plugin, se
 
                   return (
                     <div className={`card border-0 rounded-0 ${paddingClass}`} key={optionIndex}>
-                      {option.label && option.label.length > 0 && (
+                      {/* The header row carries the label and the control.
+                          It is skipped only when there is neither — a setting
+                          named by its subsection heading and configured purely
+                          through its sub-fields would otherwise render an
+                          empty flex row. */}
+                      {(hasLabel || hasHeaderControl) && (
                         <div className="d-flex align-items-center">
-                          <h6 data-id={`settingsTab${option.name}Label`} className={`${option.headerClass || (isDark ? 'text-white' : 'text-black')} m-0`} style={{ fontSize: '1rem' }}>
-                            <FormattedMessage id={option.label} />
-                            {option.labelIconTooltip ?
-                              <CustomTooltip tooltipText={<FormattedMessage id={option.labelIconTooltip} />}><i className={option.labelIcon}></i></CustomTooltip> :
-                              option.labelIcon && <i className={option.labelIcon}></i>
-                            }
-                          </h6>
+                          {hasLabel && (
+                            <h6 data-id={`settingsTab${option.name}Label`} className={`${option.headerClass || (isDark ? 'text-white' : 'text-black')} m-0`} style={{ fontSize: '1rem' }}>
+                              <FormattedMessage id={option.label} />
+                              {option.labelIconTooltip ?
+                                <CustomTooltip tooltipText={<FormattedMessage id={option.labelIconTooltip} />}><i className={option.labelIcon}></i></CustomTooltip> :
+                                option.labelIcon && <i className={option.labelIcon}></i>
+                              }
+                            </h6>
+                          )}
                           <div className="ms-auto">
                             {option.type === 'toggle' && <ToggleSwitch id={option.name} isOn={toggleValue} onClick={() => handleToggle(option.name)} disabled = {option.name === "matomo-analytics" ? true : false}/>}
                             {option.type === 'select' && <div style={{ minWidth: '110px' }}><SelectDropdown value={selectValue} options={option.selectOptions} name={option.name} dispatch={dispatch as any} /></div>}
                             {option.type === 'button' && <button className="btn btn-secondary btn-sm" onClick={() => handleButtonClick(option.buttonOptions)}><FormattedMessage id={option.buttonOptions?.label} /></button>}
-                            {option.type === 'custom' && option.customComponent === 'mcpServerManager' && <span></span>}
-                            {option.type === 'custom' && option.customComponent === 'profileSection' && <span></span>}
-                            {option.type === 'custom' && option.customComponent === 'creditsBalance' && <span></span>}
-                            {option.type === 'custom' && option.customComponent === 'connectedAccounts' && <span></span>}
                           </div>
                         </div>
                       )}
-                      {option.description && option.label && option.label.length > 0 && <span className="text-secondary mt-1" style={{ fontSize: '0.9rem' }}>{typeof option.description === 'string' ? <FormattedMessage id={option.description} /> : option.description}</span>}
+                      {option.description && <span className="text-secondary mt-1" style={{ fontSize: '0.9rem' }}>{typeof option.description === 'string' ? <FormattedMessage id={option.description} /> : option.description}</span>}
                       {option.type === 'custom' && option.customComponent === 'mcpServerManager' && (
                         <div className="mt-3">
                           <IMCPServerManager plugin={plugin} />
@@ -356,8 +379,8 @@ export const SettingsSectionUI: React.FC<SettingsSectionUIProps> = ({ plugin, se
                           <span className={`text-secondary mt-1 ${option.footnote.styleClass}`}><FormattedMessage id={option.footnote.text} /></span>
                           : null
                       }
-                      {option.toggleUIDescription && toggleValue && <span className="text-secondary mt-1">{option.toggleUIDescription}</span>}
-                      {option.toggleUIOptions && toggleValue && option.toggleUIOptions.map((toggleOption, toggleOptionIndex) => {
+                      {option.toggleUIDescription && showSubOptions && <span className="text-secondary mt-1">{option.toggleUIDescription}</span>}
+                      {option.toggleUIOptions && showSubOptions && option.toggleUIOptions.map((toggleOption, toggleOptionIndex) => {
                         const isLastOption = toggleOptionIndex === (option.toggleUIOptions as any).length - 1
                         const inputValue = state[toggleOption.name] && typeof state[toggleOption.name].value === 'string' ? state[toggleOption.name].value as string : ''
 

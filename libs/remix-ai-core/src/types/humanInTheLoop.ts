@@ -79,6 +79,9 @@ const SAFE_TOOLS = new Set([
   // --- AMP (read-only queries) ---
   'amp_query', 'amp_dataset_manifest',
 
+  // --- UI vision (read-only introspection of what is on screen) ---
+  'inspect_ui', 'get_ui_state', 'capture_ui_screenshot', 'scroll_element',
+
   // --- DApp generation/update setup ---
   // update_dapp only prepares the target workspace and returns file-edit instructions.
   // Actual source changes still go through write_file/edit_file approval.
@@ -115,6 +118,9 @@ const TOOL_METADATA: Record<string, { category: ToolCategory; risk: ToolRisk }> 
   // Actual MCP tool names used by DAppGeneratorHandler
   generate_dapp:    { category: 'dapp', risk: 'low' },
   update_dapp:      { category: 'dapp', risk: 'medium' },
+  // UI automation drives the user's IDE directly — always confirm.
+  click_element:     { category: 'other', risk: 'high' },
+  type_into_element: { category: 'other', risk: 'high' },
 }
 
 export function isSafeTool(toolName: string): boolean {

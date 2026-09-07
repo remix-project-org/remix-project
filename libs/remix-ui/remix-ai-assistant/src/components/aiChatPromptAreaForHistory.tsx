@@ -2,7 +2,8 @@ import React, { Dispatch } from 'react'
 import GroupListMenu from './contextOptMenu'
 import ModelSelectorMenu from './modelSelectorMenu'
 import { PromptArea } from './prompt'
-import { ChatMessage, AIModel, modelKey } from '@remix/remix-ai-core'
+import { ChatMessage, AIModel, modelKey, ChatAttachment } from '@remix/remix-ai-core'
+import type { AttachmentError } from '../hooks/useAttachments'
 import { groupListType } from '../types/componentTypes'
 
 interface AiChatPromptAreaForHistoryProps {
@@ -66,6 +67,14 @@ interface AiChatPromptAreaForHistoryProps {
       hasSkillsPermission?: boolean
       onUpgradeRequired?: (commandName: string, missingFeature: string) => void
       getRequiredPlanName?: (feature: string) => string | null
+      // --- Image attachments ---
+      attachments?: ChatAttachment[]
+      attachmentErrors?: AttachmentError[]
+      onAddFiles?: (files: FileList | File[] | null) => void
+      onRemoveAttachment?: (id: string) => void
+      onDismissAttachmentErrors?: () => void
+      onCaptureScreenshot?: () => void
+      supportsVision?: boolean
 }
 
 export default function AiChatPromptAreaForHistory(props: AiChatPromptAreaForHistoryProps) {
@@ -89,7 +98,26 @@ export default function AiChatPromptAreaForHistory(props: AiChatPromptAreaForHis
           style={{ borderRadius: '8px', top: props.modelOpt.top, bottom: props.modelOpt.bottom, left: props.modelOpt.left + 16, zIndex: 2000, minWidth: '300px', maxWidth: '400px', maxHeight: props.modelOpt.maxHeight || undefined, overflow: 'hidden' }}
           ref={props.menuRef}
         >
-          <div className="text-uppercase ms-2 mb-2 small rai-selector-heading flex-shrink-0">Select a model</div>
+          <div className="d-flex align-items-center justify-content-between ms-2 me-2 mb-2 flex-shrink-0">
+            <span className="text-uppercase small rai-selector-heading">Select a model</span>
+            {props.onAddApiKeyClick && (
+              <button
+                type="button"
+                className="btn btn-sm rai-api-key-btn d-flex align-items-center gap-1 py-0 px-2"
+                data-id="ai-model-selector-api-key-btn"
+                title="Add or update your own provider API keys"
+                onClick={() => {
+                  // Settings opens in another tab, so the floating picker has
+                  // to go with it — otherwise it hangs over the new panel.
+                  props.setShowModelSelector(false)
+                  props.onAddApiKeyClick?.()
+                }}
+              >
+                <i className="fas fa-key" style={{ fontSize: '0.65rem' }}></i>
+                API keys
+              </button>
+            )}
+          </div>
           <ModelSelectorMenu
             availableModels={props.availableModels}
             currentChoice={props.selectedModel ? modelKey(props.selectedModel) : props.selectedModelId as string}
@@ -188,6 +216,13 @@ export default function AiChatPromptAreaForHistory(props: AiChatPromptAreaForHis
         hasSkillsPermission={props.hasSkillsPermission}
         onUpgradeRequired={props.onUpgradeRequired}
         getRequiredPlanName={props.getRequiredPlanName}
+        attachments={props.attachments}
+        attachmentErrors={props.attachmentErrors}
+        onAddFiles={props.onAddFiles}
+        onRemoveAttachment={props.onRemoveAttachment}
+        onDismissAttachmentErrors={props.onDismissAttachmentErrors}
+        onCaptureScreenshot={props.onCaptureScreenshot}
+        supportsVision={props.supportsVision}
       />
       <span className="mb-2 mx-4 small w-100 text-dark">RemixAI can make mistakes. Always check important info.</span>
     </section>

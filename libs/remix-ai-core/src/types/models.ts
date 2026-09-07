@@ -317,6 +317,47 @@ export function modelSupportsToolCalling(model: Pick<AIModel, 'capabilities'> | 
   return caps.some((c) => c === 'tools' || c === 'tool_use' || c === 'function_calling')
 }
 
+/**
+ * Capability tokens the backend may use to advertise image input. Kept as a set
+ * because `/permissions` has spelled this differently across providers.
+ */
+const VISION_CAPABILITY_TOKENS: ReadonlySet<string> = new Set([
+  'vision', 'image', 'images', 'image_input', 'image_inputs', 'multimodal'
+])
+
+/**
+ * Local Ollama models are not in the backend catalogue, so there is no
+ * `capabilities` array to read. Fall back to the well-known vision tags.
+ */
+const OLLAMA_VISION_TAGS = ['llava', 'vision', 'qwen2-vl', 'qwen2.5-vl', 'minicpm-v', 'moondream', 'gemma3', 'bakllava', 'pixtral']
+
+export function ollamaModelSupportsVision(tag: string | undefined | null): boolean {
+  if (!tag) return false
+  const normalized = tag.toLowerCase()
+  return OLLAMA_VISION_TAGS.some((t) => normalized.includes(t))
+}
+
+/**
+ * Whether a model accepts image input.
+ *
+ * Mirrors `modelSupportsToolCalling`: an empty/absent `capabilities` array means
+ * the backend has not advertised anything yet, so we stay permissive rather than
+ * hiding the feature. OpenRouter's `auto` route always lands on a vision-capable
+ * model, so it is allowed unconditionally.
+ */
+export function modelSupportsVision(model: Pick<AIModel, 'capabilities' | 'id' | 'provider'> | undefined): boolean {
+  if (!model) return false
+  if (isAutoModelId(model.id)) return true
+  if (model.provider === 'ollama') {
+    const caps = model.capabilities
+    if (Array.isArray(caps) && caps.some((c) => VISION_CAPABILITY_TOKENS.has(c))) return true
+    return ollamaModelSupportsVision(model.id)
+  }
+  const caps = model.capabilities
+  if (!Array.isArray(caps) || caps.length === 0) return true
+  return caps.some((c) => VISION_CAPABILITY_TOKENS.has(c))
+}
+
 export function modelSupportsCodeGeneration(model: Pick<AIModel, 'capabilities'> | undefined): boolean {
   const caps = model?.capabilities
   if (!Array.isArray(caps) || caps.length === 0) return true

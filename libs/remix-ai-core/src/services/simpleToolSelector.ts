@@ -63,7 +63,21 @@ export class SimpleToolSelector {
     // Analysis
     'scan': ['analysis'],
     'analyze': ['analysis'],
-    'audit': ['analysis']
+    'audit': ['analysis'],
+
+    // UI vision & automation
+    'ui': ['ui'],
+    'screen': ['ui'],
+    'screenshot': ['ui'],
+    'see': ['ui'],
+    'look': ['ui'],
+    'visible': ['ui'],
+    'click': ['ui'],
+    'button': ['ui'],
+    'panel': ['ui'],
+    'tab': ['ui'],
+    'layout': ['ui'],
+    'interface': ['ui']
   }
 
   selectTools(

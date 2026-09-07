@@ -3,7 +3,7 @@
 import { ICompletions,
   IParams, ChatEntry, AIRequestType, IRemoteModel } from './types/types'
 import { ModelType } from './types/constants'
-import { InsertionParams, CompletionParams, GenerationParams, AssistantParams, AIModel, ANONYMOUS_FALLBACK_MODELS, ANONYMOUS_PLACEHOLDER_MODEL, OLLAMA_MODEL, getModelById, parseAIModelsFromPermissions, modelKey, parseModelKey, findModel, BEDROCK_API_KEY_SETTING, OPENROUTER_API_KEY_SETTING, BYOK_API_KEY_SETTINGS, isBedrockModel, applyBedrockByokPolicy, applyByokKeyPolicy, modelTransportProvider, byokKeyState } from './types/models'
+import { InsertionParams, CompletionParams, GenerationParams, AssistantParams, AIModel, ANONYMOUS_FALLBACK_MODELS, ANONYMOUS_PLACEHOLDER_MODEL, OLLAMA_MODEL, getModelById, parseAIModelsFromPermissions, modelKey, parseModelKey, findModel, BEDROCK_API_KEY_SETTING, OPENROUTER_API_KEY_SETTING, BYOK_API_KEY_SETTINGS, isBedrockModel, applyBedrockByokPolicy, applyByokKeyPolicy, modelTransportProvider, byokKeyState, modelSupportsVision, ollamaModelSupportsVision } from './types/models'
 import { buildChatPrompt } from './prompts/promptBuilder'
 import { RemoteInferencer } from './inferencers/remote/remoteInference'
 import { OllamaInferencer } from './inferencers/local/ollamaInferencer'
@@ -31,7 +31,7 @@ export {
   InsertionParams, CompletionParams, GenerationParams, AssistantParams,
   ChatEntry, AIRequestType, ChatHistory, resetOllamaHostOnSettingsChange,
   mcpDefaultServersConfig, mcpBasicServersConfig, mcpWebSearchServersConfig,
-  AIModel, ANONYMOUS_FALLBACK_MODELS, ANONYMOUS_PLACEHOLDER_MODEL, OLLAMA_MODEL, getModelById, parseAIModelsFromPermissions, modelKey, parseModelKey, findModel, BEDROCK_API_KEY_SETTING, OPENROUTER_API_KEY_SETTING, BYOK_API_KEY_SETTINGS, isBedrockModel, applyBedrockByokPolicy, applyByokKeyPolicy, modelTransportProvider, byokKeyState,
+  AIModel, ANONYMOUS_FALLBACK_MODELS, ANONYMOUS_PLACEHOLDER_MODEL, OLLAMA_MODEL, getModelById, parseAIModelsFromPermissions, modelKey, parseModelKey, findModel, BEDROCK_API_KEY_SETTING, OPENROUTER_API_KEY_SETTING, BYOK_API_KEY_SETTINGS, isBedrockModel, applyBedrockByokPolicy, applyByokKeyPolicy, modelTransportProvider, byokKeyState, modelSupportsVision, ollamaModelSupportsVision,
   ChatHistoryStorageManager, IndexedDBChatHistoryBackend,
   WeightedToolSelector, IChatMessage,
   remixAILogger, setRemixAILoggingEnabled, isRemixAILoggingEnabled,
@@ -48,6 +48,8 @@ export * from './helpers/logger'
 export * from './helpers/langfuse'
 export * from './helpers/modelTelemetry'
 export * from './helpers/conversationTitle'
+export * from './helpers/multimodal'
+export * from './helpers/domCapture'
 export * from './agents/codeExplainAgent'
 export * from './agents/completionAgent'
 export * from './agents/securityAgent'

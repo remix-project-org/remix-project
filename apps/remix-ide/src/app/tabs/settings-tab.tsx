@@ -136,8 +136,11 @@ export default class SettingsTab extends ViewPlugin {
 
   // Public API: focus a specific settings section by key
   // Example keys: 'general', 'account', 'analytics', 'ai', 'services'
-  showSection(sectionKey: string) {
-    this.emit('openSection', { sectionKey })
+  // `subSectionTitle` is a subsection translation key (e.g.
+  // 'settings.deepAgentApiKeysSection'); when given, the panel scrolls to it
+  // and flashes it, which matters for sections long enough to need it.
+  showSection(sectionKey: string, subSectionTitle?: string) {
+    this.emit('openSection', { sectionKey, subSectionTitle })
   }
 
 }

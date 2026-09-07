@@ -9,7 +9,7 @@ export const ollamaAdapter: ProviderAdapter = {
   id: 'ollama',
   // Tool support is per-installed-model here, so it is probed in create()
   // rather than declared. The transport itself supports it.
-  capabilities: { tools: true, streaming: true, reasoning: true, injectableFetch: false },
+  capabilities: { tools: true, streaming: true, reasoning: true, vision: true, injectableFetch: false },
   async create({ selection, params, label }) {
     const host = await discoverOllamaHost()
     if (!host) {
