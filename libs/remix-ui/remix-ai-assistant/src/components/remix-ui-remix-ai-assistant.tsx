@@ -2449,12 +2449,17 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
     }
   }, [props.onOpenSkillsModal])
 
-  const handleOpenSettings = useCallback(async () => {
+  const handleOpenSettings = useCallback(async (subSectionTitle?: string) => {
     const isActive = await props.plugin.call('manager', 'isActive', 'settings')
     if (!isActive) await props.plugin.call('manager', 'activatePlugin', 'settings')
     await props.plugin.call('tabs', 'focus', 'settings')
-    props.plugin.call('settings', 'showSection', 'ai')
+    props.plugin.call('settings', 'showSection' as any, 'ai', subSectionTitle)
   }, [props.plugin])
+
+  const handleOpenApiKeySettings = useCallback(
+    () => handleOpenSettings('settings.deepAgentApiKeysSection'),
+    [handleOpenSettings]
+  )
 
   const handleLoadAuditChecklist = useCallback(() => {
     if (props.onOpenChecklistModal) props.onOpenChecklistModal()
@@ -3017,7 +3022,7 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
               handleGasOptimisationAudit={handleGasOptimisationAudit}
               usingOwnApiKey={usingOwnApiKey}
               byokKeyPresence={byokKeyPresence}
-              onAddApiKeyClick={handleOpenSettings}
+              onAddApiKeyClick={handleOpenApiKeySettings}
               aiRoute={aiRouteStatus.route}
               aiRouteReady={aiRouteStatus.ready}
               isAuthenticated={isAuthenticated}
@@ -3082,7 +3087,7 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
               handleGasOptimisationAudit={handleGasOptimisationAudit}
               usingOwnApiKey={usingOwnApiKey}
               byokKeyPresence={byokKeyPresence}
-              onAddApiKeyClick={handleOpenSettings}
+              onAddApiKeyClick={handleOpenApiKeySettings}
               aiRoute={aiRouteStatus.route}
               aiRouteReady={aiRouteStatus.ready}
               isAuthenticated={isAuthenticated}

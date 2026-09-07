@@ -1918,3 +1918,24 @@ code {
   padding: 1px 6px;
   font-weight: 600;
 }
+
+/* "API keys" shortcut in the model-picker header. Uses the AI accent rather
+   than a muted outline: a secondary-outline button next to greyed heading text
+   reads as disabled, and this is an action we want people to find. */
+.rai-api-key-btn {
+  color: var(--custom-ai-color);
+  background: color-mix(in srgb, var(--custom-ai-color) 10%, transparent);
+  border: 1px solid color-mix(in srgb, var(--custom-ai-color) 40%, transparent);
+  border-radius: 4px;
+  font-size: 0.72rem;
+  line-height: 1.5;
+  white-space: nowrap;
+  transition: background-color 0.15s ease, border-color 0.15s ease;
+}
+
+.rai-api-key-btn:hover,
+.rai-api-key-btn:focus-visible {
+  color: var(--custom-ai-color);
+  background: color-mix(in srgb, var(--custom-ai-color) 22%, transparent);
+  border-color: var(--custom-ai-color);
+}
