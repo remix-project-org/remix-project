@@ -69,6 +69,19 @@ const categoryFileToken = (categoryPath: string): string => {
     .replace(/^_|_$/g, '')
 }
 
+/**
+ * Dropdown label for a candidate: the basename, widened with its parent folder
+ * only when another candidate shares that basename (the full workspace sweep
+ * makes `Token.sol` in two folders a common case).
+ */
+const candidateLabel = (file: string, all: string[]): string => {
+  const name = file.split('/').pop() ?? file
+  const ambiguous = all.filter(other => (other.split('/').pop() ?? other) === name).length > 1
+  if (!ambiguous) return name
+  const parts = file.split('/')
+  return parts.length > 1 ? `${parts[parts.length - 2]}/${name}` : name
+}
+
 const computeLoadedCategories = (data: ChecklistData[], files: string[]): Set<string> => {
   const haystack = files.join('\n')
   const loaded = new Set<string>()
@@ -100,6 +113,7 @@ export function RemixUiChecklistExplorerModal(props: RemixUiChecklistExplorerMod
   const [solCandidates, setSolCandidates] = useState<string[]>([])
   const [matchTarget, setMatchTarget] = useState<string>('')
   const [contractNamesByFile, setContractNamesByFile] = useState<Record<string, string[]>>({})
+  const [currentSolFile, setCurrentSolFile] = useState<string>('')
   const containerRef = useRef<HTMLDivElement>(null)
   const matchRunId = useRef(0)
 
@@ -129,14 +143,20 @@ export function RemixUiChecklistExplorerModal(props: RemixUiChecklistExplorerMod
    * slash command with nothing in focus, so we look progressively wider.
    *
    */
-  const resolveSolCandidates = async (): Promise<{ candidates: string[]; namesByFile: Record<string, string[]> }> => {
-    if (!plugin) return { candidates: [], namesByFile: {} }
+  const resolveSolCandidates = async (): Promise<{ candidates: string[]; namesByFile: Record<string, string[]>; currentFile: string }> => {
+    if (!plugin) return { candidates: [], namesByFile: {}, currentFile: '' }
     const ordered: string[] = []
     const push = (file?: string) => {
       if (typeof file === 'string' && file.endsWith('.sol') && !ordered.includes(file)) ordered.push(file)
     }
 
-    try { push(await plugin.call('fileManager', 'getCurrentFile')) } catch (e) { /* nothing in focus */ }
+    // The file in focus, when it is a Solidity file, becomes the default target.
+    let currentFile = ''
+    try {
+      const focused = await plugin.call('fileManager', 'getCurrentFile')
+      if (typeof focused === 'string' && focused.endsWith('.sol')) currentFile = focused
+      push(focused)
+    } catch (e) { /* nothing in focus */ }
     try { Object.keys(await plugin.call('fileManager', 'getOpenedFiles') || {}).forEach(push) } catch (e) { /* none open */ }
 
     // Compilation pass: order files by how many deployable contracts they hold,
@@ -165,27 +185,29 @@ export function RemixUiChecklistExplorerModal(props: RemixUiChecklistExplorerMod
         .forEach(entry => push(entry.file))
     } catch (e) { /* never compiled, or the compiler plugin is inactive */ }
 
-    if (ordered.length === 0) {
-      try {
-        const tree = await plugin.call('fileManager', 'copyFolderToJson', '/')
-        // copyFolderToJson keys are already FULL paths (see fileProvider's
-        // `json[curPath] = file`), so they must be used as-is — deriving a path
-        // from the parent key produced `contracts/contracts/Foo.sol`.
-        const skip = /^(\.|node_modules$|tests?$|scripts?$)/
-        const walk = (node: any) => {
-          if (ordered.length >= 50) return
-          Object.keys(node || {}).forEach(fullPath => {
-            const child = node[fullPath]
-            if (skip.test(fullPath.split('/').pop() ?? '')) return
-            if (child?.content !== undefined) push(fullPath)
-            else if (child?.children) walk(child.children)
-          })
-        }
-        walk(tree)
-      } catch (e) { /* workspace unreadable — the button stays disabled */ }
-    }
+    // Always sweep the workspace, not only when nothing else was found: every
+    // Solidity file has to stay pickable even while a file is in focus. The
+    // passes above only decide the ORDER, so the focused/compiled files keep
+    // their head positions and the rest of the workspace follows.
+    try {
+      const tree = await plugin.call('fileManager', 'copyFolderToJson', '/')
+      // copyFolderToJson keys are already FULL paths (see fileProvider's
+      // `json[curPath] = file`), so they must be used as-is — deriving a path
+      // from the parent key produced `contracts/contracts/Foo.sol`.
+      const skip = /^(\.|node_modules$)/
+      const walk = (node: any) => {
+        if (ordered.length >= 200) return
+        Object.keys(node || {}).forEach(fullPath => {
+          const child = node[fullPath]
+          if (skip.test(fullPath.split('/').pop() ?? '')) return
+          if (child?.content !== undefined) push(fullPath)
+          else if (child?.children) walk(child.children)
+        })
+      }
+      walk(tree)
+    } catch (e) { /* workspace unreadable — fall back to whatever was found above */ }
 
-    return { candidates: ordered.slice(0, 50), namesByFile }
+    return { candidates: ordered.slice(0, 200), namesByFile, currentFile }
   }
 
   /**
@@ -316,12 +338,14 @@ export function RemixUiChecklistExplorerModal(props: RemixUiChecklistExplorerMod
       setAiMatchedPaths(new Map())
       setMatchSummary(null)
 
-      resolveSolCandidates().then(({ candidates, namesByFile }) => {
+      resolveSolCandidates().then(({ candidates, namesByFile, currentFile }) => {
         setSolCandidates(candidates)
-        setMatchTarget(candidates[0] ?? '')
+        setCurrentSolFile(currentFile)
+        setMatchTarget(currentFile && candidates.includes(currentFile) ? currentFile : '')
         setContractNamesByFile(namesByFile)
       }).catch(() => {
         setSolCandidates([])
+        setCurrentSolFile('')
         setMatchTarget('')
         setContractNamesByFile({})
       })
@@ -636,11 +660,16 @@ export function RemixUiChecklistExplorerModal(props: RemixUiChecklistExplorerMod
                     value={matchTarget}
                     onChange={(e) => setMatchTarget(e.target.value)}
                     disabled={matching}
-                    title="Which contract to match against"
-                    aria-label="Contract to match against"
+                    title={matchTarget
+                      ? `AI match will run against ${matchTarget}. Pick another file to change the target.`
+                      : 'Select the Solidity file to run the AI match against'}
+                    aria-label="Select the Solidity file to run the AI match against"
                   >
+                    <option value="" disabled>Select a file…</option>
                     {solCandidates.map(file => (
-                      <option key={file} value={file} title={file}>{file.split('/').pop()}</option>
+                      <option key={file} value={file} title={file}>
+                        {candidateLabel(file, solCandidates)}{file === currentSolFile ? ' (current)' : ''}
+                      </option>
                     ))}
                   </select>
                   <i className="fa-solid fa-caret-down ai-match-target-caret" aria-hidden="true"></i>
@@ -653,7 +682,9 @@ export function RemixUiChecklistExplorerModal(props: RemixUiChecklistExplorerMod
                 disabled={matching || loading || !!error || !matchTarget}
                 title={matchTarget
                   ? `Let AI preselect categories for ${matchTarget.split('/').pop()}`
-                  : 'Open a Solidity file in the workspace to use AI match'}
+                  : solCandidates.length > 0
+                    ? 'Select a Solidity file first to use AI match'
+                    : 'Open a Solidity file in the workspace to use AI match'}
               >
                 {matching ? (
                   <>
