@@ -52,8 +52,12 @@ export function lookupCatalogEntry(selection: Pick<ModelSelection, 'provider' | 
   return findModel(catalog, selection.modelId, selection.provider) ?? findModel(catalog, selection.modelId)
 }
 
+const UNKNOWN_CONTEXT_MAX_OUTPUT_TOKENS = 8192
+
 function clampToContext(maxOutputTokens: number, contextWindow?: number): number {
-  if (!contextWindow || contextWindow <= 0) return maxOutputTokens
+  if (!contextWindow || contextWindow <= 0) {
+    return Math.min(maxOutputTokens, UNKNOWN_CONTEXT_MAX_OUTPUT_TOKENS)
+  }
   // Never let the output budget eat the whole window — the prompt has to fit.
   return Math.min(maxOutputTokens, Math.floor(contextWindow / 2))
 }
