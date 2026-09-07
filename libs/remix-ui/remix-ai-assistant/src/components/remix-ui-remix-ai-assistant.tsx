@@ -25,6 +25,22 @@ import { ChatNoticeStrip, type ChatNoticeDisplay, type ChatNoticeActionDisplay }
 import { useModelAccess } from '../hooks/useModelAccess'
 import { ToolApprovalModal } from './ToolApprovalModal'
 
+// ─── Generative UI payload validation ────────────────────────────────────────
+// Mirrors the VALID_TYPES set in GenerativeUIHandler.ts. Kept here as a
+// runtime guard so a malformed LLM response is caught before it reaches the
+// renderer, which has no try-catch around its recursive node walk.
+const VALID_UI_NODE_TYPES = new Set([
+  'text', 'stack', 'card', 'button', 'input',
+  'select', 'radio_group', 'checkbox', 'form', 'badge', 'divider'
+])
+
+function isValidUIPayload(payload: any): payload is { tree: Record<string, any>; title?: string } {
+  if (!payload || typeof payload !== 'object') return false
+  const { tree } = payload
+  if (!tree || typeof tree !== 'object' || Array.isArray(tree)) return false
+  return typeof tree.type === 'string' && VALID_UI_NODE_TYPES.has(tree.type)
+}
+
 export interface RemixUiRemixAiAssistantProps {
   plugin: RemixAIAssistant
   isInitializing?: boolean
@@ -1253,6 +1269,10 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
 
     // Generative UI: attach UI tree to the active streaming message, or create one if none exists yet
     const handleRenderUI = (payload: { tree: Record<string, any>; title?: string }) => {
+      if (!isValidUIPayload(payload)) {
+        remixAILogger.warn('[render_ui] received invalid UI payload — root node type missing or unrecognised, ignoring', payload)
+        return
+      }
       const activeId = streamingAssistantIdRef.current
       if (activeId) {
         // Attach to the message that is currently streaming

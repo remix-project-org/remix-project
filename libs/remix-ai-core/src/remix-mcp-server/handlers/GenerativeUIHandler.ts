@@ -285,6 +285,17 @@ export class RenderUIHandler extends BaseToolHandler {
   }
 
   async execute(args: RenderUIArgs, plugin: Plugin): Promise<IMCPToolResult> {
+    // Re-run validation inside execute so a direct call (bypassing the registry)
+    // still rejects bad trees and the LLM can fall back to a text answer.
+    const validation = this.validate(args)
+    if (validation !== true) {
+      remixAILogger.warn(`[render_ui] validation failed in execute: ${validation}`)
+      return this.createErrorResult(
+        `render_ui validation failed: ${validation}. ` +
+        'Please respond with plain text instead.'
+      )
+    }
+
     try {
       const payload: RenderUIPayload = {
         tree: args.tree,
@@ -306,7 +317,7 @@ export class RenderUIHandler extends BaseToolHandler {
     } catch (error) {
       remixAILogger.error('[render_ui] execution error:', error)
       const msg = error instanceof Error ? error.message : String(error)
-      return this.createErrorResult(`Failed to render UI: ${msg}`)
+      return this.createErrorResult(`Failed to render UI: ${msg}. Please respond with plain text instead.`)
     }
   }
 }

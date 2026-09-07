@@ -1,6 +1,38 @@
 import React, { useState } from 'react'
 import { GenerativeUIPayload } from '@remix/remix-ai-core'
 
+// ─── Error Boundary ───────────────────────────────────────────────────────────
+
+class GenerativeUIErrorBoundary extends React.Component<
+  { children: React.ReactNode },
+  { hasError: boolean }
+> {
+  constructor(props: { children: React.ReactNode }) {
+    super(props)
+    this.state = { hasError: false }
+  }
+
+  static getDerivedStateFromError(): { hasError: boolean } {
+    return { hasError: true }
+  }
+
+  componentDidCatch(error: Error, info: React.ErrorInfo) {
+    console.error('[GenerativeUIRenderer] render error:', error, info)
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="text-muted small p-2 rounded" style={{ border: '1px solid var(--bs-border-color)' }}>
+          <i className="fa fa-exclamation-triangle me-1 text-warning"></i>
+          Could not render UI component.
+        </div>
+      )
+    }
+    return this.props.children
+  }
+}
+
 // ─── Local type mirror (matches GenerativeUIHandler.ts UINode union) ─────────
 
 type NodeType =
@@ -233,11 +265,13 @@ export const GenerativeUIRenderer: React.FC<GenerativeUIRendererProps> = ({ payl
   if (!node || typeof node.type !== 'string') return null
 
   return (
-    <div className="generative-ui-component mt-2 p-2 rounded" style={{ border: '1px solid var(--bs-border-color)' }}>
-      {payload.title && (
-        <div className="fw-semibold small mb-2 text-ai">{payload.title}</div>
-      )}
-      <RenderNode node={node} onAction={onAction} depth={0} />
-    </div>
+    <GenerativeUIErrorBoundary>
+      <div className="generative-ui-component mt-2 p-2 rounded" style={{ border: '1px solid var(--bs-border-color)' }}>
+        {payload.title && (
+          <div className="fw-semibold small mb-2 text-ai">{payload.title}</div>
+        )}
+        <RenderNode node={node} onAction={onAction} depth={0} />
+      </div>
+    </GenerativeUIErrorBoundary>
   )
 }
