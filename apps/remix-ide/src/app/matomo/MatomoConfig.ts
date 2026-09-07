@@ -36,7 +36,7 @@ export interface DomainCustomDimensions {
 }
 
 // Type for domain keys (single source of truth)
-export type MatomotDomain = 'alpha.remix.live' | 'beta.remix.live' | 'remix.ethereum.org' | 'localhost' | '127.0.0.1' | 'electron';
+export type MatomotDomain = 'alpha.remix.live' | 'beta.remix.live' | 'remix.ethereum.org' | 'localhost' | '127.0.0.1' | 'electron' | 'app.remix.live';
 
 // Type for site ID configuration
 export type SiteIdConfig = Record<MatomotDomain, number>;
@@ -55,6 +55,7 @@ export const MATOMO_DOMAINS: SiteIdConfig = {
   'alpha.remix.live': 1,
   'beta.remix.live': 2,
   'remix.ethereum.org': 3,
+  'app.remix.live': 3,
   'localhost': 5,
   '127.0.0.1': 5,
   'electron': 4 // Remix Desktop (Electron) app
@@ -66,6 +67,7 @@ export const MATOMO_BOT_SITE_IDS: BotSiteIdConfig = {
   'alpha.remix.live': null, // TODO: Create bot tracking site in Matomo (e.g., site ID 10)
   'beta.remix.live': null, // TODO: Create bot tracking site in Matomo (e.g., site ID 11)
   'remix.ethereum.org': 8, // TODO: Create bot tracking site in Matomo (e.g., site ID 12)
+  'app.remix.live': 8, // TODO: Create bot tracking site in Matomo (e.g., site ID 13)
   'localhost': 7, // Keep bots in same localhost site for testing (E2E tests need cookies)
   '127.0.0.1': 7, // Keep bots in same localhost site for testing (E2E tests need cookies)
   'electron': null // Electron app uses same site ID for bots (filtered via isBot dimension)
@@ -88,6 +90,12 @@ export const MATOMO_CUSTOM_DIMENSIONS: CustomDimensionsConfig = {
     featureGroups: 4 // Dimension for user feature groups (e.g., 'beta,ai-unlimited')
   },
   'remix.ethereum.org': {
+    trackingMode: 1, // Dimension for 'anon'/'cookie' tracking mode
+    clickAction: 2, // Dimension for 'true'/'false' click tracking
+    isBot: 3, // Dimension for 'human'/'bot'/'automation' detection
+    featureGroups: 4 // Dimension for user feature groups (e.g., 'beta,ai-unlimited')
+  },
+  'app.remix.live': {
     trackingMode: 1, // Dimension for 'anon'/'cookie' tracking mode
     clickAction: 2, // Dimension for 'true'/'false' click tracking
     isBot: 3, // Dimension for 'human'/'bot'/'automation' detection
@@ -122,6 +130,12 @@ export const MATOMO_BOT_CUSTOM_DIMENSIONS: BotCustomDimensionsConfig = {
   'alpha.remix.live': null, // TODO: Configure if bot site has different dimension IDs
   'beta.remix.live': null, // TODO: Configure if bot site has different dimension IDs
   'remix.ethereum.org': {
+    trackingMode: 1,
+    clickAction: 3,
+    isBot: 2,
+    featureGroups: 4
+  },
+  'app.remix.live': {
     trackingMode: 1,
     clickAction: 3,
     isBot: 2,

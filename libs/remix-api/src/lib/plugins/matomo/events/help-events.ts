@@ -21,5 +21,8 @@ export interface HelpEvent extends MatomoEventBase {
     | 'betaLinkClicked'
     | 'betaFarewellClosed'
     | 'betaFarewellSurveyOpened'
-    | 'betaFarewellDismissed';
+    | 'betaFarewellDismissed'
+    | 'domainMigrationStarted'
+    | 'domainMigrationDismissed'
+    | 'domainMigrationClosed';
 }

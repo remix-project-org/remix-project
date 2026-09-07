@@ -1,0 +1,438 @@
+/**
+ * Domain migration wizard.
+ *
+ * Follows the plan-manager convention: no inline styles, theme variables only,
+ * and `color-mix()` tints so accents read correctly in light and dark themes.
+ *
+ * Inset surfaces are mixed from --bs-emphasis-color rather than using
+ * --bs-tertiary-bg, which several themes declare twice with conflicting values.
+ */
+
+.dm-root {
+  --dm-surface: color-mix(in srgb, var(--bs-emphasis-color) 6%, transparent);
+  --dm-surface-strong: color-mix(in srgb, var(--bs-emphasis-color) 10%, transparent);
+  height: 100%;
+  overflow-y: auto;
+  background: var(--bs-body-bg);
+  color: var(--bs-body-color);
+}
+
+.dm-inner {
+  max-width: 780px;
+  margin: 0 auto;
+  padding: 32px 24px 48px;
+}
+
+/* ── Hero ── */
+
+.dm-hero {
+  position: relative;
+  overflow: hidden;
+  padding: 26px 24px;
+  margin-bottom: 18px;
+  background: var(--bs-secondary-bg);
+  border: 1px solid var(--bs-border-color);
+  border-radius: var(--bs-border-radius-lg);
+}
+
+.dm-hero__wash {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--custom-primary) 12%, transparent) 0%,
+    color-mix(in srgb, var(--bs-info) 8%, transparent) 50%,
+    color-mix(in srgb, var(--bs-warning) 8%, transparent) 100%
+  );
+}
+
+.dm-hero__grid {
+  position: absolute;
+  inset: 0;
+  opacity: 0.35;
+  pointer-events: none;
+  background-image:
+    linear-gradient(var(--bs-border-color) 1px, transparent 1px),
+    linear-gradient(90deg, var(--bs-border-color) 1px, transparent 1px);
+  background-size: 24px 24px;
+  mask-image: linear-gradient(to bottom, rgba(0, 0, 0, 0.25), transparent);
+}
+
+.dm-hero__content {
+  position: relative;
+  z-index: 2;
+}
+
+.dm-hero__icon {
+  width: 38px;
+  height: 38px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--bs-border-radius);
+  color: var(--custom-primary);
+  background: color-mix(in srgb, var(--custom-primary) 12%, transparent);
+  border: 1px solid color-mix(in srgb, var(--custom-primary) 30%, transparent);
+  animation: dm-drift 3s ease-in-out infinite;
+}
+
+.dm-hero__eyebrow {
+  font-family: var(--bs-font-monospace);
+  font-size: 0.6875rem;
+  letter-spacing: 0.5px;
+  color: var(--custom-primary);
+}
+
+.dm-hero__title {
+  font-size: 1.5rem;
+  font-weight: 600;
+  line-height: 1.25;
+  color: var(--bs-emphasis-color);
+}
+
+.dm-hero__dest {
+  font-family: var(--bs-font-monospace);
+  font-size: 1.3125rem;
+  color: var(--custom-primary);
+}
+
+/* ── Chips ── */
+
+.dm-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 8px;
+  font-family: var(--bs-font-monospace);
+  font-size: 0.6875rem;
+  color: var(--bs-body-color);
+  background: var(--dm-surface);
+  border: 1px solid var(--bs-border-color);
+  border-radius: var(--bs-border-radius-sm);
+}
+
+.dm-chip--old {
+  text-decoration: line-through;
+  opacity: 0.7;
+}
+
+.dm-chip--new {
+  font-weight: 600;
+  color: var(--custom-primary);
+  background: color-mix(in srgb, var(--custom-primary) 10%, transparent);
+  border-color: color-mix(in srgb, var(--custom-primary) 30%, transparent);
+}
+
+.dm-chip--urgent {
+  color: var(--bs-warning);
+  background: color-mix(in srgb, var(--bs-warning) 10%, transparent);
+  border-color: color-mix(in srgb, var(--bs-warning) 30%, transparent);
+  animation: dm-pulse 2s ease-in-out infinite;
+}
+
+/* ── Why panel ── */
+
+.dm-why {
+  padding: 14px 16px;
+  margin-bottom: 22px;
+  font-size: 0.8125rem;
+  line-height: 1.6;
+  background: var(--dm-surface);
+  border: 1px solid var(--bs-border-color);
+  border-radius: var(--bs-border-radius);
+}
+
+/* ── Stepper ── */
+
+.dm-steps {
+  display: flex;
+  align-items: flex-start;
+  margin-bottom: 22px;
+}
+
+.dm-step {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  min-width: 84px;
+}
+
+.dm-step__badge {
+  width: 30px;
+  height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--bs-font-monospace);
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--bs-body-color);
+  background: var(--dm-surface);
+  border: 1px solid var(--bs-border-color);
+  border-radius: var(--bs-border-radius);
+}
+
+.dm-step.is-active .dm-step__badge {
+  color: var(--custom-primary);
+  background: color-mix(in srgb, var(--custom-primary) 12%, transparent);
+  border-color: color-mix(in srgb, var(--custom-primary) 45%, transparent);
+}
+
+.dm-step.is-done .dm-step__badge {
+  color: var(--bs-success);
+  background: color-mix(in srgb, var(--bs-success) 12%, transparent);
+  border-color: color-mix(in srgb, var(--bs-success) 45%, transparent);
+}
+
+.dm-step__label {
+  font-size: 0.75rem;
+  color: var(--bs-secondary-color);
+}
+
+.dm-step.is-active .dm-step__label,
+.dm-step.is-done .dm-step__label {
+  color: var(--bs-emphasis-color);
+}
+
+.dm-step.is-active .dm-step__label {
+  font-weight: 600;
+}
+
+.dm-step__hint {
+  font-size: 0.625rem;
+  color: var(--bs-secondary-color);
+}
+
+.dm-step__line {
+  flex: 1;
+  height: 1px;
+  margin-top: 15px;
+  background: var(--bs-border-color);
+}
+
+.dm-step__line.is-done {
+  background: color-mix(in srgb, var(--bs-success) 55%, transparent);
+}
+
+/* ── Cards ── */
+
+.dm-card {
+  --dm-accent: var(--custom-primary);
+  padding: 20px;
+  background: var(--bs-secondary-bg);
+  border: 1px solid color-mix(in srgb, var(--dm-accent) 35%, var(--bs-border-color));
+  border-radius: var(--bs-border-radius-lg);
+  animation: dm-in 0.3s ease;
+}
+
+.dm-card--info { --dm-accent: var(--bs-info); }
+.dm-card--success { --dm-accent: var(--bs-success); }
+
+.dm-card__step {
+  padding: 3px 7px;
+  font-family: var(--bs-font-monospace);
+  font-size: 0.625rem;
+  font-weight: 600;
+  letter-spacing: 1.4px;
+  text-transform: uppercase;
+  color: var(--dm-accent);
+  background: color-mix(in srgb, var(--dm-accent) 12%, transparent);
+  border: 1px solid color-mix(in srgb, var(--dm-accent) 40%, transparent);
+  border-radius: var(--bs-border-radius-sm);
+}
+
+.dm-card__title {
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: var(--bs-emphasis-color);
+}
+
+/* ── Stats ── */
+
+.dm-stat {
+  --dm-accent: var(--custom-primary);
+  flex: 1 1 120px;
+  padding: 10px 12px;
+  background: color-mix(in srgb, var(--dm-accent) 9%, transparent);
+  border: 1px solid color-mix(in srgb, var(--dm-accent) 28%, transparent);
+  border-radius: var(--bs-border-radius);
+}
+
+.dm-stat--info { --dm-accent: var(--bs-info); }
+.dm-stat--success { --dm-accent: var(--bs-success); }
+
+.dm-stat__value {
+  font-family: var(--bs-font-monospace);
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: var(--bs-emphasis-color);
+}
+
+.dm-stat__label {
+  font-size: 0.625rem;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: var(--bs-secondary-color);
+}
+
+/* ── Tags ── */
+
+.dm-tag {
+  display: inline-block;
+  margin: 2px 4px 2px 0;
+  padding: 2px 6px;
+  font-family: var(--bs-font-monospace);
+  font-size: 0.65rem;
+  color: var(--bs-body-color);
+  background: var(--dm-surface-strong);
+  border: 1px solid var(--bs-border-color);
+  border-radius: var(--bs-border-radius-sm);
+}
+
+/* ── Notes ── */
+
+.dm-note {
+  --dm-accent: var(--custom-primary);
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin-top: 12px;
+  padding: 10px 12px;
+  font-size: 0.75rem;
+  line-height: 1.5;
+  background: color-mix(in srgb, var(--dm-accent) 9%, transparent);
+  border: 1px solid color-mix(in srgb, var(--dm-accent) 28%, transparent);
+  border-radius: var(--bs-border-radius);
+}
+
+.dm-note--success { --dm-accent: var(--bs-success); }
+.dm-note--warning { --dm-accent: var(--bs-warning); }
+.dm-note--danger { --dm-accent: var(--bs-danger); }
+.dm-note--info { --dm-accent: var(--bs-info); }
+
+.dm-note__icon {
+  flex-shrink: 0;
+  margin-top: 2px;
+  font-size: 0.75rem;
+  color: var(--dm-accent);
+}
+
+.dm-note__body {
+  min-width: 0;
+}
+
+.dm-arrow {
+  font-size: 0.7rem;
+}
+
+/* ── Dropzone ── */
+
+.dm-drop {
+  padding: 32px 20px;
+  text-align: center;
+  cursor: pointer;
+  background: var(--dm-surface);
+  border: 2px dashed var(--bs-border-color);
+  border-radius: var(--bs-border-radius-lg);
+  transition: border-color 0.2s ease, background 0.2s ease;
+}
+
+.dm-drop:hover,
+.dm-drop.is-dragging {
+  border-color: var(--custom-primary);
+  background: color-mix(in srgb, var(--custom-primary) 8%, transparent);
+}
+
+.dm-drop__icon {
+  width: 48px;
+  height: 48px;
+  margin: 0 auto 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.25rem;
+  color: var(--custom-primary);
+  background: color-mix(in srgb, var(--custom-primary) 12%, transparent);
+  border: 1px solid color-mix(in srgb, var(--custom-primary) 30%, transparent);
+  border-radius: var(--bs-border-radius);
+}
+
+.dm-drop__title {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--bs-emphasis-color);
+}
+
+/* ── Progress ── */
+
+.dm-progress__track {
+  height: 5px;
+  overflow: hidden;
+  background: var(--dm-surface-strong);
+  border-radius: var(--bs-border-radius-sm);
+}
+
+.dm-progress__fill {
+  height: 100%;
+  background: var(--custom-primary);
+  border-radius: var(--bs-border-radius-sm);
+  transition: width 0.2s ease;
+}
+
+.dm-progress__fill.is-indeterminate {
+  width: 100%;
+  animation: dm-pulse 1.2s ease-in-out infinite;
+}
+
+/* ── Text helpers ── */
+
+.dm-mono { font-family: var(--bs-font-monospace); }
+
+.dm-strong {
+  font-weight: 600;
+  color: var(--bs-emphasis-color);
+}
+
+.dm-hint {
+  font-size: 0.7rem;
+  color: var(--bs-secondary-color);
+}
+
+.dm-body {
+  font-size: 0.78125rem;
+  line-height: 1.6;
+}
+
+.dm-footnote {
+  margin-top: 24px;
+  font-family: var(--bs-font-monospace);
+  font-size: 0.6875rem;
+  text-align: center;
+  color: var(--bs-secondary-color);
+}
+
+.dm-issues {
+  margin: 6px 0 0;
+  padding-left: 16px;
+  font-family: var(--bs-font-monospace);
+  font-size: 0.65rem;
+}
+
+/* ── Keyframes ── */
+
+@keyframes dm-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes dm-drift {
+  0%, 100% { transform: translateX(0); }
+  50% { transform: translateX(4px); }
+}
+
+@keyframes dm-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.55; }
+}
