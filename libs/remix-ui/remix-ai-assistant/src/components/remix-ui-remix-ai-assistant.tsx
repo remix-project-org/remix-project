@@ -1901,23 +1901,32 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
         GenerationParams.return_stream_response = true
         GenerationParams.threadId = await props.plugin.call('remixAI', 'getAssistantThrId') || ""
 
-        // Images only travel on the DeepAgent route, and only to a model that
-        // can read them. When either is missing we still send the text — losing
-        // the whole prompt over an attachment would be worse — and say so.
+        // Attachments only travel on the DeepAgent route. Within it, text and
+        // source files work on any model (they are sent as text), while images
+        // and PDFs need a vision-capable one. Rather than drop the whole turn,
+        // send what can be sent and name what was left out.
         const modelReadsImages = modelSupportsVision(selectedModelRef.current || undefined)
-        const routeCarriesImages = aiRouteRef.current === 'agent'
-        if (attachments.length > 0 && (!modelReadsImages || !routeCarriesImages)) {
+        const routeCarriesAttachments = aiRouteRef.current === 'agent'
+        const sendable = !routeCarriesAttachments
+          ? []
+          : modelReadsImages
+            ? attachments
+            : attachments.filter(a => a.kind === 'text')
+        const dropped = attachments.length - sendable.length
+
+        if (dropped > 0) {
+          const modelName = selectedModelRef.current?.displayName || 'The selected model'
           setChatNotice({
             severity: 'warning',
-            code: 'MODEL_NO_VISION',
-            title: 'Images not sent',
-            message: !modelReadsImages
-              ? `${selectedModelRef.current?.displayName || 'The selected model'} cannot read images. Your message was sent as text only — pick a vision-capable model to include the image.`
-              : 'Images are only supported by the agent route. Your message was sent as text only.',
+            code: routeCarriesAttachments ? 'MODEL_NO_VISION' : 'ROUTE_NO_ATTACHMENTS',
+            title: dropped === attachments.length ? 'Attachments not sent' : 'Some attachments not sent',
+            message: !routeCarriesAttachments
+              ? 'Attachments are only supported by the agent route. Your message was sent without them.'
+              : `${modelName} cannot read images or PDFs, so ${dropped} attachment(s) were left out. Pick a vision-capable model to include them.`,
             actionable: true
           })
         }
-        GenerationParams.attachments = (modelReadsImages && routeCarriesImages) ? attachments : undefined
+        GenerationParams.attachments = sendable.length > 0 ? sendable : undefined
 
         const pending = await props.plugin.call('remixAI', 'isChatRequestPending')
         const response = pending

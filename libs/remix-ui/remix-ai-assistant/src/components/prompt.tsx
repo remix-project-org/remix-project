@@ -11,7 +11,7 @@ import { AIModel } from '@remix/remix-ai-core'
 import { PromptDefault } from "./promptDefault";
 import { AutocompletePanel, AVAILABLE_COMMANDS, Command } from './AutocompletePanel'
 import { AttachmentStrip } from './attachmentStrip'
-import { ACCEPTED_IMAGE_TYPES, AttachmentError, imagesFromClipboard } from '../hooks/useAttachments'
+import { ACCEPTED_FILE_ACCEPT_ATTR, AttachmentError, filesFromClipboard } from '../hooks/useAttachments'
 import type { ChatAttachment } from '@remix/remix-ai-core'
 
 const getActiveCommandName = (text: string): string | null => {
@@ -212,19 +212,22 @@ export const PromptArea: React.FC<PromptAreaProps> = ({
   const [isDragging, setIsDragging] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
-  const attachDisabledReason = !supportsVision
-    ? `${selectedModel?.displayName || 'This model'} cannot read images. Pick a vision-capable model to attach one.`
-    : null
-  const canAttach = Boolean(onAddFiles) && supportsVision && !isStreaming
+  // Text and source files are sent as plain text, so they work on any model.
+  // Only images and PDFs need a vision-capable one — the button stays enabled
+  // either way and the send path reports what could not be included.
+  const attachHint = supportsVision
+    ? 'Attach a file — image, PDF, or source/text file'
+    : `Attach a text or source file. ${selectedModel?.displayName || 'This model'} cannot read images or PDFs.`
+  const canAttach = Boolean(onAddFiles) && !isStreaming
 
   const handlePaste = useCallback((e: React.ClipboardEvent) => {
     if (!canAttach) return
-    const images = imagesFromClipboard(e)
-    if (images.length === 0) return
-    // Only swallow the paste when it really was an image; a mixed
-    // text+image clipboard should still deliver its text.
+    const files = filesFromClipboard(e)
+    if (files.length === 0) return
+    // Only swallow the paste when it really carried files; a mixed
+    // text+file clipboard should still deliver its text.
     e.preventDefault()
-    onAddFiles?.(images)
+    onAddFiles?.(files)
   }, [canAttach, onAddFiles])
 
   const handleDrop = useCallback((e: React.DragEvent) => {
@@ -800,7 +803,7 @@ export const PromptArea: React.FC<PromptAreaProps> = ({
                   <input
                     ref={fileInputRef}
                     type="file"
-                    accept={ACCEPTED_IMAGE_TYPES.join(',')}
+                    accept={ACCEPTED_FILE_ACCEPT_ATTR}
                     multiple
                     className="d-none"
                     data-id="remix-ai-attach-input"
@@ -810,7 +813,7 @@ export const PromptArea: React.FC<PromptAreaProps> = ({
                       e.target.value = ''
                     }}
                   />
-                  <CustomTooltip tooltipText={attachDisabledReason || 'Attach an image'}>
+                  <CustomTooltip tooltipText={attachHint}>
                     <span className="d-inline-block align-self-end">
                       <button
                         type="button"
@@ -818,10 +821,10 @@ export const PromptArea: React.FC<PromptAreaProps> = ({
                         data-id="remix-ai-attach-btn"
                         disabled={!canAttach}
                         onClick={() => {
-                          trackMatomoEvent({ category: 'ai', action: 'remixAI', name: 'attachImage', isClick: true })
+                          trackMatomoEvent({ category: 'ai', action: 'remixAI', name: 'attachFile', isClick: true })
                           fileInputRef.current?.click()
                         }}
-                        aria-label="Attach an image"
+                        aria-label="Attach a file"
                       >
                         <i className="fas fa-paperclip"></i>
                       </button>
@@ -830,13 +833,15 @@ export const PromptArea: React.FC<PromptAreaProps> = ({
                 </>
               )}
               {onCaptureScreenshot && (
-                <CustomTooltip tooltipText={attachDisabledReason || 'Attach a screenshot of the IDE'}>
+                <CustomTooltip tooltipText={supportsVision
+                  ? 'Attach a screenshot of the IDE'
+                  : `${selectedModel?.displayName || 'This model'} cannot read images. Pick a vision-capable model.`}>
                   <span className="d-inline-block align-self-end">
                     <button
                       type="button"
                       className="btn btn-text btn-sm border-0 rounded text-secondary"
                       data-id="remix-ai-screenshot-btn"
-                      disabled={!canAttach}
+                      disabled={!canAttach || !supportsVision}
                       onClick={() => {
                         trackMatomoEvent({ category: 'ai', action: 'remixAI', name: 'captureScreenshot', isClick: true })
                         onCaptureScreenshot()

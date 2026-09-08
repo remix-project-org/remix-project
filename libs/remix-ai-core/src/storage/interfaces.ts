@@ -47,15 +47,16 @@ export interface ChatMessage {
 }
 
 /**
- * Drops the full-size image data before a message is written to storage.
- * A handful of screenshots at full resolution would otherwise add megabytes
- * of base64 to IndexedDB per conversation.
+ * Drops attachment payloads before a message is written to storage, keeping
+ * only what the history view needs: the name, the kind, and an image
+ * thumbnail. A few screenshots at full resolution, or a couple of large source
+ * files, would otherwise add megabytes to IndexedDB per conversation.
  */
 export function stripAttachmentPayloads<T extends ChatMessage>(message: T): T {
   if (!message.attachments || message.attachments.length === 0) return message
   return {
     ...message,
-    attachments: message.attachments.map(({ dataUrl, ...rest }) => rest)
+    attachments: message.attachments.map(({ dataUrl, textContent, ...rest }) => rest)
   }
 }
 

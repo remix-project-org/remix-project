@@ -19,35 +19,64 @@ export const AttachmentStrip: React.FC<AttachmentStripProps> = ({ attachments, e
   return (
     <div className="d-flex flex-column gap-1 px-2 pt-2" data-id="remix-ai-attachment-strip">
       {attachments.length > 0 && (
-        <div className="d-flex flex-row flex-wrap gap-2">
-          {attachments.map(att => (
-            <div
-              key={att.id}
-              className="position-relative rounded overflow-hidden"
-              style={{ width: 48, height: 48, border: '1px solid var(--bs-border-color)' }}
-              title={att.name}
-              data-id={`remix-ai-attachment-${att.id}`}
-            >
-              <img
-                src={att.thumbnailDataUrl || att.dataUrl}
-                alt={att.name}
-                style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-              />
+        <div className="d-flex flex-row flex-wrap gap-2 align-items-center">
+          {attachments.map(att => {
+            const removeBtn = (
               <button
                 type="button"
-                className="btn btn-sm p-0 position-absolute d-flex align-items-center justify-content-center"
-                style={{
-                  top: 1, right: 1, width: 16, height: 16, lineHeight: 1,
-                  borderRadius: '50%', background: 'var(--bs-body-bg)', opacity: 0.9
-                }}
+                className="btn btn-sm p-0 d-flex align-items-center justify-content-center"
                 onClick={() => onRemove(att.id)}
                 aria-label={`Remove ${att.name}`}
                 data-id={`remix-ai-attachment-remove-${att.id}`}
               >
                 <i className="fas fa-times" style={{ fontSize: 9 }} />
               </button>
-            </div>
-          ))}
+            )
+
+            // Images get a real preview; everything else is identified by name,
+            // because a thumbnail of a PDF or a .sol file tells you nothing.
+            if (att.kind === 'image') {
+              return (
+                <div
+                  key={att.id}
+                  className="position-relative rounded overflow-hidden"
+                  style={{ width: 48, height: 48, border: '1px solid var(--bs-border-color)' }}
+                  title={att.name}
+                  data-id={`remix-ai-attachment-${att.id}`}
+                >
+                  <img
+                    src={att.thumbnailDataUrl || att.dataUrl}
+                    alt={att.name}
+                    style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                  />
+                  <span
+                    className="position-absolute"
+                    style={{
+                      top: 1, right: 1, width: 16, height: 16, lineHeight: 1,
+                      borderRadius: '50%', background: 'var(--bs-body-bg)', opacity: 0.9
+                    }}
+                  >
+                    {removeBtn}
+                  </span>
+                </div>
+              )
+            }
+
+            return (
+              <div
+                key={att.id}
+                className="d-flex align-items-center gap-2 rounded px-2 py-1"
+                style={{ border: '1px solid var(--bs-border-color)', maxWidth: 220 }}
+                title={att.truncated ? `${att.name} (truncated)` : att.name}
+                data-id={`remix-ai-attachment-${att.id}`}
+              >
+                <i className={`fas ${att.kind === 'document' ? 'fa-file-pdf' : 'fa-file-lines'} text-secondary`} style={{ fontSize: '0.8rem' }} />
+                <span className="text-truncate small">{att.name}</span>
+                {att.truncated && <span className="badge bg-warning text-dark" style={{ fontSize: '0.6rem' }}>cut</span>}
+                {removeBtn}
+              </div>
+            )
+          })}
         </div>
       )}
 

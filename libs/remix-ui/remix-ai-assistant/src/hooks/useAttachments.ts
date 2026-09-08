@@ -2,7 +2,7 @@ import { useCallback, useMemo, useState } from 'react'
 import type { ChatAttachment } from '@remix/remix-ai-core'
 import { captureElementPng, defaultCaptureTarget } from '@remix/remix-ai-core'
 
-/** Images beyond this add cost without adding much signal. */
+/** Attachments beyond this add cost without adding much signal. */
 export const MAX_ATTACHMENTS = 4
 
 /** Refuse anything larger before we even try to decode it. */
@@ -19,9 +19,61 @@ const THUMB_EDGE = 320
 
 export const ACCEPTED_IMAGE_TYPES = ['image/png', 'image/jpeg', 'image/webp', 'image/gif']
 
+/** Rendered natively by vision models; sent as an OpenAI-style file block. */
+export const ACCEPTED_DOCUMENT_TYPES = ['application/pdf']
+
+/**
+ * Read as text and sent inline. Browsers report `type` inconsistently for
+ * source files — Solidity and most code extensions come back as `''` — so the
+ * extension list below is what actually decides, with the mime type as a
+ * fallback for the few that are reported reliably.
+ */
+export const ACCEPTED_TEXT_EXTENSIONS = [
+  'sol', 'vy', 'yul', 'cairo', 'circom', 'nr',
+  'ts', 'tsx', 'js', 'jsx', 'mjs', 'cjs', 'json', 'jsonc',
+  'py', 'rs', 'go', 'java', 'rb', 'php', 'c', 'h', 'cpp', 'hpp', 'cs', 'swift', 'kt',
+  'md', 'markdown', 'txt', 'log', 'csv', 'tsv',
+  'yml', 'yaml', 'toml', 'ini', 'env', 'cfg', 'conf',
+  'html', 'htm', 'css', 'scss', 'less', 'xml', 'svg',
+  'sh', 'bash', 'zsh', 'sql', 'abi', 'gitignore', 'dockerfile', 'lock'
+]
+
+/** Everything the picker offers, as an `accept` attribute value. */
+export const ACCEPTED_FILE_ACCEPT_ATTR = [
+  ...ACCEPTED_IMAGE_TYPES,
+  ...ACCEPTED_DOCUMENT_TYPES,
+  'text/*',
+  ...ACCEPTED_TEXT_EXTENSIONS.map((ext) => `.${ext}`)
+].join(',')
+
+/**
+ * Cap on the decoded text of a single file. Roughly 50k tokens — beyond this a
+ * file is better read with the file tools than pasted into one turn.
+ */
+export const MAX_TEXT_CHARS = 200_000
+
 export interface AttachmentError {
   fileName: string
   reason: string
+}
+
+const extensionOf = (name: string): string => {
+  const dot = name.lastIndexOf('.')
+  // A dotfile like `.env` is all extension, not a name with none.
+  if (dot < 0) return name.toLowerCase()
+  return name.slice(dot + 1).toLowerCase()
+}
+
+/** Decides how a file will be sent, or `null` when we cannot take it. */
+export function classifyFile(file: File | Blob, name: string): ChatAttachment['kind'] | null {
+  const type = (file.type || '').toLowerCase()
+  if (ACCEPTED_IMAGE_TYPES.includes(type)) return 'image'
+  if (ACCEPTED_DOCUMENT_TYPES.includes(type)) return 'document'
+  if (type.startsWith('text/')) return 'text'
+  if (ACCEPTED_TEXT_EXTENSIONS.includes(extensionOf(name))) return 'text'
+  // Some browsers report nothing at all for unknown extensions; an empty type
+  // with no recognised extension is not worth guessing at.
+  return null
 }
 
 const readAsDataUrl = (file: File | Blob): Promise<string> =>
@@ -70,14 +122,43 @@ const downscale = async (dataUrl: string, maxEdge: number, mimeType: string): Pr
 
 const approxBytes = (dataUrl: string): number => Math.round((dataUrl.length - dataUrl.indexOf(',') - 1) * 0.75)
 
-/** Turns a File/Blob into a send-ready attachment with a persistable thumbnail. */
+/** Turns a File/Blob into a send-ready attachment. */
 export async function buildAttachment(
   file: File | Blob,
   name: string,
-  source: ChatAttachment['source'] = 'upload'
+  source: ChatAttachment['source'] = 'upload',
+  kind: ChatAttachment['kind'] = 'image'
 ): Promise<ChatAttachment> {
+  const mimeType = file.type || (kind === 'image' ? 'image/png' : 'application/octet-stream')
+
+  if (kind === 'text') {
+    const raw = await file.text()
+    const truncated = raw.length > MAX_TEXT_CHARS
+    return {
+      id: crypto.randomUUID(),
+      name,
+      mimeType: mimeType || 'text/plain',
+      kind,
+      textContent: truncated ? raw.slice(0, MAX_TEXT_CHARS) : raw,
+      truncated,
+      size: file.size,
+      source
+    }
+  }
+
+  if (kind === 'document') {
+    return {
+      id: crypto.randomUUID(),
+      name,
+      mimeType,
+      kind,
+      dataUrl: await readAsDataUrl(file),
+      size: file.size,
+      source
+    }
+  }
+
   const raw = await readAsDataUrl(file)
-  const mimeType = file.type || 'image/png'
   const full = await downscale(raw, MAX_EDGE, mimeType)
   const thumb = await downscale(full.dataUrl, THUMB_EDGE, mimeType)
 
@@ -85,6 +166,7 @@ export async function buildAttachment(
     id: crypto.randomUUID(),
     name,
     mimeType,
+    kind,
     dataUrl: full.dataUrl,
     thumbnailDataUrl: thumb.dataUrl,
     size: approxBytes(full.dataUrl),
@@ -124,7 +206,7 @@ export function useAttachments(): UseAttachments {
     setAttachments(prev => {
       const room = MAX_ATTACHMENTS - prev.length
       if (next.length > room) {
-        rejected.push({ fileName: '', reason: `Only ${MAX_ATTACHMENTS} images can be attached to one message.` })
+        rejected.push({ fileName: '', reason: `Only ${MAX_ATTACHMENTS} files can be attached to one message.` })
       }
       return [...prev, ...next.slice(0, Math.max(0, room))]
     })
@@ -140,18 +222,19 @@ export function useAttachments(): UseAttachments {
     const rejected: AttachmentError[] = []
 
     for (const file of list) {
-      if (!ACCEPTED_IMAGE_TYPES.includes(file.type)) {
-        rejected.push({ fileName: file.name, reason: 'Only PNG, JPEG, WebP and GIF images can be attached.' })
+      const kind = classifyFile(file, file.name || '')
+      if (!kind) {
+        rejected.push({ fileName: file.name, reason: 'Unsupported file type. Attach an image, a PDF, or a text/source file.' })
         continue
       }
       if (file.size > MAX_SOURCE_BYTES) {
-        rejected.push({ fileName: file.name, reason: 'Image is larger than 10 MB.' })
+        rejected.push({ fileName: file.name, reason: 'File is larger than 10 MB.' })
         continue
       }
       try {
-        accepted.push(await buildAttachment(file, file.name || 'image', 'upload'))
+        accepted.push(await buildAttachment(file, file.name || 'file', 'upload', kind))
       } catch (e: any) {
-        rejected.push({ fileName: file.name, reason: e?.message || 'Could not read the image.' })
+        rejected.push({ fileName: file.name, reason: e?.message || 'Could not read the file.' })
       }
     }
 
@@ -161,7 +244,7 @@ export function useAttachments(): UseAttachments {
   const addDataUrl = useCallback(async (dataUrl: string, name: string, source: ChatAttachment['source'] = 'screenshot') => {
     try {
       const blob = await (await fetch(dataUrl)).blob()
-      append([await buildAttachment(blob, name, source)], [])
+      append([await buildAttachment(blob, name, source, 'image')], [])
     } catch (e: any) {
       setErrors([{ fileName: name, reason: e?.message || 'Could not process the image.' }])
     }
@@ -175,15 +258,15 @@ export function useAttachments(): UseAttachments {
   )
 }
 
-/** Pulls image files out of a paste event. */
-export function imagesFromClipboard(e: React.ClipboardEvent): File[] {
+/** Pulls attachable files out of a paste event. */
+export function filesFromClipboard(e: React.ClipboardEvent): File[] {
   const items = e.clipboardData?.items
   if (!items) return []
   const files: File[] = []
   for (const item of Array.from(items)) {
     if (item.kind !== 'file') continue
     const file = item.getAsFile()
-    if (file && ACCEPTED_IMAGE_TYPES.includes(file.type)) files.push(file)
+    if (file && classifyFile(file, file.name || '')) files.push(file)
   }
   return files
 }
