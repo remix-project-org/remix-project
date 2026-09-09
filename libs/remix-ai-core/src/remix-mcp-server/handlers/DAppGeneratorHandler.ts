@@ -2058,7 +2058,8 @@ export class UpdateDAppHandler extends BaseToolHandler {
       const isZkCircuitUpdate = targetConfig.appKind === 'zk-circuit'
       const isContractUpdate = !isGraphOnlyUpdate && !isZkCircuitUpdate
       const zkCircuit = isZkCircuitUpdate ? targetConfig.zkCircuit : undefined
-      if (isZkCircuitUpdate && (!zkCircuit || typeof zkCircuit !== 'object' || !zkCircuit.zkArtifacts)) {
+      const isNoirUpdate = zkCircuit?.circuitType === 'noir'
+      if (isZkCircuitUpdate && (!zkCircuit || typeof zkCircuit !== 'object' || !(isNoirUpdate ? zkCircuit.noirArtifacts : zkCircuit.zkArtifacts))) {
         return this.createErrorResult('The ZK DApp config is missing required zkCircuit metadata and cannot be updated safely.')
       }
 
@@ -2202,19 +2203,9 @@ export class UpdateDAppHandler extends BaseToolHandler {
         contractResolved && Array.isArray(targetConfig.contracts) && targetConfig.contracts.length > 0
       )
       const isBindingChange = !!resolvedBindingChange
-      const zkSignalInputs = Array.isArray(zkCircuit?.signalInputs) && zkCircuit.signalInputs.length > 0
-        ? zkCircuit.signalInputs.join(', ')
-        : 'not recorded'
       const appKindLine = isZkCircuitUpdate
-        ? `APP KIND: ZK circuit DApp\n` +
-          `ZK CIRCUIT BINDING (immutable):\n` +
-          `- Circuit: ${zkCircuit.circuitName || 'not recorded'}\n` +
-          `- Circuit source: ${zkCircuit.circuitPath || 'not recorded'}\n` +
-          `- Proving scheme: ${zkCircuit.provingScheme || 'not recorded'}\n` +
-          `- Prime field: ${zkCircuit.primeValue || 'not recorded'}\n` +
-          `- Signal inputs: ${zkSignalInputs}\n` +
-          `- Artifact paths: wasm=${zkCircuit.zkArtifacts.wasmPath || 'not recorded'}, zkey=${zkCircuit.zkArtifacts.zkeyPath || 'not recorded'}, vkey=${zkCircuit.zkArtifacts.vkeyPath || 'not recorded'}\n` +
-          `- zkVerify network: ${zkCircuit.zkVerifyConfig?.network || 'not recorded'}\n`
+        ? `APP KIND: ${isNoirUpdate ? 'Noir' : 'Circom'} ZK circuit DApp\n` +
+          `ZK CIRCUIT BINDING (immutable): ${JSON.stringify(zkCircuit)}\n`
         : hasRuntimeContractBindings || isBindingChange
           ? `CONTRACT BINDINGS (${isBindingChange ? 'confirmed updated set' : 'immutable'}, chain ${contractResolved.chainId}${isLocalVM ? ', Remix VM' : ''}):\n` +
             contractResolved.contracts.map((contract) =>
@@ -2226,7 +2217,9 @@ export class UpdateDAppHandler extends BaseToolHandler {
       const buildRules = isGraphOnlyUpdate
         ? QUICKDAPP_GRAPH_ONLY_BUILD_RULES
         : isZkCircuitUpdate
-          ? QUICKDAPP_ZK_BUILD_RULES
+          ? isNoirUpdate
+            ? getNoirZkBuildRules()
+            : getZkBuildRules(zkCircuit.verificationMethod || 'zkverify', zkCircuit.provingScheme || 'groth16')
           : QUICKDAPP_BUILD_RULES
       const designRules = isZkCircuitUpdate ? QUICKDAPP_ZK_DESIGN_RULES : QUICKDAPP_DESIGN_RULES
       const zkArtifactRoot = isInlineMode ? '/frontend/zk' : '/zk'
@@ -2242,9 +2235,9 @@ export class UpdateDAppHandler extends BaseToolHandler {
         : isZkCircuitUpdate
           ? `LOGIC PRESERVATION (MANDATORY):\n` +
           `- This is a ZK circuit DApp. Update UI/source files only: index.html and files under src/.\n` +
-          `- Preserve window.__ZK_DAPP_CONFIG__, snarkjs proof generation, zkVerify proxy/runtime integration, and any existing wallet behavior.\n` +
-          `- NEVER create, modify, or delete dapp.config.json or change appKind/zkCircuit metadata, including circuitName, circuitPath, provingScheme, primeValue, signalInputs, zkArtifacts, or zkVerifyConfig.\n` +
-          `- NEVER write, replace, move, or delete files under ${zkArtifactRoot}, including circuit.wasm, circuit.zkey, and verification_key.json.\n` +
+          `- Preserve window.__ZK_DAPP_CONFIG__, the existing ${isNoirUpdate ? 'Noir backend proof generation and on-chain verification' : 'snarkjs proof generation and selected verification method'}, and any existing wallet behavior.\n` +
+          `- NEVER create, modify, or delete dapp.config.json or change appKind/zkCircuit metadata, including circuitType, circuitName, circuitPath, provingScheme, primeValue, signalInputs, verificationMethod, onChainVerifier, zkArtifacts, noirArtifacts, or zkVerifyConfig.\n` +
+          `- NEVER write, replace, move, or delete files under ${zkArtifactRoot} or any recorded circuit/artifact path.\n` +
           `- NEVER convert this DApp to contract-backed or Graph-only.\n` +
           `- If the user asks to change an immutable ZK field or artifact, do not implement it. Explain that they must create a new ZK DApp with the desired circuit configuration.\n` +
           `- You MAY restructure JSX layout, change CSS classes, and improve loading, error, proof result, and verification status UI without changing the proof flow.\n` +

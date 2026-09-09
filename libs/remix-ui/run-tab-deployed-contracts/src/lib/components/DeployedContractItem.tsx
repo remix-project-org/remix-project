@@ -37,7 +37,6 @@ export function DeployedContractItem({ contract, index, registerRef, isKebabMenu
   const { trackMatomoEvent } = useContext(TrackingContext)
   const intl = useIntl()
   const { features } = useAuth()
-  const hasQuickdappAccess = features?.[Features.DAPP_QUICKDAPP]?.is_enabled
   const hasRegisterEnsAccess = features?.[Features.REGISTER_ENS]?.is_enabled === true
   const isDesktop = isElectron()
   const [networkName, setNetworkName] = useState<string>('')
@@ -518,17 +517,6 @@ For Inline mode, preserve the existing /frontend overwrite confirmation flow. Co
 
   const handleCreateDapp = async (contract: DeployedContract) => {
     if (onKebabMenuToggle) onKebabMenuToggle(false)
-
-    // Permission gate: non-beta users see the QuickDapp lock screen.
-    if (!hasQuickdappAccess) {
-      try {
-        await plugin.call('manager', 'activatePlugin', 'quick-dapp-v2')
-        await plugin.call('tabs' as any, 'focus', 'quick-dapp-v2')
-      } catch (error) {
-        console.error('[QuickDapp] Could not open QuickDapp:', error)
-      }
-      return
-    }
 
     try {
       const currentWorkspace = await plugin.call('filePanel', 'getCurrentWorkspace')

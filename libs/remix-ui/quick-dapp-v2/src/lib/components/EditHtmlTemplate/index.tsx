@@ -724,16 +724,8 @@ window.addEventListener('unhandledrejection', function(e) {
       );
     } else if (isZkCircuitTarget) {
       promptParts.push(
-        `Contract: none (ZK circuit DApp)`,
-        `ZK circuit binding is fixed at creation:`,
-        `- Circuit: ${zkCircuit?.circuitName || activeDapp.name || 'not recorded'}`,
-        `- Circuit source: ${zkCircuit?.circuitPath || 'not recorded'}`,
-        `- Proving scheme: ${zkCircuit?.provingScheme || 'not recorded'}`,
-        `- Prime field: ${zkCircuit?.primeValue || 'not recorded'}`,
-        `- Signal inputs: ${zkCircuit?.signalInputs?.join(', ') || 'none recorded'}`,
-        `- Artifact paths: wasm=${zkCircuit?.zkArtifacts?.wasmPath || 'not recorded'}, zkey=${zkCircuit?.zkArtifacts?.zkeyPath || 'not recorded'}, vkey=${zkCircuit?.zkArtifacts?.vkeyPath || 'not recorded'}`,
-        `- zkVerify network: ${zkCircuit?.zkVerifyConfig?.network || 'not recorded'}`,
-        `Update scope: UI/source updates only. Preserve window.__ZK_DAPP_CONFIG__, snarkjs proof generation, zkVerify runtime integration, existing wallet behavior, circuit metadata, and artifact files.`
+        `ZK circuit binding is fixed at creation: ${JSON.stringify(zkCircuit)}`,
+        `Update scope: UI/source updates only. Preserve window.__ZK_DAPP_CONFIG__, the existing Circom/snarkjs or Noir backend proof generation, selected verification method/verifier, wallet behavior, circuit metadata, backend configuration, and artifact files.`
       );
     } else if (contractBindings.length > 1) {
       promptParts.push(
@@ -843,16 +835,8 @@ window.addEventListener('unhandledrejection', function(e) {
       );
     } else if (isZkCircuitTarget) {
       promptParts.push(
-        `Contract: none (ZK circuit DApp)`,
-        `ZK circuit binding is fixed at creation:`,
-        `- Circuit: ${zkCircuit?.circuitName || activeDapp.name || 'not recorded'}`,
-        `- Circuit source: ${zkCircuit?.circuitPath || 'not recorded'}`,
-        `- Proving scheme: ${zkCircuit?.provingScheme || 'not recorded'}`,
-        `- Prime field: ${zkCircuit?.primeValue || 'not recorded'}`,
-        `- Signal inputs: ${zkCircuit?.signalInputs?.join(', ') || 'none recorded'}`,
-        `- Artifact paths: wasm=${zkCircuit?.zkArtifacts?.wasmPath || 'not recorded'}, zkey=${zkCircuit?.zkArtifacts?.zkeyPath || 'not recorded'}, vkey=${zkCircuit?.zkArtifacts?.vkeyPath || 'not recorded'}`,
-        `- zkVerify network: ${zkCircuit?.zkVerifyConfig?.network || 'not recorded'}`,
-        `Fix scope: UI/source fixes only. Preserve window.__ZK_DAPP_CONFIG__, snarkjs proof generation, zkVerify runtime integration, existing wallet behavior, circuit metadata, and artifact files.`
+        `ZK circuit binding is fixed at creation: ${JSON.stringify(zkCircuit)}`,
+        `Fix scope: UI/source fixes only. Preserve window.__ZK_DAPP_CONFIG__, the existing Circom/snarkjs or Noir backend proof generation, selected verification method/verifier, wallet behavior, circuit metadata, backend configuration, and artifact files.`
       );
     } else if (contractBindings.length > 1) {
       promptParts.push(
@@ -876,7 +860,7 @@ window.addEventListener('unhandledrejection', function(e) {
     }
 
     const previewPreservationInstruction = isZkCircuitTarget
-      ? `Preserve window.__ZK_DAPP_CONFIG__, circuit metadata, ZK artifact paths/files, snarkjs proof generation, zkVerify runtime integration, existing wallet behavior, and deployment configuration.`
+      ? `Preserve window.__ZK_DAPP_CONFIG__, circuit metadata, artifact paths/files, the existing proof generation and selected verification method/verifier, backend configuration, wallet behavior, and deployment configuration.`
       : `Preserve the existing contract bindings, Graph, Base mini app, and deployment configuration.`;
 
     promptParts.push(
