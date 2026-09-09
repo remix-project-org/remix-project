@@ -5,6 +5,7 @@ import { BaseToolHandler } from '../registry/RemixToolRegistry'
 import { remixAILogger } from '../../helpers/logger'
 import { screenshotBuffer, screenshotMarker } from '../../inferencers/deepagent/visionBuffer'
 import { captureElementPng, defaultCaptureTarget } from '../../helpers/domCapture'
+import remixUiMap from '../context/remixUiMap.json'
 
 /**
  * Lets the assistant see and drive the Remix IDE surface the user is looking at.
@@ -271,7 +272,7 @@ interface InspectUIArgs { selector?: string }
 
 export class InspectUIHandler extends BaseToolHandler {
   name = 'inspect_ui'
-  description = 'Take a structured text snapshot of what is currently visible in the Remix IDE: roles, labels, data-ids, values and a [ref=eN] handle for every interactive element. Call this before clicking or typing — click_element and type_into_element only accept refs from the most recent snapshot. Cheap: prefer this over capture_ui_screenshot unless the visual appearance itself matters.'
+  description = 'Take a structured text snapshot of what is currently visible in the Remix IDE: roles, labels, data-ids, values and a [ref=eN] handle for every interactive element. Call this before clicking or typing — click_element and type_into_element only accept refs from the most recent snapshot. Cheap: prefer this over capture_ui_screenshot unless the visual appearance itself matters. For where a feature lives in general, call get_ui_map first — it is static and answers most "where is X" questions without a snapshot.'
   inputSchema = {
     type: 'object',
     properties: {
@@ -315,12 +316,58 @@ export class InspectUIHandler extends BaseToolHandler {
 }
 
 // ---------------------------------------------------------------------------
+// get_ui_map
+// ---------------------------------------------------------------------------
+
+export class GetUIMapHandler extends BaseToolHandler {
+  name = 'get_ui_map'
+  description = 'Return the map of the Remix IDE interface: which panel owns which capability, the plugin call that drives it, and the data-id of every significant control. Read this FIRST when a request involves finding or operating a feature in the UI — it is static, so it costs one call and saves guessing selectors or hunting through inspect_ui output. Pair it with get_ui_state for what is currently open.'
+  inputSchema = {
+    type: 'object',
+    properties: {
+      area: {
+        type: 'string',
+        description: 'Optional filter: a region id (topBar, iconPanel, sidePanel, mainPanel, rightSidePanel, terminal, statusBar) or a plugin name (solidity, udapp, filePanel, debugger, settings, …). Omit for the whole map.'
+      }
+    },
+    required: []
+  }
+
+  getPermissions(): string[] { return ['ui:read'] }
+
+  async execute(args: { area?: string }, plugin: Plugin): Promise<IMCPToolResult> {
+    const map = remixUiMap as any
+    if (!args?.area) return this.createSuccessResult(map)
+
+    const area = args.area.toLowerCase()
+    const region = (map.layout?.regions || []).find((r: any) => r.id?.toLowerCase() === area)
+    const panel = (map.panels || []).find(
+      (p: any) => p.plugin?.toLowerCase() === area || p.displayName?.toLowerCase() === area
+    )
+
+    if (!region && !panel) {
+      const known = [
+        ...(map.layout?.regions || []).map((r: any) => r.id),
+        ...(map.panels || []).map((p: any) => p.plugin)
+      ].join(', ')
+      return this.createErrorResult(`No UI area named "${args.area}". Known areas: ${known}.`)
+    }
+
+    return this.createSuccessResult({
+      conventions: map.conventions,
+      ...(region ? { region } : {}),
+      ...(panel ? { panel } : {})
+    })
+  }
+}
+
+// ---------------------------------------------------------------------------
 // get_ui_state
 // ---------------------------------------------------------------------------
 
 export class GetUIStateHandler extends BaseToolHandler {
   name = 'get_ui_state'
-  description = 'Report which parts of the Remix IDE are currently open: the focused side-panel and right-panel plugins, whether panels are hidden or maximized, the terminal state, the active file and the open editor tabs. Use this for "what am I looking at" questions — it is cheaper and more reliable than a screenshot.'
+  description = 'Report which parts of the Remix IDE are currently open: the focused side-panel and right-panel plugins, whether panels are hidden or maximized, the terminal state, the active file and the open editor tabs. Use this for "what am I looking at" questions — it is cheaper and more reliable than a screenshot. get_ui_map describes what each panel is for; this reports which of them are open right now.'
   inputSchema = { type: 'object', properties: {}, required: []}
 
   getPermissions(): string[] { return ['ui:read'] }
@@ -615,6 +662,7 @@ export class ScrollElementHandler extends BaseToolHandler {
  * `DeepAgentInferencer` reads this list to attach them directly.
  */
 export const UI_AUTOMATION_TOOL_NAMES = [
+  'get_ui_map',
   'inspect_ui',
   'get_ui_state',
   'capture_ui_screenshot',
@@ -625,6 +673,7 @@ export const UI_AUTOMATION_TOOL_NAMES = [
 
 export function createUIAutomationTools(): RemixToolDefinition[] {
   const handlers = [
+    new GetUIMapHandler(),
     new InspectUIHandler(),
     new GetUIStateHandler(),
     new CaptureUIScreenshotHandler(),

@@ -1,0 +1,298 @@
+{
+  "$schema": "remix-ui-map/1",
+  "description": "Static map of the Remix IDE interface. Tells the assistant where each capability lives and how to reach it, so it does not have to guess selectors or discover the layout by trial and error. Prefer the `pluginCall` on an area over clicking: it is stable, whereas `dataId` values are DOM details that can change. Use inspect_ui for the live state of whatever is currently on screen; this file is the fixed geography around it.",
+  "conventions": {
+    "dataId": "Every interactive element in Remix carries a `data-id` attribute. Address it in CSS as [data-id=\"<value>\"].",
+    "pluginCall": "Remix is a plugin engine. `plugin.call(<target>, <method>, ...args)` is the reliable way to drive the IDE; clicking is the fallback when no method exists.",
+    "activation": "A plugin must be active before its panel can be focused. `menuicons.select(<name>)` activates and reveals a sidePanel plugin in one step.",
+    "iframes": "Plugins with kind 'iframe' render cross-origin. Their internals are invisible to inspect_ui and blank in screenshots — drive them through their plugin methods only."
+  },
+  "layout": {
+    "root": { "dataId": "remixIDE", "description": "The whole IDE shell. Everything below is inside it." },
+    "regions": [
+      {
+        "id": "topBar",
+        "description": "Full-width header. Global actions that are not tied to any one panel.",
+        "plugin": "topbar",
+        "contains": [
+          { "label": "Compile button", "dataId": "compile-action", "description": "Compiles the file in the active editor tab. The caret beside it opens compile options.", "pluginCall": "solidity.compile(<path>)" },
+          { "label": "Workspace selector", "dataId": "workspacesSelect", "description": "Switches workspace. The current name is in workspacesSelect-togglerText.", "pluginCall": "filePanel.switchToWorkspace({ name })" },
+          { "label": "Workspace menu", "dataId": "workspacesMenuDropdown", "description": "Create, clone, rename, download, delete a workspace.", "children": ["workspacecreate", "workspaceCloneRepository", "workspaceOpenFolder", "workspacesubMenuRename", "workspacesubMenuDownload", "workspacesubMenuDelete"] },
+          { "label": "Panel layout toggles", "dataId": "panel-control", "description": "Show/hide the left side panel, the terminal, and the right side panel." },
+          { "label": "GitHub menu", "dataId": "github-dropdown-toggle", "description": "Sign in to GitHub, clone a repo, publish a gist.", "children": ["github-dropdown-toggle-login", "github-dropdown-item-clone", "github-dropdown-item-publish-to-gist", "github-dropdown-item-disconnect"] },
+          { "label": "Upgrade plan", "dataId": "topbar-upgradeBtn" },
+          { "label": "Get AI credits", "dataId": "topbar-aiCreditsBtn" },
+          { "label": "Notifications", "dataId": "notification-bell", "description": "Unread count is in notification-badge; the list opens as notification-dropdown." },
+          { "label": "Feedback", "dataId": "topbar-feedbackIcon" },
+          { "label": "Settings", "dataId": "topbar-settingsIcon", "description": "Opens the Settings page in the main panel.", "pluginCall": "settings.showSection(<sectionKey>, <subSectionTitle?>)" },
+          { "label": "RemixAI Assistant toggle", "dataId": "remixai-assistant-icon", "description": "Shows or hides the assistant in the right side panel." }
+        ]
+      },
+      {
+        "id": "iconPanel",
+        "description": "Narrow vertical bar on the far left. One icon per activated sidePanel plugin; clicking one swaps what the side panel shows.",
+        "dataId": "remixIdeIconPanel",
+        "plugin": "menuicons",
+        "howToSelect": "menuicons.select('<pluginName>') — activates the plugin if needed and focuses its panel. Each icon is [data-id=\"verticalIconsKind<pluginName>\"]; the active one also carries data-id=\"selected\".",
+        "contains": [
+          { "label": "Home", "dataId": "verticalIconsHomeIcon", "description": "Opens the Home tab in the main panel." },
+          { "label": "Help", "dataId": "helpMenuButton" }
+        ]
+      },
+      {
+        "id": "sidePanel",
+        "description": "Left panel. Hosts exactly one sidePanel plugin at a time — whichever the icon panel has selected.",
+        "dataId": "remixIdeSidePanel",
+        "plugin": "sidePanel",
+        "queries": {
+          "activePlugin": "sidePanel.currentFocus()",
+          "isHidden": "sidePanel.isPanelHidden()"
+        }
+      },
+      {
+        "id": "mainPanel",
+        "description": "Central area. Holds the code editor, the Home tab, and any mainPanel plugin, as tabs.",
+        "dataId": "remixIdeMainPanel",
+        "contains": [
+          { "label": "Tab bar", "dataId": "tabs-component", "plugin": "tabs", "description": "One tab per open file or mainPanel plugin.", "pluginCall": "tabs.focus(<name>)", "children": ["tabProxyZoomIn", "tabProxyZoomOut", "ask-remixai-action"] },
+          { "label": "Code editor", "description": "Monaco. Read and write files with the file tools rather than typing into it — inspect_ui cannot see its contents meaningfully and it rasterizes poorly in screenshots.", "pluginCall": "fileManager.open(<path>) / fileManager.readFile(<path>) / fileManager.writeFile(<path>, <content>)" }
+        ]
+      },
+      {
+        "id": "rightSidePanel",
+        "description": "Right panel. Normally the RemixAI Assistant; other plugins can be pinned here.",
+        "dataId": "remixIdePinnedPanel",
+        "plugin": "rightSidePanel",
+        "queries": {
+          "activePlugin": "rightSidePanel.currentFocus()",
+          "isMaximized": "rightSidePanel.isRightSidePanelMaximized()"
+        }
+      },
+      {
+        "id": "terminal",
+        "description": "Bottom panel. Transaction log, script output, and a JS console.",
+        "dataId": "terminalContainer",
+        "plugin": "terminal",
+        "contains": [
+          { "label": "Command input", "dataId": "terminalCliInput" },
+          { "label": "Transaction/log journal", "dataId": "terminalJournal", "description": "Where compilation results, transactions and script output appear." },
+          { "label": "Search the terminal", "dataId": "terminalInputSearchTerminal" },
+          { "label": "Clear console", "dataId": "terminalClearConsole" },
+          { "label": "Listen on all transactions", "dataId": "listenNetworkCheckInput" },
+          { "label": "Maximize / hide", "dataId": "maximizeBottomPanel", "children": ["hideBottomPanel"] }
+        ]
+      },
+      {
+        "id": "statusBar",
+        "description": "Thin strip along the very bottom.",
+        "dataId": "remixui_status_bottom_bar",
+        "contains": [
+          { "label": "Scam alert", "dataId": "hTScamAlertButton" },
+          { "label": "RemixAI Copilot status", "dataId": "aiStatusButton", "description": "Shows whether inline AI code completion is enabled." }
+        ]
+      }
+    ]
+  },
+  "panels": [
+    {
+      "plugin": "filePanel",
+      "displayName": "File explorer",
+      "location": "sidePanel",
+      "purpose": "Browse, create, rename and delete files and folders; manage workspaces; clone git repos.",
+      "openWith": "menuicons.select('filePanel')",
+      "preferPluginCalls": [
+        "fileManager.readFile(path)",
+        "fileManager.writeFile(path, content)",
+        "fileManager.open(path)",
+        "fileManager.remove(path)",
+        "fileManager.getCurrentFile()",
+        "fileManager.getOpenedFiles()"
+      ],
+      "elements": [
+        { "label": "File tree", "dataId": "filePanelFileExplorerTree" },
+        { "label": "Create menu", "dataId": "fileExplorerCreateButton", "children": ["fileExplorerCreateButton-createNewFile", "fileExplorerCreateButton-createNewFolder", "fileExplorerCreateButton-createNewWorkspace", "fileExplorerCreateButton-cloneGitRepository", "fileExplorerCreateButton-importFromHttps", "fileExplorerCreateButton-importFromIpfs", "fileExplorerCreateButton-localFileSystem", "fileExplorerCreateButton-uploadFolder"] },
+        { "label": "Per-row hover actions", "dataId": "fileExplorerHoverIcons-rename", "children": ["fileExplorerHoverIcons-createNewFile", "fileExplorerHoverIcons-createNewFolder", "fileExplorerHoverIcons-delete"] },
+        { "label": "Jump to contract / dapp", "dataId": "fileExplorerGoToContractButton", "children": ["fileExplorerGoToDappButton", "fileExplorerViewDappButton"] }
+      ]
+    },
+    {
+      "plugin": "solidity",
+      "displayName": "Solidity compiler",
+      "location": "sidePanel",
+      "purpose": "Choose a compiler version and settings, compile contracts, read compilation errors.",
+      "openWith": "menuicons.select('solidity')",
+      "preferPluginCalls": [
+        "solidity.compile(path)",
+        "solidity.getCompilationResult()",
+        "solidity.setCompilerConfig(config)"
+      ],
+      "elements": [
+        { "label": "Compile button", "dataId": "compilerContainerCompileBtn" },
+        { "label": "Compile and run script", "dataId": "compilerContainerCompileAndRunBtn" },
+        { "label": "Auto compile", "dataId": "compilerContainerAutoCompile" },
+        { "label": "Compiler version selector", "dataId": "versionSelector", "description": "Current version shows in selectedVersion." },
+        { "label": "Include nightly builds", "dataId": "compilerNightliesBuild" },
+        { "label": "Advanced configuration", "dataId": "scConfigExpander", "children": ["scManualConfiguration", "scFileConfiguration"] },
+        { "label": "Compiled contract list", "dataId": "compiledContracts" },
+        { "label": "Compilation errors", "dataId": "compiledErrors", "description": "Read this when a compile fails — it holds the actual messages." },
+        { "label": "Compilation details", "dataId": "compilation-details", "description": "Opens ABI, bytecode and metadata in the main panel." }
+      ]
+    },
+    {
+      "plugin": "udapp",
+      "displayName": "Deploy & run transactions",
+      "location": "sidePanel",
+      "purpose": "Pick a network/account, deploy compiled contracts, and call functions on deployed instances.",
+      "openWith": "menuicons.select('udapp')",
+      "preferPluginCalls": [
+        "udapp.getSettings()",
+        "udapp.setEnvironmentMode({ context })",
+        "udapp.getAccounts()",
+        "udapp.createVMAccount(...)"
+      ],
+      "elements": [
+        { "label": "Environment selector", "dataId": "settingsSelectEnvOptions", "description": "VM, injected provider (MetaMask), or a custom RPC. Current network shows in settingsNetworkEnv." },
+        { "label": "Account selector", "dataId": "runTabSelectAccount", "children": ["udapp-copy-account-address"] },
+        { "label": "Value to send", "dataId": "udapp_value", "description": "Amount attached to the next transaction; unit selector is remixDRValueLabel." },
+        { "label": "Contract to deploy", "dataId": "contractDropdownContainer" },
+        { "label": "Deploy with proxy", "dataId": "contractGUIDeployWithProxy", "children": ["contractGUIUpgradeImplementation"] },
+        { "label": "Deployed instances", "dataId": "deployedContracts", "description": "Expand an instance to call its functions. Count badge is deployedContractsBadge." },
+        { "label": "Clear deployed instances", "dataId": "deployAndRunClearInstances" }
+      ]
+    },
+    {
+      "plugin": "debugger",
+      "displayName": "Debugger",
+      "location": "sidePanel",
+      "purpose": "Step through a transaction, inspecting opcodes, stack, memory, storage and local variables.",
+      "openWith": "menuicons.select('debugger')",
+      "elements": [
+        { "label": "Transaction hash input", "dataId": "debuggerTransactionInput" },
+        { "label": "Start debugging", "dataId": "debuggerTransactionStartButton" },
+        { "label": "Call trace", "dataId": "callTraceHeader" },
+        { "label": "Local variables", "dataId": "stateLocalsContent" },
+        { "label": "Transaction summary fields", "dataId": "txStatus", "children": ["txFrom", "txTo", "txFunction", "txGasUsed", "txGasPrice", "txFee", "txNonce", "txBlock", "txIndex", "txTimestamp", "txDetails"] }
+      ]
+    },
+    {
+      "plugin": "search",
+      "displayName": "Search in files",
+      "location": "sidePanel",
+      "purpose": "Find and replace across the workspace.",
+      "openWith": "menuicons.select('search')",
+      "elements": [
+        { "label": "Results", "dataId": "search_results" },
+        { "label": "Case sensitive", "dataId": "search_case_sensitive" },
+        { "label": "Whole word", "dataId": "search_whole_word" },
+        { "label": "Regular expression", "dataId": "search_use_regex" },
+        { "label": "Toggle replace", "dataId": "toggle_replace", "children": ["confirm_replace_label"] }
+      ]
+    },
+    {
+      "plugin": "dgit",
+      "displayName": "Git",
+      "location": "sidePanel",
+      "purpose": "Stage, commit, branch, push and pull the current workspace.",
+      "openWith": "menuicons.select('dgit')"
+    },
+    {
+      "plugin": "pluginManager",
+      "displayName": "Plugin manager",
+      "location": "sidePanel",
+      "purpose": "Activate and deactivate plugins. Anything missing from the icon panel is activated here.",
+      "openWith": "menuicons.select('pluginManager')",
+      "preferPluginCalls": ["manager.activatePlugin(name)", "manager.deactivatePlugin(name)", "manager.isActive(name)"],
+      "elements": [
+        { "label": "Active plugins tab", "dataId": "pluginManagerActiveTab" },
+        { "label": "All plugins tab", "dataId": "pluginManagerAllTab", "children": ["pluginManagerAllCount"] },
+        { "label": "Filter", "dataId": "pluginManagerComponentFilterButton", "children": ["filter-panel", "filter-by-remix-switch", "clear-filters-btn"] }
+      ]
+    },
+    {
+      "plugin": "remixaiassistant",
+      "displayName": "RemixAI Assistant",
+      "location": "sidePanel",
+      "defaultPosition": "rightSidePanel",
+      "purpose": "The chat assistant itself — this panel.",
+      "elements": [
+        { "label": "Prompt input", "dataId": "remix-ai-prompt-input" },
+        { "label": "Send", "dataId": "remix-ai-composer-send-btn" },
+        { "label": "Model selector", "dataId": "ai-model-selector-btn", "children": ["ai-model-search", "ai-model-auto", "ai-model-selector-api-key-btn"] },
+        { "label": "Attach a file", "dataId": "remix-ai-attach-btn" },
+        { "label": "Capture a screenshot of the IDE", "dataId": "remix-ai-screenshot-btn" },
+        { "label": "Route status badge", "dataId": "ai-route-status", "description": "agent | tools | chat — which backend answers." }
+      ]
+    },
+    {
+      "plugin": "settings",
+      "displayName": "Settings",
+      "location": "mainPanel",
+      "purpose": "Themes, editor behaviour, AI configuration, API keys, analytics, services.",
+      "openWith": "settings.showSection(<sectionKey>, <subSectionTitle?>)",
+      "sections": [
+        { "key": "general", "label": "General — appearance, editor, workspace" },
+        { "key": "account", "label": "Account — profile, credits, connected accounts" },
+        { "key": "analytics", "label": "Analytics" },
+        { "key": "ai", "label": "RemixAI Assistant — models, MCP servers, and API keys" },
+        { "key": "services", "label": "Services — IPFS, Swarm, Etherscan and similar" }
+      ],
+      "subSections": [
+        { "title": "settings.deepAgentApiKeysSection", "label": "Bring Your Own API Keys", "section": "ai", "description": "OpenRouter and AWS Bedrock keys. Deep-link with settings.showSection('ai', 'settings.deepAgentApiKeysSection')." },
+        { "title": "settings.mcpServersSection", "label": "MCP servers", "section": "ai" }
+      ]
+    },
+    {
+      "plugin": "home",
+      "displayName": "Home",
+      "location": "mainPanel",
+      "purpose": "Landing tab: create or open a workspace, load templates, start tutorials.",
+      "openWith": "Click verticalIconsHomeIcon, or tabs.focus('home')",
+      "elements": [
+        { "label": "Create a new workspace", "dataId": "homeTabNewFile" },
+        { "label": "Start coding", "dataId": "homeTabStartCoding" },
+        { "label": "Import from template", "dataId": "landingPageImportFromTemplate" },
+        { "label": "Import from GitHub", "dataId": "landingPageImportFromGitHubButton" },
+        { "label": "Import from Gist", "dataId": "landingPageImportFromGistButton" },
+        { "label": "Load AI skills", "dataId": "landingPageLoadSkills" },
+        { "label": "Load audit checklist", "dataId": "landingPageLoadAudits" },
+        { "label": "Gas optimisation audit", "dataId": "landingPageGasOptimization" }
+      ]
+    },
+    {
+      "plugin": "quick-dapp-v2",
+      "displayName": "QuickDApp",
+      "location": "mainPanel",
+      "purpose": "Generate and host a frontend for a deployed contract."
+    },
+    {
+      "plugin": "compilationDetails",
+      "displayName": "Solidity Compile Details",
+      "location": "mainPanel",
+      "purpose": "ABI, bytecode, metadata and gas estimates for a compiled contract."
+    },
+    {
+      "plugin": "environmentExplorer",
+      "displayName": "Environment Explorer",
+      "location": "mainPanel",
+      "purpose": "Browse and pick the execution environments available to Deploy & run."
+    },
+    {
+      "plugin": "templateSelection",
+      "displayName": "Template Selection",
+      "location": "mainPanel",
+      "purpose": "Pick a starter template when creating a workspace."
+    }
+  ],
+  "commonTasks": [
+    { "task": "Compile the current contract", "how": "solidity.compile(await fileManager.getCurrentFile()) — or click [data-id=\"compile-action\"] in the top bar." },
+    { "task": "Read why a compile failed", "how": "solidity.getCompilationResult(), or open the Solidity compiler panel and read [data-id=\"compiledErrors\"]." },
+    { "task": "Deploy a contract", "how": "menuicons.select('udapp'), pick the contract in [data-id=\"contractDropdownContainer\"], then Deploy. Check the environment in [data-id=\"settingsSelectEnvOptions\"] first." },
+    { "task": "Change the compiler version", "how": "solidity.setCompilerConfig({ version }) — or the [data-id=\"versionSelector\"] dropdown." },
+    { "task": "Open or edit a file", "how": "fileManager.open / readFile / writeFile. Never type into the editor with type_into_element." },
+    { "task": "Add an AI provider API key", "how": "settings.showSection('ai', 'settings.deepAgentApiKeysSection')." },
+    { "task": "Find where a symbol is used", "how": "menuicons.select('search') — or the grep file tool, which is cheaper." },
+    { "task": "See a transaction's result", "how": "Read the terminal journal, [data-id=\"terminalJournal\"]." },
+    { "task": "Debug a transaction", "how": "menuicons.select('debugger'), paste the hash into [data-id=\"debuggerTransactionInput\"], click [data-id=\"debuggerTransactionStartButton\"]." },
+    { "task": "Activate a plugin that is not visible", "how": "manager.activatePlugin(name), then menuicons.select(name)." }
+  ]
+}

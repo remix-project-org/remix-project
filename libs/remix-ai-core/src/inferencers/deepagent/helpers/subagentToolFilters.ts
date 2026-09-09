@@ -272,3 +272,20 @@ export function getQuickDappToolsForQuickDappSpecialist(tools: DynamicStructured
   ]
   return tools.filter(tool => quickDappToolNames.includes(tool.name))
 }
+
+/**
+ * Tools for the Remix_Vision subagent: seeing the IDE and operating it.
+ *
+ * `get_ui_map` is deliberately in here rather than on the main agent — the
+ * static map is only actionable next to the live snapshot and the refs it
+ * hands out, and splitting them across agents would mean shipping the map into
+ * the main context on every turn for nothing.
+ */
+export function getUIToolsForVisionSpecialist(tools: DynamicStructuredTool[]): DynamicStructuredTool[] {
+  const uiToolNames = [
+    'get_ui_map', 'get_ui_state', 'inspect_ui', 'capture_ui_screenshot',
+    'click_element', 'type_into_element', 'scroll_element'
+  ]
+
+  return tools.filter(tool => uiToolNames.includes(tool.name))
+}

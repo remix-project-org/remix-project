@@ -17,7 +17,7 @@ const MAX_EDGE = 1568
 /** Longest edge of the copy kept in chat history. */
 const THUMB_EDGE = 320
 
-export const ACCEPTED_IMAGE_TYPES = ['image/png', 'image/jpeg', 'image/webp', 'image/gif']
+export const ACCEPTED_IMAGE_TYPES = ['image/png', 'image/jpeg', 'image/jpg', 'image/webp', 'image/gif']
 
 /** Rendered natively by vision models; sent as an OpenAI-style file block. */
 export const ACCEPTED_DOCUMENT_TYPES = ['application/pdf']

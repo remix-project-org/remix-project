@@ -80,7 +80,7 @@ const SAFE_TOOLS = new Set([
   'amp_query', 'amp_dataset_manifest',
 
   // --- UI vision (read-only introspection of what is on screen) ---
-  'inspect_ui', 'get_ui_state', 'capture_ui_screenshot', 'scroll_element',
+  'inspect_ui', 'get_ui_state', 'get_ui_map', 'capture_ui_screenshot', 'scroll_element',
 
   // --- DApp generation/update setup ---
   // update_dapp only prepares the target workspace and returns file-edit instructions.

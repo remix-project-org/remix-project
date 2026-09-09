@@ -698,6 +698,7 @@ export class RemixMCPServer extends EventEmitter implements IRemixMCPServer {
 
       // UI vision & automation
       'inspect_ui': ['ui:read'],
+      'get_ui_map': ['ui:read'],
       'get_ui_state': ['ui:read'],
       'capture_ui_screenshot': ['ui:read'],
       'scroll_element': ['ui:read'],

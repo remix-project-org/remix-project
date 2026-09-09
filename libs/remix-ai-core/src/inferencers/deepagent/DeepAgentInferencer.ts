@@ -40,7 +40,6 @@ import { setCurrentSessionId } from './helpers/runContext'
 import { setResolvedModelListener } from './helpers/resolvedModel'
 import { buildSubagentConfigs } from './SubagentConfig'
 import { resolveHarnessProfile, applyHarnessToolRules } from './harnessProfiles'
-import { UI_AUTOMATION_TOOL_NAMES } from '../../remix-mcp-server/handlers/UIAutomationHandler'
 import { StreamEventHandler } from './StreamEventHandler'
 import { InactivityTimeoutManager } from './InactivityTimeoutManager'
 import { CONVERSATION_THREAD_PREFIX, DAPP_MAX_TOKENS } from '@remix/remix-ai-core'
@@ -989,20 +988,14 @@ export class DeepAgentInferencer implements ICompletions, IGeneration {
       const harnessProfile = resolveHarnessProfile(this.modelSelection)
       const shapedTools = applyHarnessToolRules(this.tools, harnessProfile)
 
-      // Remix tools are normally reached through subagents, but the UI vision
-      // and automation tools are the exception: they act on the screen the user
-      // is looking at right now. Element refs from `inspect_ui` are only useful
-      // to whoever is about to click them, so handing these to a subagent would
-      // put a delegation round-trip between seeing and acting. They go straight
-      // to the main agent.
-      const mainAgentTools = shapedTools.filter(
-        (tool) => tool?.name && (UI_AUTOMATION_TOOL_NAMES as readonly string[]).includes(tool.name)
-      )
-
+      // The main agent holds no Remix tools of its own: every capability is
+      // reached by delegating to a subagent, and the roster appended to the
+      // system prompt below is how it learns what is on offer. UI vision and
+      // automation live on Remix_Vision — see buildSubagentConfigs.
       // Create agent configuration with selected tools
       const agentConfig: CreateDeepAgentParams = {
         backend: this.filesystemBackend as any,
-        tools: mainAgentTools,
+        tools: [],
         model: this.model,
         systemPrompt: {
           base: REMIX_DEEPAGENT_SYSTEM_PROMPT,
@@ -1053,7 +1046,7 @@ export class DeepAgentInferencer implements ICompletions, IGeneration {
 
       this.agent = createDeepAgent(agentConfig as any) as DeepAgent
 
-      remixAILogger.log(`[DeepAgentInferencer] Recreated agent with ${mainAgentTools.length} main-agent tool(s) [${mainAgentTools.map(t => t.name).join(', ')}] and ${selectedTools.length} tools available to subagents`)
+      remixAILogger.log(`[DeepAgentInferencer] Recreated agent with ${selectedTools.length} tools available to subagents`)
     } catch (error) {
       remixAILogger.error('[DeepAgentInferencer] Failed to recreate agent with selected tools:', error)
       throw new DeepAgentError(
