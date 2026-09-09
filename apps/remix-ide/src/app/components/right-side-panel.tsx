@@ -198,6 +198,9 @@ export class RightSidePanel extends AbstractPanel {
 
     if (activePlugin !== profile.name) throw new Error(`Plugin ${profile.name} is not pinned`)
 
+    // Store whether the panel was maximized before unpinning
+    const wasMaximized = this.isMaximized
+
     // If the panel is maximized, restore left and main panels but not terminal
     if (this.isMaximized) {
       const leftPanelHidden = await this.call('sidePanel', 'isPanelHidden')
@@ -240,6 +243,11 @@ export class RightSidePanel extends AbstractPanel {
     this.emit('unPinnedPlugin', profile)
     this.emit('rightSidePanelHidden')
     this.events.emit('rightSidePanelHidden')
+
+    // If the panel was maximized when unpinned, notify the app to hide the floating chat history
+    if (wasMaximized && profile.name === 'remixaiassistant') {
+      dispatchEvent(new CustomEvent('rightSidePanelMaximized', { detail: { isMaximized: false } }))
+    }
   }
 
   getHiddenPlugin() {
