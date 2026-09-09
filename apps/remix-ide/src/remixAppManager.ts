@@ -142,7 +142,9 @@ let requiredModules = [
   'helpPlugin',
   'planManager',
   'assistantState',
-  'thegraph'
+  'thegraph',
+  'base-provider-8453',
+  'base-provider-84532'
 ]
 
 // dependentModules shouldn't be manually activated (e.g hardhat is activated by remixd)
