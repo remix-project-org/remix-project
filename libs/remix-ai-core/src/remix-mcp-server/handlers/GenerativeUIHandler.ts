@@ -139,22 +139,22 @@ const UI_NODE_SCHEMA = {
     },
     // text
     content:     { type: 'string' },
-    variant:     { type: 'string', enum: ['body', 'heading', 'caption', 'code', 'info', 'success', 'warning', 'error'] },
+    variant:     { type: 'string', enum: ['body', 'heading', 'caption', 'code', 'info', 'success', 'warning', 'error']},
     // stack
-    direction:   { type: 'string', enum: ['row', 'column'] },
+    direction:   { type: 'string', enum: ['row', 'column']},
     gap:         { type: 'number' },
     // card
     title:       { type: 'string' },
     // button / form
     label:       { type: 'string' },
     action:      { type: 'string' },
-    style:       { type: 'string', enum: ['primary', 'secondary', 'danger'] },
+    style:       { type: 'string', enum: ['primary', 'secondary', 'danger']},
     disabled:    { type: 'boolean' },
     submitLabel: { type: 'string' },
     // input / select / radio_group / checkbox
     name:        { type: 'string' },
     placeholder: { type: 'string' },
-    inputType:   { type: 'string', enum: ['text', 'number', 'password', 'email'] },
+    inputType:   { type: 'string', enum: ['text', 'number', 'password', 'email']},
     required:    { type: 'boolean' },
     defaultChecked: { type: 'boolean' },
     options:     { type: 'array', items: { type: 'string' } },

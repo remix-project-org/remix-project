@@ -41,17 +41,17 @@ type NodeType =
   | 'form' | 'badge' | 'divider'
 
 interface BaseNode { type: NodeType }
-interface TextNode    extends BaseNode { type: 'text';       content: string; variant?: 'body' | 'heading' | 'caption' | 'code' }
-interface StackNode   extends BaseNode { type: 'stack';      direction: 'row' | 'column'; gap?: number; children: UINode[] }
-interface CardNode    extends BaseNode { type: 'card';       title?: string; children: UINode[] }
-interface ButtonNode  extends BaseNode { type: 'button';     label: string; action: string; style?: 'primary' | 'secondary' | 'danger'; disabled?: boolean }
-interface InputNode   extends BaseNode { type: 'input';      name: string; label: string; placeholder?: string; inputType?: string; required?: boolean }
+interface TextNode extends BaseNode { type: 'text'; content: string; variant?: 'body' | 'heading' | 'caption' | 'code' }
+interface StackNode extends BaseNode { type: 'stack'; direction: 'row' | 'column'; gap?: number; children: UINode[] }
+interface CardNode extends BaseNode { type: 'card'; title?: string; children: UINode[] }
+interface ButtonNode extends BaseNode { type: 'button'; label: string; action: string; style?: 'primary' | 'secondary' | 'danger'; disabled?: boolean }
+interface InputNode extends BaseNode { type: 'input'; name: string; label: string; placeholder?: string; inputType?: string; required?: boolean }
 type SelectOption = string | { label: string; value: string }
-interface SelectNode  extends BaseNode { type: 'select';     name: string; label: string; options: SelectOption[]; required?: boolean }
-interface RadioNode   extends BaseNode { type: 'radio_group'; name: string; label: string; options: SelectOption[]; required?: boolean }
-interface CheckboxNode extends BaseNode { type: 'checkbox';  name: string; label: string; defaultChecked?: boolean }
-interface FormNode    extends BaseNode { type: 'form';       children: UINode[]; submitLabel: string; action: string }
-interface BadgeNode   extends BaseNode { type: 'badge';      content: string; variant?: 'info' | 'success' | 'warning' | 'error' }
+interface SelectNode extends BaseNode { type: 'select'; name: string; label: string; options: SelectOption[]; required?: boolean }
+interface RadioNode extends BaseNode { type: 'radio_group'; name: string; label: string; options: SelectOption[]; required?: boolean }
+interface CheckboxNode extends BaseNode { type: 'checkbox'; name: string; label: string; defaultChecked?: boolean }
+interface FormNode extends BaseNode { type: 'form'; children: UINode[]; submitLabel: string; action: string }
+interface BadgeNode extends BaseNode { type: 'badge'; content: string; variant?: 'info' | 'success' | 'warning' | 'error' }
 interface DividerNode extends BaseNode { type: 'divider' }
 
 type UINode = TextNode | StackNode | CardNode | ButtonNode | InputNode | SelectNode | RadioNode | CheckboxNode | FormNode | BadgeNode | DividerNode
