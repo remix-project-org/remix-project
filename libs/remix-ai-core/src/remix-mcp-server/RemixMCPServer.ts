@@ -56,6 +56,7 @@ import { createFoundryHardhatTools } from './handlers/FoundryHardhatHandler';
 import { createCoordinationTools } from './handlers/CoordinationHandler';
 import { createSkillTools } from './handlers/SkillLoaderHandler';
 import { createDAppGeneratorTools } from './handlers/DAppGeneratorHandler';
+import { createGenerativeUITools } from './handlers/GenerativeUIHandler';
 
 // Import resource providers
 import { ProjectResourceProvider } from './providers/ProjectResourceProvider';
@@ -897,6 +898,10 @@ export class RemixMCPServer extends EventEmitter implements IRemixMCPServer {
       // Register DApp Generator tools (includes contract, graph-only, and ZK DApp generators)
       const dappGeneratorTools = createDAppGeneratorTools();
       this._tools.registerBatch(dappGeneratorTools);
+
+      // Register Generative UI tool
+      const generativeUITools = createGenerativeUITools();
+      this._tools.registerBatch(generativeUITools);
 
       const totalTools = this._tools.list().length;
 

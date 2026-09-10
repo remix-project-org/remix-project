@@ -98,6 +98,10 @@ export class RemixToolRegistry extends EventEmitter implements ToolRegistry {
     if (tool.handler.validate) {
       const validation = tool.handler.validate(call.arguments || {});
       if (validation !== true) {
+        return {
+          content: [{ type: 'text', text: `Validation failed: ${validation}` }],
+          isError: true
+        };
       }
     }
 
