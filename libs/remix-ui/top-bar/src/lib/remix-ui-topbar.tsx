@@ -809,7 +809,7 @@ export function RemixUiTopbar() {
     },
     {
       id: 'aiReviewModeBtn',
-      tooltip: 'Enable AI Mode',
+      tooltip: 'Switch to AI Mode',
       label: 'AI',
       iconClass: 'codicon codicon-sparkle',
       isActive: aiReviewModeActive,
