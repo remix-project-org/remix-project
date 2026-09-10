@@ -8,6 +8,8 @@ import { IMCPServer, IMCPConnectionStatus } from '@remix/remix-ai-core';
 import { RemixMCPServer, createRemixMCPServer } from '@remix/remix-ai-core';
 import { AIModel, isBedrockModel, BEDROCK_API_KEY_SETTING } from '@remix/remix-ai-core';
 import { aiErrorFromException, parseAIErrorEnvelope } from '@remix/remix-ai-core';
+import { buildAuditMatchSchema, buildAuditMatchPrompt, filterAuditMatches, parseLooseJson, AUDIT_CATEGORY_MATCH_PROMPT } from '@remix/remix-ai-core';
+import type { AuditMatchRequest, AuditMatchResult } from '@remix/remix-ai-core';
 import axios from 'axios';
 import { endpointUrls } from "@remix-endpoints-helper"
 import { Registry } from '@remix-project/remix-lib'
@@ -31,7 +33,7 @@ const profile = {
     'clearCaches', 'cancelRequest',
     'getAllowedModels', 'setModelAccess',
     'isUsingOwnApiKey', 'getApiKeyStatus', 'fallbackToProxy',
-    'getRouteStatus'
+    'getRouteStatus', 'audit_category_match'
   ],
   events: [
     'modelChanged',
@@ -674,6 +676,67 @@ export class RemixAIPlugin extends Plugin {
     option.return_stream_response = false
     // return await this.remoteInferencer.basic_prompt(prompt, option)
     return this.deepAgentInferencer?.basic_inference(prompt) ?? this.remoteInferencer.basic_prompt(prompt, option)
+  }
+
+  /**
+   * Match a contract against the audit checklist taxonomy, for the checklist
+   * modal's "AI match" button.
+   *
+   * The taxonomy travels in from the UI because it is fetched from a
+   * third-party repo at runtime — nothing here hardcodes a category name, so an
+   * upstream rename needs no code change. Only plain JSON crosses the plugin
+   * boundary: the zod schema is built here, next to the model, because
+   * `plugin.call` serializes its arguments.
+   *
+   * Returns null when the assistant gate refuses (anonymous user, missing
+   * feature, cooldown) — planManager has already surfaced that to the user, so
+   * the caller should treat null as "do nothing", not as an error.
+   */
+  async audit_category_match(request: AuditMatchRequest): Promise<AuditMatchResult | null> {
+    return this.withAssistantGate(Features.AI_AUDITOR, async () => {
+      const allowedPaths = (request?.taxonomy ?? []).map(t => t?.path).filter(Boolean)
+      if (allowedPaths.length === 0) throw new Error('No audit categories supplied')
+      if (!request?.contract?.skeleton?.trim()) throw new Error('No contract source to analyse')
+
+      const maxMatches = Math.min(Math.max(request.maxMatches ?? 12, 1), 20)
+      const { system, human } = buildAuditMatchPrompt({ ...request, maxMatches })
+      this.traceRouteDecision('audit_category_match', { paths: allowedPaths.length })
+
+      if (this.deepAgentEnabled && this.deepAgentInferencer) {
+        await this.deepAgentManager.awaitReady()
+        // The awaited rebuild may have torn the inferencer down; see answer().
+        if (this.deepAgentInferencer) {
+          try {
+            const schema = buildAuditMatchSchema(allowedPaths, maxMatches)
+            const raw: any = await this.deepAgentInferencer.structured_inference(
+              schema, human, `${AUDIT_CATEGORY_MATCH_PROMPT}\n\n${system}`, { name: 'audit_category_match' }
+            )
+            return {
+              ...filterAuditMatches(raw, allowedPaths, maxMatches),
+              skippedReason: raw?.skipped_reason,
+              source: 'structured' as const
+            }
+          } catch (e) {
+            remixAILogger.warn('[RemixAI Plugin] structured audit_category_match failed, falling back to a free-form reply', e)
+          }
+        }
+      }
+
+      // Fallback for models without usable structured output: ask for raw JSON
+      // and run it through the same membership filter.
+      const option = { ...GenerationParams, stream: false, stream_result: false, return_stream_response: false }
+      const text = await this.remoteInferencer.basic_prompt(
+        `${AUDIT_CATEGORY_MATCH_PROMPT}\n\n${system}\n\n${human}\n\nReturn ONLY a JSON object of the form {"matches":[{"path":"","confidence":"high|medium|low","reason":""}]}. No prose, no markdown fences.`,
+        option
+      )
+      const parsed: any = parseLooseJson(typeof text === 'string' ? text : String(text ?? ''))
+      if (!parsed) throw new Error('The AI reply was not valid JSON')
+      return {
+        ...filterAuditMatches(parsed, allowedPaths, maxMatches),
+        skippedReason: parsed?.skipped_reason,
+        source: 'loose' as const
+      }
+    })
   }
 
   async code_generation(prompt: string, params: IParams=CompletionParams): Promise<any> {

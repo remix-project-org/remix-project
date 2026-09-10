@@ -197,6 +197,9 @@
             "@remix/remix-ai-core": [
               "libs/remix-ai-core/src/index.ts"
             ],
+            "@remix/remix-ai-core/audit-taxonomy": [
+              "libs/remix-ai-core/src/helpers/auditTaxonomy.ts"
+            ],
             "@remix/remix-ai-core/quick-dapp-thegraph-prompts": [
               "libs/remix-ai-core/src/remix-mcp-server/prompts/quickDappTheGraphPrompts.ts"
             ],

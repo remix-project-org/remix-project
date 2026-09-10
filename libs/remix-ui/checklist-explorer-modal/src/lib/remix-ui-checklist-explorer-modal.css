@@ -259,3 +259,39 @@
   padding: 0.1rem 0.3rem;
   border-radius: 3px;
 }
+/* AI-match rationale: the model's one-line justification under a matched
+   category. Clamped to two lines — the full text is in the badge's title. */
+.ai-match-reason {
+  color: var(--bs-success-text-emphasis, var(--bs-success));
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* Contract picker for AI match.
+   Remix's themes comment out `--bs-form-select-bg-img` and still set
+   `appearance: none`, so a .form-select renders with no arrow at all — neither
+   Bootstrap's SVG nor the native one. We draw the caret ourselves so the
+   control reads as a dropdown. */
+.ai-match-target {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+}
+
+.ai-match-target > select {
+  cursor: pointer;
+  /* The theme's .form-select is width:100%; the wrapper owns the width so the
+     two don't fight over shrink-to-fit sizing. Long names truncate. */
+  width: 100%;
+  text-overflow: ellipsis;
+}
+
+.ai-match-target > .ai-match-target-caret {
+  position: absolute;
+  right: 0.75rem;
+  font-size: 0.75rem;
+  opacity: 0.9;
+  pointer-events: none; /* clicks must reach the select underneath */
+}

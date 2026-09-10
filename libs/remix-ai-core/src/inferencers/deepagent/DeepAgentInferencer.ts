@@ -31,7 +31,8 @@ import { RemixDeepAgentMiddleware } from './deepAgentMiddleWare'
 import './AsyncLocalStorageInit'
 import { createModelInstance } from './ModelFactory'
 import { syncModelCatalog } from './helpers/modelCatalog'
-import { generateStructured } from '../../helpers/structuredOutput'
+import { z } from 'zod'
+import { generateStructured, StructuredOutputOptions } from '../../helpers/structuredOutput'
 import { SecurityCheckSchema } from '../../types/schemas'
 import { getLangfuseCallbackHandler, flushLangfuse } from '../../helpers/langfuse'
 import { setCurrentSessionId } from './helpers/runContext'
@@ -596,6 +597,38 @@ export class DeepAgentInferencer implements ICompletions, IGeneration {
         .join('')
     }
     return content == null ? '' : String(content)
+  }
+
+  /**
+   * Schema-constrained one-shot inference — the structured sibling of
+   * basic_inference.
+   *
+   * Deliberately prompt-agnostic: callers supply both the schema and the
+   * prompts, so no feature vocabulary leaks into the inferencer.
+   *
+   * Note it does NOT emit onInference/onInferenceDone. Those paint the chat
+   * panel's thinking state and trip the "assistant busy" guards in the UI;
+   * this method exists for one-shot calls behind a button (e.g. audit-category
+   * matching from a modal), which are not chat turns.
+   */
+  async structured_inference<T>(
+    schema: z.ZodType<T>,
+    prompt: string,
+    systemPrompt?: string,
+    opts?: StructuredOutputOptions
+  ): Promise<T> {
+    if (!this.model) {
+      throw new DeepAgentError(
+        'Model not initialized',
+        DeepAgentErrorType.INITIALIZATION_FAILED
+      )
+    }
+
+    const messages: BaseMessage[] = []
+    if (systemPrompt) messages.push(new SystemMessage(systemPrompt))
+    messages.push(new HumanMessage(prompt))
+
+    return await generateStructured(this.model, schema, messages, { maxRepairs: 1, ...opts })
   }
 
   private async runAgent(messages: any[]): Promise<string> {
