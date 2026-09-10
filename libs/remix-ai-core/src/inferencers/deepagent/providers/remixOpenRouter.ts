@@ -64,8 +64,8 @@ export class RemixChatOpenRouter extends ChatOpenRouter {
   }
 
   invocationParams(options: this['ParsedCallOptions']) {
-    const sessionId = getCurrentSessionId()
     const user = getLangfuseUserId()
+    const sessionId = getCurrentSessionId() ?? user
     return {
       ...super.invocationParams(options),
       ...(sessionId ? { session_id: sessionId } : {}),
