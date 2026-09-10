@@ -20,6 +20,8 @@ export interface ChatMessage {
   id: string
   role: 'user' | 'assistant' | 'editor_code_analysis'
   content: string
+  /** Compact text shown while a programmatic prompt is collapsed. */
+  displayContent?: string
   timestamp: number
   sentiment?: 'none' | 'like' | 'dislike'
   isExecutingTools?: boolean

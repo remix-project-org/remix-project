@@ -1,8 +1,9 @@
-export type QuickDappWorkspaceOperation = 'generate' | 'update'
+export type QuickDappWorkspaceOperation = 'generate' | 'update' | 'publish'
 
 export interface QuickDappWorkspaceLock {
   workspaceName: string
   slug?: string
+  operationId?: string
   operation: QuickDappWorkspaceOperation
   reason?: string
   startedAt: number
@@ -38,6 +39,7 @@ function pruneExpiredLock() {
 export function setQuickDappWorkspaceLock(input: {
   workspaceName: string
   slug?: string
+  operationId?: string
   operation: QuickDappWorkspaceOperation
   reason?: string
   ttlMs?: number
@@ -46,6 +48,7 @@ export function setQuickDappWorkspaceLock(input: {
   const lock: QuickDappWorkspaceLock = {
     workspaceName: input.workspaceName,
     slug: input.slug,
+    operationId: input.operationId,
     operation: input.operation,
     reason: input.reason,
     startedAt,
@@ -56,15 +59,29 @@ export function setQuickDappWorkspaceLock(input: {
   return lock
 }
 
+export function trySetQuickDappWorkspaceLock(input: {
+  workspaceName: string
+  slug?: string
+  operationId?: string
+  operation: QuickDappWorkspaceOperation
+  reason?: string
+  ttlMs?: number
+}): QuickDappWorkspaceLock | undefined {
+  if (getQuickDappWorkspaceLock()) return undefined
+  return setQuickDappWorkspaceLock(input)
+}
+
 export function getQuickDappWorkspaceLock(): QuickDappWorkspaceLock | undefined {
   pruneExpiredLock()
   return getStore().lock
 }
 
-export function clearQuickDappWorkspaceLock(workspaceName?: string): void {
+export function clearQuickDappWorkspaceLock(workspaceName?: string, operationId?: string): void {
   const store = getStore()
   if (!store.lock) return
   if (workspaceName && store.lock.workspaceName !== workspaceName) return
+  if (store.lock.operationId && !operationId) return
+  if (operationId && store.lock.operationId !== operationId) return
   delete store.lock
 }
 
@@ -78,13 +95,13 @@ export function isQuickDappWorkspaceSwitchBlocked(nextWorkspaceName: string): bo
 }
 
 export function getQuickDappWorkspaceLockMessage(lock: QuickDappWorkspaceLock, nextWorkspaceName?: string): string {
-  const action = lock.operation === 'update' ? 'updating' : 'generating'
+  const action = lock.operation === 'update' ? 'updating' : lock.operation === 'publish' ? 'publishing' : 'generating'
   const attempted = nextWorkspaceName ? ` Attempted workspace: "${nextWorkspaceName}".` : ''
   return `QuickDapp is ${action} files in "${lock.workspaceName}". Workspace switching is blocked until it finishes.${attempted}`
 }
 
 export function getQuickDappWorkspaceMutationLockMessage(lock: QuickDappWorkspaceLock, actionName: string, workspaceName?: string): string {
-  const action = lock.operation === 'update' ? 'updating' : 'generating'
+  const action = lock.operation === 'update' ? 'updating' : lock.operation === 'publish' ? 'publishing' : 'generating'
   const target = workspaceName ? ` Target workspace: "${workspaceName}".` : ''
   return `QuickDapp is ${action} files in "${lock.workspaceName}". ${actionName} is blocked until it finishes.${target}`
 }

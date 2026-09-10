@@ -1,6 +1,8 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { Dropdown } from 'react-bootstrap';
+import { getPrimaryQuickDappContract, getQuickDappContracts } from '@remix-ui/helper';
 import { DappConfig, GenerationProgress } from '../types';
+import { getQuickDappPublishLabel, getQuickDappPublishState } from '../utils/publish-state';
 
 interface DappCardProps {
   dapp: DappConfig;
@@ -26,10 +28,24 @@ const timeAgo = (date: number) => {
 };
 
 const DappCard: React.FC<DappCardProps> = ({ dapp, isProcessing, generationProgress, onClick, onDelete }) => {
-  const [isHovered, setIsHovered] = useState(false);
-  const statusColor = dapp.status === 'deployed' ? 'text-success' : 'text-warning';
-  const statusIcon = dapp.status === 'deployed' ? 'fa-check-circle' : 'fa-pen-square';
+  const publishState = getQuickDappPublishState(dapp);
+  const publishLabel = getQuickDappPublishLabel(dapp);
+  const isPublished = publishState !== 'created';
+  const hasUnpublishedChanges = publishState === 'published-with-unpublished-changes';
+  const statusColor = publishState === 'published' ? 'text-success' : 'text-warning';
+  const statusIcon = hasUnpublishedChanges
+    ? 'fa-exclamation-triangle'
+    : isPublished
+      ? 'fa-check-circle'
+      : 'fa-pen-square';
 
+  const contractBindings = dapp.appKind === 'graph-only' ? [] : getQuickDappContracts(dapp);
+  const primaryContract = getPrimaryQuickDappContract(dapp);
+  const contractSummary = contractBindings.map((contract) =>
+    `${contract.alias}${contract.id === primaryContract?.id ? ' (primary)' : ''}`
+  ).join(', ');
+  const contractCountLabel = `${contractBindings.length} contract${contractBindings.length === 1 ? '' : 's'}`;
+  const primaryContractLabel = primaryContract?.alias || primaryContract?.name;
   const progress = generationProgress;
   const generatedFiles = progress?.generatedFiles || [];
   const currentFile = progress?.filename;
@@ -94,7 +110,7 @@ const DappCard: React.FC<DappCardProps> = ({ dapp, isProcessing, generationProgr
           }}
         >
           {!dapp.thumbnailPath && dapp?.config?.logo && (
-            <img src={dapp?.config?.logo} alt="logo" style={{ width: '50px', height: '50px', borderRadius: '50%' }} />
+            <img src={dapp?.config?.logo} alt={`${dapp.name} logo`} style={{ width: '50px', height: '50px', borderRadius: '50%' }} />
           )}
 
           <div className="position-absolute top-0 start-0 m-2 badge bg-primary opacity-75" data-id={`dapp-network-${dapp.slug}`}>
@@ -102,29 +118,36 @@ const DappCard: React.FC<DappCardProps> = ({ dapp, isProcessing, generationProgr
           </div>
 
           {!isProcessing && (
-            <div
+            <Dropdown
+              align="end"
               className="position-absolute top-0 end-0 m-2"
-              data-id={`delete-dapp-btn-${dapp.slug}`}
-              onClick={(e) => {
-                e.stopPropagation();
-                onDelete();
-              }}
-              onMouseEnter={() => setIsHovered(true)}
-              onMouseLeave={() => setIsHovered(false)}
-              title="Delete DApp and workspace"
+              onClick={(event) => event.stopPropagation()}
             >
-              <div
-                className={`rounded-circle d-flex align-items-center justify-content-center shadow-sm ${isHovered ? 'bg-danger' : 'bg-dark bg-opacity-75'
-                }`}
-                style={{
-                  width: '32px',
-                  height: '32px',
-                  transition: 'background-color 0.2s ease-in-out'
-                }}
+              <Dropdown.Toggle
+                variant="dark"
+                size="sm"
+                className="qd-card-menu-toggle rounded-circle d-flex align-items-center justify-content-center shadow-sm bg-opacity-75"
+                aria-label={`Actions for ${dapp.name}`}
+                title="DApp actions"
+                data-id={`dapp-actions-btn-${dapp.slug}`}
               >
-                <i className="fas fa-trash text-white" style={{ fontSize: '0.9rem' }}></i>
-              </div>
-            </div>
+                <i className="fas fa-ellipsis-v" aria-hidden="true"></i>
+              </Dropdown.Toggle>
+              <Dropdown.Menu>
+                <Dropdown.Item
+                  as="button"
+                  className="text-danger"
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    onDelete();
+                  }}
+                  data-id={`delete-dapp-btn-${dapp.slug}`}
+                >
+                  <i className="fas fa-trash me-2" aria-hidden="true"></i>
+                  Delete DApp
+                </Dropdown.Item>
+              </Dropdown.Menu>
+            </Dropdown>
           )}
         </div>
 
@@ -136,29 +159,56 @@ const DappCard: React.FC<DappCardProps> = ({ dapp, isProcessing, generationProgr
             </small>
             {dapp.workspaceName && (
               <small className="text-info d-block text-truncate mb-2" style={{ fontSize: '0.75rem' }}>
-                <i className="fas fa-folder-open me-1"></i>
+                <i className="fas fa-folder-open me-1" aria-hidden="true"></i>
                 {dapp.workspaceName}
+              </small>
+            )}
+            {contractBindings.length > 0 && (
+              <small
+                className="text-muted d-block text-truncate mb-2"
+                style={{ fontSize: '0.75rem' }}
+                title={contractSummary}
+                data-id={`dapp-contracts-${dapp.slug}`}
+              >
+                <i className="fas fa-cubes me-1" aria-hidden="true"></i>
+                {contractCountLabel}{primaryContractLabel ? ` · Primary: ${primaryContractLabel}` : ''}
               </small>
             )}
           </div>
 
-          <div className="d-flex justify-content-between align-items-end mt-2 border-top border-secondary pt-2">
-            <small className="text-muted" style={{ fontSize: '0.75rem' }}>
-              {dapp.deployment?.ensDomain || 'Not linked to ENS'}
-            </small>
+          <div className={`d-flex align-items-end mt-2 border-top border-secondary pt-2 ${dapp.deployment?.ensDomain ? 'justify-content-between' : 'justify-content-end'}`}>
+            {dapp.deployment?.ensDomain && (
+              <small className="text-muted text-truncate me-2" style={{ fontSize: '0.75rem' }}>
+                {dapp.deployment.ensDomain}
+              </small>
+            )}
             <div className={`d-flex align-items-center ${statusColor}`} data-id={`dapp-status-${dapp.slug}`}>
-              <i className={`fas ${statusIcon} me-1 small`}></i>
-              <small className="fw-bold text-uppercase" style={{ fontSize: '0.75rem' }}>
-                {dapp.status}
+              <i className={`fas ${statusIcon} me-1 small`} aria-hidden="true"></i>
+              <small className="fw-bold" style={{ fontSize: '0.75rem' }}>
+                {publishLabel}
               </small>
             </div>
           </div>
 
           <div className="text-end mt-1">
             <small className="text-muted" style={{ fontSize: '0.7rem' }}>
-              {dapp.status === 'deployed' ? 'Deployed' : 'Created'} {timeAgo(dapp.createdAt)}
+              {isPublished ? 'Published' : 'Created'} {timeAgo(isPublished ? dapp.lastDeployedAt || dapp.createdAt : dapp.createdAt)}
             </small>
           </div>
+
+          {!isProcessing && (
+            <button
+              type="button"
+              className="btn btn-sm btn-outline-primary w-100 mt-2"
+              onClick={(event) => {
+                event.stopPropagation();
+                onClick();
+              }}
+              data-id={`open-dapp-btn-${dapp.slug}`}
+            >
+              Open DApp <i className="fas fa-arrow-right ms-1" aria-hidden="true"></i>
+            </button>
+          )}
         </div>
       </div>
     </div>

@@ -86,12 +86,12 @@ const Dashboard: React.FC<DashboardProps> = ({
     <div className="container-fluid p-4" data-id="quick-dapp-dashboard" style={{ minHeight: '100vh' }}>
       <div className="d-flex flex-column flex-md-row justify-content-between align-items-md-center mb-4 qd-header">
         <div>
-          <h3 className="fw-bold mb-1 text-body">Quick DApp</h3>
+          <h3 className="fw-bold mb-1 text-body">QuickDApp</h3>
           <p className="text-secondary mb-0">Edit and deploy your DApps.</p>
         </div>
         <div className="d-flex gap-2 mt-3 mt-md-0 qd-header-buttons">
           <Button variant="primary" onClick={onCreateNew} data-id="create-new-dapp-btn">
-            <i className="fas fa-plus me-2"></i> How to create a DApp
+            <i className="fas fa-plus me-2"></i> Create another DApp
           </Button>
           {dapps.length > 0 && (
             <Button variant="outline-danger" onClick={() => setShowDeleteAllModal(true)} data-id="delete-all-dapps-btn">
@@ -103,7 +103,7 @@ const Dashboard: React.FC<DashboardProps> = ({
 
       <div className="rounded p-3 mb-4 d-flex flex-wrap justify-content-between align-items-center gap-2 border qd-filter-bar">
         <h5 className="mb-0 text-body" style={{ whiteSpace: 'nowrap' }}>
-          Your dapps <span className="badge bg-secondary ms-2" data-id="dapp-count-badge">{filteredAndSortedDapps.length}</span>
+          Your DApps <span className="badge bg-secondary ms-2" data-id="dapp-count-badge">{filteredAndSortedDapps.length}</span>
           {filteredAndSortedDapps.length !== validDapps.length && (
             <small className="text-muted ms-2" style={{ fontSize: '0.8rem' }}>
               (filtered from {validDapps.length})

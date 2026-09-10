@@ -2,8 +2,8 @@
 import { Profile, StatusEvents } from '@remixproject/plugin-utils'
 
 /**
- * Provenance metadata attached to a chatPipe prompt so analytics can tell
- * user-typed prompts apart from programmatic / preset prompts.
+ * Metadata attached to a chatPipe prompt for provenance tracking and optional
+ * presentation of programmatic / preset prompts.
  */
 export interface ChatPromptMetadata {
   /**
@@ -18,6 +18,11 @@ export interface ChatPromptMetadata {
    * user-typed prompts.
    */
   presetId?: string
+  /**
+   * Optional compact text shown for a programmatic prompt. The full prompt is
+   * still sent to RemixAI and can be expanded from the chat message.
+   */
+  displayText?: string
 }
 
 export interface IRemixAiAssistantApi {

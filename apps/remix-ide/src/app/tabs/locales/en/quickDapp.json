@@ -41,6 +41,7 @@
   "quickDapp.column": "Column",
   "quickDapp.text7": "You haven't created any dApp yet.",
   "quickDapp.deployToIPFS": "Deploy to IPFS",
+  "quickDapp.publishToIPFS": "Publish to IPFS",
   "quickDapp.preview": "Preview",
   "quickDapp.send": "Send"
 }
