@@ -242,19 +242,6 @@ export const Preload = (props: PreloadProps) => {
     }
   }
 
-  // Navigation cancels in-flight tracker requests, so ask Matomo for a beacon first.
-  const trackDomainRedirect = (toDomain: string) => {
-    try {
-      const paq = (window as any)._paq
-      if (Array.isArray(paq)) paq.push(['alwaysUseSendBeacon'])
-    } catch (_) { /* tracker not loaded */ }
-    trackMatomoEvent?.({ category: 'App', action: 'FreshUserDomainRedirect', name: toDomain, isClick: false })
-  }
-
-  const trackConfirmedRedirect = (toDomain: string) => {
-    trackMatomoEvent?.({ category: 'App', action: 'ConfirmedMigrationRedirect', name: toDomain, isClick: false })
-  }
-
   useEffect(() => {
     // Remove pre-splash as soon as React preloader mounts
     try {
@@ -273,7 +260,10 @@ export const Preload = (props: PreloadProps) => {
 
     // A user who confirmed the move is sent on before anything else loads.
     // Reads localStorage only, so everyone else pays nothing for it.
-    if (redirectConfirmedVisitor(trackConfirmedRedirect)) return
+    //
+    // Not tracked: the visitor is counted again on the new domain under a new
+    // visitor id, so reporting it here would double-count the same person.
+    if (redirectConfirmedVisitor()) return
 
     async function loadStorage() {
       ; (await remixFileSystems.current.addFileSystem(remixIndexedDB.current)) || trackMatomoEvent?.({ category: 'Storage', action: 'error', name: 'indexedDB not supported', isClick: false })
@@ -285,7 +275,7 @@ export const Preload = (props: PreloadProps) => {
       // Last moment at which "fresh" is still knowable: the IDE creates a
       // default workspace as soon as it boots.
       setVisitFreshness(isFreshBrowser(!!remixIndexedDB.current.hasWorkSpaces || !!localStorageFileSystem.current.hasWorkSpaces))
-      if (await maybeRedirectFreshVisitor(trackDomainRedirect)) return
+      if (await maybeRedirectFreshVisitor()) return
 
       remixIndexedDB.current.loaded && (remixIndexedDB.current.hasWorkSpaces || !localStorageFileSystem.current.hasWorkSpaces ? await setFileSystems() : setShowDownloader(true))
       !remixIndexedDB.current.loaded && (await setFileSystems())
