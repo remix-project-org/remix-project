@@ -3,6 +3,7 @@ import { remixAILogger } from '../../../helpers/logger'
 import { modelCallbacks } from '../../../helpers/modelTelemetry'
 import { SDK_MAX_RETRIES } from '../retryTransport'
 import { ProxyChatOpenRouter, RemixChatOpenRouter } from './remixOpenRouter'
+import { openrouterFallbackModels } from './fallbackModels'
 import { ProviderAdapter } from './types'
 
 /** OpenRouter needs these to report `usage.cost` and stream reasoning back. */
@@ -10,6 +11,7 @@ const OPENROUTER_MODEL_KWARGS = {
   usage: { include: true },
   include_reasoning: true
 }
+const OPENROUTER_PROVIDER_PREFERENCES = { allow_fallbacks: true }
 
 export const openrouterAdapter: ProviderAdapter = {
   id: 'openrouter',
@@ -18,14 +20,17 @@ export const openrouterAdapter: ProviderAdapter = {
     const useDirectApi = !!(userApiKeys?.useOwnKeys && userApiKeys?.openrouterApiKey)
     remixAILogger.log(`[ModelFactory] OpenRouter ${selection.modelId}${useDirectApi ? ' (direct API)' : ' (proxy)'} maxTokens=${params.maxOutputTokens}`)
 
+    const fallbackModels = openrouterFallbackModels(selection)
+    remixAILogger.log(`[ModelFactory] OpenRouter fallback chain: ${fallbackModels.join(' → ')}`)
+
     const common = {
       model: selection.modelId,
-      temperature: params.temperature,
-      topP: params.topP,
       maxTokens: params.maxOutputTokens,
       // The SDK takes no custom fetch, so it carries the retry budget itself.
       maxRetries: SDK_MAX_RETRIES,
       callbacks: modelCallbacks(label),
+      provider: OPENROUTER_PROVIDER_PREFERENCES,
+      models: fallbackModels,
       modelKwargs: OPENROUTER_MODEL_KWARGS
     }
 
