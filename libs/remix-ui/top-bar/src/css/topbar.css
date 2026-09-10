@@ -93,6 +93,96 @@
   border-color: rgba(91, 207, 207, 0.7);
 }
 
+/* AI Review Mode switch: a bordered rounded pill with a sliding thumb behind whichever
+   segment (AI / Code) is active, matching the radius/border language of .panel-control-btn
+   and .remixai-topbar-icon so it reads as its own control rather than a plain icon toggle. */
+.ai-mode-toggle-group {
+  position: relative;
+  display: flex;
+  align-items: center;
+  height: 28px;
+  border: 1px solid rgba(91, 207, 207, 0.3);
+  border-radius: 6px;
+  overflow: hidden;
+  background-color: rgba(91, 207, 207, 0.05);
+}
+
+.ai-mode-toggle-thumb {
+  position: absolute;
+  top: 2px;
+  bottom: 2px;
+  left: 2px;
+  width: calc(50% - 2px);
+  border-radius: 4px;
+  background-color: var(--custom-ai-color, rgba(91, 207, 207, 0.85));
+  transition: transform 0.18s ease, background-color 0.18s ease;
+  z-index: 0;
+}
+
+.ai-mode-toggle-group[data-active="code"] .ai-mode-toggle-thumb {
+  transform: translateX(100%);
+  background-color: var(--custom-primary, rgba(91, 207, 207, 0.85));
+}
+
+.ai-mode-btn {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  height: 28px;
+  min-width: 64px;
+  padding: 0 10px;
+  cursor: pointer;
+  white-space: nowrap;
+  color: var(--bs-secondary-color, #8b8fa8);
+  transition: color 0.15s ease;
+}
+
+/* Rendered as a mask (not an <img>) so it inherits currentColor and follows the same
+   active/inactive text-color rules as the label - the source SVG has a hardcoded fill
+   that can otherwise match the active thumb color and disappear (e.g. dark theme AI mode).
+   Inlined as a data URI (same shape as assets/img/remixAI_small.svg) rather than
+   referencing that file via url(), since a non-relative url() in CSS is resolved as a
+   webpack module request, not a runtime path, and has no node_modules/assets to resolve to. */
+.ai-mode-btn-icon {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  background-color: currentColor;
+  -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3E%3Cpath d='M11.2332 0.378586C11.4607 0.357847 11.6431 0.539758 11.6228 0.767258C11.5338 1.75665 11.1414 4.29893 9.42754 6.02605C11.1413 7.75295 11.5338 10.2952 11.6228 11.2848C11.6433 11.5125 11.4608 11.6952 11.2332 11.6745C10.249 11.5842 7.64356 11.1877 5.93144 9.46257C4.21939 11.1877 1.69988 11.5842 0.715623 11.6745C0.487913 11.6954 0.305487 11.5126 0.325974 11.2848C0.415048 10.2951 0.807528 7.75294 2.52129 6.02605C0.807302 4.29893 0.41498 1.75669 0.325974 0.767258C0.305702 0.539674 0.488028 0.357714 0.715623 0.378586C1.6999 0.468864 4.30534 0.865338 6.01738 2.5905C7.72949 0.865271 10.249 0.468844 11.2332 0.378586ZM6.00761 3.94109C5.90492 3.94109 5.81254 4.00594 5.77617 4.10222L5.32207 5.3112L4.11406 5.76433C4.01779 5.8007 3.95293 5.89308 3.95293 5.99577C3.95311 6.09829 4.01792 6.18992 4.11406 6.22624L5.32207 6.68034L5.77617 7.88835C5.81254 7.98463 5.90492 8.04948 6.00761 8.04948C6.11013 8.0493 6.20177 7.98449 6.23808 7.88835L6.69218 6.68034L7.90019 6.22624C7.99633 6.18992 8.06115 6.09829 8.06133 5.99577C8.06133 5.89308 7.99647 5.8007 7.90019 5.76433L6.69218 5.3112L6.23808 4.10222C6.20177 4.00608 6.11013 3.94127 6.00761 3.94109Z' fill='%23000'/%3E%3C/svg%3E");
+  mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3E%3Cpath d='M11.2332 0.378586C11.4607 0.357847 11.6431 0.539758 11.6228 0.767258C11.5338 1.75665 11.1414 4.29893 9.42754 6.02605C11.1413 7.75295 11.5338 10.2952 11.6228 11.2848C11.6433 11.5125 11.4608 11.6952 11.2332 11.6745C10.249 11.5842 7.64356 11.1877 5.93144 9.46257C4.21939 11.1877 1.69988 11.5842 0.715623 11.6745C0.487913 11.6954 0.305487 11.5126 0.325974 11.2848C0.415048 10.2951 0.807528 7.75294 2.52129 6.02605C0.807302 4.29893 0.41498 1.75669 0.325974 0.767258C0.305702 0.539674 0.488028 0.357714 0.715623 0.378586C1.6999 0.468864 4.30534 0.865338 6.01738 2.5905C7.72949 0.865271 10.249 0.468844 11.2332 0.378586ZM6.00761 3.94109C5.90492 3.94109 5.81254 4.00594 5.77617 4.10222L5.32207 5.3112L4.11406 5.76433C4.01779 5.8007 3.95293 5.89308 3.95293 5.99577C3.95311 6.09829 4.01792 6.18992 4.11406 6.22624L5.32207 6.68034L5.77617 7.88835C5.81254 7.98463 5.90492 8.04948 6.00761 8.04948C6.11013 8.0493 6.20177 7.98449 6.23808 7.88835L6.69218 6.68034L7.90019 6.22624C7.99633 6.18992 8.06115 6.09829 8.06133 5.99577C8.06133 5.89308 7.99647 5.8007 7.90019 5.76433L6.69218 5.3112L6.23808 4.10222C6.20177 4.00608 6.11013 3.94127 6.00761 3.94109Z' fill='%23000'/%3E%3C/svg%3E");
+  -webkit-mask-size: contain;
+  mask-size: contain;
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+  -webkit-mask-position: center;
+  mask-position: center;
+}
+
+.ai-mode-btn-label {
+  font-size: 0.75rem;
+  font-weight: 500;
+  line-height: 1;
+}
+
+/* Both AI and Code get the same treatment when active - the thumb (one fixed accent
+   color) slides behind whichever is selected, so neither state looks like "off". */
+.ai-mode-btn.active {
+  color: #0b1f1f;
+}
+
+.ai-mode-btn:not(.active):hover {
+  color: var(--text);
+}
+
+/* AI Review Mode: lower the editor's minimum width so it can shrink further while the AI panel is widened.
+   The AI panel's width itself is set (and stays freely resizable via the drag handle) from remix-ui-topbar.tsx. */
+body.ai-review-mode #main-panel {
+  min-width: 220px !important;
+}
+
 .top-bar-dropdownItem {
   color: var(--text);
   cursor: pointer;

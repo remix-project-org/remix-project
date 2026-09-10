@@ -51,12 +51,12 @@ export interface AppEvent extends MatomoEventBase {
     | 'PreloadError'
     | 'queryParams-calls'
     | 'queryParams-migrate'
-    | 'ConfirmedMigrationRedirect'
+    // Automatic domain redirects are deliberately not tracked: the visitor is
+    // counted again on the destination under a new visitor id.
     | 'MigrationConfirmed'
     | 'MigrationConfirmFailed'
     | 'MobileRedirect'
-    | 'MobileRedirectOverride'
-    | 'FreshUserDomainRedirect';
+    | 'MobileRedirectOverride';
 }
 
 export interface MigrateEvent extends MatomoEventBase {
