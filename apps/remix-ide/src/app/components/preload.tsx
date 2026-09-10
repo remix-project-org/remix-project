@@ -13,7 +13,6 @@ import './styles/preload.css'
 import isElectron from 'is-electron'
 import { initEndpoints } from '@remix-endpoints-helper'
 import { isFreshBrowser, maybeRedirectFreshVisitor, setVisitFreshness } from '../utils/freshUserRedirect'
-import { redirectConfirmedVisitor } from '../utils/migrationConfirm'
 
 // _paq.push(['trackEvent', 'App', 'Preload', 'start'])
 
@@ -257,13 +256,6 @@ export const Preload = (props: PreloadProps) => {
     // Started here rather than in loadAppComponent so the redirect checks below
     // resolve against the right API; the call is deduped.
     initEndpoints()
-
-    // A user who confirmed the move is sent on before anything else loads.
-    // Reads localStorage only, so everyone else pays nothing for it.
-    //
-    // Not tracked: the visitor is counted again on the new domain under a new
-    // visitor id, so reporting it here would double-count the same person.
-    if (redirectConfirmedVisitor()) return
 
     async function loadStorage() {
       ; (await remixFileSystems.current.addFileSystem(remixIndexedDB.current)) || trackMatomoEvent?.({ category: 'Storage', action: 'error', name: 'indexedDB not supported', isClick: false })
