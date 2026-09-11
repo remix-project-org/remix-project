@@ -9,19 +9,18 @@ import { CustomTooltip } from '@remix-ui/helper'
 
 function PermisssionsSettings() {
   const [modalVisibility, setModalVisibility] = useState<boolean>(true)
-  const [permissions, setPermissions] = useLocalStorage<PluginPermissions>('plugins/permissions', {} as PluginPermissions)
-  const [permissionCache, setpermissionCache] = useState<PluginPermissions>()
+  const [, persistPermissions] = useLocalStorage<PluginPermissions>('plugins/permissions', {} as PluginPermissions)
+  const [permissions, setPermissions] = useState<PluginPermissions>({} as PluginPermissions)
   const intl = useIntl()
   const closeModal = () => setModalVisibility(true)
   const openModal = () => {
     const currentValue = JSON.parse(window.localStorage.getItem('plugins/permissions') || '{}')
-    setpermissionCache(currentValue)
     setPermissions(currentValue)
-    setModalVisibility(!modalVisibility)
+    setModalVisibility(false)
   }
 
-  const cancel = () => {
-    setPermissions(permissionCache)
+  const save = () => {
+    persistPermissions(permissions)
   }
 
   const getState = (targetPlugin: string, funcName: string, pluginName: string) => {
@@ -29,25 +28,36 @@ function PermisssionsSettings() {
   }
 
   const handleCheckboxClick = (targetPlugin: string, funcName: string, pluginName: string) => {
-    setPermissions((permissions) => {
-      permissions[targetPlugin][funcName][pluginName].allow = !permissions[targetPlugin][funcName][pluginName].allow
-      return permissions
-    })
+    setPermissions((previous) => ({
+      ...previous,
+      [targetPlugin]: {
+        ...previous[targetPlugin],
+        [funcName]: {
+          ...previous[targetPlugin][funcName],
+          [pluginName]: {
+            ...previous[targetPlugin][funcName][pluginName],
+            allow: !previous[targetPlugin][funcName][pluginName].allow
+          }
+        }
+      }
+    }))
   }
 
   function clearFunctionPermission(targetPlugin: string, funcName: string, pluginName: string) {
-    setPermissions((permissions) => {
-      delete permissions[targetPlugin][funcName][pluginName]
-      if (Object.keys(permissions[targetPlugin][funcName]).length === 0) delete permissions[targetPlugin][funcName]
-      if (Object.keys(permissions[targetPlugin]).length === 0) delete permissions[targetPlugin]
-      return permissions
+    setPermissions((previous) => {
+      const next = JSON.parse(JSON.stringify(previous)) as PluginPermissions
+      delete next[targetPlugin][funcName][pluginName]
+      if (Object.keys(next[targetPlugin][funcName]).length === 0) delete next[targetPlugin][funcName]
+      if (Object.keys(next[targetPlugin]).length === 0) delete next[targetPlugin]
+      return next
     })
   }
 
   function clearTargetPermission(targetPlugin: string) {
-    setPermissions((permissions) => {
-      delete permissions[targetPlugin]
-      return permissions
+    setPermissions((previous) => {
+      const next = { ...previous }
+      delete next[targetPlugin]
+      return next
     })
   }
 
@@ -115,7 +125,7 @@ function PermisssionsSettings() {
       <ModalDialog
         id="permissionsSettings"
         handleHide={closeModal}
-        cancelFn={cancel}
+        okFn={save}
         hide={modalVisibility}
         title={intl.formatMessage({
           id: 'pluginManager.pluginManagerPermissions'
