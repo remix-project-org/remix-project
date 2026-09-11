@@ -1318,6 +1318,14 @@ export class PlanManagerPlugin extends ViewPlugin {
         this.paddle = existing
         return
       }
+      // Snapshot auth state synchronously *before* the async getPaddleConfig
+      // call to avoid a race condition: if initPaddleSingleton is called on
+      // plugin activation (before auth arrives) and auth lands while the
+      // network request is in-flight, the store will show isAuthenticated=true
+      // by the time getPaddleConfig resolves. Without this snapshot we would
+      // fire a false paddle.config.missing event even though a subsequent
+      // authenticated call is already on its way and will succeed.
+      const wasAuthenticatedAtCallTime = this.store.getSnapshot().isAuthenticated
       const config = await this.call('auth', 'getPaddleConfig').catch(() => null) as
         { clientToken: string | null; environment: 'sandbox' | 'production' } | null
       if (!config?.clientToken) {
@@ -1330,8 +1338,9 @@ export class PlanManagerPlugin extends ViewPlugin {
         // expected (config isn't fetched without a token), so we stay quiet.
         // The signal worth capturing is "authenticated but STILL no client
         // token" — that points at billing/config or the token itself failing.
-        const isAuthenticated = this.store.getSnapshot().isAuthenticated
-        if (isAuthenticated && !this.paddleConfigMissingReported) {
+        // Use the pre-await snapshot so a late-arriving auth event doesn't
+        // trigger a false alarm on the unauthenticated activation call.
+        if (wasAuthenticatedAtCallTime && !this.paddleConfigMissingReported) {
           this.paddleConfigMissingReported = true
           const token = await this.call('auth', 'getToken').catch(() => null)
           reportCheckoutTelemetry('paddle.config.missing', {
@@ -1339,7 +1348,7 @@ export class PlanManagerPlugin extends ViewPlugin {
               ? 'billing/config returned no Paddle client token'
               : 'Authenticated but no access token available',
             detail: {
-              isAuthenticated,
+              isAuthenticated: wasAuthenticatedAtCallTime,
               hasToken: !!token,
               configReturned: !!config,
               environment: config?.environment ?? null,
