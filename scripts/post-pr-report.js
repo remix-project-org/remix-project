@@ -191,7 +191,7 @@ async function gh(pathname, body, extraHeaders) {
 }
 
 function escapeMd(s) {
-  return String(s).replace(/[\[\]()`*_~]/g, '\\$&');
+  return String(s).replace(/[\\\[\]\(\)`*_~]/g, '\\$&');
 }
 
 async function getAuthHeader() {
