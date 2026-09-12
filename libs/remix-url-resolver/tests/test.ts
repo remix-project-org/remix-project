@@ -267,6 +267,39 @@ describe('testRunner', () => {
         })
       })
 
+      // Test npm import whose version is pinned to a github repo
+      describe('test getting npm imports pinned to a github repo', () => {
+        const getDependencies: any = async () => ({
+          deps: { '@openzeppelin/contracts': 'github:OpenZeppelin/openzeppelin-contracts#v5.0.0' },
+          yarnLock: null,
+          packageLock: null
+        })
+        const urlResolver = new RemixURLResolver(getDependencies)
+        const fileName: string = '@openzeppelin/contracts/token/ERC20/ERC20.sol'
+        let results: any = {}
+
+        before(done => {
+          urlResolver.resolve(fileName)
+            .then((sources: object) => {
+              results = sources
+              done()
+            })
+            .catch((e: Error) => {
+              throw e
+            })
+        })
+
+        it('should have 3 items', () => {
+          assert.equal(Object.keys(results).length, 3)
+        })
+        it('should resolve the file from github instead of the npm gateways', () => {
+          assert.equal(results.cleanUrl, 'OpenZeppelin/openzeppelin-contracts/contracts/token/ERC20/ERC20.sol')
+        })
+        it('should return the content of the pinned tag', () => {
+          assert.ok(results.content.includes('(last updated v5.0.0)'))
+        })
+      })
+
       // Test SWARM imports
       /*
       describe('test getting SWARM imports', () => {
