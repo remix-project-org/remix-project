@@ -1,5 +1,12 @@
 .user-menu-compact-button {
   gap: 8px;
+  border-radius: 1000px;
+  background: var(--custom-onsurface-layer-3);
+  padding: .125rem .25rem
+}
+
+.user-menu-compact-button:hover {
+  background: var(--custom-onsurface-layer-2);
 }
 
 /* Beta-themed button */
@@ -40,12 +47,24 @@
 }
 
 .user-menu-compact-avatar {
-  width: 25px;
-  height: 25px;
+  width: 24px;
+  height: 24px;
   border-radius: 50%;
   object-fit: cover;
   flex-shrink: 0;
   display: block;
+}
+
+.user-menu-compact-caret {
+  font-size: 0.7rem;
+  opacity: 0.75;
+}
+
+.user-menu-compact-plan-tag {
+  padding: 0.125rem 0.5rem;
+  font-size: 0.6rem;
+  background: color-mix(in srgb, var(--custom-primary) 12%, transparent);
+  color: var(--custom-primary);
 }
 
 .user-menu-compact-info {
@@ -85,9 +104,8 @@
 }
 
 .user-menu-dropdown-header {
-  background-color: var(--bs-primary, #007aa6);
   color: white;
-  padding: 12px 16px;
+  padding: 8px 12px;
   border-radius: 8px 8px 0 0;
   border-bottom: 1px solid rgba(255, 255, 255, 0.1);
   display: flex;
@@ -96,8 +114,8 @@
 }
 
 .user-menu-dropdown-avatar {
-  width: 40px;
-  height: 40px;
+  width: 32px;
+  height: 32px;
   border-radius: 50%;
   object-fit: cover;
   border: 2px solid rgba(255, 255, 255, 0.3);
@@ -114,10 +132,6 @@
   padding: 8px 16px;
   background-color: var(--bs-body-bg, #222336);
   border-bottom: 1px solid var(--bs-border-color, #444);
-}
-
-.user-menu-items-container {
-  padding: 4px 0;
 }
 
 .user-menu-item {
@@ -174,13 +188,13 @@
 }
 
 .user-menu-divider {
-  margin: 8px 0;
+  margin: 0;
   border-color: var(--bs-border-color, #444);
 }
 
 .user-menu-item-danger {
   padding: 8px 12px;
-  color: var(--bs-danger, #e74c3c);
+  color: #FF7777;
   display: flex;
   align-items: center;
   border: none;
@@ -192,10 +206,15 @@
   font-weight: 500;
 }
 
-.user-menu-items-container .dropdown-item.user-menu-item-danger:hover,
 .user-menu-items-container .dropdown-item.user-menu-item-danger:focus {
   background-color: var(--bs-dropdown-link-hover-bg);
   color: var(--bs-dropdown-link-hover-color);
+}
+
+.user-menu-items-container .dropdown-item.user-menu-item-danger:hover{
+  background: rgba(255, 119, 119, 0.12);
+  color: #FF7777;
+
 }
 
 .user-menu-theme-toggle {

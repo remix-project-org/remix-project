@@ -74,6 +74,54 @@ ul {
     border-radius: 50% !important;
 }
 
-.remixui_selected {
+/* The row itself carries its own horizontal inset (instead of an ancestor
+   margin/padding) so its background — hover / selected — can paint
+   edge-to-edge across the full width of the tree, while the content still
+   sits with a bit of breathing room from the left edge.
+   Selector is scoped to `li` to out-rank the unrelated tree-view lib's
+   `.li_tv { -webkit-padding-start: 0 }`, which shares the same specificity
+   and would otherwise cancel this padding depending on bundle order. */
+li.remixui_fileRow {
+    padding-left: 28px !important;
+    padding-right: 8px;
+}
 
+/* Root workspace row (the top-level folder wrapping every other row) isn't
+   a `li.remixui_fileRow` — it's rendered once, separately, above the tree —
+   so it needs its own left inset now that the ancestor containers carry no
+   padding. Each deeper tree level already steps in by 12px relative to the
+   one above it (see getIndentLevelDiv below) — depth-0 rows sit one such
+   12px step ahead of root (28px vs root's 16px), so the whole tree still
+   reads as one consistent cascade rather than "root and everything else
+   at the same depth". */
+.remixui_rootFolderRow {
+    padding-left: 1rem;
+}
+
+/* Neutral, theme-aware highlight for hover / rename / right-click target.
+   Uses a real surface token instead of Bootstrap's bg-light, which sits
+   almost flush with the panel background in both themes. */
+.remixui_rowSurface {
+    background-color: var(--custom-onsurface-layer-2);
+}
+
+/* Selected / multi-selected row — a soft tint of the theme's accent color
+   so "selected" reads as a deliberate, branded state rather than a plain
+   gray box (previously Bootstrap's bg-secondary). */
+.remixui_selected {
+    background-color: color-mix(in srgb, var(--custom-primary) 12%, transparent);
+}
+
+/* ============ File Explorer — Create button ============ */
+.remixui_createBtn {
+    gap: 2px;
+}
+/* We render our own caret inline so it stays aligned with the label
+   regardless of button width; suppress Bootstrap's default toggle caret
+   to avoid a duplicate. */
+.remixui_createBtn.dropdown-toggle::after {
+    display: none;
+}
+.remixui_createBtnChevron {
+    font-size: 0.75rem;
 }

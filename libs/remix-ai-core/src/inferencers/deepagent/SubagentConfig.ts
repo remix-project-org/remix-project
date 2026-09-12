@@ -133,7 +133,7 @@ export async function buildSubagentConfigs(
       systemPrompt: QUICKDAPP_SPECIALIST_SUBAGENT_PROMPT,
       model,
       tools: quickDappTools,
-      description: 'Used for all QuickDapp/DApp frontend generation and update requests. Direct chat DApp updates must be delegated here so list_dapps/update_dapp are used instead of current-workspace file inspection.'
+      description: 'Used for all QuickDapp/DApp frontend generation and update requests. Direct chat DApp updates must be delegated here so list_dapps/update_dapp are used instead of current-workspace file inspection. STATELESS: this specialist has NO memory of any earlier call to it, even earlier in the same conversation. When delegating a user\'s reply to setup questions this specialist previously asked (e.g. Location/DApp Description/Design answers for a ZK or Noir circuit dapp), your description MUST re-include the full original request verbatim - including any *_CONTEXT_JSON block (ZK_CONTEXT_JSON, NOIR_CONTEXT_JSON, etc.) and circuit/contract identifiers - plus the user\'s new reply. Never pass just the user\'s latest short reply on its own; that erases the circuit/dapp identity and produces a generic, unrelated dapp.'
     })
   }
 

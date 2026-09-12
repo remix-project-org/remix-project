@@ -18,12 +18,12 @@ import { useOnClickOutside } from 'libs/remix-ui/remix-ai-assistant/src/componen
 import { deleteWorkspace, fetchWorkspaceDirectory, deleteAllWorkspaces as deleteAllWorkspacesAction, handleDownloadFiles, handleDownloadWorkspace, handleExpandPath, publishToGist, renameWorkspace, restoreBackupZip, switchToWorkspace } from 'libs/remix-ui/workspace/src/lib/actions'
 import { GitHubUser } from 'libs/remix-api/src/lib/types/git'
 import { GitHubCallback } from '../topbarUtils/gitOauthHandler'
-import { GitHubLogin } from '../components/gitLogin'
 import { CustomTooltip } from 'libs/remix-ui/helper/src/lib/components/custom-tooltip'
 import { useCloneRepositoryModal } from '../components/CloneRepositoryModal'
 import { TrackingContext } from '@remix-ide/tracking'
 import { MatomoEvent, TopbarEvent, WorkspaceEvent, LoginMode, LoginModeResponse, Features } from '@remix-api'
 import { LoginButton } from '@remix-ui/login'
+import { parseMigrationConfig, shouldPromptMigration } from '@remix-ui/domain-migration'
 import { LoginModal } from 'libs/remix-ui/login/src/lib/modals/login-modal'
 import { appActionTypes } from 'libs/remix-ui/app/src/lib/remix-app/actions/app'
 import { NotificationBell } from '../components/NotificationBell'
@@ -75,6 +75,7 @@ export function RemixUiTopbar() {
   const [compactPanelControl, setCompactPanelControl] = useState(false)
   const [panelControlMenuOpen, setPanelControlMenuOpen] = useState(false)
   const [aiPanelActive, setAiPanelActive] = useState<boolean>(false)
+  const [aiReviewModeActive, setAiReviewModeActive] = useState<boolean>(false)
   const sectionRef = useRef<HTMLElement>(null)
   const panelControlRef = useRef<HTMLDivElement>(null)
   const rightSideRef = useRef<HTMLDivElement>(null)
@@ -116,6 +117,13 @@ export function RemixUiTopbar() {
   const notificationMode = appContext?.appConfig?.['notifications.mode'] || 'all_users'
   const supportEnabled = appContext?.appConfig?.['app.supportenabled'] !== false
   const showJoinBetaTopButton = appContext?.appConfig?.['show_join_beta_top_button'] !== false
+
+  // Destination host when this origin is being retired, otherwise null so the
+  // menu entry stays hidden.
+  const migrationTarget = (() => {
+    const config = parseMigrationConfig((key) => appContext?.appConfig?.[key])
+    return shouldPromptMigration(config) ? config.toDomain : null
+  })()
 
   const isVisibleByAudience = (mode: 'off' | 'authenticated_users' | 'all_users', authenticated: boolean): boolean => {
     if (mode === 'off') return false
@@ -554,6 +562,15 @@ export function RemixUiTopbar() {
     }
   }
 
+  const openDomainMigration = async () => {
+    try {
+      await plugin.call('manager', 'activatePlugin', 'domainMigration')
+      await plugin.call('domainMigration', 'showMigration')
+    } catch (e) {
+      console.error(e)
+    }
+  }
+
   const onFinishDeleteAllWorkspaces = async () => {
     try {
       await deleteAllWorkspacesAction()
@@ -582,17 +599,6 @@ export function RemixUiTopbar() {
       onFinishDeleteAllWorkspaces,
       intl.formatMessage({ id: 'filePanel.cancel' })
     )
-  }
-
-  const loginWithGitHub = async () => {
-    global.plugin.call('dgit', 'login')
-    trackMatomoEvent({ category: 'topbar', action: 'GIT', name: 'login', isClick: true })
-  }
-
-  const logOutOfGithub = async () => {
-    global.plugin.call('dgit', 'logOut')
-
-    trackMatomoEvent({ category: 'topbar', action: 'GIT', name: 'logout', isClick: true })
   }
 
   const renameModalMessage = (workspaceName?: string) => {
@@ -722,6 +728,42 @@ export function RemixUiTopbar() {
     )
   }
 
+  // Locks the editor read-only and widens the AI assistant panel, for reviewing code alongside RemixAI.
+  const toggleAiReviewMode = async () => {
+    const next = !aiReviewModeActive
+    setAiReviewModeActive(next)
+    trackMatomoEvent({ category: 'topbar', action: 'aiReviewMode', name: next ? 'enabled' : 'disabled', isClick: true })
+
+    try {
+      await plugin.call('editor', 'setForceReadOnly', next)
+    } catch (e) {
+      console.error('[Topbar] Failed to toggle editor read-only mode:', e)
+    }
+
+    document.body.classList.toggle('ai-review-mode', next)
+
+    if (next) {
+      try {
+        const pState = await plugin.call('menuicons', 'getPluginState', 'remixaiassistant')
+        if (pState && pState.pinned) {
+          if (!aiPanelActive) await plugin.call('rightSidePanel', 'highlight')
+        } else {
+          await plugin.call('menuicons', 'toggle', 'remixaiassistant')
+        }
+        refreshAiPanelState()
+      } catch (e) {
+        console.error('[Topbar] Failed to open the AI assistant panel:', e)
+      }
+
+      plugin.call('rightSidePanel', 'maximizePanel')
+    } else {
+      if (await plugin.call('rightSidePanel', 'isRightSidePanelMaximized')) {
+        // this will set the default width
+        plugin.call('rightSidePanel', 'maximizePanel')
+      }
+    }
+  }
+
   const panelControls = [
     {
       id: 'toggleLeftSidePanelIcon',
@@ -764,8 +806,27 @@ export function RemixUiTopbar() {
         }
         plugin.call('rightSidePanel', 'togglePanel')
       }
+    },
+    {
+      id: 'aiReviewModeBtn',
+      tooltip: 'Enable AI Mode',
+      label: 'AI',
+      iconClass: 'codicon codicon-sparkle',
+      isActive: aiReviewModeActive,
+      onClick: () => { if (!aiReviewModeActive) toggleAiReviewMode() }
+    },
+    {
+      id: 'codeModeBtn',
+      tooltip: 'Switch to Code Mode',
+      label: 'Code',
+      iconClass: 'codicon codicon-code',
+      isActive: !aiReviewModeActive,
+      onClick: () => { if (aiReviewModeActive) toggleAiReviewMode() }
     }
   ]
+
+  const modeButtons = panelControls.filter(c => c.id === 'aiReviewModeBtn' || c.id === 'codeModeBtn')
+  const otherButtons = panelControls.filter(c => c.id !== 'aiReviewModeBtn' && c.id !== 'codeModeBtn')
 
   return (
     <section
@@ -850,6 +911,8 @@ export function RemixUiTopbar() {
               downloadCurrentWorkspace={downloadCurrentWorkspace}
               deleteCurrentWorkspace={deleteCurrentWorkspace}
               downloadWorkspaces={downloadWorkspaces}
+              openDomainMigration={openDomainMigration}
+              migrationTarget={migrationTarget}
               restoreBackup={restoreBackup}
               deleteAllWorkspaces={deleteAllWorkspaces}
               setCurrentMenuItemName={setCurrentMenuItemName}
@@ -857,7 +920,33 @@ export function RemixUiTopbar() {
               connectToLocalhost={() => switchWorkspace(LOCALHOST)}
               openTemplateExplorer={openTemplateExplorer}
               onMigrateToCloud={() => cloudStore.emit('showMigrationDialog')}
+              cloneGitRepository={showCloneModal}
             />
+            {modeButtons.length > 0 && (
+              <div
+                key="mode-toggle-group"
+                className="ai-mode-toggle-group d-flex ms-2"
+                data-active={aiReviewModeActive ? 'ai' : 'code'}
+              >
+                <div className="ai-mode-toggle-thumb" />
+                {modeButtons.map(ctrl => (
+                  <CustomTooltip key={ctrl.id} placement="bottom-start" tooltipText={ctrl.tooltip}>
+                    <div
+                      className={`ai-mode-btn${ctrl.isActive ? ' active' : ''}`}
+                      data-id={ctrl.id}
+                      onClick={ctrl.onClick}
+                    >
+                      {ctrl.id === 'aiReviewModeBtn' ? (
+                        <span className="ai-mode-btn-icon" aria-hidden="true" />
+                      ) : (
+                        <i className={`${ctrl.iconClass} fs-6`} />
+                      )}
+                      <span className="ai-mode-btn-label">{ctrl.label}</span>
+                    </div>
+                  </CustomTooltip>
+                ))}
+              </div>
+            )}
             <div
               ref={panelControlRef}
               data-id="panel-control"
@@ -879,7 +968,7 @@ export function RemixUiTopbar() {
                     </CustomTooltip>
                   </Dropdown.Toggle>
                   <Dropdown.Menu>
-                    {panelControls.map(ctrl => (
+                    {otherButtons.map(ctrl => (
                       <Dropdown.Item key={ctrl.id} onClick={ctrl.onClick} data-id={`${ctrl.id}-menuItem`}>
                         <i className={`${ctrl.iconClass} me-2`} />
                         {ctrl.label}
@@ -888,7 +977,7 @@ export function RemixUiTopbar() {
                   </Dropdown.Menu>
                 </Dropdown>
               ) : (
-                panelControls.map(ctrl => (
+                otherButtons.map(ctrl => (
                   <CustomTooltip key={ctrl.id} placement="bottom-start" tooltipText={ctrl.tooltip}>
                     <div
                       className={`panel-control-btn${ctrl.isActive ? ' active' : ''}`}
@@ -908,53 +997,50 @@ export function RemixUiTopbar() {
           className="d-flex flex-row align-items-center justify-content-end flex-nowrap"
           style={{ flex: '0 0 auto', whiteSpace: 'nowrap' }}
         >
-          <div className="d-flex flex-row align-items-center flex-nowrap" style={{ whiteSpace: 'nowrap' }}>
-            <div style={{ whiteSpace: 'nowrap' }}>
-              <GitHubLogin
-                cloneGitRepository={showCloneModal}
-                logOutOfGithub={logOutOfGithub}
-                publishToGist={publishToGist}
-                loginWithGitHub={loginWithGitHub}
-                theme={currentTheme?.quality}
-              />
-            </div>
+          <div className="d-flex flex-row align-items-center gap-2 flex-nowrap" style={{ whiteSpace: 'nowrap' }}>
             {showLoginUI && (
               <LoginButton
                 plugin={plugin}
                 variant="compact"
                 showCredits={true}
                 signInDataId="login-button"
-                className="ms-3 text-nowrap"
+                className="text-nowrap"
                 cloneGitRepository={showCloneModal}
                 publishToGist={publishToGist}
               />
             )}
-            <CustomTooltip placement="bottom" tooltipText="Check out the features in Remix Pro : Security & Gas Audits, the Code Helper, Web3 API connectors (the Graph, Etherscan, Alchemy) and more!">
-              <span
-                className="btn btn-sm btn-warning d-flex align-items-center gap-1 ms-3 text-nowrap"
-                style={{ cursor: 'pointer', padding: '0.25rem 0.6rem' }}
-                onClick={() => {
-                  try { plugin.call('planManager', 'open', 'plans') } catch { /* plugin not ready */ }
-                  trackMatomoEvent({ category: 'topbar', action: 'upgrade', name: 'SeePlans', isClick: true })
-                }}
-                data-id="topbar-upgradeBtn"
-              >
-                {!compactRightLabels ? <span>See Plans</span> : <span>Plans</span>}
-              </span>
-            </CustomTooltip>
-            <CustomTooltip placement="bottom" tooltipText="Use RemixAI for editing contracts, code analysis, deployments and more!">
-              <span
-                className="btn btn-sm btn-warning d-flex align-items-center gap-1 ms-3 text-nowrap"
-                style={{ cursor: 'pointer', padding: '0.25rem 0.6rem' }}
-                onClick={() => {
-                  try { plugin.call('planManager', 'open', 'topup') } catch { /* plugin not ready */ }
-                  trackMatomoEvent({ category: 'topbar', action: 'upgrade', name: 'GetAICredits', isClick: true })
-                }}
-                data-id="topbar-upgradeBtn"
-              >
-                {!compactRightLabels ? <span>Get AI Credits</span> : <span>AI Credits</span>}
-              </span>
-            </CustomTooltip>
+            {isAuthenticated && (
+              <>
+                <CustomTooltip placement="bottom" tooltipText="Check out the features in Remix Pro : Security & Gas Audits, the Code Helper, Web3 API connectors (the Graph, Etherscan, Alchemy) and more!">
+                  <span
+                    className="btn btn-sm d-flex align-items-center gap-1 text-nowrap"
+                    style={{ cursor: 'pointer', padding: '0.25rem 0.6rem' , border: "1px solid color-mix(in srgb, var(--custom-primary) 64%, transparent)", color: 'var(--custom-primary)', fontSize:"12px", fontWeight:'700', lineHeight:'normal' }}
+                    onClick={() => {
+                      try { plugin.call('planManager', 'open', 'plans') } catch { /* plugin not ready */ }
+                      trackMatomoEvent({ category: 'topbar', action: 'upgrade', name: 'Upgrade', isClick: true })
+                    }}
+                    data-id="topbar-upgradeBtn"
+                  >
+                    {/* <i className="fas fa-layer-group"></i> */}
+                    <span>Upgrade</span>
+                  </span>
+                </CustomTooltip>
+                <CustomTooltip placement="bottom" tooltipText="Use RemixAI for editing contracts, code analysis, deployments and more!">
+                  <span
+                    className="btn btn-sm btn-ai d-flex align-items-center gap-1 text-nowrap"
+                    style={{ cursor: 'pointer', padding: '0.25rem 0.6rem' }}
+                    onClick={() => {
+                      try { plugin.call('planManager', 'open', 'topup') } catch { /* plugin not ready */ }
+                      trackMatomoEvent({ category: 'topbar', action: 'upgrade', name: 'GetAICredits', isClick: true })
+                    }}
+                    data-id="topbar-aiCreditsBtn"
+                  >
+                    <img src="assets/img/remixAI_small.svg" alt="Remix AI" className="topbar-ai-credits-icon" />
+                    {!compactRightLabels ? <span>Get AI Credits</span> : <span>AI Credits</span>}
+                  </span>
+                </CustomTooltip>
+              </>
+            )}
           </div>
           {showJoinBetaTopButton && <BetaPromoPill plugin={plugin} />}
           <CartButton />
@@ -1022,11 +1108,9 @@ export function RemixUiTopbar() {
             }}
             data-id="remixai-assistant-icon"
           >
-            <img
-              src="assets/img/remixai-logoAI.webp"
-              alt="remixaiassistant"
-              style={{ width: '20px', height: '20px' }}
-            />
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-label="remixaiassistant">
+              <path d="M22.4712 0.753375C22.9245 0.711794 23.2873 1.07432 23.2465 1.52779C23.0693 3.49809 22.2893 8.56115 18.8764 12.0004C22.289 15.4397 23.0693 20.5018 23.2465 22.4721C23.2873 22.9256 22.9246 23.2881 22.4712 23.2465C20.5114 23.0668 15.3236 22.2784 11.9145 18.8432C8.50536 22.2788 3.48849 23.0668 1.52877 23.2465C1.07537 23.2881 0.712585 22.9256 0.753378 22.4721C0.930616 20.5018 1.71093 15.4397 5.1235 12.0004C1.71061 8.56115 0.930607 3.49809 0.753378 1.52779C0.71266 1.07434 1.07542 0.711826 1.52877 0.753375C3.48849 0.93311 8.67724 1.72116 12.0864 5.1567C15.4955 1.72158 20.5115 0.933113 22.4712 0.753375ZM9.53365 8.25045L7.00045 15.7504H8.66353L9.20846 14.0395H11.8579L12.4018 15.7504H14.0649L11.5337 8.25045H9.53365ZM14.9477 8.25045V15.7504H16.5004V8.25045H14.9477ZM10.5629 9.96431L11.4653 12.8022H9.60201L10.5053 9.96431H10.5629Z" fill="var(--custom-ai-color)" />
+            </svg>
           </span>
         </div>
       </div>

@@ -85,11 +85,16 @@ export class Layout extends Plugin {
       this.panels.main.active = false
       this.event.emit('change', null)
     })
-    this.on('tabs', 'switchApp', (name: string) => {
-      this.call('mainPanel', 'showContent', name)
-      this.panels.editor.active = false
-      this.panels.main.active = true
-      this.event.emit('change', null)
+    this.on('tabs', 'switchApp', async (name: string) => {
+      // 'switchApp' fires for every tab switch, including file tabs, but showContent
+      // only knows about plugins rendered in mainPanel (e.g. quick-dapp). Skip anything else.
+      const targetProfile = await this.call('manager', 'getProfile', name)
+      if (targetProfile && targetProfile.location === 'mainPanel') {
+        this.call('mainPanel', 'showContent', name)
+        this.panels.editor.active = false
+        this.panels.main.active = true
+        this.event.emit('change', null)
+      }
     })
     this.on('tabs', 'closeApp', (name: string) => {
       this.panels.editor.active = true

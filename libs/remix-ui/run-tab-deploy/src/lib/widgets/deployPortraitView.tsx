@@ -21,7 +21,6 @@ function DeployPortraitView() {
   const { plugin, widgetState, dispatch, themeQuality } = useContext(DeployAppContext)
   const { trackMatomoEvent } = useContext(TrackingContext)
   // TODO: Move all state to reducer
-  const [isExpanded, setIsExpanded] = useState(true)
   const [selectedProvider, setSelectedProvider] = useState<Provider | null>(null)
   const [expandedInputs, setExpandedInputs] = useState<Set<number>>(new Set())
   const [inputValues, setInputValues] = useState<{[key: number]: string}>({})
@@ -305,333 +304,309 @@ function DeployPortraitView() {
 
   return (
     <>
-      <div className="card mx-2" style={{ backgroundColor: 'var(--custom-onsurface-layer-1)', '--theme-text-color': themeQuality === 'dark' ? 'white' : 'black' } as React.CSSProperties}>
-        <div className="p-3 d-flex align-items-center justify-content-between" onClick={() => {
-          trackMatomoEvent?.({ category: 'udapp', action: 'deployCardToggle', name: isExpanded ? 'collapsed' : 'expanded', isClick: true })
-          setIsExpanded(!isExpanded)
-        }} style={{ cursor: 'pointer' }}>
-          <div className='d-flex align-items-center gap-2' data-id="deploy-widget-header">
-            <h6 className="my-auto" style={{ color: themeQuality.trim() === 'dark' ? 'white' : 'black', margin: 0 }}>
+      <div className="card" style={{ background: 'var(--custom-onsurface-layer-1)' }}>
+        <div className="p-3 d-flex align-items-center justify-content-between">
+          <div className='d-flex align-items-center gap-2 w-100' data-id="deploy-widget-header" style={{ justifyContent: 'space-between' }}>
+            <h6 className="my-auto" style={{ margin: 0, fontSize: '14px', fontWeight: '700', color: 'var(--bs-emphasis-color)' }}>
               <FormattedMessage id="udapp.deploy" defaultMessage="Deploy" />
             </h6>
             <CustomTooltip
               placement="top"
               tooltipText={widgetState.networkDetected}
             >
-              <span className="badge rounded-pill text-bg-info text-light text-truncate" style={{ color: themeQuality.trim() === 'dark' ? '#000' : 'white', maxWidth: '170px' }}>{ wordRemover(lastWordRemover(widgetState.networkDetected)) }</span>
+              <span className="badge rounded-pill text-bg-info text-light text-truncate" style={{ width: 'max-content', color: themeQuality.trim() === 'dark' ? '#000' : 'white', maxWidth: '170px' }}>{ wordRemover(lastWordRemover(widgetState.networkDetected)) }</span>
             </CustomTooltip>
           </div>
-          <i className={`fas fa-chevron-${isExpanded ? 'down' : 'right'}`} style={{ color: 'var(--bs-tertiary-color)' }}></i>
         </div>
-        {isExpanded && (
-          <div className="px-3 pb-3">
-            {/* Contract Selection */}
-            <div className="d-flex pb-3">
-              <Dropdown className="w-100">
-                <div className='d-flex align-items-center justify-content-between'>
-                  <Dropdown.Toggle as={AddressToggle} className="w-100 d-inline-block border form-control deploy-address-toggle" style={{ backgroundColor: 'var(--custom-onsurface-layer-2)' }} data-id="contractDropdownToggle">
-                    <div className="d-flex align-items-center">
+        <div className="px-3 pb-3">
+          {/* Contract Selection */}
+          <div className="d-flex pb-3">
+            <Dropdown className="w-100">
+              <div className='d-flex align-items-center justify-content-between'>
+                <Dropdown.Toggle as={AddressToggle} className="w-100 d-inline-block border form-control deploy-address-toggle" style={{ backgroundColor: 'var(--custom-onsurface-layer-2)' }} data-id="contractDropdownToggle">
+                  <div className="d-flex align-items-center">
+                    <div className="me-auto text-nowrap text-truncate overflow-hidden font-sm w-100">
+                      <div className="d-flex align-items-center justify-content-between w-100">
+                        <div className='d-flex flex-column align-items-start'>
+                          <div className="text-truncate font-sm" style={{ color: themeQuality === 'dark' ? 'white' : 'black' }}>
+                            <span>{ (selectedContract?.name) || 'Contract' }</span>
+                          </div>
+                          <div style={{ color: 'var(--bs-tertiary-color)' }}>
+                            <span className="small">{extractNameFromKey(selectedContract?.filePath) || 'No contract selected'}</span>
+                          </div>
+                        </div>
+                        {selectedContract && !selectedContract?.isCompiled && !selectedContract?.isCompiling && (
+                          <div
+                            className="btn btn-primary d-flex align-items-center justify-content-center"
+                            data-id="compile-deploy-tab"
+                            role="button"
+                            tabIndex={0}
+                            style={{
+                              padding: "4px 8px",
+                              height: "28px",
+                              fontFamily: "Nunito Sans, sans-serif",
+                              fontSize: "11px",
+                              fontWeight: 700,
+                              lineHeight: "14px",
+                              whiteSpace: "nowrap",
+                              cursor: "pointer"
+                            }}
+                            onClick={async (e) => {
+                              e.stopPropagation()
+                              trackMatomoEvent?.({ category: 'udapp', action: 'compileContract', name: selectedContract?.name, isClick: true })
+                              if (selectedContract?.filePath) {
+                                dispatch({ type: 'SET_COMPILING', payload: selectedContract.filePath })
+                                await plugin.call('solidity', 'compile', selectedContract.filePath)
+                              }
+                            }}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter' || e.key === ' ') {
+                                e.preventDefault()
+                                e.currentTarget.click()
+                              }
+                            }}
+                          >
+                            <i className="fas fa-play"></i>
+                            <span className="ms-2" style={{ lineHeight: "12px", position: "relative", top: "1px" }}>
+                              Compile
+                            </span>
+                          </div>
+                        )}
+                        {selectedContract?.isCompiled && (
+                          <div
+                            role="button"
+                            tabIndex={0}
+                            style={{ cursor: "pointer" }}
+                            onClick={async (e) => {
+                              e.stopPropagation()
+                              trackMatomoEvent?.({ category: 'udapp', action: 'recompileContract', name: selectedContract?.name, isClick: true })
+                              if (selectedContract?.filePath) {
+                                dispatch({ type: 'SET_COMPILING', payload: selectedContract.filePath })
+                                try {
+                                  await plugin.call('solidity', 'compile', selectedContract.filePath)
+                                } catch (error) {
+                                  console.error('Compilation error: ', error)
+                                  dispatch({ type: 'SET_COMPILING', payload: selectedContract.filePath })
+                                }
+                              }
+                            }}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter' || e.key === ' ') {
+                                e.preventDefault()
+                                e.currentTarget.click()
+                              }
+                            }}
+                          >
+                            <span className={`badge border p-2 text-success`} style={{ fontWeight: 'light', backgroundColor: 'var(--custom-onsurface-layer-3)' }}>
+                              <i className="fas fa-check"></i> Compiled
+                            </span>
+                          </div>
+                        )}
+                        {selectedContract?.isCompiling && (
+                          <div>
+                            <span className={`badge border p-2 text-info`} style={{ fontWeight: 'light', backgroundColor: 'var(--custom-onsurface-layer-3)' }}>
+                              <i className="fas fa-spinner fa-spin"></i> Compiling
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </Dropdown.Toggle>
+                <span
+                  ref={contractKebabIconRef}
+                  className="ms-2"
+                  style={{ color: 'var(--bs-tertiary-color)', position: 'relative' }}
+                  onClick={handleKebabClick}
+                >
+                  <i className="fas fa-ellipsis-v px-1" style={{ cursor: 'pointer', fontSize: '1rem' }}></i>
+                </span>
+              </div>
+
+              {widgetState.contracts.contractList.length > 0 && (
+                <Dropdown.Menu as={CustomMenu} className="w-100 custom-dropdown-items overflow-hidden" style={{ backgroundColor: 'var(--custom-onsurface-layer-1)', '--theme-text-color': themeQuality === 'dark' ? 'white' : 'black', padding: '4px' } as React.CSSProperties} data-id="contractDropdownMenu">
+                  {widgetState.contracts.contractList.map((contract, index) => (
+                    <Dropdown.Item key={`${contract.filePath}:${contract.name}`} className="d-flex align-items-center contract-dropdown-item-hover px-2" onClick={() => {
+                      trackMatomoEvent?.({ category: 'udapp', action: 'contractSelected', name: contract.name, isClick: true })
+                      dispatch({ type: 'SET_SELECTED_CONTRACT_INDEX', payload: index })
+                    }} data-id={`contractDropdownItem-${contract.name}`}>
                       <div className="me-auto text-nowrap text-truncate overflow-hidden font-sm w-100">
                         <div className="d-flex align-items-center justify-content-between w-100">
                           <div className='d-flex flex-column align-items-start'>
                             <div className="text-truncate" style={{ color: themeQuality === 'dark' ? 'white' : 'black' }}>
-                              <span>{ (selectedContract?.name) || 'Contract' }</span>
+                              <span>{contract.name}</span>
                             </div>
                             <div style={{ color: 'var(--bs-tertiary-color)' }}>
-                              <span className="small">{extractNameFromKey(selectedContract?.filePath) || 'No contract selected'}</span>
+                              <span className="small">{extractNameFromKey(contract.filePath)}</span>
                             </div>
                           </div>
-                          {selectedContract && !selectedContract?.isCompiled && !selectedContract?.isCompiling && (
-                            <div
-                              className="btn btn-primary d-flex align-items-center justify-content-center"
-                              data-id="compile-deploy-tab"
-                              role="button"
-                              tabIndex={0}
-                              style={{
-                                padding: "4px 8px",
-                                height: "28px",
-                                fontFamily: "Nunito Sans, sans-serif",
-                                fontSize: "11px",
-                                fontWeight: 700,
-                                lineHeight: "14px",
-                                whiteSpace: "nowrap",
-                                cursor: "pointer"
-                              }}
-                              onClick={async (e) => {
-                                e.stopPropagation()
-                                trackMatomoEvent?.({ category: 'udapp', action: 'compileContract', name: selectedContract?.name, isClick: true })
-                                if (selectedContract?.filePath) {
-                                  dispatch({ type: 'SET_COMPILING', payload: selectedContract.filePath })
-                                  await plugin.call('solidity', 'compile', selectedContract.filePath)
-                                }
-                              }}
-                              onKeyDown={(e) => {
-                                if (e.key === 'Enter' || e.key === ' ') {
-                                  e.preventDefault()
-                                  e.currentTarget.click()
-                                }
-                              }}
-                            >
-                              <i className="fas fa-play"></i>
-                              <span className="ms-2" style={{ lineHeight: "12px", position: "relative", top: "1px" }}>
-                              Compile
-                              </span>
-                            </div>
-                          )}
-                          {selectedContract?.isCompiled && (
-                            <div
-                              role="button"
-                              tabIndex={0}
-                              style={{ cursor: "pointer" }}
-                              onClick={async (e) => {
-                                e.stopPropagation()
-                                trackMatomoEvent?.({ category: 'udapp', action: 'recompileContract', name: selectedContract?.name, isClick: true })
-                                if (selectedContract?.filePath) {
-                                  dispatch({ type: 'SET_COMPILING', payload: selectedContract.filePath })
-                                  try {
-                                    await plugin.call('solidity', 'compile', selectedContract.filePath)
-                                  } catch (error) {
-                                    console.error('Compilation error: ', error)
-                                    dispatch({ type: 'SET_COMPILING', payload: selectedContract.filePath })
-                                  }
-                                }
-                              }}
-                              onKeyDown={(e) => {
-                                if (e.key === 'Enter' || e.key === ' ') {
-                                  e.preventDefault()
-                                  e.currentTarget.click()
-                                }
-                              }}
-                            >
+                          <div>
+                            {contract.isCompiled && (
                               <span className={`badge border p-2 text-success`} style={{ fontWeight: 'light', backgroundColor: 'var(--custom-onsurface-layer-3)' }}>
                                 <i className="fas fa-check"></i> Compiled
                               </span>
-                            </div>
-                          )}
-                          {selectedContract?.isCompiling && (
-                            <div>
+                            )}
+                            {contract.isCompiling && (
                               <span className={`badge border p-2 text-info`} style={{ fontWeight: 'light', backgroundColor: 'var(--custom-onsurface-layer-3)' }}>
                                 <i className="fas fa-spinner fa-spin"></i> Compiling
-                              </span>
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  </Dropdown.Toggle>
-                  <span
-                    ref={contractKebabIconRef}
-                    className="ms-2"
-                    style={{ color: 'var(--bs-tertiary-color)', position: 'relative' }}
-                    onClick={handleKebabClick}
-                  >
-                    <i className="fas fa-ellipsis-v px-1" style={{ cursor: 'pointer', fontSize: '1rem' }}></i>
-                  </span>
-                </div>
-
-                {widgetState.contracts.contractList.length > 0 && (
-                  <Dropdown.Menu as={CustomMenu} className="w-100 custom-dropdown-items overflow-hidden" style={{ backgroundColor: 'var(--custom-onsurface-layer-2)', '--theme-text-color': themeQuality === 'dark' ? 'white' : 'black', padding: 0 } as React.CSSProperties} data-id="contractDropdownMenu">
-                    {widgetState.contracts.contractList.map((contract, index) => (
-                      <Dropdown.Item key={`${contract.filePath}:${contract.name}`} className="d-flex align-items-center contract-dropdown-item-hover" onClick={() => {
-                        trackMatomoEvent?.({ category: 'udapp', action: 'contractSelected', name: contract.name, isClick: true })
-                        dispatch({ type: 'SET_SELECTED_CONTRACT_INDEX', payload: index })
-                      }} data-id={`contractDropdownItem-${contract.name}`}>
-                        <div className="me-auto text-nowrap text-truncate overflow-hidden font-sm w-100">
-                          <div className="d-flex align-items-center justify-content-between w-100">
-                            <div className='d-flex flex-column align-items-start'>
-                              <div className="text-truncate" style={{ color: themeQuality === 'dark' ? 'white' : 'black' }}>
-                                <span>{contract.name}</span>
-                              </div>
-                              <div style={{ color: 'var(--bs-tertiary-color)' }}>
-                                <span className="small">{extractNameFromKey(contract.filePath)}</span>
-                              </div>
-                            </div>
-                            <div>
-                              {contract.isCompiled && (
-                                <span className={`badge border p-2 text-success`} style={{ fontWeight: 'light', backgroundColor: 'var(--custom-onsurface-layer-3)' }}>
-                                  <i className="fas fa-check"></i> Compiled
-                                </span>
-                              )}
-                              {contract.isCompiling && (
-                                <span className={`badge border p-2 text-info`} style={{ fontWeight: 'light', backgroundColor: 'var(--custom-onsurface-layer-3)' }}>
-                                  <i className="fas fa-spinner fa-spin"></i> Compiling
-                                </span>)}
-                              {!contract.isCompiled && !contract.isCompiling && (
-                                <span className={`badge border p-2 text-secondary`} style={{ fontWeight: 'light', backgroundColor: 'var(--custom-onsurface-layer-3)' }}>
+                              </span>)}
+                            {!contract.isCompiled && !contract.isCompiling && (
+                              <span className={`badge border p-2 text-secondary`} style={{ fontWeight: 'light', backgroundColor: 'var(--custom-onsurface-layer-3)' }}>
                                 Not compiled
-                                </span>
-                              )}
-                            </div>
-                          </div>
-                        </div>
-                      </Dropdown.Item>
-                    ))}
-                  </Dropdown.Menu>
-                )}
-              </Dropdown>
-              <ContractKebabMenu
-                show={isContractMenuOpen && contractKebabIconRef.current !== null}
-                //@ts-ignore
-                target={contractKebabIconRef.current}
-                onHide={() => setIsContractMenuOpen(false)}
-                onCopyABI={getABI}
-                onSaveABI={handleSaveABI}
-                onCopyBytecode={getBytecode}
-                menuIndex="contract"
-              />
-            </div>
-            {/* Proxy Options */}
-            { selectedContract?.isUpgradeable && (
-              <>
-                <div className="d-flex align-items-center justify-content-between">
-                  <div className='d-flex align-items-center'>
-                    <span className="fw-light" data-id="contractGUIDeployWithProxyLabel">Deploy with Proxy</span>
-                  </div>
-                  <div className="toggle-container">
-                    <div
-                      data-id="contractGUIDeployWithProxy"
-                      aria-label={`Deploy with Proxy`}>
-                      <ToggleSwitch
-                        id={`deployWithProxyToggle`}
-                        isOn={deployWithProxy}
-                        onClick={() => {
-                          trackMatomoEvent?.({ category: 'udapp', action: 'deployWithProxyToggle', name: !deployWithProxy ? 'enabled' : 'disabled', isClick: true })
-                          if (!deployWithProxy) {
-                            setUpgradeWithProxy(false)
-                          }
-                          setDeployWithProxy(!deployWithProxy)
-                        }}
-                      />
-                    </div>
-                  </div>
-                </div>
-                <div className="d-flex align-items-center justify-content-between pb-2">
-                  <div className='d-flex align-items-center'>
-                    <span className="fw-light" data-id="contractGUIUpgradeImplementationLabel">Upgrade with Proxy</span>
-                  </div>
-                  <div className="toggle-container">
-                    <div
-                      data-id="contractGUIUpgradeImplementation"
-                      aria-label={`Upgrade with Proxy`}>
-                      <ToggleSwitch
-                        id={`upgradeWithProxyToggle`}
-                        isOn={upgradeWithProxy}
-                        onClick={() => {
-                          trackMatomoEvent?.({ category: 'udapp', action: 'upgradeWithProxyToggle', name: !upgradeWithProxy ? 'enabled' : 'disabled', isClick: true })
-                          if (!upgradeWithProxy) {
-                            setDeployWithProxy(false)
-                          }
-                          setUpgradeWithProxy(!upgradeWithProxy)
-                        }}
-                      />
-                    </div>
-                  </div>
-                </div>
-              </>
-            )}
-
-            {/* Proxy Dropdown - Only show when upgrading with proxy */}
-            {
-              selectedContract?.isUpgradeable && upgradeWithProxy && (
-                <div className='border-top my-3 pt-3'>
-                  <div data-id="proxy-dropdown-items">
-                    <Dropdown onToggle={toggleProxyDropdown} show={showProxyDropdown}>
-                      <Dropdown.Toggle
-                        id="dropdown-custom-proxy-components"
-                        as={ProxyAddressToggle}
-                        address={proxyAddress}
-                        onChange={handleProxyAddressChange}
-                        className="d-inline-block border border-dark"
-                        style={{ backgroundColor: 'var(--custom-onsurface-layer-2)', width: '100%' }}
-                      />
-
-                      {proxyDeployments.length > 0 && (
-                        <Dropdown.Menu as={ProxyDropdownMenu} className="w-100 form-select" style={{ overflow: 'hidden', backgroundColor: 'var(--custom-onsurface-layer-2)' }}>
-                          {proxyDeployments.map((deployment, index) => (
-                            <Dropdown.Item
-                              key={index}
-                              onClick={() => {
-                                switchProxyAddress(deployment.address)
-                              }}
-                              data-id={`proxyAddress${index}`}
-                              className="d-flex align-items-center px-2"
-                              style={{ backgroundColor: 'var(--custom-onsurface-layer-2)' }}
-                            >
-                              <span style={{ color: themeQuality === 'dark' ? 'white' : 'black' }}>
-                                {proxyAddress === deployment.address ? (
-                                  <span>&#10003; {deployment.contractName + ' ' + shortenProxyAddress(deployment.address)} </span>
-                                ) : (
-                                  <span>{deployment.contractName + ' ' + shortenProxyAddress(deployment.address)}</span>
-                                )}
                               </span>
-                              <span className="ms-2 text-secondary small">
-                                {shortenDate(deployment.date.toString())}
-                              </span>
-                            </Dropdown.Item>
-                          ))}
-                        </Dropdown.Menu>
-                      )}
-                    </Dropdown>
-                  </div>
-                </div>
-              )
-            }
-
-            {/* Proxy Options Parameters - Only show when deploying with proxy */}
-            {
-              selectedContract?.isUpgradeable && selectedContract?.deployOptions && selectedContract.deployOptions.inputs && selectedContract.deployOptions.inputs.length > 0 && deployWithProxy && (
-                <div className='border-top mt-3'>
-                  {
-                    selectedContract.deployOptions.inputs.map((input: any, index: number) => {
-                      const isExpanded = expandedProxyInputs.has(index)
-                      const currentValue = proxyInputValues[index] || ''
-                      return (
-                        <div key={index} className="my-3">
-                          <div className="d-flex gap-2">
-                            <div
-                              className='btn border-0 p-0'
-                              style={{ minWidth: '120px', cursor: 'pointer' }}
-                              onClick={() => {
-                                trackMatomoEvent?.({ category: 'udapp', action: 'proxyConstructorExpand', name: `param${index}`, isClick: true })
-                                toggleProxyInputExpansion(index)
-                              }}
-                            >
-                              <div className='d-flex flex-column align-items-start'>
-                                <span className="small" style={{ color: themeQuality === 'dark' ? 'white' : 'black' }}>{input.name}</span>
-                                <span className="text-secondary font-weight-light" style={{ fontSize: '0.7rem' }}>{input.type}</span>
-                              </div>
-                            </div>
-                            {!isExpanded && (
-                              <div className="position-relative flex-fill input-with-copy-hover">
-                                <input
-                                  data-id={`proxyInput-${index}`}
-                                  type="text"
-                                  className="form-control form-control-sm border-0"
-                                  placeholder={input.type}
-                                  value={currentValue}
-                                  onChange={(e) => handleProxyInputChange(index, e.target.value)}
-                                  style={{ backgroundColor: 'var(--bs-body-bg)', color: themeQuality === 'dark' ? 'white' : 'black', fontSize: '0.7rem', paddingRight: '1.5rem', minHeight: '30px' }}
-                                />
-                                <div className="copy-icon-hover" style={{ position: 'absolute', right: '8px', top: '40%', transform: 'translateY(-50%)', cursor: 'pointer', opacity: 0, transition: 'opacity 0.2s', pointerEvents: 'none' }}>
-                                  <CopyToClipboard tip="Copy" icon="fa-copy" direction="top" getContent={() => currentValue} callback={() => trackMatomoEvent?.({ category: 'udapp', action: 'copyProxyInput', name: `param${index}`, isClick: true })}>
-                                    <span style={{ pointerEvents: 'auto' }}>
-                                      <i className="far fa-copy" style={{ color: 'var(--bs-secondary)', fontSize: '0.75rem' }}></i>
-                                    </span>
-                                  </CopyToClipboard>
-                                </div>
-                              </div>
                             )}
                           </div>
-                          {isExpanded && (
-                            <div className="mt-2 position-relative input-with-copy-hover">
-                              <textarea
+                        </div>
+                      </div>
+                    </Dropdown.Item>
+                  ))}
+                </Dropdown.Menu>
+              )}
+            </Dropdown>
+            <ContractKebabMenu
+              show={isContractMenuOpen && contractKebabIconRef.current !== null}
+              //@ts-ignore
+              target={contractKebabIconRef.current}
+              onHide={() => setIsContractMenuOpen(false)}
+              onCopyABI={getABI}
+              onSaveABI={handleSaveABI}
+              onCopyBytecode={getBytecode}
+              menuIndex="contract"
+            />
+          </div>
+          {/* Proxy Options */}
+          { selectedContract?.isUpgradeable && (
+            <>
+              <div className="d-flex align-items-center justify-content-between">
+                <div className='d-flex align-items-center'>
+                  <span className="fw-light" data-id="contractGUIDeployWithProxyLabel">Deploy with Proxy</span>
+                </div>
+                <div className="toggle-container">
+                  <div
+                    data-id="contractGUIDeployWithProxy"
+                    aria-label={`Deploy with Proxy`}>
+                    <ToggleSwitch
+                      id={`deployWithProxyToggle`}
+                      isOn={deployWithProxy}
+                      onClick={() => {
+                        trackMatomoEvent?.({ category: 'udapp', action: 'deployWithProxyToggle', name: !deployWithProxy ? 'enabled' : 'disabled', isClick: true })
+                        if (!deployWithProxy) {
+                          setUpgradeWithProxy(false)
+                        }
+                        setDeployWithProxy(!deployWithProxy)
+                      }}
+                    />
+                  </div>
+                </div>
+              </div>
+              <div className="d-flex align-items-center justify-content-between pb-2">
+                <div className='d-flex align-items-center'>
+                  <span className="fw-light" data-id="contractGUIUpgradeImplementationLabel">Upgrade with Proxy</span>
+                </div>
+                <div className="toggle-container">
+                  <div
+                    data-id="contractGUIUpgradeImplementation"
+                    aria-label={`Upgrade with Proxy`}>
+                    <ToggleSwitch
+                      id={`upgradeWithProxyToggle`}
+                      isOn={upgradeWithProxy}
+                      onClick={() => {
+                        trackMatomoEvent?.({ category: 'udapp', action: 'upgradeWithProxyToggle', name: !upgradeWithProxy ? 'enabled' : 'disabled', isClick: true })
+                        if (!upgradeWithProxy) {
+                          setDeployWithProxy(false)
+                        }
+                        setUpgradeWithProxy(!upgradeWithProxy)
+                      }}
+                    />
+                  </div>
+                </div>
+              </div>
+            </>
+          )}
+
+          {/* Proxy Dropdown - Only show when upgrading with proxy */}
+          {
+            selectedContract?.isUpgradeable && upgradeWithProxy && (
+              <div className='border-top my-3 pt-3'>
+                <div data-id="proxy-dropdown-items">
+                  <Dropdown onToggle={toggleProxyDropdown} show={showProxyDropdown}>
+                    <Dropdown.Toggle
+                      id="dropdown-custom-proxy-components"
+                      as={ProxyAddressToggle}
+                      address={proxyAddress}
+                      onChange={handleProxyAddressChange}
+                      className="d-inline-block border border-dark"
+                      style={{ backgroundColor: 'var(--custom-onsurface-layer-2)', width: '100%' }}
+                    />
+
+                    {proxyDeployments.length > 0 && (
+                      <Dropdown.Menu as={ProxyDropdownMenu} className="w-100 form-select" style={{ overflow: 'hidden', backgroundColor: 'var(--custom-onsurface-layer-2)' }}>
+                        {proxyDeployments.map((deployment, index) => (
+                          <Dropdown.Item
+                            key={index}
+                            onClick={() => {
+                              switchProxyAddress(deployment.address)
+                            }}
+                            data-id={`proxyAddress${index}`}
+                            className="d-flex align-items-center px-2"
+                            style={{ backgroundColor: 'var(--custom-onsurface-layer-2)' }}
+                          >
+                            <span style={{ color: themeQuality === 'dark' ? 'white' : 'black' }}>
+                              {proxyAddress === deployment.address ? (
+                                <span>&#10003; {deployment.contractName + ' ' + shortenProxyAddress(deployment.address)} </span>
+                              ) : (
+                                <span>{deployment.contractName + ' ' + shortenProxyAddress(deployment.address)}</span>
+                              )}
+                            </span>
+                            <span className="ms-2 text-secondary small">
+                              {shortenDate(deployment.date.toString())}
+                            </span>
+                          </Dropdown.Item>
+                        ))}
+                      </Dropdown.Menu>
+                    )}
+                  </Dropdown>
+                </div>
+              </div>
+            )
+          }
+
+          {/* Proxy Options Parameters - Only show when deploying with proxy */}
+          {
+            selectedContract?.isUpgradeable && selectedContract?.deployOptions && selectedContract.deployOptions.inputs && selectedContract.deployOptions.inputs.length > 0 && deployWithProxy && (
+              <div className='border-top mt-3'>
+                {
+                  selectedContract.deployOptions.inputs.map((input: any, index: number) => {
+                    const isExpanded = expandedProxyInputs.has(index)
+                    const currentValue = proxyInputValues[index] || ''
+                    return (
+                      <div key={index} className="my-3">
+                        <div className="d-flex gap-2">
+                          <div
+                            className='btn border-0 p-0'
+                            style={{ minWidth: '120px', cursor: 'pointer' }}
+                            onClick={() => {
+                              trackMatomoEvent?.({ category: 'udapp', action: 'proxyConstructorExpand', name: `param${index}`, isClick: true })
+                              toggleProxyInputExpansion(index)
+                            }}
+                          >
+                            <div className='d-flex flex-column align-items-start'>
+                              <span className="small" style={{ color: themeQuality === 'dark' ? 'white' : 'black' }}>{input.name}</span>
+                              <span className="text-secondary font-weight-light" style={{ fontSize: '0.7rem' }}>{input.type}</span>
+                            </div>
+                          </div>
+                          {!isExpanded && (
+                            <div className="position-relative flex-fill input-with-copy-hover">
+                              <input
+                                data-id={`proxyInput-${index}`}
+                                type="text"
                                 className="form-control form-control-sm border-0"
                                 placeholder={input.type}
                                 value={currentValue}
                                 onChange={(e) => handleProxyInputChange(index, e.target.value)}
-                                style={{ backgroundColor: 'var(--bs-body-bg)', color: themeQuality === 'dark' ? 'white' : 'black', fontSize: '0.7rem', paddingRight: '1.5rem', minHeight: '80px', resize: 'vertical' }}
+                                style={{ backgroundColor: 'var(--bs-body-bg)', color: themeQuality === 'dark' ? 'white' : 'black', fontSize: '0.7rem', paddingRight: '1.5rem', minHeight: '30px' }}
                               />
-                              <div className="copy-icon-hover" style={{ position: 'absolute', right: '8px', top: '8px', cursor: 'pointer', opacity: 0, transition: 'opacity 0.2s', pointerEvents: 'none' }}>
+                              <div className="copy-icon-hover" style={{ position: 'absolute', right: '8px', top: '40%', transform: 'translateY(-50%)', cursor: 'pointer', opacity: 0, transition: 'opacity 0.2s', pointerEvents: 'none' }}>
                                 <CopyToClipboard tip="Copy" icon="fa-copy" direction="top" getContent={() => currentValue} callback={() => trackMatomoEvent?.({ category: 'udapp', action: 'copyProxyInput', name: `param${index}`, isClick: true })}>
                                   <span style={{ pointerEvents: 'auto' }}>
                                     <i className="far fa-copy" style={{ color: 'var(--bs-secondary)', fontSize: '0.75rem' }}></i>
@@ -641,236 +616,234 @@ function DeployPortraitView() {
                             </div>
                           )}
                         </div>
-                      )
-                    })
-                  }
-                </div>
-              )}
-
-            {/* Verification Settings - Only show for supported networks */}
-            {isNetworkSupported && (
-              <div className='border-top pt-2'>
-                <VerificationSettingsUI
-                  isVerifyChecked={isVerifyChecked}
-                  onVerifyCheckedChange={handleVerifyCheckedChange}
-                />
+                        {isExpanded && (
+                          <div className="mt-2 position-relative input-with-copy-hover">
+                            <textarea
+                              className="form-control form-control-sm border-0"
+                              placeholder={input.type}
+                              value={currentValue}
+                              onChange={(e) => handleProxyInputChange(index, e.target.value)}
+                              style={{ backgroundColor: 'var(--bs-body-bg)', color: themeQuality === 'dark' ? 'white' : 'black', fontSize: '0.7rem', paddingRight: '1.5rem', minHeight: '80px', resize: 'vertical' }}
+                            />
+                            <div className="copy-icon-hover" style={{ position: 'absolute', right: '8px', top: '8px', cursor: 'pointer', opacity: 0, transition: 'opacity 0.2s', pointerEvents: 'none' }}>
+                              <CopyToClipboard tip="Copy" icon="fa-copy" direction="top" getContent={() => currentValue} callback={() => trackMatomoEvent?.({ category: 'udapp', action: 'copyProxyInput', name: `param${index}`, isClick: true })}>
+                                <span style={{ pointerEvents: 'auto' }}>
+                                  <i className="far fa-copy" style={{ color: 'var(--bs-secondary)', fontSize: '0.75rem' }}></i>
+                                </span>
+                              </CopyToClipboard>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    )
+                  })
+                }
               </div>
             )}
 
-            {/* Constructor Parameters */}
-            {
-              constructorInterface?.type === 'constructor' && constructorInterface?.inputs.length > 0 && (
-                <div className='border-top pb-3'>
-                  {
-                    constructorInterface?.inputs.map((input: any, index: any) => {
-                      const isExpanded = expandedInputs.has(index)
-                      const currentValue = inputValues[index] || ''
-                      return (
-                        <div key={index} className="my-3">
-                          <div className="d-flex gap-2">
-                            <div
-                              className='btn border-0 p-0'
-                              style={{ minWidth: '120px', cursor: 'pointer' }}
-                              onClick={() => {
-                                trackMatomoEvent?.({ category: 'udapp', action: 'constructorExpand', name: `param${index}`, isClick: true })
-                                toggleInputExpansion(index)
-                              }}
-                            >
-                              <div className='d-flex flex-column align-items-start'>
-                                <span className="small" style={{ color: themeQuality === 'dark' ? 'white' : 'black' }}>{input.name}</span>
-                                <span className="text-secondary font-weight-light" style={{ fontSize: '0.7rem' }}>{input.type}</span>
-                              </div>
+          {/* Verification Settings - Only show for supported networks */}
+          {isNetworkSupported && (
+            <div className='border-top pt-2'>
+              <VerificationSettingsUI
+                isVerifyChecked={isVerifyChecked}
+                onVerifyCheckedChange={handleVerifyCheckedChange}
+              />
+            </div>
+          )}
+
+          {/* Constructor Parameters */}
+          {
+            constructorInterface?.type === 'constructor' && constructorInterface?.inputs.length > 0 && (
+              <div className='border-top pb-3'>
+                {
+                  constructorInterface?.inputs.map((input: any, index: any) => {
+                    const isExpanded = expandedInputs.has(index)
+                    const currentValue = inputValues[index] || ''
+                    return (
+                      <div key={index} className="my-3">
+                        <div className="d-flex gap-2">
+                          <div
+                            className='btn border-0 p-0'
+                            style={{ minWidth: '120px', cursor: 'pointer' }}
+                            onClick={() => {
+                              trackMatomoEvent?.({ category: 'udapp', action: 'constructorExpand', name: `param${index}`, isClick: true })
+                              toggleInputExpansion(index)
+                            }}
+                          >
+                            <div className='d-flex flex-column align-items-start'>
+                              <span className="small" style={{ color: themeQuality === 'dark' ? 'white' : 'black' }}>{input.name}</span>
+                              <span className="text-secondary font-weight-light" style={{ fontSize: '0.7rem' }}>{input.type}</span>
                             </div>
-                            {!isExpanded && (
-                              <div className="position-relative flex-fill input-with-copy-hover">
-                                <input
-                                  type="text"
-                                  className="form-control form-control-sm border-0"
-                                  placeholder={input.type}
-                                  value={currentValue}
-                                  onChange={(e) => handleInputChange(index, e.target.value)}
-                                  style={{ backgroundColor: 'var(--bs-body-bg)', color: themeQuality === 'dark' ? 'white' : 'black', fontSize: '0.7rem', paddingRight: '1.5rem', minHeight: '30px' }}
-                                  data-id={`constructorInput${index}`}
-                                />
-                                <div className="copy-icon-hover" style={{ position: 'absolute', right: '8px', top: '40%', transform: 'translateY(-50%)', cursor: 'pointer', opacity: 0, transition: 'opacity 0.2s', pointerEvents: 'none' }}>
-                                  <CopyToClipboard tip="Copy" icon="fa-copy" direction="top" getContent={() => currentValue} callback={() => trackMatomoEvent?.({ category: 'udapp', action: 'copyConstructorInput', name: `param${index}`, isClick: true })}>
-                                    <span style={{ pointerEvents: 'auto' }}>
-                                      <i className="far fa-copy" style={{ color: 'var(--bs-secondary)', fontSize: '0.75rem' }}></i>
-                                    </span>
-                                  </CopyToClipboard>
-                                </div>
-                              </div>
-                            )}
                           </div>
-                          {isExpanded && (
-                            <div className="mt-2 position-relative input-with-copy-hover">
-                              <textarea
+                          {!isExpanded && (
+                            <div className="position-relative flex-fill input-with-copy-hover">
+                              <input
+                                type="text"
                                 className="form-control form-control-sm border-0"
                                 placeholder={input.type}
                                 value={currentValue}
                                 onChange={(e) => handleInputChange(index, e.target.value)}
-                                style={{ backgroundColor: 'var(--bs-body-bg)', color: themeQuality === 'dark' ? 'white' : 'black', fontSize: '0.7rem', paddingRight: '1.5rem', minHeight: '80px', resize: 'vertical' }}
+                                style={{ backgroundColor: 'var(--bs-body-bg)', color: themeQuality === 'dark' ? 'white' : 'black', fontSize: '0.7rem', paddingRight: '1.5rem', minHeight: '30px' }}
                                 data-id={`constructorInput${index}`}
                               />
-                              <div className="copy-icon-hover" style={{ position: 'absolute', right: '8px', top: '8px', cursor: 'pointer', opacity: 0, transition: 'opacity 0.2s', pointerEvents: 'none' }}>
+                              <div className="copy-icon-hover" style={{ position: 'absolute', right: '8px', top: '40%', transform: 'translateY(-50%)', cursor: 'pointer', opacity: 0, transition: 'opacity 0.2s', pointerEvents: 'none' }}>
                                 <CopyToClipboard tip="Copy" icon="fa-copy" direction="top" getContent={() => currentValue} callback={() => trackMatomoEvent?.({ category: 'udapp', action: 'copyConstructorInput', name: `param${index}`, isClick: true })}>
                                   <span style={{ pointerEvents: 'auto' }}>
                                     <i className="far fa-copy" style={{ color: 'var(--bs-secondary)', fontSize: '0.75rem' }}></i>
                                   </span>
                                 </CopyToClipboard>
                               </div>
-                              <input
-                                type="hidden"
-                                value={currentValue}
-                                onChange={(e) => handleInputChange(index, e.target.value)}
-                              />
                             </div>
                           )}
                         </div>
-                      )
-                    })
-                  }
-                  {/* Call Data and Parameters */}
-                  <div className="d-flex align-items-center justify-content-between gap-2">
-                    <CopyToClipboard tip="Copy Call Data" icon="fa-clipboard" direction="bottom" getContent={getEncodedCall} callback={() => trackMatomoEvent?.({ category: 'udapp', action: 'copyCallData', name: 'clicked', isClick: true })}>
-                      <button className="btn btn-sm flex-fill border-0" style={{ minWidth: '120px', backgroundColor: 'var(--custom-onsurface-layer-3)' }}>
-                        <span className="text-secondary">Call data</span>
-                        <i className="far fa-copy ms-1 text-secondary"></i>
-                      </button>
-                    </CopyToClipboard>
-                    <CopyToClipboard tip="Copy Parameters" icon="fa-clipboard" direction="bottom" getContent={getEncodedParams} callback={() => trackMatomoEvent?.({ category: 'udapp', action: 'copyParameters', name: 'clicked', isClick: true })}>
-                      <button className="btn btn-sm flex-fill border-0" style={{ minWidth: '120px', backgroundColor: 'var(--custom-onsurface-layer-3)' }}>
-                        <span className="text-secondary">Parameters</span>
-                        <i className="far fa-copy ms-1 text-secondary"></i>
-                      </button>
-                    </CopyToClipboard>
-                  </div>
-                </div>
-              )}
-
-            {/* Value and Gas Limit */}
-            <div className='border-top pt-3'>
-              {/* Value */}
-              <div className="d-flex align-items-center gap-3 mb-3">
-                <label className="mb-2" style={{ fontSize: '0.9rem', minWidth: '75px', color: themeQuality === 'dark' ? 'white' : 'black' }}>
-                  <FormattedMessage id="udapp.value" defaultMessage="Value" />
-                </label>
-                <div className="position-relative flex-fill">
-                  <input
-                    id='value'
-                    data-id='udapp_value'
-                    type="number"
-                    min="0"
-                    className="form-control form-control-sm border-0"
-                    placeholder="0"
-                    value={widgetState.value}
-                    onChange={(e) => {
-                      trackMatomoEvent?.({ category: 'udapp', action: 'valueInput', name: e.target.value || '0' })
-                      const val = e.target.value === '0' ? '' : e.target.value
-                      // Only allow empty string or valid numeric strings
-                      if (val === '' || /^\d+$/.test(val)) {
-                        dispatch({ type: 'SET_VALUE', payload: val })
-                      }
-                    }}
-                    style={{ backgroundColor: 'var(--bs-body-bg)', color: themeQuality === 'dark' ? 'white' : 'black', flex: 1, paddingRight: '4rem' }}
-                  />
-                  <Dropdown style={{ position: 'absolute', right: '0.5rem', top: '50%', transform: 'translateY(-50%)', zIndex: 2 }}>
-                    <Dropdown.Toggle
-                      as={CustomToggle}
-                      className="btn-sm border-0 p-0 ps-1 text-secondary rounded"
-                      style={{ backgroundColor: 'var(--custom-onsurface-layer-2)', color: themeQuality === 'dark' ? 'white' : 'black' }}
-                      icon="fas fa-caret-down ms-2"
-                      useDefaultIcon={false}
-                    >
-                      {widgetState.valueUnit}
-                    </Dropdown.Toggle>
-                    <Dropdown.Menu style={{ backgroundColor: 'var(--custom-onsurface-layer-2)', '--theme-text-color': themeQuality === 'dark' ? 'white' : 'black', '--bs-dropdown-min-width' : '4rem', padding: 0 } as React.CSSProperties}>
-                      <Dropdown.Item className="unit-dropdown-item-hover" onClick={() => {
-                        trackMatomoEvent?.({ category: 'udapp', action: 'valueUnitChange', name: 'wei', isClick: true })
-                        dispatch({ type: 'SET_VALUE_UNIT', payload: 'wei' })
-                      }} style={{ color: themeQuality === 'dark' ? 'white' : 'black' }}>wei</Dropdown.Item>
-                      <Dropdown.Item className="unit-dropdown-item-hover" onClick={() => {
-                        trackMatomoEvent?.({ category: 'udapp', action: 'valueUnitChange', name: 'gwei', isClick: true })
-                        dispatch({ type: 'SET_VALUE_UNIT', payload: 'gwei' })
-                      }} style={{ color: themeQuality === 'dark' ? 'white' : 'black' }}>gwei</Dropdown.Item>
-                      <Dropdown.Item className="unit-dropdown-item-hover" onClick={() => {
-                        trackMatomoEvent?.({ category: 'udapp', action: 'valueUnitChange', name: 'finney', isClick: true })
-                        dispatch({ type: 'SET_VALUE_UNIT', payload: 'finney' })
-                      }} style={{ color: themeQuality === 'dark' ? 'white' : 'black' }}>finney</Dropdown.Item>
-                      <Dropdown.Item className="unit-dropdown-item-hover" onClick={() => {
-                        trackMatomoEvent?.({ category: 'udapp', action: 'valueUnitChange', name: 'ether', isClick: true })
-                        dispatch({ type: 'SET_VALUE_UNIT', payload: 'ether' })
-                      }} style={{ color: themeQuality === 'dark' ? 'white' : 'black' }}>ether</Dropdown.Item>
-                    </Dropdown.Menu>
-                  </Dropdown>
+                        {isExpanded && (
+                          <div className="mt-2 position-relative input-with-copy-hover">
+                            <textarea
+                              className="form-control form-control-sm border-0"
+                              placeholder={input.type}
+                              value={currentValue}
+                              onChange={(e) => handleInputChange(index, e.target.value)}
+                              style={{ backgroundColor: 'var(--bs-body-bg)', color: themeQuality === 'dark' ? 'white' : 'black', fontSize: '0.7rem', paddingRight: '1.5rem', minHeight: '80px', resize: 'vertical' }}
+                              data-id={`constructorInput${index}`}
+                            />
+                            <div className="copy-icon-hover" style={{ position: 'absolute', right: '8px', top: '8px', cursor: 'pointer', opacity: 0, transition: 'opacity 0.2s', pointerEvents: 'none' }}>
+                              <CopyToClipboard tip="Copy" icon="fa-copy" direction="top" getContent={() => currentValue} callback={() => trackMatomoEvent?.({ category: 'udapp', action: 'copyConstructorInput', name: `param${index}`, isClick: true })}>
+                                <span style={{ pointerEvents: 'auto' }}>
+                                  <i className="far fa-copy" style={{ color: 'var(--bs-secondary)', fontSize: '0.75rem' }}></i>
+                                </span>
+                              </CopyToClipboard>
+                            </div>
+                            <input
+                              type="hidden"
+                              value={currentValue}
+                              onChange={(e) => handleInputChange(index, e.target.value)}
+                            />
+                          </div>
+                        )}
+                      </div>
+                    )
+                  })
+                }
+                {/* Call Data and Parameters */}
+                <div className="d-flex align-items-center justify-content-between gap-2">
+                  <CopyToClipboard tip="Copy Call Data" icon="fa-clipboard" direction="bottom" getContent={getEncodedCall} callback={() => trackMatomoEvent?.({ category: 'udapp', action: 'copyCallData', name: 'clicked', isClick: true })}>
+                    <button className="btn btn-sm flex-fill border-0" style={{ minWidth: '120px', backgroundColor: 'var(--custom-onsurface-layer-3)' }}>
+                      <span className="text-secondary font-sm">Call data</span>
+                      <i className="far fa-copy ms-2 text-secondary font-sm"></i>
+                    </button>
+                  </CopyToClipboard>
+                  <CopyToClipboard tip="Copy Parameters" icon="fa-clipboard" direction="bottom" getContent={getEncodedParams} callback={() => trackMatomoEvent?.({ category: 'udapp', action: 'copyParameters', name: 'clicked', isClick: true })}>
+                    <button className="btn btn-sm flex-fill border-0" style={{ minWidth: '120px', backgroundColor: 'var(--custom-onsurface-layer-3)' }}>
+                      <span className="text-secondary font-sm">Parameters</span>
+                      <i className="far fa-copy ms-2 text-secondary font-sm"></i>
+                    </button>
+                  </CopyToClipboard>
                 </div>
               </div>
+            )}
 
-              {/* Gas Limit */}
-              <div className="d-flex align-items-center gap-3 mb-3">
-                <label className="mb-2" style={{ fontSize: '0.9rem', minWidth: '75px', color: themeQuality === 'dark' ? 'white' : 'black' }}>
-                  <FormattedMessage id="udapp.gasLimit" defaultMessage="Gas limit" />
-                </label>
-                <div className="position-relative flex-fill">
+          {/* Value and Gas Limit */}
+          <div className='border-top pt-3'>
+            {/* Value */}
+            <div className="d-flex align-items-center gap-3 mb-3">
+              <label className="mb-2 font-sm" style={{ minWidth: '75px', color: themeQuality === 'dark' ? 'white' : 'black' }}>
+                <FormattedMessage id="udapp.value" defaultMessage="Value" />
+              </label>
+              <div className="position-relative flex-fill">
+                <input
+                  id='value'
+                  data-id='udapp_value'
+                  type="number"
+                  min="0"
+                  className="form-control form-control-sm border-0"
+                  placeholder="0"
+                  value={widgetState.value}
+                  onChange={(e) => {
+                    trackMatomoEvent?.({ category: 'udapp', action: 'valueInput', name: e.target.value || '0' })
+                    const val = e.target.value === '0' ? '' : e.target.value
+                    // Only allow empty string or valid numeric strings
+                    if (val === '' || /^\d+$/.test(val)) {
+                      dispatch({ type: 'SET_VALUE', payload: val })
+                    }
+                  }}
+                  style={{ backgroundColor: 'var(--bs-body-bg)', color: themeQuality === 'dark' ? 'white' : 'black', flex: 1, paddingRight: '4rem' }}
+                />
+                <Dropdown style={{ position: 'absolute', right: '0.5rem', top: '50%', transform: 'translateY(-50%)', zIndex: 2 }}>
+                  <Dropdown.Toggle
+                    as={CustomToggle}
+                    className="btn-sm border-0 p-0 ps-1 text-secondary rounded"
+                    style={{ backgroundColor: 'var(--custom-onsurface-layer-2)', color: themeQuality === 'dark' ? 'white' : 'black' }}
+                    icon="fas fa-caret-down ms-2"
+                    useDefaultIcon={false}
+                  >
+                    {widgetState.valueUnit}
+                  </Dropdown.Toggle>
+                  <Dropdown.Menu style={{ backgroundColor: 'var(--custom-onsurface-layer-2)', '--theme-text-color': themeQuality === 'dark' ? 'white' : 'black', '--bs-dropdown-min-width' : '4rem', padding: 0 } as React.CSSProperties}>
+                    <Dropdown.Item className="unit-dropdown-item-hover" onClick={() => {
+                      trackMatomoEvent?.({ category: 'udapp', action: 'valueUnitChange', name: 'wei', isClick: true })
+                      dispatch({ type: 'SET_VALUE_UNIT', payload: 'wei' })
+                    }} style={{ color: themeQuality === 'dark' ? 'white' : 'black' }}>wei</Dropdown.Item>
+                    <Dropdown.Item className="unit-dropdown-item-hover" onClick={() => {
+                      trackMatomoEvent?.({ category: 'udapp', action: 'valueUnitChange', name: 'gwei', isClick: true })
+                      dispatch({ type: 'SET_VALUE_UNIT', payload: 'gwei' })
+                    }} style={{ color: themeQuality === 'dark' ? 'white' : 'black' }}>gwei</Dropdown.Item>
+                    <Dropdown.Item className="unit-dropdown-item-hover" onClick={() => {
+                      trackMatomoEvent?.({ category: 'udapp', action: 'valueUnitChange', name: 'finney', isClick: true })
+                      dispatch({ type: 'SET_VALUE_UNIT', payload: 'finney' })
+                    }} style={{ color: themeQuality === 'dark' ? 'white' : 'black' }}>finney</Dropdown.Item>
+                    <Dropdown.Item className="unit-dropdown-item-hover" onClick={() => {
+                      trackMatomoEvent?.({ category: 'udapp', action: 'valueUnitChange', name: 'ether', isClick: true })
+                      dispatch({ type: 'SET_VALUE_UNIT', payload: 'ether' })
+                    }} style={{ color: themeQuality === 'dark' ? 'white' : 'black' }}>ether</Dropdown.Item>
+                  </Dropdown.Menu>
+                </Dropdown>
+              </div>
+            </div>
+
+            {/* Gas Limit */}
+            <div className="d-flex align-items-center gap-3 mb-3">
+              <label className="mb-2 font-sm" style={{ minWidth: '75px', color: themeQuality === 'dark' ? 'white' : 'black' }}>
+                <FormattedMessage id="udapp.gasLimit" defaultMessage="Gas limit" />
+              </label>
+              <div className="position-relative flex-fill">
+                <CustomTooltip
+                  placement="top"
+                  tooltipId="gasLimitBadgeTooltip"
+                  tooltipText={widgetState.gasLimit === 0 ? intl.formatMessage({ id: 'udapp.gasLimitBadgeAutoTooltip', defaultMessage: 'Click to set custom gas limit' }) : intl.formatMessage({ id: 'udapp.gasLimitBadgeCustomTooltip', defaultMessage: 'Click to use auto estimated gas' })}
+                >
+                  <span
+                    className="p-1 rounded"
+                    style={{
+                      position: 'absolute',
+                      left: '0.5rem',
+                      top: '50%',
+                      transform: 'translateY(-50%)',
+                      backgroundColor: 'var(--custom-onsurface-layer-2)',
+                      color: 'var(--bs-primary)',
+                      cursor: 'pointer',
+                      zIndex: 1
+                    }}
+                    onClick={() => {
+                      const newMode = widgetState.gasLimit === 0 ? 'custom' : 'auto'
+                      trackMatomoEvent?.({ category: 'udapp', action: 'gasLimitToggle', name: newMode, isClick: true })
+                      if (widgetState.gasLimit === 0) {
+                        // Switch from auto to custom - set a default value
+                        dispatch({ type: 'SET_GAS_LIMIT', payload: 3000000 })
+                      } else {
+                        // Switch from custom to auto - set to 0
+                        dispatch({ type: 'SET_GAS_LIMIT', payload: 0 })
+                      }
+                    }}
+                  >
+                    {widgetState.gasLimit === 0 ? 'auto' : 'custom'}
+                  </span>
+                </CustomTooltip>
+                {widgetState.gasLimit === 0 ? (
                   <CustomTooltip
                     placement="top"
-                    tooltipId="gasLimitBadgeTooltip"
-                    tooltipText={widgetState.gasLimit === 0 ? intl.formatMessage({ id: 'udapp.gasLimitBadgeAutoTooltip', defaultMessage: 'Click to set custom gas limit' }) : intl.formatMessage({ id: 'udapp.gasLimitBadgeCustomTooltip', defaultMessage: 'Click to use auto estimated gas' })}
+                    tooltipId="gasLimitInputTooltip"
+                    tooltipText={intl.formatMessage({ id: 'udapp.gasLimitAutoTooltip', defaultMessage: 'Currently using auto estimated gas. Click on auto to set custom gas limit' })}
                   >
-                    <span
-                      className="p-1 rounded"
-                      style={{
-                        position: 'absolute',
-                        left: '0.5rem',
-                        top: '50%',
-                        transform: 'translateY(-50%)',
-                        backgroundColor: 'var(--custom-onsurface-layer-2)',
-                        color: 'var(--bs-primary)',
-                        cursor: 'pointer',
-                        zIndex: 1
-                      }}
-                      onClick={() => {
-                        const newMode = widgetState.gasLimit === 0 ? 'custom' : 'auto'
-                        trackMatomoEvent?.({ category: 'udapp', action: 'gasLimitToggle', name: newMode, isClick: true })
-                        if (widgetState.gasLimit === 0) {
-                          // Switch from auto to custom - set a default value
-                          dispatch({ type: 'SET_GAS_LIMIT', payload: 3000000 })
-                        } else {
-                          // Switch from custom to auto - set to 0
-                          dispatch({ type: 'SET_GAS_LIMIT', payload: 0 })
-                        }
-                      }}
-                    >
-                      {widgetState.gasLimit === 0 ? 'auto' : 'custom'}
-                    </span>
-                  </CustomTooltip>
-                  {widgetState.gasLimit === 0 ? (
-                    <CustomTooltip
-                      placement="top"
-                      tooltipId="gasLimitInputTooltip"
-                      tooltipText={intl.formatMessage({ id: 'udapp.gasLimitAutoTooltip', defaultMessage: 'Currently using auto estimated gas. Click on auto to set custom gas limit' })}
-                    >
-                      <input
-                        type="number"
-                        className="form-control form-control-sm border-0"
-                        placeholder="0000000"
-                        value={widgetState.gasLimit}
-                        onChange={(e) => {
-                          trackMatomoEvent?.({ category: 'udapp', action: 'gasLimitInput', name: e.target.value })
-                          dispatch({ type: 'SET_GAS_LIMIT', payload: parseInt(e.target.value) })
-                        }}
-                        disabled={widgetState.gasLimit === 0}
-                        style={{
-                          backgroundColor: 'var(--bs-body-bg)',
-                          color: themeQuality === 'dark' ? 'white' : 'black',
-                          flex: 1,
-                          paddingLeft: '4rem',
-                          opacity: widgetState.gasLimit === 0 ? 0.6 : 1,
-                          cursor: widgetState.gasLimit === 0 ? 'not-allowed' : 'text'
-                        }}
-                      />
-                    </CustomTooltip>
-                  ) : (
                     <input
                       type="number"
                       className="form-control form-control-sm border-0"
@@ -890,25 +863,45 @@ function DeployPortraitView() {
                         cursor: widgetState.gasLimit === 0 ? 'not-allowed' : 'text'
                       }}
                     />
-                  )}
-                </div>
-              </div>
-
-              {/* Deploy Button */}
-              <div>
-                <button
-                  onClick={handleDeployClick}
-                  data-id="deployButton"
-                  className="btn btn-primary w-100 py-2"
-                  style={{ fontSize: '1rem', fontWeight: '500', cursor: selectedContract?.contractData === null ? 'not-allowed' : 'pointer' }}
-                  disabled={selectedContract ? selectedContract?.contractData === null : true}
-                >
-                  <FormattedMessage id="udapp.deploy" defaultMessage="Deploy" />
-                </button>
+                  </CustomTooltip>
+                ) : (
+                  <input
+                    type="number"
+                    className="form-control form-control-sm border-0"
+                    placeholder="0000000"
+                    value={widgetState.gasLimit}
+                    onChange={(e) => {
+                      trackMatomoEvent?.({ category: 'udapp', action: 'gasLimitInput', name: e.target.value })
+                      dispatch({ type: 'SET_GAS_LIMIT', payload: parseInt(e.target.value) })
+                    }}
+                    disabled={widgetState.gasLimit === 0}
+                    style={{
+                      backgroundColor: 'var(--bs-body-bg)',
+                      color: themeQuality === 'dark' ? 'white' : 'black',
+                      flex: 1,
+                      paddingLeft: '4rem',
+                      opacity: widgetState.gasLimit === 0 ? 0.6 : 1,
+                      cursor: widgetState.gasLimit === 0 ? 'not-allowed' : 'text'
+                    }}
+                  />
+                )}
               </div>
             </div>
+
+            {/* Deploy Button */}
+            <div>
+              <button
+                onClick={handleDeployClick}
+                data-id="deployButton"
+                className="btn btn-primary w-100 py-2"
+                style={{ fontSize: '.875rem', fontWeight: '500', cursor: selectedContract?.contractData === null ? 'not-allowed' : 'pointer' }}
+                disabled={selectedContract ? selectedContract?.contractData === null : true}
+              >
+                <FormattedMessage id="udapp.deploy" defaultMessage="Deploy" />
+              </button>
+            </div>
           </div>
-        )}
+        </div>
       </div>
     </>
   )

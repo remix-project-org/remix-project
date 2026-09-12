@@ -1,9 +1,9 @@
 /* eslint-disable @nrwl/nx/enforce-module-boundaries */
-import React, { useState, useEffect, useCallback, useRef, useImperativeHandle, MutableRefObject, useContext } from 'react'
+import React, { useState, useEffect, useCallback, useMemo, useRef, useImperativeHandle, MutableRefObject, useContext } from 'react'
 //@ts-ignore
 import '../css/remix-ai-assistant.css'
 
-import { ChatCommandParser, GenerationParams, ChatHistory, HandleStreamResponse, AIModel, ANONYMOUS_FALLBACK_MODELS, remixAILogger, modelKey, parseModelKey, findModel, applyByokKeyPolicy, BYOK_API_KEY_SETTINGS, modelTransportProvider, onApiKeysChange, type ModelTransport } from '@remix/remix-ai-core'
+import { ChatCommandParser, GenerationParams, ChatHistory, HandleStreamResponse, AIModel, ANONYMOUS_FALLBACK_MODELS, remixAILogger, modelKey, parseModelKey, findModel, applyByokKeyPolicy, BYOK_API_KEY_SETTINGS, modelTransportProvider, onApiKeysChange, isAutoModelId, type ModelTransport } from '@remix/remix-ai-core'
 import { ToolApprovalRequest, ApiKeyErrorEvent } from '@remix/remix-ai-core'
 import { HandleOpenAICompatibleResponse, HandleOllamaResponse } from '@remix/remix-ai-core'
 //@ts-ignore
@@ -65,6 +65,16 @@ function getSystemThemeFallback(): string {
   return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
 }
 
+/** `QuickDapp_Specialist`, however the harness spells it. */
+const isQuickDappAgentName = (name?: string): boolean =>
+  !!name && name.toLowerCase().replace(/[_\s-]/g, '').includes('quickdapp')
+
+/** Anthropic, direct or routed through OpenRouter (`anthropic/...`). */
+const isAnthropicModelId = (id: string): boolean => {
+  const normalized = id.toLowerCase()
+  return normalized.startsWith('anthropic/') || normalized.includes('claude')
+}
+
 // Shown in the chat when the Ollama provider is selected but unreachable.
 const OLLAMA_NOT_AVAILABLE_MESSAGE = [
   '**Ollama is not available.**',
@@ -96,6 +106,13 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
     firstPromptStateRef.current = { count: messages.length, conversationId: props.currentConversationId }
   }, [messages, props.currentConversationId])
   const [isThinking, setIsThinking] = useState(false)
+  const [runModel, setRunModel] = useState<string | null>(null)
+  // Read from event handlers, which are memoized without `runModel`.
+  const runModelRef = useRef<string | null>(null)
+  // One QuickDapp model hint per request.
+  const quickDappHintShownRef = useRef(false)
+  // QuickDapp is running this request — the model often lands after it starts.
+  const quickDappRunningRef = useRef(false)
   const [showModelSelector, setShowModelSelector] = useState(false)
   // OpenRouter is the router every hosted model arrives on, so it is the only
   // sensible value before a selection resolves from /permissions.
@@ -329,6 +346,9 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
 
     // 3. Stop the spinner so the new conversation starts clean
     setIsStreaming(false)
+    // The model that answered in the previous conversation says nothing about
+    // this one.
+    setRunModel(null)
     streamingAssistantIdRef.current = null
     if (clearToolTimeoutRef.current) {
       clearTimeout(clearToolTimeoutRef.current)
@@ -342,6 +362,21 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
       ...prev,
       { id: crypto.randomUUID(), role: 'assistant', content, timestamp: Date.now(), sentiment: 'none' }
     ])
+  }, [])
+
+  const hintQuickDappModel = useCallback(() => {
+    const model = runModelRef.current
+    if (!quickDappRunningRef.current || quickDappHintShownRef.current) return
+    if (!model || isAnthropicModelId(model)) return
+
+    quickDappHintShownRef.current = true
+    setChatNotice({
+      severity: 'info',
+      code: 'QUICKDAPP_MODEL_HINT',
+      title: 'Better on Anthropic',
+      message: `Auto picked ${model}. QuickDapp works best with a Sonnet-class model.`,
+      actionable: false
+    })
   }, [])
 
   const handleOllamaModelSelection = useCallback(async (modelName: string) => {
@@ -462,6 +497,15 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
   }, [props.plugin, availableModels])
 
   useEffect(() => { selectedModelRef.current = selectedModel }, [selectedModel])
+  useEffect(() => { setRunModel(null) }, [selectedModel?.id, selectedModel?.provider])
+
+  useEffect(() => { runModelRef.current = runModel }, [runModel])
+
+  const runModelLabel = useMemo(() => {
+    if (!runModel) return ''
+    const known = availableModels.find(m => m.id === runModel)
+    return known?.displayName || runModel
+  }, [runModel, availableModels])
 
   // Which BYOK keys are currently stored. Deleting a key in Settings clears the
   // setting, so the provider it belonged to must stop being selectable — either
@@ -763,6 +807,7 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
       if (isStoppedRef.current) return
 
       remixAILogger.log('[RemixAI Assistant] Tool call event:', data)
+
       const assistantId = streamingAssistantIdRef.current
       if (!assistantId) return
 
@@ -805,6 +850,11 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
     const handleSubagentStart = (data: { id: string; name: string; task: string; status: string; threadId?: string }) => {
       if (isStoppedRef.current) return
       remixAILogger.log('[RemixAI Assistant] Subagent started:', data)
+
+      if (isQuickDappAgentName(data.name)) {
+        quickDappRunningRef.current = true
+        hintQuickDappModel()
+      }
       if (streamingAssistantIdRef.current) {
         setMessages(prev =>
           prev.map(m =>
@@ -854,8 +904,18 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
       }
     }
 
+    const handleModelUsed = (data: { model: string; threadId?: string }) => {
+      if (isStoppedRef.current) return
+      if (!isAutoModelId(selectedModelRef.current?.id)) return
+      setRunModel(data?.model || null)
+      // Track it on the ref from the event, not the render, so a QuickDapp run
+      // that started first sees the model immediately.
+      runModelRef.current = data?.model || null
+      hintQuickDappModel()
+    }
+
     // Handle thinking events from Ollama (DeepAgent path)
-    const handleThinking = (data: { isThinking: boolean; threadId?: string }) => {
+    const handleThinking = (data: { isThinking: boolean; content?: string; threadId?: string }) => {
       if (isStoppedRef.current) return
       setIsThinking(data.isThinking)
     }
@@ -1012,6 +1072,7 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
     props.plugin.on('remixAI', 'onStreamResult', handleStreamChunk)
     props.plugin.on('remixAI', 'onStreamComplete', handleStreamComplete)
     props.plugin.on('remixAI', 'onThinking', handleThinking)
+    props.plugin.on('remixAI', 'onModelUsed', handleModelUsed)
     props.plugin.on('remixAI', 'onToolCall', handleToolCall)
     props.plugin.on('remixAI', 'onSubagentStart', handleSubagentStart)
     props.plugin.on('remixAI', 'onSubagentComplete', handleSubagentComplete)
@@ -1194,6 +1255,7 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
       props.plugin.off('remixAI', 'onStreamResult')
       props.plugin.off('remixAI', 'onStreamComplete')
       props.plugin.off('remixAI', 'onThinking')
+      props.plugin.off('remixAI', 'onModelUsed')
       props.plugin.off('remixAI', 'onToolCall')
       props.plugin.off('remixAI', 'onSubagentStart')
       props.plugin.off('remixAI', 'onSubagentComplete')
@@ -1727,6 +1789,10 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
       // intentionally memoized without `messages`, so its closure value is stale.
       trackPromptActivity(metadata, trimmed.length, firstPromptStateRef.current.count)
 
+      // The previous run's model no longer describes what is about to answer.
+      setRunModel(null)
+      quickDappHintShownRef.current = false
+      quickDappRunningRef.current = false
       // Reset the per-turn "stream consumed" flag — it gates the
       // post-await duplicate-bubble guard further down.
       streamConsumedThisTurnRef.current = false
@@ -2402,6 +2468,7 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
       },
       clearChat: () => {
         setMessages([])
+        setRunModel(null)
       },
       getHistory: () => messages
     }),
@@ -2835,11 +2902,25 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
           />
         )}
         {chatNotice && (
-          <ChatNoticeStrip
-            notice={chatNotice}
-            onAction={(action) => { void handleChatNoticeAction(action) }}
-            onDismiss={dismissChatNotice}
-          />
+          <div className="rai-panel-strip">
+            <ChatNoticeStrip
+              notice={chatNotice}
+              onAction={(action) => { void handleChatNoticeAction(action) }}
+              onDismiss={dismissChatNotice}
+            />
+          </div>
+        )}
+        {runModel && (
+          <div className="rai-panel-strip">
+            <div
+              className="rai-run-model"
+              data-id="remix-ai-run-model"
+              title={`Auto selected ${runModel} for this answer`}
+            >
+              <i className="fa-solid fa-wand-magic-sparkles rai-run-model__icon"></i>
+              <span className="rai-run-model__text">Using {runModelLabel}</span>
+            </div>
+          </div>
         )}
         {
           messages.length > 0 ? (

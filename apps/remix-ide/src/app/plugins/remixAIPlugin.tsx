@@ -47,7 +47,7 @@ const profile = {
     'onTaskStart', 'onTaskComplete', 'onTodoUpdate',
     'onTodoError', 'onAgentError', 'onApiError',
     'onToolApprovalRequired', 'ollamaModelDiscovered',
-    'onInactivityTimeout',
+    'onInactivityTimeout', 'onModelUsed',
     'requestCancelled'
   ],
   icon: 'assets/img/remix-logo-blue.png',

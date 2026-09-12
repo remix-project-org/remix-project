@@ -12,6 +12,7 @@ import type {
   AgentErrorData,
   TodoErrorData,
   ApiErrorData,
+  ModelUsedData,
   ToolApprovalRequest
 } from './types'
 
@@ -35,6 +36,7 @@ export class DeepAgentEventBridge {
     'onApiError',
     'onToolApprovalRequired',
     'onTokenUsage',
+    'onModelUsed',
     'onInactivityTimeout'
   ] as const
 
@@ -118,6 +120,11 @@ export class DeepAgentEventBridge {
     eventEmitter.on('onInactivityTimeout', (data: { message: string; timestamp: number; threadId?: string }) => {
       remixAILogger.warn('[Bridge] onInactivityTimeout', data?.message)
       plugin.emit('onInactivityTimeout', data)
+    })
+
+    // Which model actually served the run (matters when `auto` is selected).
+    eventEmitter.on('onModelUsed', (data: ModelUsedData) => {
+      plugin.emit('onModelUsed', data)
     })
 
     // Human-in-the-loop: relay approval requests to UI

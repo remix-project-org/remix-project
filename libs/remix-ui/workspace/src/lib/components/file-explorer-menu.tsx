@@ -63,7 +63,7 @@ export const FileExplorerMenu = (props: FileExplorerMenuProps) => {
     {
       action: 'createNewWorkspace',
       title: 'New workspace',
-      icon: 'far fa-folder',
+      icon: 'far fa-folder-plus',
       placement: 'top',
       platforms:[appPlatformTypes.web, appPlatformTypes.desktop]
     },
@@ -77,7 +77,7 @@ export const FileExplorerMenu = (props: FileExplorerMenuProps) => {
     {
       action: 'importFromIpfs',
       title: 'Import files from IPFS',
-      icon: 'fa-regular fa-cube',
+      icon: 'fa-solid fa-cube',
       placement: 'top',
       platforms: [appPlatformTypes.web, appPlatformTypes.desktop]
     },
@@ -101,6 +101,13 @@ export const FileExplorerMenu = (props: FileExplorerMenuProps) => {
       icon: 'fa-solid fa-folder-upload',
       placement: 'top',
       platforms:[appPlatformTypes.web]
+    },
+    {
+      action: 'cloneGitRepository',
+      title: 'Clone Git Repository',
+      icon: 'fa-brands fa-git-alt',
+      placement: 'top',
+      platforms:[appPlatformTypes.web, appPlatformTypes.desktop]
     },
     {
       action: 'initializeWorkspaceAsGitRepo',
@@ -413,8 +420,8 @@ export const FileExplorerMenu = (props: FileExplorerMenuProps) => {
             <Dropdown show={isCreateMenuOpen} onToggle={(next) => setIsCreateMenuOpen(next)}>
               <Dropdown.Toggle
                 as={Button}
-                variant="secondary"
-                className="w-100 mb-1 d-flex flex-row align-items-center justify-content-center border"
+                variant="primary"
+                className="remixui_createBtn btn-sm w-100 mb-1 d-flex flex-row align-items-center justify-content-center"
                 data-id="fileExplorerCreateButton"
                 onClick={() => {
                   setIsCreateMenuOpen((prev) => !prev)
@@ -424,19 +431,12 @@ export const FileExplorerMenu = (props: FileExplorerMenuProps) => {
                     isClick: true
                   })
                 }}
-                style={{
-                  color: '#fff'
-                }}
               >
-                <div className="w-50"></div>
-                <div
-                  className="d-flex flex-row align-items-center justify-items-start me-5 w-50"
-                >
-                  <i className="far fa-plus text-white me-2"></i>
-                  <span className="text-white fw-semibold" style={{ fontSize: '1.05rem' }}>Create</span>
-                </div>
+                <i className="far fa-plus me-2"></i>
+                <span className="fw-semibold">Create</span>
+                <i className="fas fa-caret-down remixui_createBtnChevron ms-2"></i>
               </Dropdown.Toggle>
-              <Dropdown.Menu className="w-100 custom-dropdown-items bg-light">
+              <Dropdown.Menu className="w-100 custom-dropdown-items mt-1">
                 {menuItems.filter((item) => item.action === 'newBlankFile').map(({ action, title, icon, placement, platforms }, index) => {
                   return (
                     <Dropdown.Item
@@ -480,6 +480,31 @@ export const FileExplorerMenu = (props: FileExplorerMenuProps) => {
                     </Dropdown.Item>
                   )
                 })}
+                {menuItems.filter((item) => item.action === 'createNewFile').map(({ action, title, icon, placement, platforms }, index) => {
+                  return (
+                    <Dropdown.Item
+                      data-id="fileExplorerCreateButton-createNewFile"
+                      key={index}
+                      onClick={async () => {
+                        await global.plugin.call('templateexplorermodal', 'updateTemplateExplorerInFileMode', true)
+                        appContext.appStateDispatch({
+                          type: appActionTypes.showGenericModal,
+                          payload: true
+                        })
+                        trackMatomoEvent({
+                          category: MatomoCategories.FILE_EXPLORER,
+                          action: 'createNewFile',
+                          isClick: true
+                        })
+                      }}
+                    >
+                      <span className="text-decoration-none">
+                        <i className={icon}></i>
+                        <span className="ps-2">{title}</span>
+                      </span>
+                    </Dropdown.Item>
+                  )
+                })}
                 {
                   menuItems.filter((item) => item.action === 'createNewWorkspace').map(({ action, title, icon, placement, platforms }, index) => {
                     return (
@@ -506,31 +531,7 @@ export const FileExplorerMenu = (props: FileExplorerMenuProps) => {
                     )
                   })
                 }
-                {menuItems.filter((item) => item.action === 'createNewFile').map(({ action, title, icon, placement, platforms }, index) => {
-                  return (
-                    <Dropdown.Item
-                      data-id="fileExplorerCreateButton-createNewFile"
-                      key={index}
-                      onClick={async () => {
-                        await global.plugin.call('templateexplorermodal', 'updateTemplateExplorerInFileMode', true)
-                        appContext.appStateDispatch({
-                          type: appActionTypes.showGenericModal,
-                          payload: true
-                        })
-                        trackMatomoEvent({
-                          category: MatomoCategories.FILE_EXPLORER,
-                          action: 'createNewFile',
-                          isClick: true
-                        })
-                      }}
-                    >
-                      <span className="text-decoration-none">
-                        <i className={icon}></i>
-                        <span className="ps-2">{title}</span>
-                      </span>
-                    </Dropdown.Item>
-                  )
-                })}
+                <Dropdown.Divider />
                 {menuItems.filter((item) => item.action === 'localFileSystem').map(({ action, title, icon, placement, platforms }, index) => {
                   return (
                     <Dropdown.Item
@@ -627,6 +628,29 @@ export const FileExplorerMenu = (props: FileExplorerMenuProps) => {
                     </Dropdown.Item>
                   )
                 })}
+                {
+                  menuItems.filter((item) => item.action === 'cloneGitRepository' && props.cloneGitRepository).map(({ action, title, icon, placement, platforms }, index) => {
+                    return (
+                      <Dropdown.Item
+                        data-id="fileExplorerCreateButton-cloneGitRepository"
+                        key={index}
+                        onClick={() => {
+                          props.cloneGitRepository()
+                          trackMatomoEvent({
+                            category: MatomoCategories.FILE_EXPLORER,
+                            action: 'cloneGitRepository',
+                            isClick: true
+                          })
+                        }}
+                      >
+                        <span className="text-decoration-none">
+                          <i className={icon}></i>
+                          <span className="ps-2">{title}</span>
+                        </span>
+                      </Dropdown.Item>
+                    )
+                  })
+                }
               </Dropdown.Menu>
             </Dropdown>
           </span>

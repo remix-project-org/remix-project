@@ -386,6 +386,7 @@ export const EditorUI = (props: EditorUIProps) => {
         'menu.selectionBackground': secondaryColor,
         'menu.selectionForeground': textColor,
         'menu.selectionBorder': secondaryColor,
+        'scrollbar.shadow': '#00000000', // disable the drop-shadow shown when the editor content is scrolled
       },
     })
     monacoRef.current.editor.setTheme(themeName)
@@ -1992,7 +1993,9 @@ export const EditorUI = (props: EditorUIProps) => {
                 glyphMargin: true,
                 readOnly: editorModelsState[props.currentFile]?.readOnly,
                 inlineSuggest: { enabled: true },
-                minimap: { enabled: false }
+                minimap: { enabled: false },
+                padding: { top: 16 },
+                lineNumbersMinChars: 4
               }}
               defaultValue={defaultEditorValue}
             />
@@ -2046,7 +2049,9 @@ export const EditorUI = (props: EditorUIProps) => {
             glyphMargin: true,
             readOnly: editorModelsState[props.currentFile]?.readOnly ?? false,
             inlineSuggest: { enabled: true },
-            minimap: { enabled: false }
+            minimap: { enabled: false },
+            padding: { top: 16 },
+            lineNumbersMinChars: 4
           }}
           defaultValue={defaultEditorValue}
           className={props.isDiff ? "d-none" : "d-block"}

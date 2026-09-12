@@ -6,6 +6,7 @@ import { EventEmitter } from 'events'
 import { IconRecord, RemixUiVerticalIconsPanel } from '@remix-ui/vertical-icons-panel'
 import { Profile } from '@remixproject/plugin-utils'
 import { PluginViewWrapper } from '@remix-ui/helper'
+import { profile as quickDappProfile } from '../plugins/quick-dapp-v2'
 
 const profile = {
   name: 'menuicons',
@@ -22,6 +23,8 @@ export class VerticalIcons extends Plugin {
   icons: Record<string, IconRecord> = {}
   dispatch: React.Dispatch<any> = () => {}
   pendingPinnedPlugin: any = null
+  rightPanelHidden = false
+  leftPanelHidden = false
   constructor() {
     super(profile)
     this.events = new EventEmitter()
@@ -32,7 +35,7 @@ export class VerticalIcons extends Plugin {
   renderComponent() {
     // These three icons must always appear last, in this order, no matter what.
     const lastOrder = ['helpPlugin', 'planManager']
-    const fixedOrder = ['remixaiassistant', 'quick-dapp-v2', 'filePanel', 'search', 'solidity', 'udapp', 'debugger', 'solidityStaticAnalysis', 'solidityUnitTesting']
+    const fixedOrder = ['remixaiassistant', 'filePanel', 'search', 'solidity', 'udapp', 'debugger', 'solidityStaticAnalysis', 'solidityUnitTesting', 'quick-dapp-v2']
 
     const divived = Object.values(this.icons)
       .map((value) => {
@@ -68,7 +71,9 @@ export class VerticalIcons extends Plugin {
 
     this.dispatch({
       verticalIconsPlugin: this,
-      icons: sorted
+      icons: sorted,
+      rightPanelHidden: this.rightPanelHidden,
+      leftPanelHidden: this.leftPanelHidden
     })
   }
 
@@ -78,6 +83,10 @@ export class VerticalIcons extends Plugin {
 
   onActivation() {
     this.renderComponent()
+    // quick-dapp-v2 lives in the mainPanel (it's a tab, not a sidePanel view) so it never
+    // goes through sidePanel.addView -> menuicons.linkContent like other icons do. Register
+    // it here so it still gets a rail icon; the icon's click handler activates/focuses the tab.
+    this.linkContent(quickDappProfile)
     this.on('sidePanel', 'focusChanged', (name: string) => {
       Object.keys(this.icons).map((o) => {
         this.icons[o].active = false
@@ -87,6 +96,33 @@ export class VerticalIcons extends Plugin {
         this.icons[name].active = true
       }
       this.renderComponent()
+    })
+
+    // same reasoning as rightSidePanel below: "active" only reflects which plugin was last
+    // focused, not whether the panel is actually visible — closing it via its own icon
+    // shouldn't leave that icon's highlight behind
+    this.on('sidePanel', 'leftSidePanelShown', () => {
+      this.leftPanelHidden = false
+      this.renderComponent()
+    })
+    this.on('sidePanel', 'leftSidePanelHidden', () => {
+      this.leftPanelHidden = true
+      this.renderComponent()
+    })
+
+    // mainPanel plugins (currently just quick-dapp-v2) are tabs, not sidePanel views, so their
+    // "active" state tracks which tab is focused instead of sidePanel's focusChanged. Scoped to
+    // location === 'mainPanel' only, so this never touches sidePanel/rightSidePanel icons.
+    this.on('tabs', 'switchApp', (name: string) => {
+      let changed = false
+      Object.keys(this.icons).forEach((key) => {
+        if ((this.icons[key].profile as any).location === 'mainPanel') {
+          const active = key === name
+          if (this.icons[key].active !== active) changed = true
+          this.icons[key].active = active
+        }
+      })
+      if (changed) this.renderComponent()
     })
 
     this.on('rightSidePanel', 'pinnedPlugin', (profile) => {
@@ -109,6 +145,21 @@ export class VerticalIcons extends Plugin {
       if (this.icons[profile.name]) {
         this.icons[profile.name].pinned = false
       }
+      this.renderComponent()
+    })
+
+    // whichever plugin is pinned to rightSidePanel only reads as "active" while that panel
+    // is actually visible — collapsing/hiding it shouldn't leave a stale highlight behind
+    this.on('rightSidePanel', 'rightSidePanelShown', () => {
+      this.rightPanelHidden = false
+      this.renderComponent()
+    })
+    this.on('rightSidePanel', 'rightSidePanelRestored', () => {
+      this.rightPanelHidden = false
+      this.renderComponent()
+    })
+    this.on('rightSidePanel', 'rightSidePanelHidden', () => {
+      this.rightPanelHidden = true
       this.renderComponent()
     })
   }
@@ -157,6 +208,15 @@ export class VerticalIcons extends Plugin {
   }
 
   unlinkContent(profile: Profile) {
+    // quick-dapp-v2's icon is manually pinned in onActivation (see linkContent(quickDappProfile)
+    // above) since it's a mainPanel tab, not a sidePanel view — closing its tab still runs
+    // through the normal removeView -> unlinkContent flow, but the icon should stay in the
+    // rail regardless, just no longer "active"
+    if (profile.name === quickDappProfile.name) {
+      if (this.icons[profile.name]) this.icons[profile.name].active = false
+      this.renderComponent()
+      return
+    }
     delete this.icons[profile.name]
     this.renderComponent()
   }
@@ -249,7 +309,7 @@ export class VerticalIcons extends Plugin {
   }
 
   updateComponent(state: any) {
-    return <RemixUiVerticalIconsPanel verticalIconsPlugin={state.verticalIconsPlugin} icons={state.icons} />
+    return <RemixUiVerticalIconsPanel verticalIconsPlugin={state.verticalIconsPlugin} icons={state.icons} rightPanelHidden={state.rightPanelHidden} leftPanelHidden={state.leftPanelHidden} />
   }
 
   render() {

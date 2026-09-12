@@ -2322,8 +2322,38 @@ export class FetchFigmaDesignHandler extends BaseToolHandler {
 // For ZK circuits with in-browser proof generation and zkVerify verification
 // ──────────────────────────────────────────────
 
+// Proof verification integration rules - depends on which method was chosen up front
+// (via the ZkVerificationMethodModal in circuit-compiler, before this tool is ever called).
+const QUICKDAPP_ZK_VERIFY_INTEGRATION_RULES =
+  `ZKVERIFY INTEGRATION (proxy mode only - NEVER hardcode API keys):\n` +
+  `- Read zkVerify config from window.__ZK_DAPP_CONFIG__.zkVerify\n` +
+  `- The config contains: { network, proxyEndpoint?, proxyToken? }\n` +
+  `- If proxyEndpoint && proxyToken do NOT exist: Show message "Configure zkVerify API key in Remix settings to enable verification"\n` +
+  `- SUBMIT PROOF (POST to proxyEndpoint):\n` +
+  `  Request body: { token: proxyToken, proofType: 'groth16', proofData: { proof, publicSignals, vk }, proofOptions: { library: 'snarkjs', curve: config.primeValue } }\n` +
+  `  CRITICAL: Use config.primeValue ('bn128' or 'bls12381') from window.__ZK_DAPP_CONFIG__ - do NOT hardcode the curve value\n` +
+  `  Response: { jobId: '...', status: '...' }\n` +
+  `- POLL JOB STATUS (GET {proxyEndpoint.replace('/submit-proof', '/job-status')}/{jobId}):\n` +
+  `  Headers: { 'x-zkverify-token': proxyToken }\n` +
+  `  Response: { status: '...', attestationId?: '...' }\n` +
+  `- Success statuses: 'Completed', 'Finalized', 'Aggregated'\n` +
+  `- Display attestation ID on success\n` +
+  `- NEVER tell users to replace API keys in code - the runtime config handles this automatically\n\n`
+
+const getZkOnChainVerifyIntegrationRules = (provingScheme: 'groth16' | 'plonk'): string =>
+  `ON-CHAIN VERIFIER INTEGRATION (read-only contract call - no relay service involved):\n` +
+  `- Read the verifier config from window.__ZK_DAPP_CONFIG__.onChainVerifier: { address, abi, chainId }\n` +
+  `- This DApp has wallet connect enabled (see WALLET INTEGRATION RULES below) - reuse the same provider for verification.\n` +
+  `- After snarkjs.${provingScheme}.fullProve(...) produces { proof, publicSignals }, get Solidity calldata: const calldataStr = await snarkjs.${provingScheme}.exportSolidityCallData(proof, publicSignals)\n` +
+  `- Parse it into arguments: const [a, b, c, input] = JSON.parse('[' + calldataStr + ']')\n` +
+  `- Build a read-only contract instance: const provider = new ethers.BrowserProvider(rawProvider); const verifier = new ethers.Contract(config.onChainVerifier.address, config.onChainVerifier.abi, provider)\n` +
+  `- Before calling, check the connected network matches: const network = await provider.getNetwork(); if (network.chainId.toString() !== String(config.onChainVerifier.chainId)) show a "switch network" prompt/button instead of calling.\n` +
+  `- Call it as a view/read - no signer, no gas, no transaction: const isValid = await verifier.verifyProof(a, b, c, input)\n` +
+  `- Display the boolean result directly (true = proof verified on-chain, false = invalid proof)\n` +
+  `- Wrap the call in try/catch - a revert or network mismatch should surface as a clear error message, not a crash\n\n`
+
 // Build rules for ZK DApps with snarkjs integration
-const QUICKDAPP_ZK_BUILD_RULES =
+const getZkBuildRules = (verificationMethod: 'zkverify' | 'onchain', provingScheme: 'groth16' | 'plonk'): string =>
   `IMPORT RULES (CRITICAL - violations crash the build):\n` +
   `- Use BARE SPECIFIERS: import React from 'react'; import * as snarkjs from 'snarkjs'. The index.html import map resolves these.\n` +
   `- NEVER use full URLs in imports (e.g. import React from 'https://esm.sh/react@18'). This crashes the bundler.\n` +
@@ -2338,7 +2368,7 @@ const QUICKDAPP_ZK_BUILD_RULES =
   `- src/index.css: Custom styles\n\n` +
   `INDEX.HTML IMPORT MAP (must include):\n` +
   `<script type="importmap">{ "imports": { "react": "https://esm.sh/react@18.2.0", "react-dom/client": "https://esm.sh/react-dom@18.2.0/client", "snarkjs": "https://esm.sh/snarkjs@0.7.4" } }</script>\n\n` +
-  `SNARKJS PROOF GENERATION RULES:\n` +
+  `SNARKJS PROOF GENERATION RULES (proving scheme: ${provingScheme}):\n` +
   `- Get artifact paths from window.__ZK_DAPP_CONFIG__.zkArtifacts: { wasmPath, zkeyPath, vkeyPath }\n` +
   `- FETCH ALL artifacts at runtime - they are NOT embedded in the config, only paths are provided:\n` +
   `  * const wasmResponse = await fetch(config.zkArtifacts.wasmPath)\n` +
@@ -2346,25 +2376,12 @@ const QUICKDAPP_ZK_BUILD_RULES =
   `  * const vkResponse = await fetch(config.zkArtifacts.vkeyPath); const vk = await vkResponse.json()\n` +
   `- NEVER hardcode paths like '/zk/circuit.wasm' - ALWAYS use config.zkArtifacts paths\n` +
   `- NEVER access config.verificationKey directly - it does not exist, fetch from vkeyPath instead\n` +
-  `- Use snarkjs.groth16.fullProve(inputs, wasmBuffer, zkeyBuffer) for proof generation\n` +
+  `- Use snarkjs.${provingScheme}.fullProve(inputs, wasmBuffer, zkeyBuffer) for proof generation\n` +
   `- Public signals are in the result.publicSignals array\n` +
   `- The proof object contains pi_a, pi_b, pi_c arrays\n` +
   `- The verification key (vk) has properties like nPublic - get it from fetched vk, not config\n` +
   `- Use window.__ZK_DAPP_CONFIG__ for circuit metadata (signalInputs, circuitName, etc.)\n\n` +
-  `ZKVERIFY INTEGRATION (proxy mode only - NEVER hardcode API keys):\n` +
-  `- Read zkVerify config from window.__ZK_DAPP_CONFIG__.zkVerify\n` +
-  `- The config contains: { network, proxyEndpoint?, proxyToken? }\n` +
-  `- If proxyEndpoint && proxyToken do NOT exist: Show message "Configure zkVerify API key in Remix settings to enable verification"\n` +
-  `- SUBMIT PROOF (POST to proxyEndpoint):\n` +
-  `  Request body: { token: proxyToken, proofType: 'groth16', proofData: { proof, publicSignals, vk }, proofOptions: { library: 'snarkjs', curve: config.primeValue } }\n` +
-  `  CRITICAL: Use config.primeValue ('bn128' or 'bls12381') from window.__ZK_DAPP_CONFIG__ - do NOT hardcode the curve value\n` +
-  `  Response: { jobId: '...', status: '...' }\n` +
-  `- POLL JOB STATUS (GET {proxyEndpoint.replace('/submit-proof', '/job-status')}/{jobId}):\n` +
-  `  Headers: { 'x-zkverify-token': proxyToken }\n` +
-  `  Response: { status: '...', attestationId?: '...' }\n` +
-  `- Success statuses: 'Completed', 'Finalized', 'Aggregated'\n` +
-  `- Display attestation ID on success\n` +
-  `- NEVER tell users to replace API keys in code - the runtime config handles this automatically\n\n` +
+  (verificationMethod === 'onchain' ? getZkOnChainVerifyIntegrationRules(provingScheme) : QUICKDAPP_ZK_VERIFY_INTEGRATION_RULES) +
   `SIGNAL INPUT FORM:\n` +
   `- Generate form inputs based on window.__ZK_DAPP_CONFIG__.signalInputs array\n` +
   `- All inputs should be BigInt-compatible (use strings for large numbers)\n` +
@@ -2421,7 +2438,7 @@ interface GenerateZkDAppArgs {
   circuitName: string
   circuitPath: string
   signalInputs: string[]
-  provingScheme: 'groth16'
+  provingScheme: 'groth16' | 'plonk'
   primeValue: 'bn128' | 'bls12381'
   wasmPath: string
   zkeyPath: string
@@ -2434,11 +2451,15 @@ interface GenerateZkDAppArgs {
   interactionDescription?: string
   enableWalletConnect?: boolean
   walletDataFields?: ('address' | 'chainId' | 'balance' | 'nonce')[]
+  // Verification method chosen up front (via ZkVerificationMethodModal in circuit-compiler),
+  // before this tool is ever called. Defaults to 'zkverify' when absent.
+  verificationMethod?: 'zkverify' | 'onchain'
+  onChainVerifier?: { address: string; abi: any[]; chainId: string | number; networkName?: string; contractName?: string }
 }
 
 export class GenerateZkDAppHandler extends BaseToolHandler {
   name = 'generate_zk_dapp'
-  description = 'Create a new DApp frontend for a ZK circuit with in-browser proof generation and zkVerify verification. PREREQUISITE: The circuit must be compiled and trusted setup must be complete with groth16 proving scheme. The tool will generate React code that loads the circuit artifacts from /zk folder and allows users to generate and verify proofs.'
+  description = 'Create a new DApp frontend for a circom ZK circuit with in-browser proof generation, verified either via zkVerify (groth16 only) or on-chain (groth16 or plonk). PREREQUISITE: The circuit must be compiled and trusted setup must be complete. The tool will generate React code that loads the circuit artifacts from /zk folder and allows users to generate and verify proofs.'
   inputSchema = {
     type: 'object',
     properties: {
@@ -2461,8 +2482,8 @@ export class GenerateZkDAppHandler extends BaseToolHandler {
       },
       provingScheme: {
         type: 'string',
-        enum: ['groth16'],
-        description: 'Proving scheme (only groth16 is supported for zkVerify)'
+        enum: ['groth16', 'plonk'],
+        description: 'Proving scheme. groth16 supports both zkVerify and on-chain verification; plonk only supports on-chain verification (zkVerify does not support plonk).'
       },
       primeValue: {
         type: 'string',
@@ -2510,6 +2531,15 @@ export class GenerateZkDAppHandler extends BaseToolHandler {
         type: 'array',
         items: { type: 'string', enum: ['address', 'chainId', 'balance', 'nonce']},
         description: 'Which wallet data fields to make available as potential signal inputs. Only used if enableWalletConnect is true.'
+      },
+      verificationMethod: {
+        type: 'string',
+        enum: ['zkverify', 'onchain'],
+        description: 'How generated proofs are verified: "zkverify" (off-chain relay service, default) or "onchain" (call a deployed verifier contract directly). Chosen up front by the user before this tool is called - do not ask for it again.'
+      },
+      onChainVerifier: {
+        type: 'object',
+        description: 'Deployed verifier contract to call when verificationMethod is "onchain": { address, abi, chainId, networkName? }. Provided by the user\'s prior selection - use as-is.'
       }
     },
     required: ['description', 'circuitName', 'circuitPath', 'signalInputs', 'provingScheme', 'primeValue', 'wasmPath', 'zkeyPath', 'verificationKey']
@@ -2526,8 +2556,11 @@ export class GenerateZkDAppHandler extends BaseToolHandler {
     if (!Array.isArray(args.signalInputs) || args.signalInputs.length === 0) {
       return 'signalInputs must be a non-empty array of signal names'
     }
-    if (args.provingScheme !== 'groth16') {
-      return 'Only groth16 proving scheme is supported for zkVerify'
+    if (args.provingScheme !== 'groth16' && args.provingScheme !== 'plonk') {
+      return 'provingScheme must be groth16 or plonk'
+    }
+    if (args.provingScheme === 'plonk' && args.verificationMethod !== 'onchain') {
+      return 'plonk proving scheme only supports on-chain verification - zkVerify does not support plonk'
     }
     if (!['bn128', 'bls12381'].includes(args.primeValue)) {
       return 'primeValue must be bn128 or bls12381'
@@ -2562,6 +2595,14 @@ export class GenerateZkDAppHandler extends BaseToolHandler {
         const locationLine = isDesktop
           ? '- Location: Inline in /frontend only (Remix Desktop requirement)'
           : '- Location: Workspace (default, new dedicated workspace) or Inline (in /frontend folder of current workspace)'
+        const isOnChainSetup = args.verificationMethod === 'onchain'
+
+        const walletQuestionBlock = isOnChainSetup
+          ? '' // On-chain verification requires calling a contract - wallet connect is forced on, not asked about.
+          : `3. **Wallet Connection**: Should users be able to connect their wallet? This is useful if your DApp uses wallet data (address, balance, etc.) as inputs for proof generation.\n` +
+            `   - No (default)\n` +
+            `   - Yes (if yes, which data: address, chainId, balance, nonce?)\n\n`
+        const designQuestionNumber = isOnChainSetup ? 3 : 4
 
         return this.createSuccessResult({
           action: 'request_setup_options',
@@ -2576,17 +2617,20 @@ export class GenerateZkDAppHandler extends BaseToolHandler {
             `"How should I create your ZK DApp?"\n\n` +
             `1. **Location**: ${isDesktop ? 'Inline in /frontend (Remix Desktop requirement)' : 'Workspace (new dedicated workspace, default) or Inline (/frontend folder)?'}\n\n` +
             `2. **DApp Description** (optional): How should users interact with your DApp to generate proofs? For example: "Users deposit ETH and receive a commitment note, then use the note to withdraw privately" (like Tornado Cash). If you skip this, I'll create a simple form with the signal inputs: ${args.signalInputs.join(', ')}.\n\n` +
-            `3. **Wallet Connection**: Should users be able to connect their wallet? This is useful if your DApp uses wallet data (address, balance, etc.) as inputs for proof generation.\n` +
-            `   - No (default)\n` +
-            `   - Yes (if yes, which data: address, chainId, balance, nonce?)\n\n` +
-            `4. **Design**: Any style preferences or UI description? Or use defaults?\n\n` +
+            walletQuestionBlock +
+            `${designQuestionNumber}. **Design**: Any style preferences or UI description? Or use defaults?\n\n` +
+            (isOnChainSetup ? `Do not ask about wallet connection - this DApp verifies proofs on-chain, so wallet connect is required and already enabled.\n\n` : '') +
             `After the user replies, call this tool again with:\n` +
             `- setupOptionsConfirmed=true\n` +
             `- setupOptionsSummary: summary of their choices\n` +
             `- frontendMode: "workspace" or "inline"\n` +
             `- interactionDescription: their DApp description (if provided, otherwise omit)\n` +
-            `- enableWalletConnect: true/false\n` +
-            `- walletDataFields: ["address", "balance", etc.] if wallet enabled`
+            (isOnChainSetup
+              ? `- enableWalletConnect: true (always true - required for on-chain verification)\n`
+              : `- enableWalletConnect: true/false\n`) +
+            `- walletDataFields: ["address", "balance", etc.] if wallet enabled\n` +
+            `- verificationMethod: "${args.verificationMethod || 'zkverify'}" (unchanged from this call)\n` +
+            (args.onChainVerifier ? `- onChainVerifier: unchanged from this call\n` : '')
         })
       }
 
@@ -2659,7 +2703,9 @@ export class GenerateZkDAppHandler extends BaseToolHandler {
             wasmPath: args.wasmPath,
             zkeyPath: args.zkeyPath,
             verificationKey: args.verificationKey,
-            userDescription: args.description
+            userDescription: args.description,
+            verificationMethod: args.verificationMethod || 'zkverify',
+            onChainVerifier: args.verificationMethod === 'onchain' ? args.onChainVerifier : undefined
           })
           dappOps = new DappOperations('workspace', wsResult.workspaceName, plugin, args.circuitName)
           progressSlug = wsResult.slug || wsResult.workspaceName
@@ -2765,6 +2811,10 @@ export class GenerateZkDAppHandler extends BaseToolHandler {
         : 'Correct: /src/App.jsx. Wrong: /' + targetWorkspaceForInstructions + '/src/App.jsx'
 
       const signalInputsList = args.signalInputs.map(s => `  - ${s}`).join('\n')
+      const verificationMethod: 'zkverify' | 'onchain' = args.verificationMethod === 'onchain' ? 'onchain' : 'zkverify'
+      // On-chain verification calls a contract, so wallet connect is mandatory regardless of what
+      // was passed through - this is a safety net in case the LLM didn't set it as instructed.
+      const walletConnectEnabled = verificationMethod === 'onchain' ? true : !!args.enableWalletConnect
 
       // Build interaction section
       const interactionSection = args.interactionDescription
@@ -2772,7 +2822,7 @@ export class GenerateZkDAppHandler extends BaseToolHandler {
         : `DEFAULT INTERACTION: Simple form with signal inputs (${args.signalInputs.join(', ')}) for proof generation.\n\n`
 
       // Build wallet section
-      const walletSection = args.enableWalletConnect
+      const walletSection = walletConnectEnabled
         ? `WALLET INTEGRATION: ENABLED\n` +
           `- Wallet data fields available: ${args.walletDataFields?.join(', ') || 'address'}\n` +
           `- Auto-populate signal inputs with wallet data where applicable\n` +
@@ -2780,7 +2830,7 @@ export class GenerateZkDAppHandler extends BaseToolHandler {
         : ''
 
       // Include wallet rules only if wallet connection is enabled
-      const walletRules = args.enableWalletConnect ? `\n${QUICKDAPP_ZK_WALLET_RULES}\n` : ''
+      const walletRules = walletConnectEnabled ? `\n${QUICKDAPP_ZK_WALLET_RULES}\n` : ''
 
       return this.createSuccessResult({
         success: true,
@@ -2794,8 +2844,9 @@ export class GenerateZkDAppHandler extends BaseToolHandler {
         provingScheme: args.provingScheme,
         primeValue: args.primeValue,
         zkFolder,
-        enableWalletConnect: args.enableWalletConnect || false,
+        enableWalletConnect: walletConnectEnabled,
         walletDataFields: args.walletDataFields || [],
+        verificationMethod,
         delegationMessage:
           `TASK: Generate a new ZK DApp frontend${targetMode === 'inline' ? ' in /frontend folder (inline mode)' : ''}\n` +
           `APP NAME: ${args.circuitName}\n` +
@@ -2807,7 +2858,7 @@ export class GenerateZkDAppHandler extends BaseToolHandler {
           `${walletSection}` +
           `USER DESIGN REQUEST: ${args.description}\n` +
           `${args.setupOptionsSummary ? `CONFIRMED OPTIONS: ${args.setupOptionsSummary}\n` : ''}` +
-          `\n${QUICKDAPP_ZK_BUILD_RULES}\n` +
+          `\n${getZkBuildRules(verificationMethod, args.provingScheme)}\n` +
           `${walletRules}` +
           `\n${QUICKDAPP_ZK_DESIGN_RULES}\n` +
           `CRITICAL PATH RULES:\n` +
@@ -2868,6 +2919,455 @@ export class GenerateZkDAppHandler extends BaseToolHandler {
 }
 
 // ──────────────────────────────────────────────
+// Noir ZK DApp Generator Tool Handler
+// Noir circuits only support on-chain verification - there is no zkVerify integration for Noir.
+// Proof generation happens via a round-trip to the noir-compiler backend (Prover.toml -> zip -> POST),
+// not in-browser wasm proving, since Noir has no client-side proving wired into this repo today.
+// ──────────────────────────────────────────────
+
+const getNoirZkBuildRules = (): string =>
+  `IMPORT RULES (CRITICAL - violations crash the build):\n` +
+  `- Use BARE SPECIFIERS: import React from 'react'; import JSZip from 'jszip'. The index.html import map resolves these.\n` +
+  `- NEVER use full URLs in imports (e.g. import React from 'https://esm.sh/react@18'). This crashes the bundler.\n` +
+  `- ALWAYS include .jsx extension in local imports: import App from './App.jsx' (not './App')\n` +
+  `- NEVER repeat src/ in relative paths inside src/: import App from './App.jsx' NOT './src/App.jsx'\n` +
+  `- EVERY .jsx file using JSX MUST import React from 'react' at the top.\n` +
+  `- Do NOT use react-router-dom. Use hash-based routing: useState(window.location.hash).\n\n` +
+  `FILE STRUCTURE (minimum required):\n` +
+  `- index.html: import map (react, react-dom/client, jszip, ethers via esm.sh), Tailwind CDN, window.__ZK_DAPP_CONFIG__ init, <script type="module" src="./src/main.jsx">\n` +
+  `- src/main.jsx: React entry with ReactDOM.createRoot\n` +
+  `- src/App.jsx: Main component with proof generation UI\n` +
+  `- src/index.css: Custom styles\n\n` +
+  `INDEX.HTML IMPORT MAP (must include):\n` +
+  `<script type="importmap">{ "imports": { "react": "https://esm.sh/react@18.2.0", "react-dom/client": "https://esm.sh/react-dom@18.2.0/client", "jszip": "https://esm.sh/jszip@3.10.1", "ethers": "https://esm.sh/ethers@6" } }</script>\n\n` +
+  `CIRCUIT CONFIG:\n` +
+  `- Read window.__ZK_DAPP_CONFIG__ (NOT window.__QUICK_DAPP_CONFIG__ - that global belongs to the non-ZK quick-dapp flow and does not exist here): { circuitName, backendUrl, wsUrl, nargoToml, programJson, circuitSource: [{ path, content }], verificationMethod: 'onchain', onChainVerifier }\n` +
+  `- nargoToml/programJson/circuitSource[].content are FULL TEXT CONTENTS, already embedded - do NOT fetch them from paths.\n` +
+  `- Parse config.programJson with JSON.parse(...) and read .abi.parameters (array of { name, type, visibility }) to determine the circuit's input fields and their kinds (field/boolean/integer/array/string/struct/tuple). Build the input form from this - do NOT hardcode field names.\n\n` +
+  `PROOF GENERATION RULES (Prover.toml -> zip -> POST to the Noir backend, same round-trip the IDE's noir-compiler plugin already does):\n` +
+  `- Proof generation is a SINGLE PLAIN HTTP POST. There is NO WebSocket step in this flow, and the backend NEVER returns proof data over a WebSocket message. Do NOT open a WebSocket, do NOT use config.wsUrl, and do NOT wait for any message with a shape like { type: 'result' } or { proof: ... } arriving asynchronously - that message is never sent and the UI will hang forever waiting for it. config.wsUrl is unused by this DApp; it exists only for the IDE's own noir-compiler plugin and must not appear anywhere in the generated code.\n` +
+  `- Build a Prover.toml TEXT string from the form values: one "name = value" line per abi parameter (strings/fields as quoted decimal strings, e.g. x = "3"; booleans as true/false; arrays as TOML arrays [1, 2, 3]).\n` +
+  `- Build a zip client-side with JSZip: zip.file('Nargo.toml', config.nargoToml); for each entry of config.circuitSource, zip.file('src/' + entry.path.split('/').pop(), entry.content); zip.file('Prover.toml', proverTomlString).\n` +
+  `- Generate the zip as a Blob: const zipBlob = await zip.generateAsync({ type: 'blob' })\n` +
+  `- POST it as multipart form-data: const formData = new FormData(); formData.append('file', zipBlob, 'circuit.zip'); const response = await fetch(config.backendUrl + '/generate-proof-with-verifier', { method: 'POST', body: formData })\n` +
+  `- The proof is available as soon as this fetch() call resolves - await it directly, do not gate it behind any WebSocket event.\n` +
+  `- On non-OK response, try to parse and surface the error JSON body; otherwise show the status text - do not crash silently.\n` +
+  `- The response body is a zip Blob. Load it with JSZip.loadAsync(await response.blob()) and read the 'proof' and 'public_inputs' entries as text (public_inputs is a JSON array string - JSON.parse it).\n` +
+  `- Show clear loading/progress state - this round-trip can take 10-60+ seconds (it runs nargo execute + bb.js proving server-side). This loading state must be driven by the pending fetch() promise, not by WebSocket messages.\n\n` +
+  getZkOnChainVerifyIntegrationRulesForNoir() +
+  `SIGNAL INPUT FORM:\n` +
+  `- Generate one form field per config.programJson abi parameter (see CIRCUIT CONFIG above). Show clear labels. Validate inputs before proof generation.\n\n` +
+  `DYNAMIC CONTENT:\n` +
+  `- Use window.__ZK_DAPP_CONFIG__ for title/circuitName/details. Do NOT hardcode app names.\n` +
+  `- Fallback: config.title || 'ZK DApp'\n`
+
+function getZkOnChainVerifyIntegrationRulesForNoir(): string {
+  return `ON-CHAIN VERIFIER INTEGRATION (read-only contract call - no relay service involved, Noir has no zkVerify path):\n` +
+    `- Read the verifier config from window.__ZK_DAPP_CONFIG__.onChainVerifier: { address, abi, chainId }\n` +
+    `- This DApp has wallet connect enabled (see WALLET INTEGRATION RULES below) - reuse the same provider for verification.\n` +
+    `- The deployed contract is generated by Barretenberg (bb.js) from the Noir circuit's UltraHonk proof - its conventional interface is: function verify(bytes calldata proof, bytes32[] calldata publicInputs) external view returns (bool). CONFIRM this against the actual config.onChainVerifier.abi before hardcoding the call - it is generated by an external service, not a fixed template in this repo.\n` +
+    `- Convert the 'proof' file content to a 0x-prefixed hex string (bytes) if it isn't already, and convert each entry of the parsed 'public_inputs' JSON array to a 0x-padded 32-byte hex string (bytes32) if the ABI expects bytes32[].\n` +
+    `- Build a read-only contract instance: const provider = new ethers.BrowserProvider(rawProvider); const verifier = new ethers.Contract(config.onChainVerifier.address, config.onChainVerifier.abi, provider)\n` +
+    `- Before calling, check the connected network matches: const network = await provider.getNetwork(); if (network.chainId.toString() !== String(config.onChainVerifier.chainId)) show a "switch network" prompt/button instead of calling.\n` +
+    `- Call it as a view/read - no signer, no gas, no transaction. Display the boolean result directly (true = proof verified on-chain, false = invalid proof).\n` +
+    `- Wrap the call in try/catch - a revert or network mismatch should surface as a clear error message, not a crash\n\n`
+}
+
+interface GenerateNoirZkDAppArgs {
+  description: string
+  circuitName: string
+  circuitPath: string
+  nargoTomlPath: string
+  circuitSourcePaths: string[]
+  proverTomlPath: string
+  programJsonPath: string
+  verifierContractPath: string
+  backendUrl: string
+  wsUrl: string
+  onChainVerifier: { address: string; abi: any[]; chainId: string | number; networkName?: string; contractName?: string }
+  frontendMode?: 'workspace' | 'inline'
+  setupOptionsConfirmed?: boolean
+  setupOptionsSummary?: string
+  confirmOverwrite?: boolean
+  interactionDescription?: string
+}
+
+export class GenerateNoirZkDAppHandler extends BaseToolHandler {
+  name = 'generate_noir_zk_dapp'
+  description = 'Create a new DApp frontend for a Noir ZK circuit with in-browser proof generation and on-chain verification only (Noir has no zkVerify integration). PREREQUISITE: The circuit must be compiled and a proof must have been generated at least once (produces the Verifier.sol / program.json artifacts this tool copies). The tool will generate React code that rebuilds Prover.toml from user input, requests a fresh proof from the Noir backend, and verifies it against a deployed verifier contract.'
+  inputSchema = {
+    type: 'object',
+    properties: {
+      description: {
+        type: 'string',
+        description: 'Description of the ZK DApp to generate, including any design preferences and features'
+      },
+      circuitName: {
+        type: 'string',
+        description: 'Name of the Noir circuit'
+      },
+      circuitPath: {
+        type: 'string',
+        description: 'Path to the Noir circuit file (.nr)'
+      },
+      nargoTomlPath: {
+        type: 'string',
+        description: 'Path to the circuit project Nargo.toml'
+      },
+      circuitSourcePaths: {
+        type: 'array',
+        items: { type: 'string' },
+        description: 'Paths to the Noir circuit source files (.nr) to bundle with each proof request'
+      },
+      proverTomlPath: {
+        type: 'string',
+        description: 'Path to the Prover.toml template (used as a reference for parameter names)'
+      },
+      programJsonPath: {
+        type: 'string',
+        description: 'Path to the compiled circuit program.json (ACIR + abi)'
+      },
+      verifierContractPath: {
+        type: 'string',
+        description: 'Path to the generated Verifier.sol contract'
+      },
+      backendUrl: {
+        type: 'string',
+        description: 'Base URL of the Noir proving backend (e.g. used as {backendUrl}/generate-proof-with-verifier)'
+      },
+      wsUrl: {
+        type: 'string',
+        description: 'WebSocket URL of the Noir proving backend'
+      },
+      onChainVerifier: {
+        type: 'object',
+        description: 'Deployed verifier contract to call: { address, abi, chainId, networkName? }. Provided by the user\'s prior selection - use as-is.'
+      },
+      frontendMode: {
+        type: 'string',
+        enum: ['workspace', 'inline'],
+        description: 'Where to create the frontend: "workspace" (new dedicated workspace, default) or "inline" (in /frontend folder of current workspace)'
+      },
+      setupOptionsConfirmed: {
+        type: 'boolean',
+        description: 'Set to true after confirming setup options with the user'
+      },
+      setupOptionsSummary: {
+        type: 'string',
+        description: 'Summary of confirmed setup options'
+      },
+      confirmOverwrite: {
+        type: 'boolean',
+        description: 'Set to true to confirm overwriting existing files in inline mode'
+      },
+      interactionDescription: {
+        type: 'string',
+        description: 'Description of how users should interact with the DApp to generate proofs. For example: "Users input 4 values and verify their hash commitment on-chain." If not provided, a simple form built from the circuit\'s abi parameters will be generated.'
+      }
+    },
+    required: ['description', 'circuitName', 'circuitPath', 'nargoTomlPath', 'circuitSourcePaths', 'proverTomlPath', 'programJsonPath', 'verifierContractPath', 'backendUrl', 'onChainVerifier']
+  }
+
+  getPermissions(): string[] {
+    return ['workspace:write', 'file:write']
+  }
+
+  validate(args: GenerateNoirZkDAppArgs): boolean | string {
+    if (!args.description) return 'Missing required argument: description'
+    if (!args.circuitName) return 'Missing required argument: circuitName'
+    if (!args.circuitPath) return 'Missing required argument: circuitPath'
+    if (!args.nargoTomlPath) return 'Missing required argument: nargoTomlPath'
+    if (!Array.isArray(args.circuitSourcePaths) || args.circuitSourcePaths.length === 0) {
+      return 'circuitSourcePaths must be a non-empty array of Noir source file paths'
+    }
+    if (!args.proverTomlPath) return 'Missing required argument: proverTomlPath'
+    if (!args.programJsonPath) return 'Missing required argument: programJsonPath'
+    if (!args.verifierContractPath) return 'Missing required argument: verifierContractPath'
+    if (!args.backendUrl) return 'Missing required argument: backendUrl'
+    if (!args.onChainVerifier || !args.onChainVerifier.address || !Array.isArray(args.onChainVerifier.abi)) {
+      return 'onChainVerifier must be a valid object with address and abi'
+    }
+    if (args.frontendMode && args.frontendMode !== 'workspace' && args.frontendMode !== 'inline') {
+      return 'frontendMode must be "workspace" or "inline"'
+    }
+    return true
+  }
+
+  async execute(args: GenerateNoirZkDAppArgs, plugin: Plugin): Promise<IMCPToolResult> {
+    remixAILogger.log('[NoirZkDAppGenerator] execute called', {
+      circuitName: args.circuitName,
+      circuitPath: args.circuitPath,
+      frontendMode: args.frontendMode,
+      setupOptionsConfirmed: args.setupOptionsConfirmed
+    })
+
+    const isDesktop = isElectron()
+    let dappOps: DappOperations | null = null
+    let progressSlug: string = ''
+
+    try {
+      if (!args.setupOptionsConfirmed) {
+        const locationLine = isDesktop
+          ? '- Location: Inline in /frontend only (Remix Desktop requirement)'
+          : '- Location: Workspace (default, new dedicated workspace) or Inline (in /frontend folder of current workspace)'
+
+        return this.createSuccessResult({
+          action: 'request_setup_options',
+          message: 'Before generating the ZK DApp, please confirm the following options:',
+          options: {
+            circuitName: args.circuitName
+          },
+          instructions: `Ask the user ALL of these questions:\n\n` +
+            `"How should I create your ZK DApp?"\n\n` +
+            `1. **Location**: ${isDesktop ? 'Inline in /frontend (Remix Desktop requirement)' : 'Workspace (new dedicated workspace, default) or Inline (/frontend folder)?'}\n\n` +
+            `2. **DApp Description** (optional): How should users interact with your DApp to generate proofs? For example: "Users input 4 values and verify their hash commitment on-chain." If you skip this, I'll create a simple form built from the circuit's abi parameters.\n\n` +
+            `3. **Design**: Any style preferences or UI description? Or use defaults?\n\n` +
+            `Do not ask about wallet connection - this DApp verifies proofs on-chain, so wallet connect is required and already enabled. Do not ask about verification method - Noir circuits only support on-chain verification.\n\n` +
+            `After the user replies, call this tool again with:\n` +
+            `- setupOptionsConfirmed=true\n` +
+            `- setupOptionsSummary: summary of their choices\n` +
+            `- frontendMode: "workspace" or "inline"\n` +
+            `- interactionDescription: their DApp description (if provided, otherwise omit)\n`
+        })
+      }
+
+      const targetMode = isDesktop ? 'inline' : (args.frontendMode || 'workspace')
+      remixAILogger.log('[NoirZkDAppGenerator] Target mode:', targetMode)
+
+      const sourceWorkspaceInfo = await plugin.call('filePanel' as any, 'getCurrentWorkspace')
+      const sourceWorkspaceName = sourceWorkspaceInfo?.name || ''
+
+      if (targetMode === 'inline') {
+        if (!sourceWorkspaceName) {
+          throw new Error('Could not get current workspace for inline mode')
+        }
+
+        dappOps = new DappOperations('inline', sourceWorkspaceName, plugin, args.circuitName)
+        progressSlug = dappOps.getSlug()
+        remixAILogger.log('[NoirZkDAppGenerator] Using inline mode in workspace:', sourceWorkspaceName)
+
+        try {
+          const folderPath = dappOps.getSourceRoot().substring(1)
+          const files = await plugin.call('fileManager', 'readdir', folderPath)
+          const fileCount = files ? Object.keys(files).length : 0
+
+          if (fileCount > 0 && !args.confirmOverwrite) {
+            const overwriteOptions = isDesktop
+              ? `**Option 1: Overwrite existing files**\n` +
+                `- Call generate_noir_zk_dapp again with the SAME parameters PLUS confirmOverwrite=true, frontendMode="inline", and setupOptionsConfirmed=true\n\n` +
+                `**Option 2: Cancel**\n` +
+                `- Do not proceed with DApp generation\n\n`
+              : `**Option 1: Overwrite existing files**\n` +
+                `- Call generate_noir_zk_dapp again with the SAME parameters PLUS confirmOverwrite=true and setupOptionsConfirmed=true\n\n` +
+                `**Option 2: Create in new workspace (RECOMMENDED - safer)**\n` +
+                `- Call generate_noir_zk_dapp again with the SAME parameters BUT change frontendMode="workspace" and keep setupOptionsConfirmed=true\n\n` +
+                `**Option 3: Cancel**\n` +
+                `- Do not proceed with DApp generation\n\n`
+            return this.createErrorResult(
+              `⚠️ **OVERWRITE WARNING - USER CONFIRMATION REQUIRED**\n\n` +
+              `The /frontend folder in workspace "${sourceWorkspaceName}" already exists and contains ${fileCount} file(s).\n\n` +
+              `**These files will be PERMANENTLY DELETED and replaced with the new ZK DApp.**\n\n` +
+              `ASK THE USER which option they prefer:\n\n` +
+              overwriteOptions +
+              `⚠️ DO NOT PROCEED without user confirmation. Ask the user which option they want.`
+            )
+          }
+        } catch (checkErr: any) {
+          const errorMsg = checkErr?.message || String(checkErr)
+          if (!(errorMsg.includes('not exist') || errorMsg.includes('ENOENT') || errorMsg.includes('no such file'))) {
+            remixAILogger.warn('[NoirZkDAppGenerator] Could not check /frontend folder:', errorMsg)
+          }
+        }
+      } else {
+        try {
+          const wsResult = await plugin.call('quick-dapp-v2' as any, 'createNoirZkDappWorkspace', {
+            circuitName: args.circuitName,
+            circuitPath: args.circuitPath,
+            nargoTomlPath: args.nargoTomlPath,
+            circuitSourcePaths: args.circuitSourcePaths,
+            proverTomlPath: args.proverTomlPath,
+            programJsonPath: args.programJsonPath,
+            verifierContractPath: args.verifierContractPath,
+            backendUrl: args.backendUrl,
+            wsUrl: args.wsUrl,
+            userDescription: args.description,
+            onChainVerifier: args.onChainVerifier
+          })
+          dappOps = new DappOperations('workspace', wsResult.workspaceName, plugin, args.circuitName)
+          progressSlug = wsResult.slug || wsResult.workspaceName
+          remixAILogger.log('[NoirZkDAppGenerator] Created new workspace:', wsResult.workspaceName)
+        } catch (wsErr: any) {
+          remixAILogger.error('[NoirZkDAppGenerator] createNoirZkDappWorkspace failed:', wsErr?.message || wsErr)
+          return this.createErrorResult(`Failed to create ZK DApp workspace: ${wsErr.message}`)
+        }
+      }
+
+      setQuickDappWorkspaceLock({
+        workspaceName: dappOps.getWorkspaceName(),
+        slug: progressSlug || dappOps.getSlug(),
+        operation: 'generate',
+        reason: 'generate_noir_zk_dapp'
+      })
+
+      try {
+        await plugin.call('manager' as any, 'activatePlugin', 'quick-dapp-v2')
+        await plugin.call('tabs' as any, 'focus', 'quick-dapp-v2')
+        await new Promise(r => setTimeout(r, 300))
+      } catch (e: any) {
+        remixAILogger.warn('[NoirZkDAppGenerator] Dashboard focus failed (non-critical):', e?.message)
+      }
+
+      if (targetMode === 'inline') {
+        const timestamp = Date.now()
+        const dappConfig = {
+          _warning: 'DO NOT EDIT THIS FILE MANUALLY. MANAGED BY QUICK DAPP.',
+          slug: dappOps.getSlug(),
+          name: args.circuitName,
+          workspaceName: sourceWorkspaceName,
+          mode: 'inline',
+          appKind: 'zk-circuit',
+          zkCircuit: {
+            circuitName: args.circuitName,
+            circuitPath: args.circuitPath,
+            circuitType: 'noir',
+            noirArtifacts: {
+              nargoTomlPath: 'frontend/zk/Nargo.toml',
+              circuitSourcePaths: args.circuitSourcePaths.map((p) => `frontend/zk/src/${p.split('/').pop()}`),
+              proverTomlPath: args.proverTomlPath,
+              programJsonPath: 'frontend/zk/program.json',
+              backendUrl: args.backendUrl,
+              wsUrl: args.wsUrl
+            },
+            verificationMethod: 'onchain',
+            onChainVerifier: args.onChainVerifier
+          },
+          status: 'creating',
+          processingStartedAt: timestamp,
+          createdAt: timestamp,
+          updatedAt: timestamp,
+          config: {
+            title: args.circuitName,
+            details: args.description || 'ZK DApp with in-browser proof generation and on-chain contract verification'
+          }
+        }
+
+        await plugin.call('fileManager', 'writeFile', 'dapp.config.json', JSON.stringify(dappConfig, null, 2))
+
+        try { await plugin.call('fileManager', 'mkdir', 'frontend') } catch (_) {}
+        try { await plugin.call('fileManager', 'mkdir', 'frontend/src') } catch (_) {}
+        try { await plugin.call('fileManager', 'mkdir', 'frontend/zk') } catch (_) {}
+        try { await plugin.call('fileManager', 'mkdir', 'frontend/zk/src') } catch (_) {}
+
+        await this.copyNoirCircuitArtifacts(plugin, args, 'frontend/zk')
+      }
+
+      plugin.emit('generationProgress', {
+        status: 'preparing',
+        slug: progressSlug || dappOps.getSlug(),
+        workspaceName: dappOps.getWorkspaceName(),
+        message: 'Setting up ZK DApp workspace...'
+      })
+
+      markQuickDappGenerationContext({
+        workspaceName: dappOps.getWorkspaceName(),
+        isInlineMode: dappOps.isInline(),
+        sourceRoot: dappOps.getSourceRoot(),
+        operation: 'generate'
+      })
+
+      const targetWorkspaceForInstructions = dappOps.getWorkspaceName()
+      const sourceRoot = dappOps.getSourceRoot()
+      const fileWritePaths = targetMode === 'inline'
+        ? '/frontend/index.html, /frontend/src/main.jsx, /frontend/src/App.jsx, /frontend/src/index.css'
+        : '/index.html, /src/main.jsx, /src/App.jsx, /src/index.css'
+      const correctPathExample = targetMode === 'inline'
+        ? 'Correct: /frontend/src/App.jsx. Wrong: /' + targetWorkspaceForInstructions + '/frontend/src/App.jsx'
+        : 'Correct: /src/App.jsx. Wrong: /' + targetWorkspaceForInstructions + '/src/App.jsx'
+
+      const interactionSection = args.interactionDescription
+        ? `USER INTERACTION FLOW:\n${args.interactionDescription}\n\n`
+        : `DEFAULT INTERACTION: Form built from the circuit's abi parameters (parsed from window.__ZK_DAPP_CONFIG__.programJson) for proof generation.\n\n`
+
+      return this.createSuccessResult({
+        success: true,
+        action: 'generate_noir_zk_dapp_files',
+        workspaceName: targetWorkspaceForInstructions,
+        slug: progressSlug || dappOps.getSlug(),
+        sourceRoot,
+        mode: targetMode,
+        circuitName: args.circuitName,
+        verificationMethod: 'onchain',
+        delegationMessage:
+          `TASK: Generate a new Noir ZK DApp frontend${targetMode === 'inline' ? ' in /frontend folder (inline mode)' : ''}\n` +
+          `APP NAME: ${args.circuitName}\n` +
+          `VERIFICATION: on-chain only (Noir has no zkVerify integration)\n\n` +
+          `${interactionSection}` +
+          `WALLET INTEGRATION: ENABLED (required for on-chain verification)\n\n` +
+          `USER DESIGN REQUEST: ${args.description}\n` +
+          `${args.setupOptionsSummary ? `CONFIRMED OPTIONS: ${args.setupOptionsSummary}\n` : ''}` +
+          `\n${getNoirZkBuildRules()}\n` +
+          `\n${QUICKDAPP_ZK_WALLET_RULES}\n` +
+          `\n${QUICKDAPP_ZK_DESIGN_RULES}\n` +
+          `CRITICAL PATH RULES:\n` +
+          `- All file paths must start with / and be relative to workspace root. ${correctPathExample}\n` +
+          `- NEVER include workspace name "${targetWorkspaceForInstructions}" in paths. The workspace is already active.\n\n` +
+          `STEPS:\n` +
+          `1. Write files using write_file with paths: ${fileWritePaths}\n` +
+          `2. The DApp should work entirely in the browser except for the proof-generation round-trip to config.backendUrl.\n` +
+          `3. Show loading states during proof generation (can take 10-60+ seconds).\n` +
+          `4. NEVER create or modify dapp.config.json — it is managed by the system.\n` +
+          `5. After ALL files are written, call finalize_dapp_generation with workspaceName="${targetWorkspaceForInstructions}" only.\n` +
+          `---`
+      })
+
+    } catch (error: any) {
+      if (dappOps?.getWorkspaceName()) {
+        clearQuickDappWorkspaceLock(dappOps.getWorkspaceName())
+      }
+      plugin.emit('dappGenerationError', {
+        workspaceName: dappOps?.getWorkspaceName(),
+        error: error.message
+      })
+      remixAILogger.error('[NoirZkDAppGenerator] execute failed', error)
+      return this.createErrorResult(`Failed to generate Noir ZK DApp: ${error.message || error}`)
+    }
+  }
+
+  private async copyNoirCircuitArtifacts(plugin: Plugin, args: GenerateNoirZkDAppArgs, targetPath: string): Promise<void> {
+    try {
+      const nargoToml = await plugin.call('fileManager', 'readFile', args.nargoTomlPath)
+      await plugin.call('fileManager', 'writeFile', `${targetPath}/Nargo.toml`, nargoToml)
+    } catch (e: any) {
+      remixAILogger.warn('[NoirZkDAppGenerator] Failed to copy Nargo.toml:', e?.message)
+    }
+
+    for (const sourcePath of args.circuitSourcePaths) {
+      try {
+        const content = await plugin.call('fileManager', 'readFile', sourcePath)
+        const fileName = sourcePath.split('/').pop()
+        await plugin.call('fileManager', 'writeFile', `${targetPath}/src/${fileName}`, content)
+      } catch (e: any) {
+        remixAILogger.warn('[NoirZkDAppGenerator] Failed to copy circuit source file:', sourcePath, e?.message)
+      }
+    }
+
+    try {
+      const programJson = await plugin.call('fileManager', 'readFile', args.programJsonPath)
+      await plugin.call('fileManager', 'writeFile', `${targetPath}/program.json`, programJson)
+    } catch (e: any) {
+      remixAILogger.warn('[NoirZkDAppGenerator] Failed to copy program.json:', e?.message)
+    }
+
+    try {
+      const verifierContract = await plugin.call('fileManager', 'readFile', args.verifierContractPath)
+      await plugin.call('fileManager', 'writeFile', `${targetPath}/Verifier.sol`, verifierContract)
+    } catch (e: any) {
+      remixAILogger.warn('[NoirZkDAppGenerator] Failed to copy Verifier.sol:', e?.message)
+    }
+  }
+}
+
+// ──────────────────────────────────────────────
 // Tool Definition Factory
 // ──────────────────────────────────────────────
 
@@ -2899,11 +3399,19 @@ export function createDAppGeneratorTools(): RemixToolDefinition[] {
     },
     {
       name: 'generate_zk_dapp',
-      description: 'Create a new DApp frontend for a ZK circuit with in-browser proof generation and zkVerify verification. PREREQUISITE: The circuit must be compiled and trusted setup must be complete with groth16 proving scheme. First ask setup options (Location, Design), then call with setupOptionsConfirmed=true. Returns generation instructions — you MUST then write each DApp file using write_file, then call finalize_dapp_generation.',
+      description: 'Create a new DApp frontend for a circom ZK circuit with in-browser proof generation, verified either via zkVerify (groth16 only) or on-chain (groth16 or plonk). PREREQUISITE: The circuit must be compiled and trusted setup must be complete. First ask setup options (Location, Design), then call with setupOptionsConfirmed=true. Returns generation instructions — you MUST then write each DApp file using write_file, then call finalize_dapp_generation.',
       inputSchema: new GenerateZkDAppHandler().inputSchema,
       category: ToolCategory.WORKSPACE,
       permissions: ['dapp:generate', 'file:write'],
       handler: new GenerateZkDAppHandler()
+    },
+    {
+      name: 'generate_noir_zk_dapp',
+      description: 'Create a new DApp frontend for a Noir ZK circuit with in-browser proof generation and on-chain verification only (Noir has no zkVerify integration). PREREQUISITE: The circuit must be compiled and a proof generated at least once. First ask setup options (Location, Design), then call with setupOptionsConfirmed=true. Returns generation instructions — you MUST then write each DApp file using write_file, then call finalize_dapp_generation.',
+      inputSchema: new GenerateNoirZkDAppHandler().inputSchema,
+      category: ToolCategory.WORKSPACE,
+      permissions: ['dapp:generate', 'file:write'],
+      handler: new GenerateNoirZkDAppHandler()
     },
     {
       name: 'finalize_dapp_generation',

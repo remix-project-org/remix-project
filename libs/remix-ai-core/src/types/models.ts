@@ -305,7 +305,7 @@ export function modelVendor(model: Pick<AIModel, 'id' | 'provider' | 'routeProvi
 export function isAutoModelId(id: string | undefined | null): boolean {
   if (!id) return false
   const normalized = id.toLowerCase()
-  return normalized === 'auto' || normalized === 'openrouter/auto' || normalized.endsWith('/auto')
+  return normalized === 'auto' || normalized === 'openrouter/auto' || normalized.endsWith('/auto') || normalized.endsWith('auto-beta')
 }
 
 /**

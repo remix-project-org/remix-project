@@ -90,6 +90,7 @@ let requiredModules = [
   'solidityumlgen',
   'compilationDetails',
   'vyperCompilationDetails',
+  'domainMigration',
   'contractflattener',
   'solidity-script',
   'home',
@@ -141,7 +142,9 @@ let requiredModules = [
   'helpPlugin',
   'planManager',
   'assistantState',
-  'thegraph'
+  'thegraph',
+  'base-provider-8453',
+  'base-provider-84532'
 ]
 
 // dependentModules shouldn't be manually activated (e.g hardhat is activated by remixd)
@@ -198,6 +201,7 @@ export function isNative(name) {
     'circuit-compiler',
     'compilationDetails',
     'vyperCompilationDetails',
+    'domainMigration',
     'remixGuide',
     'environmentExplorer',
     'templateSelection',
@@ -547,6 +551,7 @@ class PluginLoader {
       'templateSelection',
       'compilationDetails',
       'vyperCompilationDetails',
+      'domainMigration',
       'walletconnect',
       'dapp-draft',
       'solidityumlgen',

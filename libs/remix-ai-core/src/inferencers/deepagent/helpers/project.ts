@@ -6,13 +6,19 @@ interface FsNode {
   size?: number;
 }
 
+export function toAbsolutePath(path: string): string {
+  if (!path) return path;
+  return path.startsWith("/") ? path : `/${path}`;
+}
+
 export function renderTree(tree: FsNode, indent = "  "): string {
   const lines: string[] = [];
 
   const walk = (node: FsNode, depth: number): void => {
     const isDir = node.type === "directory" || node.children !== undefined;
     const pad = indent.repeat(depth);
-    lines.push(`${pad}${node.name}${isDir ? "/" : ""}`);
+    const label = node.path ? toAbsolutePath(node.path) : node.name;
+    lines.push(`${pad}${label}${isDir ? "/" : ""}`);
     if (node.children) {
       for (const child of node.children) {
         walk(child, depth + 1);

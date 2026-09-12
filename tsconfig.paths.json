@@ -70,6 +70,9 @@
             "@remix-ui/home-tab": [
               "libs/remix-ui/home-tab/src/index.ts"
             ],
+            "@remix-ui/domain-migration": [
+              "libs/remix-ui/domain-migration/src/index.ts"
+            ],
             "@remix-ui/modal-dialog": [
               "libs/remix-ui/modal-dialog/src/index.ts"
             ],
@@ -199,6 +202,9 @@
             ],
             "@remix/remix-ai-core/quick-dapp-zk-prompts": [
               "libs/remix-ai-core/src/remix-mcp-server/prompts/quickDappZkPrompts.ts"
+            ],
+            "@remix/remix-ai-core/quick-dapp-noir-prompts": [
+              "libs/remix-ai-core/src/remix-mcp-server/prompts/quickDappNoirPrompts.ts"
             ],
             "@remix-ui/git": [
               "libs/remix-ui/git/src/index.ts"

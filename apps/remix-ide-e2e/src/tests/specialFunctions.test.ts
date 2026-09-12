@@ -29,9 +29,9 @@ module.exports = {
       .perform((done) => {
         browser.getAddressAtPosition(0, (address) => {
           browser.sendLowLevelTx(0, '0', '0xaa')
-            .journalLastChildIncludes('to: CheckSpecials.(fallback)')
-            .journalLastChildIncludes('value: 0 wei')
-            .journalLastChildIncludes('data: 0xaa')
+            .journalLastChildIncludes('to:CheckSpecials.(fallback)')
+            .journalLastChildIncludes('value:0 wei')
+            .journalLastChildIncludes('data:0xaa')
             .perform(done())
         })
       })
@@ -66,9 +66,9 @@ module.exports = {
     browser.perform((done) => {
       browser.getAddressAtPosition(0, (address) => {
         browser.sendLowLevelTx(0, '1', '')
-          .journalLastChildIncludes('to: CheckSpecials.(receive)')
-          .journalLastChildIncludes('value: 1 wei')
-          .journalLastChildIncludes('data: 0x')
+          .journalLastChildIncludes('to:CheckSpecials.(receive)')
+          .journalLastChildIncludes('value:1 wei')
+          .journalLastChildIncludes('data:0x')
           .perform(done())
       })
     })
@@ -94,9 +94,9 @@ module.exports = {
       .perform((done) => {
         browser.getAddressAtPosition(0, (address) => {
           browser.sendLowLevelTx(0, '1', '')
-            .journalLastChildIncludes('to: CheckSpecials.(receive)')
-            .journalLastChildIncludes('value: 1 wei')
-            .journalLastChildIncludes('data: 0x')
+            .journalLastChildIncludes('to:CheckSpecials.(receive)')
+            .journalLastChildIncludes('value:1 wei')
+            .journalLastChildIncludes('data:0x')
             .perform(done())
         })
       })
@@ -122,9 +122,9 @@ module.exports = {
       .perform((done) => {
         browser.getAddressAtPosition(0, (address) => {
           browser.sendLowLevelTx(0, '1', '')
-            .journalLastChildIncludes('to: CheckSpecials.(fallback)')
-            .journalLastChildIncludes('value: 1 wei')
-            .journalLastChildIncludes('data: 0x')
+            .journalLastChildIncludes('to:CheckSpecials.(fallback)')
+            .journalLastChildIncludes('value:1 wei')
+            .journalLastChildIncludes('data:0x')
             .perform(done())
         })
       })
@@ -134,9 +134,9 @@ module.exports = {
     browser.perform((done) => {
       browser.getAddressAtPosition(0, (address) => {
         browser.sendLowLevelTx(0, '1', '0xaa')
-          .journalLastChildIncludes('to: CheckSpecials.(fallback)')
-          .journalLastChildIncludes('value: 1 wei')
-          .journalLastChildIncludes('data: 0xaa')
+          .journalLastChildIncludes('to:CheckSpecials.(fallback)')
+          .journalLastChildIncludes('value:1 wei')
+          .journalLastChildIncludes('data:0xaa')
           .perform(done())
       })
     })
@@ -173,9 +173,9 @@ module.exports = {
       .perform((done) => {
         browser.getAddressAtPosition(0, (address) => {
           browser.sendLowLevelTx(0, '999999998765257135', '0xaa')
-            .journalLastChildIncludes('to: CheckSpecials.(fallback)')
-            .journalLastChildIncludes('value: 999999998765257135 wei')
-            .journalLastChildIncludes('data: 0xaa')
+            .journalLastChildIncludes('to:CheckSpecials.(fallback)')
+            .journalLastChildIncludes('value:999999998765257135 wei')
+            .journalLastChildIncludes('data:0xaa')
             .perform(done())
         })
       })
@@ -185,9 +185,9 @@ module.exports = {
       browser.getAddressAtPosition(0, (address) => {
         browser.sendLowLevelTx(0, '1', '')
           .pause(1000)
-          .journalLastChildIncludes('to: CheckSpecials.(receive)')
-          .journalLastChildIncludes('value: 1 wei')
-          .journalLastChildIncludes('data: 0x')
+          .journalLastChildIncludes('to:CheckSpecials.(receive)')
+          .journalLastChildIncludes('value:1 wei')
+          .journalLastChildIncludes('data:0x')
           .perform(done())
       })
     })

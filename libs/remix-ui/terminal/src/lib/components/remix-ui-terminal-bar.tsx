@@ -7,6 +7,7 @@ import { RemixUITerminalMenuToggle } from './remix-ui-terminal-menu-toggle'
 import { RemixUITerminalMenuMaximize } from './remix-ui-terminal-menu-maximize'
 import { RemixUIXtermMenu } from '../../../../xterm/src/lib/components/remix-ui-terminal-menu-xterm'
 import { RemixUITerminalMenuButtons } from './remix-ui-terminal-menu-buttons'
+import { RemixUITerminalMenuClear } from './remix-ui-terminal-menu-clear'
 
 export const RemixUITerminalBar = (props: RemixUiTerminalProps) => {
   const { terminalState, xtermState } = useContext(TerminalContext)
@@ -85,18 +86,30 @@ export const RemixUITerminalBar = (props: RemixUiTerminalProps) => {
           </div>
         ) : (
           // Show regular terminal menu when not debugging
+          // left: contextual info & filtering (tx count, listen on network, search)
+          // right: action controls (clear, output/xterm tabs, maximize, minimize)
           <>
             {platform === appPlatformTypes.desktop ?
-              <div className='d-flex flex-row w-100 justify-content-end align-items-center'>
-                <RemixUITerminalMenuButtons {...props} />
-                {xtermState.showOutput? <RemixUITerminalMenu {...props} />: <RemixUIXtermMenu {...props} />}
-                <RemixUITerminalMenuMaximize {...props} />
-                <RemixUITerminalMenuToggle {...props} />
+              <div className='d-flex flex-row w-100 justify-content-between align-items-center'>
+                <div className='d-flex flex-row align-items-center remix_ui_terminal_menu_leftgroup'>
+                  {xtermState.showOutput ? <RemixUITerminalMenu {...props} /> : <RemixUIXtermMenu {...props} />}
+                </div>
+                <div className='d-flex flex-row align-items-center remix_ui_terminal_menu_right'>
+                  <RemixUITerminalMenuButtons {...props} />
+                  {xtermState.showOutput && <RemixUITerminalMenuClear {...props} />}
+                  <RemixUITerminalMenuMaximize {...props} />
+                  <RemixUITerminalMenuToggle {...props} />
+                </div>
               </div> :
-              <div className='d-flex flex-row w-100 justify-content-end align-items-center'>
-                <RemixUITerminalMenu {...props} />
-                <RemixUITerminalMenuMaximize {...props} />
-                <RemixUITerminalMenuToggle {...props} />
+              <div className='d-flex flex-row w-100 justify-content-between align-items-center'>
+                <div className='d-flex flex-row align-items-center remix_ui_terminal_menu_leftgroup'>
+                  <RemixUITerminalMenu {...props} />
+                </div>
+                <div className='d-flex flex-row align-items-center remix_ui_terminal_menu_right'>
+                  <RemixUITerminalMenuClear {...props} />
+                  <RemixUITerminalMenuMaximize {...props} />
+                  <RemixUITerminalMenuToggle {...props} />
+                </div>
               </div>
             }
           </>

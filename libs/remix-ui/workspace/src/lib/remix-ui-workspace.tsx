@@ -1141,7 +1141,7 @@ export function Workspace() {
         <div>
           <FileExplorerMenu
             title={''}
-            menuItems={['createNewFile', 'createNewFolder', selectedWorkspace && selectedWorkspace.isGist ? 'updateGist' : 'publishToGist', canUpload ? 'uploadFile' : '', canUpload ? 'uploadFolder' : '', 'importFromIpfs','importFromHttps', 'initializeWorkspaceAsGitRepo', 'revealInExplorer']}
+            menuItems={['createNewFile', 'createNewFolder', selectedWorkspace && selectedWorkspace.isGist ? 'updateGist' : 'publishToGist', canUpload ? 'uploadFile' : '', canUpload ? 'uploadFolder' : '', 'importFromIpfs','importFromHttps', 'initializeWorkspaceAsGitRepo', 'revealInExplorer', 'cloneGitRepository']}
             createNewFile={handleNewFileInput}
             createNewFolder={handleNewFolderInput}
             publishToGist={publishToGist}
@@ -1151,6 +1151,7 @@ export function Workspace() {
             importFromHttps={importFromUrl}
             handleGitInit={handleGitInit}
             revealInExplorer={() => global.dispatchRevealElectronFolderInExplorer(null)}
+            cloneGitRepository={cloneGitRepository}
           />
         </div>
       </div>

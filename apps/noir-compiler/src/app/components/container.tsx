@@ -5,6 +5,7 @@ import { NoirAppContext } from '../contexts'
 import { CompileOptions } from '@remix-ui/helper'
 import { compileNoirCircuit } from '../actions'
 import { trackMatomoEvent, MatomoCategories } from '@remix-api'
+import { CreateZkDappButton } from './createZkDappButton'
 
 const NOIR_VERSION = 'v1.0.0-beta.12'
 const BARRETENBERG_VERSION = 'v0.85.0'
@@ -178,6 +179,7 @@ export function Container () {
                     </div>
                   </button>
                 </div>
+                <CreateZkDappButton />
               </div>
             </RenderIf>
             <RenderIf condition={noirApp.appState.status !== 'compiling' && noirApp.appState.proofingStatus !== 'succeed'}>
