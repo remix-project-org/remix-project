@@ -28,6 +28,27 @@ export default function (browser: NightwatchBrowser, callback: VoidFunction, url
     .verifyLoad()
     .enableClipBoard()
     .perform((done) => {
+      // Hide the nudge widget (product upsell modal) before it can intercept clicks below
+      browser.execute(function () {
+        function addStyle(styleString) {
+          const style = document.createElement('style');
+          style.textContent = styleString;
+          document.head.append(style);
+        }
+
+        addStyle(`
+          #nudge-widget-container,
+          .nudge-widget,
+          .nudge-modal-backdrop,
+          .nudge-decoration {
+            display: none !important;
+            opacity: 0 !important;
+            visibility: hidden !important;
+          }
+        `);
+      }, [], done())
+    })
+    .perform((done) => {
       if (!showTerminal) return done()
       // Show terminal panel for e2e tests (it's hidden by default in the app)
       browser

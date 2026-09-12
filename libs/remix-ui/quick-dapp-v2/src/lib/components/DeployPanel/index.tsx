@@ -11,7 +11,7 @@ import { InBrowserVite } from '../../InBrowserVite';
 import { generateWalletSelectionScript } from '../../utils/wallet-selection-script';
 import { validateEnsName } from '../../utils/ens-utils';
 import { buildGraphRuntimeConfigScript, hasTheGraphGatewaySources } from '../../utils/graph-runtime-config';
-import { buildZkRuntimeConfigScript, hasZkCircuit } from '../../utils/zkverify-runtime-config';
+import { buildZkRuntimeConfigScript, hasZkCircuit, getZkDappSummary } from '../../utils/zkverify-runtime-config';
 // remixClient removed - using plugin from context instead
 import { trackMatomoEvent } from '@remix-api';
 import { endpointUrls } from '@remix-endpoints-helper';
@@ -520,6 +520,22 @@ function DeployPanel(): JSX.Element {
               {renderInfoRow('Address', activeDapp.contract?.address, true)}
               {renderInfoRow('Path', activeDapp.sourceWorkspace?.filePath, true)}
             </div>
+
+            {hasZkCircuit(activeDapp) && (() => {
+              const zkSummary = getZkDappSummary(activeDapp);
+              return (
+                <div className="mb-3">
+                  <div className="text-uppercase text-muted mb-1">ZK Verification</div>
+                  {renderInfoRow('Method', zkSummary.verificationMethod === 'onchain' ? 'On-chain verifier contract' : 'zkVerify (off-chain)')}
+                  {zkSummary.verificationMethod === 'onchain' && (
+                    <>
+                      {renderInfoRow('Verifier network', zkSummary.onChainVerifier?.networkName || zkSummary.onChainVerifier?.chainId)}
+                      {renderInfoRow('Verifier address', zkSummary.onChainVerifier?.address, true)}
+                    </>
+                  )}
+                </div>
+              );
+            })()}
 
             <div className="mb-3">
               <div className="text-uppercase text-muted mb-1">Workspace</div>

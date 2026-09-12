@@ -571,33 +571,6 @@ export function RemixUiQuickDappV2({ plugin }: RemixUiQuickDappV2Props): JSX.Ele
       );
     }
 
-    // Permission check: show access denied if user doesn't have dapp:quickdapp feature
-    if (!hasAccess) {
-      return (
-        <div className="d-flex flex-column justify-content-center align-items-center text-center px-4" style={{ height: '80vh' }}>
-          <i className="fas fa-lock fa-3x mb-3 text-warning"></i>
-          <h4 className="mb-2">Access Required</h4>
-          {isAuthenticated ? (
-            <p className="text-muted" style={{ maxWidth: '400px' }}>
-              QuickDapp V2 is currently available to beta testers only. Please contact the Remix team to request access.
-            </p>
-          ) : (
-            <>
-              <p className="text-muted" style={{ maxWidth: '400px' }}>
-                Please sign in to access QuickDapp V2. This feature is available to beta testers.
-              </p>
-              <button
-                className="btn btn-sm btn-primary mt-2"
-                onClick={() => startSignInFlow(plugin, () => setShowLoginModal(true), 'QuickDapp Sign In')}
-              >
-                Sign In
-              </button>
-            </>
-          )}
-        </div>
-      );
-    }
-
     if (isAppLoading || !locale.messages) {
       return (
         <div className="d-flex flex-column justify-content-center align-items-center" style={{ height: '80vh' }}>

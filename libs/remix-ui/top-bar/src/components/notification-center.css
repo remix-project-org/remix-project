@@ -26,10 +26,10 @@
 .notification-badge {
   position: absolute;
   top: 0;
-  right: 2px;
-  background: var(--bs-danger, #e74c3c);
-  color: #fff;
-  font-size: 0.6rem;
+  background: var(--custom-primary);
+  border: 1px solid var(--custom-onsurface-layer-1);
+  color: var(--custom-onsurface-layer-1);
+  font-size: 0.625rem;
   font-weight: 700;
   min-width: 16px;
   height: 16px;
@@ -38,6 +38,7 @@
   border-radius: 10px;
   padding: 0 4px;
   pointer-events: none;
+  justify-self: center;
 }
 
 /* ---- Dropdown Panel ---- */
@@ -63,7 +64,7 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 12px 16px;
+  padding: 8px 12px;
   border-bottom: 1px solid var(--bs-border-color, #3f4455);
   flex-shrink: 0;
 }
@@ -116,7 +117,7 @@
   display: flex;
   align-items: flex-start;
   gap: 10px;
-  padding: 12px 16px;
+  padding: 8px 12px;
   border-bottom: 1px solid var(--bs-border-color, #3f4455);
   cursor: pointer;
   transition: background-color 0.15s ease;
@@ -198,6 +199,29 @@
   -webkit-box-orient: vertical;
   overflow: hidden;
   margin-bottom: 4px;
+  /* the top bar's right-side toolbar sets an inherited `white-space: nowrap`
+     to keep its controls on one row; override it here so the body text can
+     actually wrap across its clamped lines instead of being cut on one line. */
+  white-space: normal;
+}
+
+.notification-item-body-expanded {
+  -webkit-line-clamp: unset;
+  overflow: visible;
+}
+
+.notification-item-body-toggle {
+  background: none;
+  border: none;
+  padding: 0;
+  margin: -2px 0 4px;
+  color: var(--custom-primary, #64c4ff);
+  font-size: 0.72rem;
+  cursor: pointer;
+}
+
+.notification-item-body-toggle:hover {
+  text-decoration: underline;
 }
 
 .notification-item-actions {

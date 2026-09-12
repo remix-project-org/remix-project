@@ -14,6 +14,9 @@ class CreateContract extends EventEmitter {
 }
 
 function createContract (browser: NightwatchBrowser, inputParams: string, callback: VoidFunction) {
+  browser
+    .waitForElementPresent('[data-id="udappDeployTab"]', 10000)
+    .click('[data-id="udappDeployTab"]')
   browser.execute(function () {
     // Use JavaScript to click the button, avoiding sticky header issues
     const deployButton = document.querySelector('[data-id="deployButton"]') as HTMLElement

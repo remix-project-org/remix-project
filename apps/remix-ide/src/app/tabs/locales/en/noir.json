@@ -33,5 +33,8 @@
     "noir.viewProof": "View Proof",
     "noir.viewPublicInputs": "View Public Inputs",
     "noir.viewVerifierSol": "View Verifier.sol",
-    "noir.viewVerifyTs": "View verify.ts"
+    "noir.viewVerifyTs": "View verify.ts",
+    "noir.createZkDapp": "Create ZK DApp",
+    "noir.creatingZkDapp": "Creating ZK DApp...",
+    "noir.createZkDappTooltip": "Generate a DApp with in-browser proof generation and on-chain verification"
   }

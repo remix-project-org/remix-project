@@ -18,7 +18,7 @@ function expandAllFolders (browser: NightwatchBrowser, targetDirectory?: string,
   browser.perform((bdone: VoidFunction) => {
     browser.isVisible('[data-id="remixIdeSidePanel"]', (result) => {
       if (result.value) {
-        browser.element('css selector', '[data-id="verticalIconsKindfilePanel"] img[data-id="selected"]', (result) => {
+        browser.element('css selector', '[data-id="verticalIconsKindfilePanel"] *[data-id="selected"]', (result) => {
           if (result.status === 0) {
             bdone()
           } else browser.clickLaunchIcon('filePanel').perform(() => {

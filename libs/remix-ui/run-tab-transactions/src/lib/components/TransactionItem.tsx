@@ -62,7 +62,7 @@ export const TransactionItem = ({ transaction, openKebabMenuId, onKebabMenuToggl
   }
 
   return (
-    <div className="transaction-item my-2 rounded" style={{ backgroundColor: 'var(--custom-onsurface-layer-2)' }}>
+    <div className="transaction-item rounded" style={{ backgroundColor: 'var(--custom-onsurface-layer-2)' }}>
       <div className="d-flex align-items-center justify-content-between w-100 p-3 text-nowrap text-truncate overflow-hidden">
         <div className='d-flex'>
           {isSuccess ? (

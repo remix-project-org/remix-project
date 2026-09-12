@@ -1538,6 +1538,45 @@ body.light .message-copy-btn:hover {
 }
 
 /* --------------------------------------------------------
+   "Using <model>" strip — same geometry as the auto-accept
+   banner above it so the two stack as one column.
+
+   The banner and this line hang off different parents, and
+   this one's parent paints a lighter strip: the full-bleed
+   row covers it with the panel background so only the inner
+   rounded box shows.
+   -------------------------------------------------------- */
+
+.rai-panel-strip {
+  background: var(--bs-body-bg);
+  flex-shrink: 0;
+}
+
+.rai-run-model {
+  display: flex;
+  align-items: center;
+  padding: 4px 12px;
+  margin: 0 8px 4px;
+  border-radius: 6px;
+  font-size: 12px;
+  min-width: 0;
+  color: var(--bs-success);
+  background: color-mix(in srgb, var(--bs-success) 10%, var(--bs-body-bg));
+  border: 1px solid color-mix(in srgb, var(--bs-success) 22%, var(--bs-body-bg));
+}
+
+.rai-run-model__icon {
+  font-size: 0.7rem;
+  margin-right: 6px;
+}
+
+.rai-run-model__text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* --------------------------------------------------------
    HITL Pending Approvals Summary Bar
    -------------------------------------------------------- */
 

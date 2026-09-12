@@ -11,13 +11,15 @@ interface ElectronWorkspaceMenuProps {
   setShowMain: (show: boolean) => void
   openFolder: () => Promise<void>
   createWorkspace: () => void
+  cloneGitRepository?: () => void
 }
 
 export const ElectronWorkspaceMenu: React.FC<ElectronWorkspaceMenuProps> = ({
   showMain,
   setShowMain,
   openFolder,
-  createWorkspace
+  createWorkspace,
+  cloneGitRepository
 }) => {
   const [showAllRecent, setShowAllRecent] = useState(false)
   const global = useContext(TopbarContext)
@@ -234,6 +236,24 @@ export const ElectronWorkspaceMenu: React.FC<ElectronWorkspaceMenuProps> = ({
             Create New Project
           </button>
         </Dropdown.Item>
+        {cloneGitRepository && (
+          <Dropdown.Item
+            data-id="workspaceCloneRepository"
+            onClick={(e) => {
+              cloneGitRepository()
+              setShowMain(false)
+            }}
+            style={{
+              backgroundColor: 'transparent',
+              color: 'inherit',
+            }}
+          >
+            <button className="w-100 btn btn-outline-primary font-weight-light text-decoration-none mb-2 rounded-lg">
+              <i className="fab fa-github me-2"></i>
+              Clone Repository
+            </button>
+          </Dropdown.Item>
+        )}
       </div>
     </Dropdown.Menu>
   )

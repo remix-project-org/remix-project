@@ -33,7 +33,9 @@ export const getZkCircuitConfig = (activeDapp: any): any | null => {
 
 export const hasZkCircuit = (activeDapp: any): boolean => {
   const zkCircuit = getZkCircuitConfig(activeDapp);
-  return !!zkCircuit && zkCircuit.provingScheme === 'groth16';
+  if (!zkCircuit) return false;
+  if (zkCircuit.circuitType === 'noir') return true;
+  return zkCircuit.provingScheme === 'groth16' || zkCircuit.provingScheme === 'plonk';
 };
 
 const getZkVerifyEndpoint = (): string => {
@@ -102,7 +104,7 @@ const createZkVerifyProxyToken = async (
 
 export interface ZkRuntimeConfig {
   circuitName: string;
-  provingScheme: 'groth16';
+  provingScheme: 'groth16' | 'plonk';
   primeValue: 'bn128' | 'bls12381';
   signalInputs: string[];
   zkArtifacts: {
@@ -110,13 +112,76 @@ export interface ZkRuntimeConfig {
     zkeyPath: string;
     vkeyPath: string;
   };
-  zkVerify: {
+  verificationMethod: 'zkverify' | 'onchain';
+  zkVerify?: {
     network: 'testnet' | 'mainnet';
     apiKey?: string;
     proxyEndpoint?: string;
     proxyToken?: string;
   };
+  onChainVerifier?: {
+    address: string;
+    abi: any[];
+    chainId: number | string;
+  };
 }
+
+export interface NoirZkRuntimeConfig {
+  circuitType: 'noir';
+  circuitName: string;
+  backendUrl: string;
+  wsUrl: string;
+  nargoToml: string;
+  programJson: string;
+  circuitSource: { path: string; content: string }[];
+  verificationMethod: 'onchain';
+  onChainVerifier?: {
+    address: string;
+    abi: any[];
+    chainId: number | string;
+  };
+}
+
+/**
+ * Build the runtime config for a Noir ZK DApp - text-only artifacts (no wasm/zkey blobs),
+ * since proving happens via a round-trip to the external Noir backend, not in-browser wasm.
+ */
+const buildNoirZkRuntimeConfigScript = async (plugin: any, zkCircuit: any): Promise<string> => {
+  const noirArtifacts = zkCircuit.noirArtifacts || {};
+
+  const [nargoToml, programJson] = await Promise.all([
+    plugin.call('fileManager', 'readFile', noirArtifacts.nargoTomlPath).catch(() => ''),
+    plugin.call('fileManager', 'readFile', noirArtifacts.programJsonPath).catch(() => '')
+  ]);
+
+  const circuitSourcePaths: string[] = noirArtifacts.circuitSourcePaths || [];
+  const circuitSource = await Promise.all(
+    circuitSourcePaths.map(async (path) => ({
+      path,
+      content: await plugin.call('fileManager', 'readFile', path).catch(() => '')
+    }))
+  );
+
+  const runtimeConfig: NoirZkRuntimeConfig = {
+    circuitType: 'noir',
+    circuitName: zkCircuit.circuitName,
+    backendUrl: noirArtifacts.backendUrl || '',
+    wsUrl: noirArtifacts.wsUrl || '',
+    nargoToml: nargoToml || '',
+    programJson: programJson || '',
+    circuitSource,
+    verificationMethod: 'onchain',
+    ...(zkCircuit.onChainVerifier ? {
+      onChainVerifier: {
+        address: zkCircuit.onChainVerifier.address,
+        abi: zkCircuit.onChainVerifier.abi,
+        chainId: zkCircuit.onChainVerifier.chainId
+      }
+    } : {})
+  };
+
+  return `<script>window.__ZK_DAPP_CONFIG__=${safeScriptJson(runtimeConfig)};</script>`;
+};
 
 /**
  * Build the ZK DApp runtime configuration script.
@@ -130,22 +195,39 @@ export const buildZkRuntimeConfigScript = async (
   const zkCircuit = getZkCircuitConfig(activeDapp);
   if (!zkCircuit) return '';
 
-  const network = zkCircuit.zkVerifyConfig?.network || await getZkVerifyNetwork(plugin);
-  let apiKey = await getZkVerifyApiKey(plugin);
-  let proxyToken: string | undefined;
-  let proxyEndpoint: string | undefined;
+  if (zkCircuit.circuitType === 'noir') {
+    return buildNoirZkRuntimeConfigScript(plugin, zkCircuit);
+  }
 
-  // For deployment, create a sealed proxy token instead of exposing the API key
-  const zkverifyEndpoint = getZkVerifyEndpoint();
+  const verificationMethod: 'zkverify' | 'onchain' = zkCircuit.verificationMethod || 'zkverify';
 
-  if (!options.includeApiKey && apiKey) {
-    try {
-      proxyToken = await createZkVerifyProxyToken(apiKey, network);
-      proxyEndpoint = `${zkverifyEndpoint}/submit-proof`;
-      apiKey = ''; // Clear API key for deployed version
-    } catch (error: any) {
-      // Continue without proxy token - DApp will need manual API key
+  let zkVerify: ZkRuntimeConfig['zkVerify'];
+
+  if (verificationMethod === 'zkverify') {
+    const network = zkCircuit.zkVerifyConfig?.network || await getZkVerifyNetwork(plugin);
+    let apiKey = await getZkVerifyApiKey(plugin);
+    let proxyToken: string | undefined;
+    let proxyEndpoint: string | undefined;
+
+    // For deployment, create a sealed proxy token instead of exposing the API key
+    const zkverifyEndpoint = getZkVerifyEndpoint();
+
+    if (!options.includeApiKey && apiKey) {
+      try {
+        proxyToken = await createZkVerifyProxyToken(apiKey, network);
+        proxyEndpoint = `${zkverifyEndpoint}/submit-proof`;
+        apiKey = ''; // Clear API key for deployed version
+      } catch (error: any) {
+        // Continue without proxy token - DApp will need manual API key
+      }
     }
+
+    zkVerify = {
+      network,
+      ...(options.includeApiKey && apiKey ? { apiKey } : {}),
+      ...(proxyEndpoint ? { proxyEndpoint } : {}),
+      ...(proxyToken ? { proxyToken } : {})
+    };
   }
 
   // For IPFS deployment, use root-level paths since IPFS endpoint doesn't support subdirectories.
@@ -183,12 +265,15 @@ export const buildZkRuntimeConfigScript = async (
     primeValue: zkCircuit.primeValue,
     signalInputs: zkCircuit.signalInputs || [],
     zkArtifacts,
-    zkVerify: {
-      network,
-      ...(options.includeApiKey && apiKey ? { apiKey } : {}),
-      ...(proxyEndpoint ? { proxyEndpoint } : {}),
-      ...(proxyToken ? { proxyToken } : {})
-    }
+    verificationMethod,
+    ...(zkVerify ? { zkVerify } : {}),
+    ...(verificationMethod === 'onchain' && zkCircuit.onChainVerifier ? {
+      onChainVerifier: {
+        address: zkCircuit.onChainVerifier.address,
+        abi: zkCircuit.onChainVerifier.abi,
+        chainId: zkCircuit.onChainVerifier.chainId
+      }
+    } : {})
   };
 
   return `<script>window.__ZK_DAPP_CONFIG__=${safeScriptJson(runtimeConfig)};</script>`;
@@ -202,16 +287,34 @@ export const getZkDappSummary = (activeDapp: any): {
   circuitName?: string;
   provingScheme?: string;
   signalCount?: number;
+  verificationMethod?: 'zkverify' | 'onchain';
+  onChainVerifier?: { address: string; chainId: number | string; networkName?: string };
 } => {
   const zkCircuit = getZkCircuitConfig(activeDapp);
   if (!zkCircuit) {
     return { hasZkCircuit: false };
   }
 
+  if (zkCircuit.circuitType === 'noir') {
+    return {
+      hasZkCircuit: true,
+      circuitName: zkCircuit.circuitName,
+      provingScheme: 'noir',
+      verificationMethod: 'onchain',
+      onChainVerifier: zkCircuit.onChainVerifier
+        ? { address: zkCircuit.onChainVerifier.address, chainId: zkCircuit.onChainVerifier.chainId, networkName: zkCircuit.onChainVerifier.networkName }
+        : undefined
+    };
+  }
+
   return {
     hasZkCircuit: true,
     circuitName: zkCircuit.circuitName,
     provingScheme: zkCircuit.provingScheme,
-    signalCount: zkCircuit.signalInputs?.length || 0
+    signalCount: zkCircuit.signalInputs?.length || 0,
+    verificationMethod: zkCircuit.verificationMethod || 'zkverify',
+    onChainVerifier: zkCircuit.onChainVerifier
+      ? { address: zkCircuit.onChainVerifier.address, chainId: zkCircuit.onChainVerifier.chainId, networkName: zkCircuit.onChainVerifier.networkName }
+      : undefined
   };
 };

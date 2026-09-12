@@ -262,6 +262,7 @@ export function getQuickDappToolsForQuickDappSpecialist(tools: DynamicStructured
     'generate_dapp',
     'generate_graph_dapp',
     'generate_zk_dapp',
+    'generate_noir_zk_dapp',
     'update_dapp',
     'generate_dapp_docs',
     'list_dapps',

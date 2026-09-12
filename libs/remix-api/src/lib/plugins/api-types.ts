@@ -136,6 +136,17 @@ export interface AppConfig {
   // Limits
   'limits.max_file_size_mb'?: number
 
+  // Domain migration — set on the origin being retired
+  'migration.enabled'?: boolean
+  /** Comma-separated hosts that should prompt to migrate, e.g. 'remix.ethereum.org, localhost:8080'. */
+  'migration.from_domains'?: string
+  /** Host users are being moved to, e.g. 'app.remix.live'. */
+  'migration.to_domain'?: string
+  /** Optional ISO 8601 date after which the old origin stops being updated. */
+  'migration.deadline'?: string
+  /** Send visitors with an empty browser storage straight to `migration.to_domain`. */
+  'migration.redirect_enabled'?: boolean
+
   // Settings
   'settings.account_management'?: boolean
 

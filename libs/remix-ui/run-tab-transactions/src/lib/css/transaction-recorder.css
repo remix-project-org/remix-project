@@ -53,7 +53,6 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  background-color: var(--bs-light);
   flex-wrap: nowrap;
   gap: 0.25rem;
   padding: 0;
@@ -91,6 +90,9 @@
 
 .contract-call-content,
 .transaction-list-content {
+  display: flex;
+  flex-direction: column;
+  gap: .5rem;
   min-height: 100px;
   max-height: 400px;
   overflow-y: auto;
