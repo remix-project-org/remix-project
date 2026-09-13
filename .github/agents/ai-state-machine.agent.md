@@ -72,7 +72,7 @@ The assistant machine **owns the policy**, the plan-manager **owns the UI**:
   - `'feature-required'` — `FEATURE_DENIED`, pass the feature name in `requiredFeature`
   - `'quota-exhausted'` — `RATE_LIMITED` on a per-feature quota that resets only on plan upgrade (not the per-minute kind)
 - The plan-manager already imports and re-uses `LoginModal`, `OtpDigitInput`, the email-verification screen — extend it there, not in the AI machine.
-- After plan-manager closes, the AI machine should observe `permissions:updated` (emitted by the auth plugin after `refreshPermissions()`) and re-evaluate `availability`. Don't poll; subscribe.
+- After plan-manager closes, the AI machine should observe `permissions:updated` (emitted by the auth plugin after `refreshPermissions()`) and re-evaluate `availability`. Don't poll; subscribe. it kinda does 
 
 ## Constraints
 
