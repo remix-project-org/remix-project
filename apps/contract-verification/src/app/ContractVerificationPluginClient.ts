@@ -283,7 +283,7 @@ export class ContractVerificationPluginClient extends PluginClient {
     }
   }
 
-  private async updateReceiptStatus(contractId: string, verifierId: VerifierIdentifier, updates: any) {
+  private async updateReceiptStatus(contractId: string, verifierId: VerifierIdentifier, updates: Partial<VerificationReceipt>) {
     const data = JSON.parse(window.localStorage.getItem('contract-verification:submitted-contracts') || '{}')
     const contract = data[contractId]
     if (!contract) return
