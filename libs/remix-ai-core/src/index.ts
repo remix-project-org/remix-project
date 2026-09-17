@@ -22,7 +22,7 @@ import { remixAILogger, setRemixAILoggingEnabled, isRemixAILoggingEnabled } from
 import { generateStructured } from './helpers/structuredOutput'
 import { enumerateSelectableChecklistPaths, collectChecklistLeaves, isChecklistLeaf, buildAuditTaxonomy, renderTaxonomyBlock, parseLooseJson, normalizeChecklistPath, filterAuditMatches } from './helpers/auditTaxonomy'
 import { buildAuditMatchSchema, buildAuditMatchPrompt, trimSkeleton } from './helpers/auditMatchSchema'
-import { modelSupportsCodeGeneration, modelSupportsToolCalling, isAutoModelId, modelVendor, MODEL_SECTIONS } from './types/models'
+import { modelSupportsCodeGeneration, modelSupportsToolCalling, isAutoModelId, isCheapModel, modelVendor, MODEL_SECTIONS } from './types/models'
 import { SecurityCheckSchema, GeneratedFileSchema, GeneratedProjectSchema, WorkspaceEditSchema } from './types/schemas'
 export {
   ChatCommandParser,
@@ -41,7 +41,7 @@ export {
   enumerateSelectableChecklistPaths, collectChecklistLeaves, isChecklistLeaf, buildAuditTaxonomy,
   renderTaxonomyBlock, parseLooseJson, normalizeChecklistPath, filterAuditMatches,
   buildAuditMatchSchema, buildAuditMatchPrompt, trimSkeleton, ContractSkeletonExtractor,
-  modelSupportsCodeGeneration, modelSupportsToolCalling, isAutoModelId, modelVendor, MODEL_SECTIONS
+  modelSupportsCodeGeneration, modelSupportsToolCalling, isAutoModelId, isCheapModel, modelVendor, MODEL_SECTIONS
 }
 
 export type { AuditChecklistNode, AuditTaxonomyEntry, AuditMatch, AuditMatchConfidence, AuditMatchContract, AuditMatchRequest, AuditMatchResult } from './helpers/auditTaxonomy'

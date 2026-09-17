@@ -31,6 +31,7 @@ export interface AIModel {
   requiresAuth: boolean
   /** ai:* feature key that gates this model, or null when always allowed. */
   requiredFeature: string | null
+  requiredFeatures?: string[]
   /** False → render greyed-out + lock icon; click opens planManager / sign-in. */
   available: boolean
   /** Backend-supplied reason when `available === false`. e.g. 'feature_required'. */
@@ -196,7 +197,6 @@ function generalPurposeSubagent(value: any): AIModel['generalPurposeSubagent'] {
 
 export function parseAIModelsFromPermissions(permissions: any): AIModel[] | null {
   const raw = permissions?.ai_models
-  console.log('parseAIModelsFromPermissions', { raw, permissions })
   if (!Array.isArray(raw)) return null
   const usable = raw.filter((m: any) => m && typeof m.id === 'string' && m.id.trim() !== '')
   if (usable.length !== raw.length) {
@@ -215,6 +215,7 @@ export function parseAIModelsFromPermissions(permissions: any): AIModel[] | null
       isDefault: !!m.is_default,
       requiresAuth: !!m.requires_auth,
       requiredFeature: typeof m.required_feature === 'string' ? m.required_feature : null,
+      requiredFeatures: stringArray(m.required_features ?? m.requiredFeatures ?? m.features),
       available: m.available !== false,
       reason: typeof m.reason === 'string' ? m.reason : undefined,
       requireAPIKey: !!(m.require_api_key ?? m.requireAPIKey),
@@ -300,6 +301,12 @@ export function modelVendor(model: Pick<AIModel, 'id' | 'provider' | 'routeProvi
   const raw = model.id.slice(0, slashAt).toLowerCase()
   const vendor = VENDOR_ALIASES[raw] ?? raw
   return DISPLAY_VENDORS.has(vendor) ? (vendor as ModelSection) : 'openrouter'
+}
+
+export function isCheapModel(model: Pick<AIModel, 'requiredFeature' | 'requiredFeatures'> | undefined): boolean {
+  if (!model) return false
+  if (model.requiredFeature === Features.AI_CHEAP_MODELS) return true
+  return Array.isArray(model.requiredFeatures) && model.requiredFeatures.includes(Features.AI_CHEAP_MODELS)
 }
 
 export function isAutoModelId(id: string | undefined | null): boolean {

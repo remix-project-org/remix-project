@@ -72,7 +72,7 @@ const profile = {
   displayName: 'Plan & Credits',
   description: 'Manage your subscription, top up credits and review AI usage',
   methods: ['open', 'close', 'toggle', 'setCheckoutResult', 'reportCreditsExhausted', 'refresh', 'purchaseCredits', 'subscribeToPlan', 'changePlan', 'cancelSubscription', 'reactivateSubscription', 'resolveConfirm', 'cancelCheckout', 'resumeCheckout', 'dismissResumeNudge', 'getPendingCheckouts', 'discardCheckout'],
-  events: ['opened', 'closed', 'checkoutResultChanged', 'pendingCheckoutsChanged'],
+  events: ['opened', 'closed', 'checkoutResultChanged', 'pendingCheckoutsChanged', 'purchaseConfirmed'],
   icon: PLAN_ICON,
   location: 'sidePanel',
   version: packageJson.version,
@@ -2386,6 +2386,41 @@ export class PlanManagerPlugin extends ViewPlugin {
   }
 
   /**
+   * What the confirmed checkout actually contained, as `CartItem`s. Multi-item
+   * checkouts carry their own cart; a single top-up only records the product
+   * id, so that is resolved against the package catalogue. Listeners (e.g. the
+   * AI assistant, which switches to low-cost models after a small top-up) need
+   * the credits/price, not just the label.
+   */
+  private resolvePurchasedItems(): CartItem[] {
+    const snap = this.store.getSnapshot()
+    if (snap.cartItems.length > 0) return [...snap.cartItems]
+    const productId = snap.pendingCheckout?.productId
+    if (!productId) return []
+    const pkg = snap.catalogPackages.find(p => p.id === productId)
+    if (pkg) {
+      return [{
+        slug: pkg.id,
+        name: pkg.name,
+        productType: 'credit_package',
+        // `priceUsd` is already in cents throughout the catalogue.
+        priceCents: pkg.priceUsd ?? 0,
+        credits: pkg.credits
+      }]
+    }
+    const plan = snap.catalogPlans.find(p => p.id === productId)
+    if (plan) {
+      return [{
+        slug: plan.id,
+        name: plan.name,
+        productType: 'subscription_plan',
+        priceCents: plan.priceUsd ?? 0
+      }]
+    }
+    return []
+  }
+
+  /**
    * After a confirmed purchase / plan change / cancel, refresh everything the
    * user can see: local plan-manager data, the global access policy, the
    * permissions cache, and the credits counter. These drive the top-bar
@@ -2405,6 +2440,9 @@ export class PlanManagerPlugin extends ViewPlugin {
     // permission refresh first ensures the new plan's quota is visible by then.
     await this.call('auth', 'refreshPermissions').catch(err => planManagerLogger.warn(LOG, 'refreshPermissions failed', err))
     await this.call('auth', 'refreshCredits').catch(err => planManagerLogger.warn(LOG, 'refreshCredits failed', err))
+    // Read what was bought BEFORE PURCHASE_CONFIRMED — it clears the cart and
+    // the in-flight intent, which is where the purchased items live.
+    const items = this.resolvePurchasedItems()
     // Promote 'processing' → 'success' in the panel. DATA_LOADED alone won't
     // do it because the data state is usually 'ready' (not 'refreshing') by
     // the time we get here; PURCHASE_CONFIRMED is handled at machine root.
@@ -2412,7 +2450,7 @@ export class PlanManagerPlugin extends ViewPlugin {
     const cr = this.store.getSnapshot().checkoutResult
     // Single source of truth for a fully-confirmed, account-refreshed purchase.
     this.trackCheckout('confirmed', cr?.intent, cr?.itemLabel)
-    this.emit('purchaseConfirmed', { intent: cr?.intent, label: cr?.itemLabel })
+    this.emit('purchaseConfirmed', { intent: cr?.intent, label: cr?.itemLabel, items })
     planManagerLogger.log(LOG, 'done')
   }
 

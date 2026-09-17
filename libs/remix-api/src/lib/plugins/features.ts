@@ -63,6 +63,11 @@ export const AI_SONNET_4_6 = 'ai:sonnet-4.6' as const
 /** Opus 4.6 model access. */
 export const AI_OPUS_4_6 = 'ai:opus-4.6' as const
 
+/** Marks a model as belonging to the cheap/low-cost tier. Attached to models
+ *  across providers, so it doubles as the filter key for the picker's
+ *  "cheap models only" toggle. */
+export const AI_CHEAP_MODELS = 'ai:cheap_models' as const
+
 // ─── AI Provider Features ───────────────────────────────────────────────────────
 
 /** Mistral provider access. */
@@ -165,6 +170,7 @@ export const Features = {
   AI_CODESTRAL,
   AI_SONNET_4_6,
   AI_OPUS_4_6,
+  AI_CHEAP_MODELS,
 
   // AI Providers
   AI_PROVIDER_MISTRAL,
@@ -226,6 +232,7 @@ export const FEATURE_LABELS: Partial<Record<FeatureKey, string>> = {
   [AI_CODESTRAL]:           'Codestral',
   [AI_SONNET_4_6]:          'Claude Sonnet',
   [AI_OPUS_4_6]:            'Claude Opus',
+  [AI_CHEAP_MODELS]:        'Low-cost Models',
   // AI Providers
   [AI_PROVIDER_MISTRAL]:    'Mistral',
   [AI_PROVIDER_ANTHROPIC]:  'Anthropic',

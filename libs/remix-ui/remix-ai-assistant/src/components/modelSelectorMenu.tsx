@@ -2,7 +2,7 @@ import React, { Dispatch, useEffect, useLayoutEffect, useMemo, useRef, useState 
 import { SiOpenai, SiAnthropic, SiOllama, SiAmazonwebservices } from 'react-icons/si'
 import GroupListMenu, { LockedPillState } from './contextOptMenu'
 import { groupListType } from '../types/componentTypes'
-import { AIModel, modelKey, byokKeyState, isAutoModelId, modelVendor, type ByokKeyState } from '@remix/remix-ai-core'
+import { AIModel, modelKey, byokKeyState, isAutoModelId, isCheapModel, modelVendor, type ByokKeyState } from '@remix/remix-ai-core'
 
 const PROVIDER_META: Record<string, { label: string; subtitle: string }> = {
   anthropic: { label: 'Anthropic', subtitle: 'Claude models' },
@@ -152,6 +152,19 @@ export interface ModelSelectorMenuProps {
 
 export default function ModelSelectorMenu(props: ModelSelectorMenuProps) {
   const [query, setQuery] = useState('')
+  // When on, the list is narrowed to models carrying the `ai:cheapModels`
+  // feature — a marker that spans providers, so the accordion keeps its shape.
+  const [cheapOnly, setCheapOnly] = useState(false)
+
+  const hasCheapModels = useMemo(
+    () => props.availableModels.some(m => !isSignInModel(m) && isCheapModel(m)),
+    [props.availableModels]
+  )
+
+  // Nothing to filter down to → never leave the list stuck on an empty filter.
+  useEffect(() => {
+    if (!hasCheapModels && cheapOnly) setCheapOnly(false)
+  }, [hasCheapModels, cheapOnly])
 
   // Ungrouped rows shown above the provider accordion (sign-in placeholder).
   const signInModels = useMemo(
@@ -169,6 +182,7 @@ export default function ModelSelectorMenu(props: ModelSelectorMenuProps) {
     const byProvider = new Map<string, AIModel[]>()
     for (const model of props.availableModels) {
       if (isSignInModel(model) || isAutoModel(model)) continue
+      if (cheapOnly && !isCheapModel(model)) continue
       const vendor = modelVendor(model)
       const list = byProvider.get(vendor) ?? []
       list.push(model)
@@ -181,7 +195,7 @@ export default function ModelSelectorMenu(props: ModelSelectorMenuProps) {
         minSortOrder: models.reduce((min, m) => Math.min(min, m.sortOrder), Number.POSITIVE_INFINITY)
       }))
       .sort((a, b) => a.minSortOrder - b.minSortOrder)
-  }, [props.availableModels])
+  }, [props.availableModels, cheapOnly])
 
   const selectedModel = useMemo(() => {
     if (!props.currentChoice || props.currentChoice === 'auto') return undefined
@@ -231,7 +245,7 @@ export default function ModelSelectorMenu(props: ModelSelectorMenuProps) {
 
   // The Auto row is the `openrouter/auto` model, hoisted to the top of the
   const autoValue = autoModel ? modelKey(autoModel) : 'auto'
-  const showAutoRow = !!autoModel
+  const showAutoRow = !!autoModel && (!cheapOnly || isCheapModel(autoModel))
   const autoSelected = props.currentChoice === autoValue
   const autoTitle = autoModel?.displayName || 'Auto'
   const autoDescription = autoModel?.description || ''
@@ -266,6 +280,22 @@ export default function ModelSelectorMenu(props: ModelSelectorMenuProps) {
             autoFocus
           />
         </div>
+        <button
+          type="button"
+          className={`btn btn-sm mt-2 w-100 d-flex align-items-center justify-content-center ${cheapOnly ? 'btn-primary' : 'btn-secondary'}`}
+          data-id="ai-model-cheap-toggle"
+          data-active={cheapOnly ? 'true' : 'false'}
+          data-available={hasCheapModels ? 'true' : 'false'}
+          aria-pressed={cheapOnly}
+          disabled={!hasCheapModels}
+          title={!hasCheapModels
+            ? 'No low-cost model is available on your plan'
+            : cheapOnly ? 'Showing low-cost models only' : 'Show low-cost models only'}
+          onClick={() => setCheapOnly(prev => !prev)}
+        >
+          <i className={`fa-solid ${cheapOnly ? 'fa-toggle-on' : 'fa-toggle-off'} me-2`}></i>
+          <span style={{ fontSize: '0.75rem' }}>Low-cost models only</span>
+        </button>
       </div>
 
       {/* Only one provider is open at a time and its list caps at
@@ -311,6 +341,12 @@ export default function ModelSelectorMenu(props: ModelSelectorMenuProps) {
         {/* Sign-in placeholder */}
         {signInModels.length > 0 && !normalizedQuery && (
           <GroupListMenu {...groupListProps} groupList={signInModels.map(model => toRow(model, keyPresence))} />
+        )}
+
+        {cheapOnly && groups.length === 0 && (
+          <div className="px-3 py-3 small text-muted text-center" data-id="ai-model-cheap-empty">
+            No low-cost model is available on your plan
+          </div>
         )}
 
         {normalizedQuery && !groups.some(g => g.models.some(matchesQuery)) && (

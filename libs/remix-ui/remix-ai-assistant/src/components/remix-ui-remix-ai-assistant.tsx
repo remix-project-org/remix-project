@@ -3,7 +3,7 @@ import React, { useState, useEffect, useCallback, useMemo, useRef, useImperative
 //@ts-ignore
 import '../css/remix-ai-assistant.css'
 
-import { ChatCommandParser, GenerationParams, ChatHistory, HandleStreamResponse, AIModel, ANONYMOUS_FALLBACK_MODELS, remixAILogger, modelKey, parseModelKey, findModel, applyByokKeyPolicy, BYOK_API_KEY_SETTINGS, modelTransportProvider, onApiKeysChange, isAutoModelId, type ModelTransport } from '@remix/remix-ai-core'
+import { ChatCommandParser, GenerationParams, ChatHistory, HandleStreamResponse, AIModel, ANONYMOUS_FALLBACK_MODELS, remixAILogger, modelKey, parseModelKey, findModel, applyByokKeyPolicy, BYOK_API_KEY_SETTINGS, modelTransportProvider, onApiKeysChange, isAutoModelId, isCheapModel, type ModelTransport } from '@remix/remix-ai-core'
 import { ToolApprovalRequest, ApiKeyErrorEvent } from '@remix/remix-ai-core'
 import { HandleOpenAICompatibleResponse, HandleOllamaResponse } from '@remix/remix-ai-core'
 //@ts-ignore
@@ -24,6 +24,18 @@ import { CooldownBanner } from './cooldownBanner'
 import { ChatNoticeStrip, type ChatNoticeDisplay, type ChatNoticeActionDisplay } from './chatNoticeStrip'
 import { useModelAccess } from '../hooks/useModelAccess'
 import { ToolApprovalModal } from './ToolApprovalModal'
+
+// ─── Starter credit pack → low-cost models ───────────────────────────────────
+// The entry-level top-up ($2 / 20,000 credits) is bought to stretch a small
+// budget, so a purchase of it flips the assistant onto the `ai:cheapModels`
+// tier. Matched on either figure: the catalogue quotes price in cents, and a
+// renamed/re-slugged package must keep working.
+const STARTER_PACK_CREDITS = 20000
+const STARTER_PACK_PRICE_CENTS = 200
+
+const isStarterCreditPack = (item: any): boolean =>
+  item?.productType === 'credit_package' &&
+  (Number(item?.credits) === STARTER_PACK_CREDITS || Number(item?.priceCents) === STARTER_PACK_PRICE_CENTS)
 
 // ─── Generative UI payload validation ────────────────────────────────────────
 // Mirrors the VALID_TYPES set in GenerativeUIHandler.ts. Kept here as a
@@ -215,6 +227,10 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
   const ollamaMenuRef = useRef<any>()
   const [ollamaModels, setOllamaModels] = useState<{ name: string; supported: boolean }[]>([])
   const [selectedModel, setSelectedModel] = useState<AIModel | null>(null)
+  // Set when a starter credit pack is confirmed; cleared once the switch to a
+  // low-cost model has actually been applied (the catalogue is refreshed
+  // asynchronously after the purchase, so the switch can't happen inline).
+  const [pendingCheapSwitch, setPendingCheapSwitch] = useState(false)
   // Mirrors `selectedModel` for callbacks that must not capture a stale value
   // (the API-key change subscription lives outside the render closure).
   const selectedModelRef = useRef<AIModel | null>(null)
@@ -2358,6 +2374,54 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
 
     setShowModelSelector(false)
   }, [props.plugin, modelAccess, pushSystemNotice])
+
+  // A confirmed starter credit pack arms the switch to the low-cost tier.
+  useEffect(() => {
+    const onPurchaseConfirmed = (payload: any) => {
+      const items = Array.isArray(payload?.items) ? payload.items : []
+      if (!items.some(isStarterCreditPack)) return
+      setPendingCheapSwitch(true)
+    }
+    props.plugin.on('planManager' as any, 'purchaseConfirmed', onPurchaseConfirmed)
+    return () => {
+      props.plugin.off('planManager' as any, 'purchaseConfirmed')
+    }
+  }, [props.plugin])
+
+  // Apply the armed switch as soon as the refreshed catalogue actually offers a
+  // low-cost model, then tell the user what changed and why.
+  useEffect(() => {
+    if (!pendingCheapSwitch) return
+
+    const announce = (model: AIModel) => setChatNotice({
+      severity: 'info',
+      code: 'CHEAP_MODELS_ENABLED',
+      title: `Switched to ${model.displayName}`,
+      message: `Your ${STARTER_PACK_CREDITS.toLocaleString()}-credit top-up unlocked the low-cost models, so the assistant switched to ${model.displayName} to make those credits last. Pick any other model from the selector whenever you want.`,
+      actionable: false
+    })
+
+    if (selectedModel && isCheapModel(selectedModel) && selectedModel.available) {
+      setPendingCheapSwitch(false)
+      announce(selectedModel)
+      return
+    }
+
+    const target = availableModels
+      .filter(m => m.available && m.provider !== 'ollama' && isCheapModel(m))
+      .sort((a, b) => a.sortOrder - b.sortOrder)[0]
+    if (!target) return
+
+    let cancelled = false
+    void (async () => {
+      await handleModelSelection(modelKey(target))
+      if (cancelled) return
+      setPendingCheapSwitch(false)
+      // handleModelSelection clears the strip on entry, so announce after it.
+      announce(target)
+    })()
+    return () => { cancelled = true }
+  }, [pendingCheapSwitch, availableModels, selectedModel, handleModelSelection])
 
   const handleLockedModelClick = useCallback((selectionKey: string, _modelName: string) => {
     const { id: modelId, provider } = parseModelKey(selectionKey)

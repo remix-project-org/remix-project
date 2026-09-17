@@ -96,7 +96,6 @@ export const ChatHistoryComponent: React.FC<ChatHistoryComponentProps> = ({
         <AiChatIntro theme={theme} />
       ) : (
         messages.map(msg => {
-          console.log('msg', msg)
           if (msg.uiComponent){
             console.log('uiComponent', msg)
           }
