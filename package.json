@@ -124,7 +124,7 @@
     "@ethereumjs/tx": "^10.1.1",
     "@ethereumjs/util": "^10.1.1",
     "@ethereumjs/vm": "^10.1.1",
-    "@ethersphere/bee-js": "^8.3.0",
+    "@ethersphere/bee-js": "^12.2.1",
     "@floating-ui/react": "^0.26.15",
     "@fortawesome/fontawesome-svg-core": "^6.5.1",
     "@fortawesome/free-solid-svg-icons": "^6.5.1",
@@ -285,7 +285,12 @@
     "ws": "^8.18.0",
     "xstate": "^5",
     "xterm": "^5.2.1",
-    "xterm-addon-search": "^0.12.0"
+    "xterm-addon-search": "^0.12.0",
+    "@solarpunkltd/comment-system": "^1.9.5",
+    "uuid": "^11.0.3",
+    "y-monaco": "^0.1.6",
+    "y-webrtc": "^10.3.0",
+    "yjs": "^13.6.31"
   },
   "devDependencies": {
     "@babel/cli": "^7.19.3",
