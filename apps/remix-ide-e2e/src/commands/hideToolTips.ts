@@ -40,6 +40,28 @@ class HideToolTips extends EventEmitter {
         })
       }, [])
       .pause(100)
+      .perform((done: any) => {
+        // Hide the nudge widget (product upsell modal) before it can intercept clicks below
+        browser.execute(function () {
+          function addStyle(styleString) {
+            const style = document.createElement('style');
+            style.textContent = styleString;
+            document.head.append(style);
+          }
+
+          addStyle(`
+            #nudge-widget-container,
+            .nudge-widget,
+            .nudge-modal-backdrop,
+            .nudge-decoration {
+              display: none !important;
+              opacity: 0 !important;
+              visibility: hidden !important;
+            }
+          `);
+        }, [], done())
+      })
+      .pause(100)
       .perform(() => {
         this.emit('complete')
       })

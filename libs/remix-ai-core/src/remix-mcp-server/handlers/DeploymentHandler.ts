@@ -1109,6 +1109,48 @@ export class AddInstanceHandler extends BaseToolHandler {
 }
 
 /**
+ * Set Input Params Handler — fills parameter inputs in the Deploy & Run UI
+ */
+export class SetInputParamsHandler extends BaseToolHandler {
+  name = 'set_input_params';
+  description = 'Fill the input parameter fields in the Deploy & Run panel. Use this after determining appropriate values for constructor or function parameters — it writes the values directly into the UI inputs so the user can review and confirm before deploying/transacting.';
+  inputSchema = {
+    type: 'object',
+    properties: {
+      params: {
+        type: 'array',
+        description: 'Parameter values in declaration order. Each value must be a string (encode arrays/structs as JSON strings).',
+        items: { type: 'string' }
+      },
+      contractAddress: {
+        type: 'string',
+        description: 'Address of the deployed contract instance. Omit when filling constructor parameters.'
+      },
+      functionName: {
+        type: 'string',
+        description: 'Name of the function whose inputs to fill. Omit when filling constructor parameters.'
+      }
+    },
+    required: ['params']
+  };
+
+  async execute(args: { params: string[]; contractAddress?: string; functionName?: string }, plugin: Plugin): Promise<IMCPToolResult> {
+    try {
+      console.log('[SetInputParamsHandler] Filling input parameters in the Deploy & Run UI:', args);
+      if (args.contractAddress && args.functionName) {
+        plugin.emit('setFunctionInputRequest', args.contractAddress, args.functionName, args.params)
+      } else {
+        plugin.emit('setConstructorInputRequest', args.params)
+      }
+      await plugin.call('sidePanel', 'showContent', 'udapp')
+      return this.createSuccessResult({ message: 'Parameters written to the UI. The user can now review and confirm.' })
+    } catch (error) {
+      return this.createErrorResult(`Failed to set parameters: ${error.message}`)
+    }
+  }
+}
+
+/**
  * Create deployment and interaction tool definitions
  */
 export function createDeploymentTools(): RemixToolDefinition[] {
@@ -1135,6 +1177,7 @@ export function createDeploymentTools(): RemixToolDefinition[] {
     define(new GetCurrentEnvironmentHandler(), ['environment:read']),
     define(new RunScriptHandler(), ['transaction:send']),
     define(new SimulateTransactionHandler(), ['transaction:simulate']),
-    define(new AddInstanceHandler(), ['deploy:write'])
+    define(new AddInstanceHandler(), ['deploy:write']),
+    define(new SetInputParamsHandler(), ['deploy:write'])
   ];
 }

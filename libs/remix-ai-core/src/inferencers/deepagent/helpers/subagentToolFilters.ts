@@ -99,7 +99,7 @@ export function getToolForSolidityCompiler(tools: DynamicStructuredTool[]): Dyna
 export function getToolsForDeployer(tools: DynamicStructuredTool[]): DynamicStructuredTool[] {
   const classifierToolNames = [
     'deploy_contract', 'call_contract', 'send_transaction', 'get_deployed_contracts', 'set_execution_environment', 'get_account_balance',
-    'get_user_accounts', 'set_selected_account', 'get_current_environment', 'run_script', 'simulate_transaction', 'add_instance'
+    'get_user_accounts', 'set_selected_account', 'get_current_environment', 'run_script', 'simulate_transaction', 'add_instance', 'set_input_params'
   ]
 
   const classifierTools = tools.filter(tool =>
