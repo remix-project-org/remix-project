@@ -64,6 +64,7 @@ export {
   normalizeSwarmUrl
 } from './utils/url-normalizer'
 export { toHttpUrl, toHttpUrls } from './utils/to-http-url'
+export { jailDepsPath } from './constants/import-patterns'
 
 // Type-safe path types and common interfaces
 export type {
