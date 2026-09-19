@@ -832,10 +832,10 @@ abitype@^1.0.6:
   resolved "https://registry.yarnpkg.com/abitype/-/abitype-1.0.8.tgz#3554f28b2e9d6e9f35eb59878193eabd1b9f46ba"
   integrity sha512-ZeiI6h3GnW06uYDLx0etQtX/p8E24UaHHBj57RSjK7YBFe7iuVn07EDpOeP451D06sF27VOz9JJPlIKJmXgkEg==
 
-adm-zip@^0.5.16:
-  version "0.5.16"
-  resolved "https://registry.yarnpkg.com/adm-zip/-/adm-zip-0.5.16.tgz#0b5e4c779f07dedea5805cdccb1147071d94a909"
-  integrity sha512-TGw5yVi4saajsSEgz25grObGHEUaDrniwvA2qwSC060KfqGPdglhvPMA2lPIoxs3PQIItj2iag35fONcQqgUaQ==
+adm-zip@^0.6.1:
+  version "0.6.1"
+  resolved "https://registry.yarnpkg.com/adm-zip/-/adm-zip-0.6.1.tgz#5b95da4a6e7af0663b71457c06e1517fa6ac8d5f"
+  integrity sha512-Xwrja8nx9e5o2N1my4DsKCeKpdrnACyr1wtbPxBDgGzKzKyE9kRtBFA8mWldI+RVlD7CBZNWY/wQ2+ydwOR6kQ==
 
 aes-js@3.0.0:
   version "3.0.0"
