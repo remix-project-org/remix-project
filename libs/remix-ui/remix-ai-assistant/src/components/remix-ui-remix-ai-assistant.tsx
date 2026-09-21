@@ -231,6 +231,8 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
   // low-cost model has actually been applied (the catalogue is refreshed
   // asynchronously after the purchase, so the switch can't happen inline).
   const [pendingCheapSwitch, setPendingCheapSwitch] = useState(false)
+  // Composer toggle: narrows the model menu to the `ai:cheapModels` tier.
+  const [cheapModelsOnly, setCheapModelsOnly] = useState(false)
   // Mirrors `selectedModel` for callbacks that must not capture a stale value
   // (the API-key change subscription lives outside the render closure).
   const selectedModelRef = useRef<AIModel | null>(null)
@@ -2375,6 +2377,25 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
     setShowModelSelector(false)
   }, [props.plugin, modelAccess, pushSystemNotice])
 
+  const hasCheapModels = useMemo(
+    () => availableModels.some(m => isCheapModel(m)),
+    [availableModels]
+  )
+
+  // Never leave the menu stuck on a filter that can't match anything.
+  useEffect(() => {
+    if (!hasCheapModels && cheapModelsOnly) setCheapModelsOnly(false)
+  }, [hasCheapModels, cheapModelsOnly])
+
+  const handleToggleCheapModels = useCallback(() => {
+    setCheapModelsOnly(prev => {
+      const next = !prev
+      dispatchActivity('button', 'cheapModelsOnly')
+      trackMatomoEvent({ category: 'ai', action: 'remixAI', name: next ? 'cheap_models_on' : 'cheap_models_off', isClick: true })
+      return next
+    })
+  }, [])
+
   // A confirmed starter credit pack arms the switch to the low-cost tier.
   useEffect(() => {
     const onPurchaseConfirmed = (payload: any) => {
@@ -2417,6 +2438,7 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
       await handleModelSelection(modelKey(target))
       if (cancelled) return
       setPendingCheapSwitch(false)
+      setCheapModelsOnly(true)
       // handleModelSelection clears the strip on entry, so announce after it.
       announce(target)
     })()
@@ -3093,6 +3115,9 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
               hasSkillsPermission={hasSkillsPermission}
               onUpgradeRequired={handleFeatureUpgradeRequired}
               getRequiredPlanName={getRequiredPlanName}
+              cheapModelsOnly={cheapModelsOnly}
+              hasCheapModels={hasCheapModels}
+              onToggleCheapModels={handleToggleCheapModels}
             />
           ) : (
             <AiChatPromptArea
@@ -3151,6 +3176,9 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
               hasSkillsPermission={hasSkillsPermission}
               onUpgradeRequired={handleFeatureUpgradeRequired}
               getRequiredPlanName={getRequiredPlanName}
+              cheapModelsOnly={cheapModelsOnly}
+              hasCheapModels={hasCheapModels}
+              onToggleCheapModels={handleToggleCheapModels}
             />
           )
         }

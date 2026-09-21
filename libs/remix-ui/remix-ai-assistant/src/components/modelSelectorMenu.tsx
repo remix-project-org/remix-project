@@ -148,23 +148,13 @@ export interface ModelSelectorMenuProps {
   byokKeyPresence?: Partial<Record<AIModel['provider'], boolean>>
   /** Hand-off to the API key settings, from a row or header waiting for a key. */
   onAddApiKeyClick?: (item: groupListType) => void
+  cheapOnly?: boolean
 }
 
 export default function ModelSelectorMenu(props: ModelSelectorMenuProps) {
   const [query, setQuery] = useState('')
-  // When on, the list is narrowed to models carrying the `ai:cheapModels`
-  // feature — a marker that spans providers, so the accordion keeps its shape.
-  const [cheapOnly, setCheapOnly] = useState(false)
-
-  const hasCheapModels = useMemo(
-    () => props.availableModels.some(m => !isSignInModel(m) && isCheapModel(m)),
-    [props.availableModels]
-  )
-
-  // Nothing to filter down to → never leave the list stuck on an empty filter.
-  useEffect(() => {
-    if (!hasCheapModels && cheapOnly) setCheapOnly(false)
-  }, [hasCheapModels, cheapOnly])
+  // The filter is driven from the composer's toggle, so the menu only reads it.
+  const cheapOnly = !!props.cheapOnly
 
   // Ungrouped rows shown above the provider accordion (sign-in placeholder).
   const signInModels = useMemo(
@@ -280,22 +270,6 @@ export default function ModelSelectorMenu(props: ModelSelectorMenuProps) {
             autoFocus
           />
         </div>
-        <button
-          type="button"
-          className={`btn btn-sm mt-2 w-100 d-flex align-items-center justify-content-center ${cheapOnly ? 'btn-primary' : 'btn-secondary'}`}
-          data-id="ai-model-cheap-toggle"
-          data-active={cheapOnly ? 'true' : 'false'}
-          data-available={hasCheapModels ? 'true' : 'false'}
-          aria-pressed={cheapOnly}
-          disabled={!hasCheapModels}
-          title={!hasCheapModels
-            ? 'No low-cost model is available on your plan'
-            : cheapOnly ? 'Showing low-cost models only' : 'Show low-cost models only'}
-          onClick={() => setCheapOnly(prev => !prev)}
-        >
-          <i className={`fa-solid ${cheapOnly ? 'fa-toggle-on' : 'fa-toggle-off'} me-2`}></i>
-          <span style={{ fontSize: '0.75rem' }}>Low-cost models only</span>
-        </button>
       </div>
 
       {/* Only one provider is open at a time and its list caps at

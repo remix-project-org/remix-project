@@ -134,6 +134,11 @@ export interface PromptAreaProps {
   // Resolves a missing feature to the cheapest plan that grants it (e.g.
   // "Pro") so locked commands can label their badge with the target tier.
   getRequiredPlanName?: (feature: string) => string | null
+  /** Low-cost filter state — narrows the model menu to the `ai:cheapModels` tier. */
+  cheapModelsOnly?: boolean
+  /** False when the catalogue has no low-cost model; the toggle renders disabled. */
+  hasCheapModels?: boolean
+  onToggleCheapModels?: () => void
 }
 
 export const PromptArea: React.FC<PromptAreaProps> = ({
@@ -165,7 +170,10 @@ export const PromptArea: React.FC<PromptAreaProps> = ({
   hasAuditorPermission = false,
   hasSkillsPermission = false,
   onUpgradeRequired,
-  getRequiredPlanName
+  getRequiredPlanName,
+  cheapModelsOnly = false,
+  hasCheapModels = false,
+  onToggleCheapModels
 }) => {
   const { trackMatomoEvent: baseTrackEvent } = useContext(TrackingContext)
   const trackMatomoEvent = <T extends MatomoEvent = MatomoEvent>(event: T) => {
@@ -758,6 +766,32 @@ export const PromptArea: React.FC<PromptAreaProps> = ({
                   <span className={showModelSelector ? "fa fa-caret-up ms-1" : "fa fa-caret-down ms-1"}></span>
                 </div>
               </button>
+              <CustomTooltip
+                tooltipText={
+                  !hasCheapModels
+                    ? 'No low-cost model is available on your plan'
+                    : cheapModelsOnly
+                      ? 'Showing only low-cost models in the selector. Click to show every model.'
+                      : 'Show only low-cost models in the selector — the cheapest tier across all providers, to make your credits last longer.'
+                }
+              >
+                <span className="d-inline-flex align-self-end align-items-center">
+                  <button
+                    type="button"
+                    onClick={() => onToggleCheapModels?.()}
+                    disabled={!hasCheapModels}
+                    className={`btn btn-text btn-sm font-weight-light border-0 rounded d-flex flex-row flex-nowrap align-items-center justify-content-center ${cheapModelsOnly ? 'text-success' : 'text-secondary'}`}
+                    data-id="ai-cheap-models-toggle"
+                    data-active={cheapModelsOnly ? 'true' : 'false'}
+                    data-available={hasCheapModels ? 'true' : 'false'}
+                    aria-pressed={cheapModelsOnly}
+                    aria-label="Show only low-cost models"
+                  >
+                    <i className={`fa-solid ${cheapModelsOnly ? 'fa-toggle-on' : 'fa-toggle-off'} me-1`} style={{ fontSize: '1.15rem', lineHeight: 1 }}></i>
+                    <i className="fa-solid fa-tag" style={{ fontSize: '0.9rem', lineHeight: 1 }}></i>
+                  </button>
+                </span>
+              </CustomTooltip>
               {selectedModel?.provider === 'ollama' && ollamaModels.length > 0 && (
                 <button
                   onClick={() => setShowOllamaModelSelector(prev => !prev)}

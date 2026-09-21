@@ -66,6 +66,10 @@ interface AiChatPromptAreaProps {
     hasSkillsPermission?: boolean
     onUpgradeRequired?: (commandName: string, missingFeature: string) => void
     getRequiredPlanName?: (feature: string) => string | null
+    /** Low-cost model filter — shared by the composer toggle and the menu. */
+    cheapModelsOnly?: boolean
+    hasCheapModels?: boolean
+    onToggleCheapModels?: () => void
 }
 
 export default function AiChatPromptArea(props: AiChatPromptAreaProps) {
@@ -103,6 +107,7 @@ export default function AiChatPromptArea(props: AiChatPromptAreaProps) {
             onBuyCreditsClick={props.onBuyCreditsClick ? handleBuyCreditsClick : undefined}
             byokKeyPresence={props.byokKeyPresence}
             onAddApiKeyClick={props.onAddApiKeyClick ? () => props.onAddApiKeyClick?.() : undefined}
+            cheapOnly={props.cheapModelsOnly}
           />
           {false && props.mcpEnabled && (
             <div className="border-top mt-2 pt-2">
@@ -190,6 +195,9 @@ export default function AiChatPromptArea(props: AiChatPromptAreaProps) {
         hasSkillsPermission={props.hasSkillsPermission}
         onUpgradeRequired={props.onUpgradeRequired}
         getRequiredPlanName={props.getRequiredPlanName}
+        cheapModelsOnly={props.cheapModelsOnly}
+        hasCheapModels={props.hasCheapModels}
+        onToggleCheapModels={props.onToggleCheapModels}
       />
       <span className="mb-2 mx-4 small w-100 text-dark">RemixAI can make mistakes. Always check important info.</span>
     </section>
