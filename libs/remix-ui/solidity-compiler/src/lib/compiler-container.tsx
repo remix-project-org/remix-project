@@ -1174,16 +1174,22 @@ export const CompilerContainer = (props: CompilerContainerProps) => {
           </RenderIf>
         </div>
         <div className="px-4">
-          <button
-            data-id="compilerContainerLoadAISkillsBtn"
-            className="btn btn-secondary btn-block d-block w-100 text-break mb-1 mt-1"
-            onClick={() => {
-              trackMatomoEvent({ category: 'compilerContainer', action: 'loadAISkills', name: '', isClick: true })
-              appStateDispatch({ type: appActionTypes.showSkillsModal, payload: true })
-            }}
+          <CustomTooltip
+            placement="auto"
+            tooltipId="overlay-tooltip-load-ai-skills"
+            tooltipText="Use web3/solidity skills and RemixAI to help you build your project"
           >
-            Load AI Skills
-          </button>
+            <button
+              data-id="compilerContainerLoadAISkillsBtn"
+              className="btn btn-secondary btn-block d-block w-100 text-break mb-1 mt-1"
+              onClick={() => {
+                trackMatomoEvent({ category: 'compilerContainer', action: 'loadAISkills', name: '', isClick: true })
+                appStateDispatch({ type: appActionTypes.showSkillsModal, payload: true })
+              }}
+            >
+              Load AI Skills
+            </button>
+          </CustomTooltip>
           <button
             id="compileBtn"
             data-id="compilerContainerCompileBtn"
@@ -1232,9 +1238,10 @@ export const CompilerContainer = (props: CompilerContainerProps) => {
             >
               <button
                 data-id="compilerContainerStartAIAuditBtn"
-                className="btn btn-secondary btn-block d-block w-100 text-break text-nowrap"
+                className="btn btn-ai btn-block d-block w-100 text-break text-nowrap"
                 onClick={() => startAudit('security')}
               >
+                <img src="assets/img/remixAI_small.svg" alt="Remix AI" className="security-audit-icon me-1" />
                 Security Audit
               </button>
             </CustomTooltip>
@@ -1245,9 +1252,10 @@ export const CompilerContainer = (props: CompilerContainerProps) => {
             >
               <button
                 data-id="compilerContainerStartGasAuditBtn"
-                className="btn btn-secondary btn-block d-block w-100 text-break text-nowrap"
+                className="btn btn-ai btn-block d-block w-100 text-break text-nowrap"
                 onClick={() => startAudit('gas')}
               >
+                <img src="assets/img/remixAI_small.svg" alt="Remix AI" className="gas-audit-icon me-1" />
                 Gas Audit
               </button>
             </CustomTooltip>
