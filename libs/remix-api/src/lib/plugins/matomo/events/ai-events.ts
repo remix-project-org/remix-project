@@ -129,6 +129,25 @@ export type AIPromptEventName =
   | 'promptSend'
 
 /**
+ * Low-cost model tier event names, emitted with
+ * `{ category: 'ai', action: 'remixAI', name: <one of these> }`. They measure
+ * how the `ai:cheapModels` tier is reached: chosen by the user via the
+ * composer toggle, or applied automatically after a starter-pack purchase.
+ *
+ *  - 'cheap_models_on'          value = 'manual' (user turned the picker filter on)
+ *  - 'cheap_models_off'         value = 'manual' (user turned it back off)
+ *  - 'cheap_models_auto_switch' value = modelKey the assistant switched to
+ *  - 'cheap_models_auto_kept'   value = modelKey already selected, so no switch was needed
+ *  - 'cheap_models_unavailable' value = 'no_model' (purchase applied but the catalogue offers none)
+ */
+export type AICheapModelsEventName =
+  | 'cheap_models_on'
+  | 'cheap_models_off'
+  | 'cheap_models_auto_switch'
+  | 'cheap_models_auto_kept'
+  | 'cheap_models_unavailable'
+
+/**
  * Composer command / tools / shortcut interaction event names, emitted with
  * `{ category: 'ai', action: 'remixAI', name: <one of these> }`. They track how
  * users discover and trigger the slash-command palette, the Tools menu, and the

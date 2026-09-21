@@ -222,6 +222,9 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
   const [pendingCheapSwitch, setPendingCheapSwitch] = useState(false)
   // Composer toggle: narrows the model menu to the `ai:cheapModels` tier.
   const [cheapModelsOnly, setCheapModelsOnly] = useState(false)
+  // The armed-switch effect re-runs on every catalogue refresh; this keeps the
+  // "purchase applied but nothing to switch to" event to one per purchase.
+  const cheapUnavailableTrackedRef = useRef(false)
   // Mirrors `selectedModel` for callbacks that must not capture a stale value
   // (the API-key change subscription lives outside the render closure).
   const selectedModelRef = useRef<AIModel | null>(null)
@@ -2380,7 +2383,7 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
     setCheapModelsOnly(prev => {
       const next = !prev
       dispatchActivity('button', 'cheapModelsOnly')
-      trackMatomoEvent({ category: 'ai', action: 'remixAI', name: next ? 'cheap_models_on' : 'cheap_models_off', isClick: true })
+      trackMatomoEvent({ category: 'ai', action: 'remixAI', name: next ? 'cheap_models_on' : 'cheap_models_off', value: 'manual', isClick: true })
       return next
     })
   }, [])
@@ -2390,6 +2393,7 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
     const onPurchaseConfirmed = (payload: any) => {
       const items = Array.isArray(payload?.items) ? payload.items : []
       if (!items.some(isStarterCreditPack)) return
+      cheapUnavailableTrackedRef.current = false
       setPendingCheapSwitch(true)
     }
     props.plugin.on('planManager' as any, 'purchaseConfirmed', onPurchaseConfirmed)
@@ -2424,6 +2428,7 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
 
     if (selectedModel && isCheapModel(selectedModel) && selectedModel.available) {
       setPendingCheapSwitch(false)
+      trackMatomoEvent({ category: 'ai', action: 'remixAI', name: 'cheap_models_auto_kept', value: modelKey(selectedModel), isClick: false })
       announce(selectedModel)
       return
     }
@@ -2431,13 +2436,21 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
     const target = availableModels
       .filter(m => m.available && m.provider !== 'ollama' && isCheapModel(m))
       .sort((a, b) => a.sortOrder - b.sortOrder)[0]
-    if (!target) return
+    if (!target) {
+      // Stay armed — the catalogue may still be refreshing after the purchase.
+      if (!cheapUnavailableTrackedRef.current) {
+        cheapUnavailableTrackedRef.current = true
+        trackMatomoEvent({ category: 'ai', action: 'remixAI', name: 'cheap_models_unavailable', value: 'no_model', isClick: false })
+      }
+      return
+    }
 
     let cancelled = false
     void (async () => {
       await handleModelSelection(modelKey(target))
       if (cancelled) return
       setPendingCheapSwitch(false)
+      trackMatomoEvent({ category: 'ai', action: 'remixAI', name: 'cheap_models_auto_switch', value: modelKey(target), isClick: false })
       // handleModelSelection clears the strip on entry, so announce after it.
       announce(target)
     })()

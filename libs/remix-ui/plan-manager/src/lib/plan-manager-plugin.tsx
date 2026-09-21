@@ -2450,6 +2450,7 @@ export class PlanManagerPlugin extends ViewPlugin {
     // cleanup there is for abandoned checkouts, and close() calls back into
     // this method.
     this.store.send({ type: 'CLOSE_OVERLAY' })
+    this.trackCheckout('cheap_models', 'announced')
     this.call('notification' as any, 'modal', {
       id: 'ai-cheap-models-switched',
       title: 'Low-cost AI models enabled',
@@ -2490,7 +2491,10 @@ export class PlanManagerPlugin extends ViewPlugin {
     // Single source of truth for a fully-confirmed, account-refreshed purchase.
     this.trackCheckout('confirmed', cr?.intent, cr?.itemLabel)
     this.emit('purchaseConfirmed', { intent: cr?.intent, label: cr?.itemLabel, items })
-    if (items.some(isStarterCreditPack)) this.pendingCheapModelsAnnouncement = true
+    if (items.some(isStarterCreditPack)) {
+      this.pendingCheapModelsAnnouncement = true
+      this.trackCheckout('cheap_models', 'armed', cr?.itemLabel)
+    }
     planManagerLogger.log(LOG, 'done')
   }
 
