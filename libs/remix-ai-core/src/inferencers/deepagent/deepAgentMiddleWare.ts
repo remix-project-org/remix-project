@@ -86,6 +86,22 @@ const removePeviousContextFromMessages = (request: ModelRequest) => {
   }
 }
 
+/**
+ * Vendors whose prompt cache only engages when the request marks the prefix
+ * explicitly. OpenAI-family models on OpenRouter cache on their own, so they
+ * get no marker. Matched on the OpenRouter `vendor/slug` id, which is what
+ * ModelFactory dials for every proxied and BYOK route.
+ */
+const CACHE_BREAKPOINT_VENDORS = ['anthropic', 'google']
+
+const needsCacheBreakpoint = (request: ModelRequest): boolean => {
+  const modelId = (request as any)?.model?.model
+  if (typeof modelId !== 'string') return false
+  const slashAt = modelId.indexOf('/')
+  if (slashAt <= 0) return false
+  return CACHE_BREAKPOINT_VENDORS.includes(modelId.slice(0, slashAt).toLowerCase())
+}
+
 const SHORT_TOOL_DESCRIPTIONS: Record<string, string> = {
   write_todos: 'Track and display task progress to the user. Use for multi-step tasks.',
   ls: 'List a directory. Absolute path.',
@@ -127,7 +143,15 @@ const shortenToolDescription = async (request: ModelRequest, plugin: Plugin, inf
       part.text = hasSkills ? shortSystemSkillsSystem(hasSkills, skills) : 'No Skills installed'
     }
   });
-  (request.systemMessage.content as any[]).push({
+
+  // Prompt cache breakpoint. Everything rendered up to and including the marked
+  // block — the tool definitions, then the whole system prompt — is byte-stable
+  const systemParts = request.systemMessage.content as any[]
+  if (systemParts.length > 0 && needsCacheBreakpoint(request)) {
+    systemParts[systemParts.length - 1].cache_control = { type: 'ephemeral' }
+  }
+
+  systemParts.push({
     text: await inferencer.getProjectStructure() + '\n' + await inferencer.getCompilerConfig(),
     type: 'text'
   })

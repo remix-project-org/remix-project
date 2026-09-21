@@ -9,7 +9,8 @@ import { ProviderAdapter } from './types'
 /** OpenRouter needs these to report `usage.cost` and stream reasoning back. */
 const OPENROUTER_MODEL_KWARGS = {
   usage: { include: true },
-  include_reasoning: true
+  include_reasoning: true,
+  cache_enabled: true
 }
 const OPENROUTER_PROVIDER_PREFERENCES = { allow_fallbacks: true }
 
