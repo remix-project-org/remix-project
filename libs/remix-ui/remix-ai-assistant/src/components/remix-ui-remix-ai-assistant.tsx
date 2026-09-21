@@ -9,6 +9,7 @@ import { HandleOpenAICompatibleResponse, HandleOllamaResponse } from '@remix/rem
 //@ts-ignore
 import '../css/color.css'
 import { ModalTypes } from '@remix-ui/app'
+import { isStarterCreditPack, STARTER_PACK_CREDITS } from '@remix-ui/plan-manager'
 import { MatomoEvent, AIEvent, Features, PublicPlan, ChatPromptMetadata } from '@remix-api'
 //@ts-ignore
 import { TrackingContext } from '@remix-ide/tracking'
@@ -24,18 +25,6 @@ import { CooldownBanner } from './cooldownBanner'
 import { ChatNoticeStrip, type ChatNoticeDisplay, type ChatNoticeActionDisplay } from './chatNoticeStrip'
 import { useModelAccess } from '../hooks/useModelAccess'
 import { ToolApprovalModal } from './ToolApprovalModal'
-
-// ─── Starter credit pack → low-cost models ───────────────────────────────────
-// The entry-level top-up ($2 / 20,000 credits) is bought to stretch a small
-// budget, so a purchase of it flips the assistant onto the `ai:cheapModels`
-// tier. Matched on either figure: the catalogue quotes price in cents, and a
-// renamed/re-slugged package must keep working.
-const STARTER_PACK_CREDITS = 20000
-const STARTER_PACK_PRICE_CENTS = 200
-
-const isStarterCreditPack = (item: any): boolean =>
-  item?.productType === 'credit_package' &&
-  (Number(item?.credits) === STARTER_PACK_CREDITS || Number(item?.priceCents) === STARTER_PACK_PRICE_CENTS)
 
 // ─── Generative UI payload validation ────────────────────────────────────────
 // Mirrors the VALID_TYPES set in GenerativeUIHandler.ts. Kept here as a
@@ -2414,13 +2403,24 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
   useEffect(() => {
     if (!pendingCheapSwitch) return
 
-    const announce = (model: AIModel) => setChatNotice({
-      severity: 'info',
-      code: 'CHEAP_MODELS_ENABLED',
-      title: `Switched to ${model.displayName}`,
-      message: `Your ${STARTER_PACK_CREDITS.toLocaleString()}-credit top-up unlocked the low-cost models, so the assistant switched to ${model.displayName} to make those credits last. Pick any other model from the selector whenever you want.`,
-      actionable: false
-    })
+    const explain = (model: AIModel) =>
+      `Your ${STARTER_PACK_CREDITS.toLocaleString()}-credit top-up unlocked the low-cost models, so the assistant switched to ${model.displayName} to make those credits last. Pick any other model from the selector whenever you want.`
+
+    // The modal lives in the plan manager, which fires it at the end of
+    // checkout so it lands whether or not this panel is open. Here we narrow
+    // the picker to the tier we just switched to and leave the record in the
+    // strip. Turning the filter on is part of announcing the switch, so it runs
+    // on both paths — including when the user already sat on a cheap model.
+    const announce = (model: AIModel) => {
+      setCheapModelsOnly(true)
+      setChatNotice({
+        severity: 'info',
+        code: 'CHEAP_MODELS_ENABLED',
+        title: `Switched to ${model.displayName}`,
+        message: explain(model),
+        actionable: false
+      })
+    }
 
     if (selectedModel && isCheapModel(selectedModel) && selectedModel.available) {
       setPendingCheapSwitch(false)
@@ -2438,7 +2438,6 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
       await handleModelSelection(modelKey(target))
       if (cancelled) return
       setPendingCheapSwitch(false)
-      setCheapModelsOnly(true)
       // handleModelSelection clears the strip on entry, so announce after it.
       announce(target)
     })()

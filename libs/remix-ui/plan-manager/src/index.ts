@@ -1,5 +1,7 @@
 export { PlanManagerPlugin } from './lib/plan-manager-plugin'
+export { isStarterCreditPack, STARTER_PACK_CREDITS, STARTER_PACK_PRICE_CENTS } from './lib/plan-manager-machine'
 export type {
+  CartItem,
   PlanManagerSnapshot,
   CheckoutResult,
   CheckoutResultKind,

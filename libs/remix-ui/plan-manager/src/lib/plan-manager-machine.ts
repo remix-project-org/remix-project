@@ -243,6 +243,19 @@ export interface CartItem {
   billingInterval?: 'month' | 'year'
 }
 
+/**
+ * The entry-level top-up ($2 / 20,000 credits). Buying it is the signal that
+ * the user is stretching a small budget, so the AI assistant drops to the
+ * `ai:cheapModels` tier on purchase. Matched on either figure — the catalogue
+ * quotes price in cents, and a renamed or re-slugged package must keep working.
+ */
+export const STARTER_PACK_CREDITS = 20000
+export const STARTER_PACK_PRICE_CENTS = 200
+
+export const isStarterCreditPack = (item: Pick<CartItem, 'productType' | 'credits' | 'priceCents'> | null | undefined): boolean =>
+  item?.productType === 'credit_package' &&
+  (Number(item?.credits) === STARTER_PACK_CREDITS || Number(item?.priceCents) === STARTER_PACK_PRICE_CENTS)
+
 interface MachineContext {
   // auth
   token: string | null
