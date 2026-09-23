@@ -21,7 +21,7 @@ const profile = {
   maintainedBy: 'Remix',
   permission: true,
   events: ['toolApprovalResponse', 'stopRequested', 'aiModeChanged'],
-  methods: ['chatPipe', 'handleExternalMessage', 'getProfile', 'deleteConversation','loadConversations', 'newConversation', 'archiveConversation', 'respondToToolApproval', 'stopRequest', 'submitChatInput', 'refineQueuedConversationTitle', 'maximizePanel', 'restorePanel', 'isAIModeActive']
+  methods: ['chatPipe', 'handleExternalMessage', 'getProfile', 'deleteConversation','loadConversations', 'newConversation', 'archiveConversation', 'respondToToolApproval', 'stopRequest', 'submitChatInput', 'refineQueuedConversationTitle', 'maximizePanel', 'restorePanel', 'isAIModeActive', 'focusChatInput']
 }
 
 /**
@@ -454,6 +454,10 @@ export class RemixAIAssistant extends ViewPlugin {
     return this.isMaximized
   }
 
+  focusChatInput() {
+    this.chatRef?.current?.focusInput()
+  }
+
   /**
    * Forward a tool-approval response from the chat UI to the RemixAIPlugin
    * via an engine event. Done as an event (not a `call`) because the remixAI
@@ -558,12 +562,15 @@ export class RemixAIAssistant extends ViewPlugin {
 
   chatPipe = (message: string, isEditorCodeAnalysis: boolean = false, metadata?: ChatPromptMetadata) => {
     remixAILogger.log('[QuickDapp] chatPipe received, length:', message?.length)
-    // Show right side panel if it's hidden
-    this.call('rightSidePanel', 'isPanelHidden').then((isPanelHidden) => {
-      if (isPanelHidden) {
-        this.call('rightSidePanel', 'togglePanel')
-      }
-    })
+    // Show right side panel if it's hidden (not in AI mode: the chat is already
+    // shown in the center panel, and showing the panel would leave AI mode)
+    if (!this.isMaximized) {
+      this.call('rightSidePanel', 'isPanelHidden').then((isPanelHidden) => {
+        if (isPanelHidden) {
+          this.call('rightSidePanel', 'togglePanel')
+        }
+      })
+    }
 
     // Navigate back to chat view if the history sidebar is open
     if (this.showHistorySidebar) {

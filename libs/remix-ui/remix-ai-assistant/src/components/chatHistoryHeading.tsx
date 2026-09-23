@@ -89,7 +89,7 @@ export default function ChatHistoryHeading({
           placement="bottom-start"
         >
           <button
-            className={`btn btn-sm ${showHistorySidebar ? 'btn-primary' : 'btn-link'}`}
+            className="btn btn-sm btn-link"
             onClick={() => {
               if (currentConversationId) {
                 archiveChat(currentConversationId)

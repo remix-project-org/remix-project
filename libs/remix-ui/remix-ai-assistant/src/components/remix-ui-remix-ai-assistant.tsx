@@ -70,6 +70,7 @@ export interface RemixUiRemixAiAssistantHandle {
   /** Programmatically send a prompt to the chat (returns after processing starts) */
   sendChat: (prompt: string, isEditorCodeAnalysis?: boolean, metadata?: ChatPromptMetadata) => Promise<void>
   submitCurrentInput: () => Promise<void>
+  focusInput: () => void
   addAssistantMessage: (text: string) => void
   clearChat: () => void
   /** Returns current chat history array */
@@ -2607,6 +2608,9 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
       submitCurrentInput: async () => {
         await handleSend()
       },
+      focusInput: () => {
+        textareaRef.current?.focus()
+      },
       addAssistantMessage: (text: string) => {
         if (!text) return
         setMessages(prev => [...prev, { id: crypto.randomUUID(), role: 'assistant', content: text, timestamp: Date.now(), sentiment: 'none' }])
@@ -2811,26 +2815,6 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
         >
           {/* Main content area with sidebar and chat */}
           <div className="d-flex flex-grow-1" style={{ overflow: 'hidden', minHeight: 0 }}>
-            {/* Maximized Mode: history sidebar beside the chat, toggled from the header */}
-            {props.isMaximized && props.showHistorySidebar && props.conversations && (
-              <ChatHistorySidebar
-                conversations={props.conversations}
-                currentConversationId={props.currentConversationId || null}
-                showArchived={showArchivedConversations}
-                onNewConversation={props.onNewConversation || (() => {})}
-                onLoadConversation={props.onLoadConversation || (async (id: string) => {})}
-                onArchiveConversation={props.onArchiveConversation || (async (id: string) => {})}
-                onDeleteConversation={props.onDeleteConversation || (async (id: string) => {})}
-                onDeleteAllConversations={props.onDeleteAllConversations}
-                onToggleArchived={() => setShowArchivedConversations(!showArchivedConversations)}
-                onClose={props.onToggleHistorySidebar || (() => {})}
-                onSearch={props.onSearch}
-                isFloating={false}
-                isMaximized={true}
-                theme={themeTracker?.name}
-              />
-            )}
-
             {/* Maximized Mode: Always show chat area */}
             {props.isMaximized ? (
               <div className={`d-flex flex-column flex-grow-1 always-show ${messages.length === 0 ? 'ai-assistant-bg' : 'ai-chat-area-flat'}`} style={{ overflow: 'hidden', minHeight: 0 }} data-theme={themeTracker && themeTracker?.name.toLowerCase()}>
@@ -3025,6 +3009,25 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
                   {autoAcceptBannerEl}
                 </div>
               )
+            )}
+            {/* Maximized Mode: history sidebar on the right of the chat, under the header's history toggle */}
+            {props.isMaximized && props.showHistorySidebar && props.conversations && (
+              <ChatHistorySidebar
+                conversations={props.conversations}
+                currentConversationId={props.currentConversationId || null}
+                showArchived={showArchivedConversations}
+                onNewConversation={props.onNewConversation || (() => {})}
+                onLoadConversation={props.onLoadConversation || (async (id: string) => {})}
+                onArchiveConversation={props.onArchiveConversation || (async (id: string) => {})}
+                onDeleteConversation={props.onDeleteConversation || (async (id: string) => {})}
+                onDeleteAllConversations={props.onDeleteAllConversations}
+                onToggleArchived={() => setShowArchivedConversations(!showArchivedConversations)}
+                onClose={props.onToggleHistorySidebar || (() => {})}
+                onSearch={props.onSearch}
+                isFloating={false}
+                isMaximized={true}
+                theme={themeTracker?.name}
+              />
             )}
           </div>
 

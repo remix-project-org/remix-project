@@ -102,3 +102,6 @@ Dockerfile.staging
 libs/remix-ai-core/test/*
 .claude/*
 .playwright-cli/*
+
+SESSIONS.md
+TODO.md

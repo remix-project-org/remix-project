@@ -263,6 +263,8 @@ export class Layout extends Plugin {
     await this.call('mainPanel', 'showContent', hostName)
     this.panels.editor.active = false
     this.panels.tabs.active = false
+    // The bottom bar belongs to the code editor, not the AI chat
+    this.panels.bottomBar.active = false
     this.panels.main.active = true
     this.event.emit('change', null)
   }
@@ -281,6 +283,7 @@ export class Layout extends Plugin {
     this.panels.editor.active = !restoreMain
     this.panels.main.active = !!restoreMain
     this.panels.tabs.active = true
+    this.panels.bottomBar.active = true
     this.event.emit('change', null)
   }
 }

@@ -417,6 +417,12 @@ export class RightSidePanel extends AbstractPanel {
   }
 
   highlight () {
+    // AI mode: the chat is already shown in the center panel — don't reveal its
+    // (now empty) container here, just focus the prompt.
+    if (this.aiModeActive && this.currentFocus() === 'remixaiassistant') {
+      this.call('remixaiassistant', 'focusChatInput')
+      return
+    }
     // If the right side panel is hidden, unhide it when a pinned icon is clicked
     const pinnedPanel = document.querySelector('#right-side-panel')
     const isPanelHiddenInDOM = pinnedPanel?.classList.contains('d-none')

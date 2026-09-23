@@ -23,6 +23,7 @@ export class VerticalIcons extends Plugin {
   icons: Record<string, IconRecord> = {}
   dispatch: React.Dispatch<any> = () => {}
   pendingPinnedPlugin: any = null
+  aiModeActive = false
   rightPanelHidden = false
   leftPanelHidden = false
   constructor() {
@@ -83,6 +84,7 @@ export class VerticalIcons extends Plugin {
 
   onActivation() {
     this.renderComponent()
+    this.on('remixaiassistant', 'aiModeChanged', (active: boolean) => { this.aiModeActive = active })
     // quick-dapp-v2 lives in the mainPanel (it's a tab, not a sidePanel view) so it never
     // goes through sidePanel.addView -> menuicons.linkContent like other icons do. Register
     // it here so it still gets a rail icon; the icon's click handler activates/focuses the tab.
@@ -230,13 +232,23 @@ export class VerticalIcons extends Plugin {
    * Set an icon as active
    * @param {string} name Name of profile of the module to activate
    */
+  // In AI mode the chat is already shown in the center panel: clicking its icon
+  // must not reveal its (now empty) side-panel container — focus the prompt.
+  interceptAIModeClick(name: string): boolean {
+    if (name !== 'remixaiassistant' || !this.aiModeActive) return false
+    this.call('remixaiassistant', 'focusChatInput')
+    return true
+  }
+
   select(name: string) {
+    if (this.interceptAIModeClick(name)) return
     // TODO: Only keep `this.emit` (issue#2210)
     this.emit('showContent', name)
     this.events.emit('showContent', name)
   }
 
   async activateAndSelect(name: string) {
+    if (this.interceptAIModeClick(name)) return
     // Check if the plugin is pinned on the right side panel
     // Use localStorage as source of truth since iconRecord.pinned might be out of sync
     let isPinnedOnRightPanel = this.icons[name] && this.icons[name].pinned
@@ -287,6 +299,7 @@ export class VerticalIcons extends Plugin {
    * @param {string} name Name of profile of the module to activate
    */
   async toggle(name: string) {
+    if (this.interceptAIModeClick(name)) return
     // Check if this plugin is actually pinned on the right side panel
     // This handles cases where iconRecord.pinned state is out of sync
     try {
