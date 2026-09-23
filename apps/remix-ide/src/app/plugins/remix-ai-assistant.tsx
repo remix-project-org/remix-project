@@ -21,12 +21,35 @@ const profile = {
   maintainedBy: 'Remix',
   permission: true,
   events: ['toolApprovalResponse', 'stopRequested'],
-  methods: ['chatPipe', 'handleExternalMessage', 'getProfile', 'deleteConversation','loadConversations', 'newConversation', 'archiveConversation', 'respondToToolApproval', 'stopRequest', 'submitChatInput', 'refineQueuedConversationTitle']
+  methods: ['chatPipe', 'handleExternalMessage', 'getProfile', 'deleteConversation','loadConversations', 'newConversation', 'archiveConversation', 'respondToToolApproval', 'stopRequest', 'submitChatInput', 'refineQueuedConversationTitle', 'maximizePanel', 'restorePanel']
+}
+
+/**
+ * Never activated through the plugin manager — a plain profile object used
+ * purely as a key into `mainPanel`'s `plugins` dict, so the chat's maximized
+ * view has a permanent DOM host to portal into. Because it never goes through
+ * `manager.activatePlugin`, it never fires `manager/pluginActivated`, so
+ * `tab-proxy.js`/`vertical-icons.tsx` never give it a tab or a rail icon.
+ */
+const maximizedHostProfile = {
+  name: 'remixaiassistant-maximized-host',
+  displayName: 'RemixAI Assistant',
+  description: 'Maximized host container for RemixAI Assistant (internal, not a real plugin)',
+  version: packageJson.version,
+  methods: []
 }
 
 export class RemixAIAssistant extends ViewPlugin {
   element: HTMLDivElement
   dispatch: React.Dispatch<any> = () => { }
+  /**
+   * Second, independent push channel for the conversation-history list hosted
+   * in the right panel while maximized. Kept separate from `dispatch` (which
+   * only the main chat body's `PluginViewWrapper` may set) because `dispatch`
+   * is a plain field overwrite, not a subscriber list — a second view calling
+   * `setDispatch` would silently steal updates from the main chat body.
+   */
+  historyDispatch: React.Dispatch<any> = () => { }
   appStateDispatch: React.Dispatch<AppAction> = () => { }
   queuedMessage: { text: string, isEditorCodeAnalysis?: boolean, timestamp: number, metadata?: ChatPromptMetadata } | null = null
   event: any
@@ -67,16 +90,15 @@ export class RemixAIAssistant extends ViewPlugin {
     }
     localStorage.setItem('remixaiassistant_firstload_flag', '1')
 
-    // Listen to layout events for maximization state
-    this.on('layout', 'maximiseRightSidePanel', () => {
-      this.setMaximized(true)
-    })
-    this.on('layout', 'resetRightSidePanel', () => {
-      this.setMaximized(false)
-    })
-    this.on('layout', 'enhanceRightSidePanel', () => {
-      this.setMaximized(true)
-    })
+    // Permanent placeholder host in the center/main panel that the chat's
+    // maximized view portals into (see maximizePanel()). Registered once,
+    // directly, bypassing plugin activation so it never gets a tab/rail icon.
+    try {
+      await this.call('mainPanel', 'addView', maximizedHostProfile,
+        <div id="ai-chat-maximized-host" data-id="ai-chat-maximized-host" style={{ height: '100%', width: '100%' }} />)
+    } catch (error) {
+      remixAILogger.error('Failed to register AI chat maximized host in mainPanel:', error)
+    }
 
     // Initialize storage
     try {
@@ -394,9 +416,27 @@ export class RemixAIAssistant extends ViewPlugin {
     this.renderComponent()
   }
 
-  setMaximized(maximized: boolean) {
-    this.isMaximized = maximized
+  /**
+   * Move the chat into the center/main panel (portaled there by the React
+   * component once `isMaximized` flips) and hide the tabs bar — instead of the
+   * old `position: absolute` CSS hack. Called by `RightSidePanel.maximizePanel()`,
+   * which owns collapsing/restoring the right panel itself; this method only
+   * owns the chat's own maximized state and the center-panel takeover.
+   */
+  async maximizePanel() {
+    if (this.isMaximized) return
+    this.isMaximized = true
     this.renderComponent()
+    await this.call('layout', 'showAIChatMaximized', maximizedHostProfile.name)
+    trackMatomoEvent(this, { category: 'ai', action: 'remixAI', name: 'maximized', isClick: true })
+  }
+
+  async restorePanel() {
+    if (!this.isMaximized) return
+    this.isMaximized = false
+    this.renderComponent()
+    await this.call('layout', 'restoreFromAIChatMaximized')
+    trackMatomoEvent(this, { category: 'ai', action: 'remixAI', name: 'restored', isClick: true })
   }
 
   /**
@@ -490,6 +530,11 @@ export class RemixAIAssistant extends ViewPlugin {
     this.renderComponent()
   }
 
+  setHistoryDispatch(dispatch: React.Dispatch<any>) {
+    this.historyDispatch = dispatch
+    this.renderComponent()
+  }
+
   renderComponent() {
     this.dispatch({
       isInitializing: this._initializing,
@@ -497,6 +542,11 @@ export class RemixAIAssistant extends ViewPlugin {
       conversations: this.conversations,
       currentConversationId: this.currentConversationId,
       showHistorySidebar: this.showHistorySidebar,
+      isMaximized: this.isMaximized
+    })
+    this.historyDispatch({
+      conversations: this.conversations,
+      currentConversationId: this.currentConversationId,
       isMaximized: this.isMaximized
     })
   }

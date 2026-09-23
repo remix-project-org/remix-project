@@ -26,6 +26,13 @@ export class RightSidePanel extends AbstractPanel {
   hiddenPlugin: any = null
   isHidden: boolean = true
   isMaximized: boolean = false
+  // Which of the two maximize implementations is currently active, tracked so
+  // restore uses the same path even if currentFocus() changes in between.
+  maximizedViaAiAssistant: boolean = false
+  // Only used by the generic (non-AI-assistant) CSS-hack maximize path below —
+  // any other plugin pinned to the right panel (Solidity Compiler, Search,
+  // etc.) still maximizes this way, since only the AI chat has a center-panel
+  // takeover to move into.
   maximizedState: { leftPanelHidden: boolean, terminalPanelHidden: boolean }
   desktopClientMode: boolean = false
 
@@ -70,9 +77,12 @@ export class RightSidePanel extends AbstractPanel {
       }
     })
 
-    // Listen for terminal panel being shown - auto-restore right panel if maximized
+    // Listen for terminal panel being shown - auto-restore right panel if
+    // maximized via the generic (non-AI-assistant) path, which hides the
+    // terminal while maximized. AI-assistant maximize never touches the
+    // terminal, so there's nothing to reconcile in that case.
     this.on('terminal', 'terminalPanelShown', () => {
-      if (this.isMaximized) {
+      if (this.isMaximized && !this.maximizedViaAiAssistant) {
         this.maximizePanel() // This will toggle and restore the panel
       }
     })
@@ -152,6 +162,14 @@ export class RightSidePanel extends AbstractPanel {
     const activePlugin = this.currentFocus()
 
     if (activePlugin === profile.name) throw new Error(`Plugin ${profile.name} already pinned`)
+
+    // Restore first if a different plugin is being pinned in while maximized —
+    // otherwise the newly-pinned plugin's view would show up in an already-
+    // hidden/maximized panel instead of a normal one.
+    if (this.isMaximized) {
+      await this.maximizePanel()
+    }
+
     if (activePlugin) {
       await this.call('sidePanel', 'unPinView', this.plugins[activePlugin].profile, this.plugins[activePlugin].view)
       this.remove(activePlugin)
@@ -198,30 +216,9 @@ export class RightSidePanel extends AbstractPanel {
 
     if (activePlugin !== profile.name) throw new Error(`Plugin ${profile.name} is not pinned`)
 
-    // Store whether the panel was maximized before unpinning
-    const wasMaximized = this.isMaximized
-
-    // If the panel is maximized, restore left and main panels but not terminal
+    // If maximized, restore it first (moves the chat back out of the center panel)
     if (this.isMaximized) {
-      const leftPanelHidden = await this.call('sidePanel', 'isPanelHidden')
-
-      // Restore left panel if it was visible before maximizing
-      if (!this.maximizedState.leftPanelHidden && leftPanelHidden) {
-        await this.call('sidePanel', 'togglePanel')
-      }
-
-      // Show main panel
-      const mainPanel = document.querySelector('#main-panel')
-      mainPanel?.classList.remove('d-none')
-
-      // Remove full width from right panel
-      const rightPanel = document.querySelector('#right-side-panel')
-      rightPanel?.classList.remove('right-panel-maximized')
-
-      this.isMaximized = false
-      trackMatomoEvent(this, { category: 'topbar', action: 'rightSidePanel', name: 'restoredOnUnpin', isClick: false })
-      this.emit('rightSidePanelRestored')
-      this.events.emit('rightSidePanelRestored')
+      await this.maximizePanel()
     }
 
     await this.call('sidePanel', 'unPinView', profile, this.plugins[profile.name].view)
@@ -243,11 +240,6 @@ export class RightSidePanel extends AbstractPanel {
     this.emit('unPinnedPlugin', profile)
     this.emit('rightSidePanelHidden')
     this.events.emit('rightSidePanelHidden')
-
-    // If the panel was maximized when unpinned, notify the app to hide the floating chat history
-    if (wasMaximized && profile.name === 'remixaiassistant') {
-      dispatchEvent(new CustomEvent('rightSidePanelMaximized', { detail: { isMaximized: false } }))
-    }
   }
 
   getHiddenPlugin() {
@@ -280,6 +272,14 @@ export class RightSidePanel extends AbstractPanel {
       return
     }
 
+    // Showing the panel (e.g. via the topbar toggle) while the AI chat is
+    // maximized into the center panel means "bring it back": restore instead,
+    // which also re-shows this panel.
+    if (this.isHidden && this.isMaximized && this.maximizedViaAiAssistant) {
+      await this.maximizePanel()
+      return
+    }
+
     if (this.isHidden && !this.desktopClientMode) {
       this.isHidden = false
       pinnedPanel?.classList.remove('d-none')
@@ -287,9 +287,11 @@ export class RightSidePanel extends AbstractPanel {
       this.emit('rightSidePanelShown')
       this.events.emit('rightSidePanelShown')
     } else {
-      // If the panel is maximized, restore all panels before hiding
-      if (this.isMaximized) {
-        await this.maximizePanel() // This will toggle and restore the panels
+      // Generic (non-AI) maximize: restore first so hiding doesn't leave the
+      // editor/left-panel/terminal stuck. Not for the AI path — maximizePanel()
+      // itself calls togglePanel() to collapse this panel while maximized.
+      if (this.isMaximized && !this.maximizedViaAiAssistant) {
+        await this.maximizePanel()
       }
 
       this.isHidden = true
@@ -316,63 +318,63 @@ export class RightSidePanel extends AbstractPanel {
     return this.isMaximized
   }
 
+  /**
+   * For the AI assistant, delegates to remixaiassistant's own maximize/restore
+   * (moves the chat into the center panel) and collapses/restores this panel
+   * via the normal togglePanel() mechanism — no CSS hijack. Any other pinned
+   * plugin (Solidity Compiler, Search, etc.) has no center-panel takeover to
+   * move into, so it keeps the original CSS-based "blow up the right panel"
+   * behavior.
+   */
   async maximizePanel() {
     if (!this.isMaximized) {
-      // Store the current state of panels before maximizing
-      const leftPanelHidden = await this.call('sidePanel', 'isPanelHidden')
-      const terminalPanelHidden = await this.call('terminal', 'isPanelHidden')
+      const current = this.currentFocus()
+      this.maximizedViaAiAssistant = current === 'remixaiassistant'
 
-      this.maximizedState = { leftPanelHidden, terminalPanelHidden }
-
-      // Hide left panel if it's visible
-      if (!leftPanelHidden) {
-        await this.call('sidePanel', 'togglePanel')
+      if (this.maximizedViaAiAssistant) {
+        await this.call('remixaiassistant', 'maximizePanel')
+      } else {
+        const leftPanelHidden = await this.call('sidePanel', 'isPanelHidden')
+        const terminalPanelHidden = await this.call('terminal', 'isPanelHidden')
+        this.maximizedState = { leftPanelHidden, terminalPanelHidden }
+        if (!leftPanelHidden) await this.call('sidePanel', 'togglePanel')
+        if (!terminalPanelHidden) await this.call('terminal', 'togglePanel')
+        const mainPanel = document.querySelector('#main-panel')
+        mainPanel?.classList.add('d-none')
+        const rightPanel = document.querySelector('#right-side-panel')
+        rightPanel?.classList.add('right-panel-maximized')
       }
-
-      // Hide terminal panel if it's visible
-      if (!terminalPanelHidden) {
-        await this.call('terminal', 'togglePanel')
-      }
-
-      // Hide main panel (center panel with editor)
-      const mainPanel = document.querySelector('#main-panel')
-      mainPanel?.classList.add('d-none')
-
-      // Make right panel take full width
-      const rightPanel = document.querySelector('#right-side-panel')
-      rightPanel?.classList.add('right-panel-maximized')
 
       this.isMaximized = true
       trackMatomoEvent(this, { category: 'topbar', action: 'rightSidePanel', name: 'maximized', isClick: false })
       this.emit('rightSidePanelMaximized')
       this.events.emit('rightSidePanelMaximized')
+
+      if (this.maximizedViaAiAssistant && !this.isHidden) {
+        await this.togglePanel()
+      }
     } else {
-      // Restore panels to their previous state
-      const leftPanelHidden = await this.call('sidePanel', 'isPanelHidden')
-      const terminalPanelHidden = await this.call('terminal', 'isPanelHidden')
-
-      // Restore left panel if it was visible before maximizing
-      if (!this.maximizedState.leftPanelHidden && leftPanelHidden) {
-        await this.call('sidePanel', 'togglePanel')
+      if (this.maximizedViaAiAssistant) {
+        await this.call('remixaiassistant', 'restorePanel')
+      } else {
+        const leftPanelHidden = await this.call('sidePanel', 'isPanelHidden')
+        const terminalPanelHidden = await this.call('terminal', 'isPanelHidden')
+        if (!this.maximizedState.leftPanelHidden && leftPanelHidden) await this.call('sidePanel', 'togglePanel')
+        if (!this.maximizedState.terminalPanelHidden && terminalPanelHidden) await this.call('terminal', 'togglePanel')
+        const mainPanel = document.querySelector('#main-panel')
+        mainPanel?.classList.remove('d-none')
+        const rightPanel = document.querySelector('#right-side-panel')
+        rightPanel?.classList.remove('right-panel-maximized')
       }
-
-      // Restore terminal panel if it was visible before maximizing
-      if (!this.maximizedState.terminalPanelHidden && terminalPanelHidden) {
-        await this.call('terminal', 'togglePanel')
-      }
-
-      // Show main panel
-      const mainPanel = document.querySelector('#main-panel')
-      mainPanel?.classList.remove('d-none')
-
-      // Remove full width from right panel
-      const rightPanel = document.querySelector('#right-side-panel')
-      rightPanel?.classList.remove('right-panel-maximized')
 
       this.isMaximized = false
       trackMatomoEvent(this, { category: 'topbar', action: 'rightSidePanel', name: 'restored', isClick: false })
       this.emit('rightSidePanelRestored')
       this.events.emit('rightSidePanelRestored')
+
+      if (this.maximizedViaAiAssistant && this.isHidden) {
+        await this.togglePanel()
+      }
     }
 
     this.renderComponent()

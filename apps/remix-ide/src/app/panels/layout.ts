@@ -6,7 +6,7 @@ import { QueryParams } from '@remix-project/remix-lib'
 const profile: Profile = {
   name: 'layout',
   description: 'layout',
-  methods: ['minimize', 'minimizeSidePanel', 'maximiseSidePanel', 'resetSidePanel', 'maximizeTerminal', 'maximiseRightSidePanel', 'resetRightSidePanel']
+  methods: ['minimize', 'minimizeSidePanel', 'maximiseSidePanel', 'resetSidePanel', 'maximizeTerminal', 'maximiseRightSidePanel', 'resetRightSidePanel', 'showAIChatMaximized', 'restoreFromAIChatMaximized']
 }
 
 interface panelState {
@@ -33,6 +33,7 @@ export class Layout extends Plugin {
   // @ts-ignore
   panels: panels
   enhanced: { [key: string]: boolean | { coeff?: number } }
+  preAIChatMaximizedState: { editorActive: boolean, mainActive: boolean, mainFocus: string | null } | null = null
   maximized: { [key: string]: {
     maximized: boolean
     coeff?: number
@@ -232,5 +233,41 @@ export class Layout extends Plugin {
     const current = await this.call('rightSidePanel', 'currentFocus')
     this.enhanced[current] = false
     this.event.emit('resetRightSidePanel')
+  }
+
+  /**
+   * Swap the center/main panel over to a `mainPanel`-hosted view and hide the
+   * file-tabs bar, so the takeover doesn't read as "just another tab". Distinct
+   * from the generic `tabs/switchApp` handling above (which never touches
+   * `panels.tabs`) because every other `location: 'mainPanel'` plugin (e.g.
+   * quick-dapp-v2) must keep showing the tab bar as usual.
+   */
+  async showAIChatMaximized (hostName: string) {
+    const mainPanel = this.panels.main.plugin as any
+    this.preAIChatMaximizedState = {
+      editorActive: this.panels.editor.active,
+      mainActive: this.panels.main.active,
+      mainFocus: mainPanel.currentFocus()
+    }
+    await this.call('mainPanel', 'showContent', hostName)
+    this.panels.editor.active = false
+    this.panels.tabs.active = false
+    this.panels.main.active = true
+    this.event.emit('change', null)
+  }
+
+  // Puts the center panel back the way it was before maximizing (e.g. the Home
+  // tab, which is itself a mainPanel view), falling back to the editor.
+  async restoreFromAIChatMaximized () {
+    const prev = this.preAIChatMaximizedState
+    this.preAIChatMaximizedState = null
+    // If something already switched to the editor meanwhile (opening a file
+    // triggers this restore), keep the editor rather than jumping back.
+    const restoreMain = !this.panels.editor.active && prev && prev.mainActive && prev.mainFocus
+    if (restoreMain) await this.call('mainPanel', 'showContent', prev.mainFocus)
+    this.panels.editor.active = !restoreMain
+    this.panels.main.active = !!restoreMain
+    this.panels.tabs.active = true
+    this.event.emit('change', null)
   }
 }

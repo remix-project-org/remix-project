@@ -8,11 +8,9 @@ interface ChatHistoryHeadingProps {
   archiveChat: (id: string) => void
   currentConversationId?: string | null
   showButton: boolean
-  setShowButton: (show: boolean) => void
   theme?: string
   chatTitle?: string
   isAiChatMaximized?: boolean
-  setIsAiChatMaximized?: (maximized: boolean) => void
 }
 
 const MAX_TITLE_LENGTH = 50
