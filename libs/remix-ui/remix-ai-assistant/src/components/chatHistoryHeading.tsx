@@ -11,6 +11,7 @@ interface ChatHistoryHeadingProps {
   theme?: string
   chatTitle?: string
   isAiChatMaximized?: boolean
+  onExitAIMode?: () => void
 }
 
 const MAX_TITLE_LENGTH = 50
@@ -24,7 +25,8 @@ export default function ChatHistoryHeading({
   showButton,
   theme,
   chatTitle,
-  isAiChatMaximized
+  isAiChatMaximized,
+  onExitAIMode
 }: ChatHistoryHeadingProps) {
   const truncatedTitle = chatTitle
     ? chatTitle.length > MAX_TITLE_LENGTH
@@ -99,6 +101,18 @@ export default function ChatHistoryHeading({
             <i className="far fa-box-archive"></i>
           </button>
         </CustomTooltip></>}
+        {isAiChatMaximized && onExitAIMode && (
+          <CustomTooltip tooltipText={'Exit AI mode'} placement="bottom-start">
+            <button
+              className="btn btn-sm btn-link"
+              onClick={onExitAIMode}
+              data-id="exit-ai-mode-btn"
+            >
+              {/* codicon-screen-normal as unicode, as in panel-header.tsx */}
+              <span className="codicon-screen-icon">{''}</span>
+            </button>
+          </CustomTooltip>
+        )}
       </div>
     </section>
   )

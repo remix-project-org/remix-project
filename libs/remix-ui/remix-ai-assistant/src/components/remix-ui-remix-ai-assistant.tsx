@@ -136,10 +136,6 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
   // sensible value before a selection resolves from /permissions.
   const [assistantChoice, setAssistantChoice] = useState<ModelTransport>('openrouter')
   const [showArchivedConversations, setShowArchivedConversations] = useState(false)
-  // The history-toggle/archive buttons in the header only apply to the docked,
-  // non-maximized chat — while maximized, conversation history lives in the
-  // right panel instead (see AIChatHistoryPanel), so they're hidden.
-  const showButton = !props.isMaximized
   const [showOllamaModelSelector, setShowOllamaModelSelector] = useState(false)
   const [selectedOllamaModel, setSelectedOllamaModel] = useState<string | null>(null)
   const [selectedModelId, setSelectedModelId] = useState<string>('')
@@ -2815,9 +2811,27 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
         >
           {/* Main content area with sidebar and chat */}
           <div className="d-flex flex-grow-1" style={{ overflow: 'hidden', minHeight: 0 }}>
-            {/* Maximized Mode: Always show chat area. Conversation history is
-              hosted in the right panel while maximized (AIChatHistoryPanel),
-              not inline here. */}
+            {/* Maximized Mode: history sidebar beside the chat, toggled from the header */}
+            {props.isMaximized && props.showHistorySidebar && props.conversations && (
+              <ChatHistorySidebar
+                conversations={props.conversations}
+                currentConversationId={props.currentConversationId || null}
+                showArchived={showArchivedConversations}
+                onNewConversation={props.onNewConversation || (() => {})}
+                onLoadConversation={props.onLoadConversation || (async (id: string) => {})}
+                onArchiveConversation={props.onArchiveConversation || (async (id: string) => {})}
+                onDeleteConversation={props.onDeleteConversation || (async (id: string) => {})}
+                onDeleteAllConversations={props.onDeleteAllConversations}
+                onToggleArchived={() => setShowArchivedConversations(!showArchivedConversations)}
+                onClose={props.onToggleHistorySidebar || (() => {})}
+                onSearch={props.onSearch}
+                isFloating={false}
+                isMaximized={true}
+                theme={themeTracker?.name}
+              />
+            )}
+
+            {/* Maximized Mode: Always show chat area */}
             {props.isMaximized ? (
               <div className={`d-flex flex-column flex-grow-1 always-show ${messages.length === 0 ? 'ai-assistant-bg' : 'ai-chat-area-flat'}`} style={{ overflow: 'hidden', minHeight: 0 }} data-theme={themeTracker && themeTracker?.name.toLowerCase()}>
                 <ChatHistoryHeading
@@ -2826,10 +2840,11 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
                   showHistorySidebar={props.showHistorySidebar || false}
                   archiveChat={props.onArchiveConversation || (() => {})}
                   currentConversationId={props.currentConversationId}
-                  showButton={showButton}
+                  showButton
                   theme={themeTracker?.name}
                   chatTitle={headerChatTitle}
                   isAiChatMaximized={props.isMaximized}
+                  onExitAIMode={() => props.plugin.restorePanel()}
                 />
                 <section id="remix-ai-chat-history" className="d-flex flex-column p-2" style={{ flex: 1, overflow: 'auto', minHeight: 0 }} ref={chatHistoryRef}>
                   <div data-id="remix-ai-assistant-ready"></div>
@@ -2943,7 +2958,7 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
                     showHistorySidebar={props.showHistorySidebar || false}
                     archiveChat={props.onArchiveConversation || (() => {})}
                     currentConversationId={props.currentConversationId}
-                    showButton={showButton}
+                    showButton
                     theme={themeTracker?.name}
                     chatTitle={headerChatTitle}
                     isAiChatMaximized={props.isMaximized}

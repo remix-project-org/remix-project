@@ -17,7 +17,6 @@ import { appReducer } from './reducer/app'
 import { appInitialState } from './state/app'
 import isElectron from 'is-electron'
 import { desktopConnectionType, AppConfig } from '@remix-api'
-import { AIChatHistoryPanel } from './components/chatHistory/aiChatHistoryPanel'
 import { appActionTypes } from './actions/app'
 import { DesktopRedirectOverlay } from '@remix-ui/login'
 
@@ -59,7 +58,6 @@ const RemixApp = (props: IRemixAppUi) => {
   const [leftPanelCoeff, setLeftPanelCoeff] = useState<number>(undefined)
   const [rightPanelCoeff, setRightPanelCoeff] = useState<number>(undefined)
   const [themeTracker, setThemeTracker] = useState<{name: string, quality: string, backgroundColor: string, fillColor: string, shapeColor: string, textColor: string, url: string}>(null);
-  const [showAiChatHistory, setShowAiChatHistory] = useState<boolean>(false)
 
   const [online, setOnline] = useState<boolean>(true)
   const [viewportSize, setViewportSize] = useState<{ width: number; height: number }>({
@@ -182,16 +180,6 @@ const RemixApp = (props: IRemixAppUi) => {
     // Remove the SAME function reference
     return () => {
       window.removeEventListener('ideThemeChanged', handleThemeChange)
-    }
-  }, [])
-
-  useEffect(() => {
-    const handler = (event: any) => {
-      setShowAiChatHistory(event.detail.isMaximized)
-    }
-    window.addEventListener('rightSidePanelMaximized', handler)
-    return () => {
-      window.removeEventListener('rightSidePanelMaximized', handler)
     }
   }, [])
 
@@ -413,16 +401,11 @@ const RemixApp = (props: IRemixAppUi) => {
                   <div id="main-panel" data-id="remixIdeMainPanel" className="mainpanel d-flex">
                     <RemixUIMainPanel layout={props.app.layout}></RemixUIMainPanel>
                   </div>
-                  <div id="right-side-panel" ref={pinnedPanelRef} data-id="remixIdePinnedPanel" className={`flex-row-reverse pinnedpanel border-end border-start ${hidePinnedPanel || showAiChatHistory ? 'd-none' : 'd-flex'}`}>
+                  <div id="right-side-panel" ref={pinnedPanelRef} data-id="remixIdePinnedPanel" className={`flex-row-reverse pinnedpanel border-end border-start ${hidePinnedPanel ? 'd-none' : 'd-flex'}`}>
                     {props.app.rightSidePanel.render()}
                   </div>
-                  {showAiChatHistory && (
-                    <div id="ai-chat-history-panel" data-id="remixIdeAiChatHistoryPanel" className="pinnedpanel border-end border-start d-flex" style={{ width: '350px', minWidth: '350px' }}>
-                      <AIChatHistoryPanel plugin={props.app.remixAiAssistant} theme={themeTracker?.name} />
-                    </div>
-                  )}
                   {
-                    !hidePinnedPanel && !showAiChatHistory &&
+                    !hidePinnedPanel &&
                     <DragBar
                       enhanceTrigger={enhanceRightTrigger}
                       resetTrigger={resetRightTrigger}

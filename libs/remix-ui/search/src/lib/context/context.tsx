@@ -195,6 +195,7 @@ export const SearchProvider = ({ children = [], reducer = SearchReducer, initial
       }
     },
     highlightInPath: async (result: SearchResult, line: SearchResultLineLine) => {
+      plugin.emit('searchResultClicked', result.path)
       await plugin.call('editor', 'discardHighlight')
       await plugin.call('editor', 'highlight', line.position, result.path)
       await plugin.call('editor', 'revealRange', line.position.start.line, line.position.start.column, line.position.end.line, line.position.end.column)
