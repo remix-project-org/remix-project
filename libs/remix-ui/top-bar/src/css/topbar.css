@@ -35,6 +35,14 @@
   overflow: hidden;
 }
 
+/* Make workspace select text more prominent */
+.workspacesSelect [data-id="workspacesSelect-togglerText"] {
+  font-weight: 500;
+  color: var(--bs-body-color);
+  font-size: 0.875rem;
+  filter: brightness(1.15);
+}
+
 .panel-control-btn {
   display: flex;
   align-items: center;
