@@ -1556,11 +1556,93 @@ export const EditorUI = (props: EditorUIProps) => {
 
   const handleCreateDapp = async () => {
     try {
-      // Trigger Dapp creation
-      await props.plugin.call('quickDapp', 'activate')
+      // Check if there are deployed contracts
+      let instances: any[] = []
+      try {
+        const deployed = await props.plugin.call('udappDeployedContracts', 'getDeployedContracts') || []
+        instances = deployed.filter((contract: any) => contract?.address && contract?.name)
+      } catch (e) {
+        console.warn('[QuickDapp] Could not fetch deployed contracts:', e)
+        await props.plugin.call('notification', 'toast', 'Could not check deployed contracts. Please try again.')
+        return
+      }
+
+      if (instances.length === 0) {
+        let environmentName = 'Current environment'
+        try {
+          const providerObject = await props.plugin.call('blockchain', 'getProviderObject')
+          const providerName = providerObject?.name || ''
+          if (providerName.startsWith('vm')) {
+            environmentName = 'Remix VM'
+          } else {
+            const network = await props.plugin.call('network', 'detectNetwork')
+            environmentName = network?.name || providerName || environmentName
+          }
+        } catch (_) { /* keep fallback */ }
+        await props.plugin.call('notification', 'toast', `No deployed contracts found in ${environmentName}. Please deploy a contract first.`)
+        return
+      }
+
+      // Get primary contract info
+      const currentFile = props.currentFile
+      const currentFileName = currentFile?.split('/').pop() || ''
+      let matchingInstances: any[] = []
+
+      if (currentFileName && instances.length > 0) {
+        matchingInstances = instances.filter((inst) => {
+          const instFile = inst.contractData?.contract?.file || inst.filePath || ''
+          return instFile && instFile.endsWith(currentFileName)
+        })
+        if (matchingInstances.length === 0) {
+          const baseName = currentFileName.replace('.sol', '')
+          matchingInstances = instances.filter((inst) =>
+            baseName.toLowerCase().includes(inst.name?.toLowerCase())
+          )
+        }
+      }
+
+      const primaryContract = matchingInstances[0] || instances[0]
+
+      // Get network info
+      let networkName = 'Current network'
+      try {
+        const providerObject = await props.plugin.call('blockchain', 'getProviderObject')
+        const providerName = providerObject?.name || ''
+        if (providerName.startsWith('vm')) {
+          networkName = 'Remix VM'
+        } else {
+          const network = await props.plugin.call('network', 'detectNetwork')
+          networkName = network?.name || providerName
+        }
+      } catch (_) { /* keep fallback */ }
+
+      // Show right side panel if hidden
+      const isPanelHidden = await props.plugin.call('rightSidePanel', 'isPanelHidden')
+      if (isPanelHidden) {
+        await props.plugin.call('rightSidePanel', 'togglePanel')
+      }
+
+      // Activate AI assistant
+      try {
+        await props.plugin.call('manager', 'activatePlugin', 'remix-ai-assistant')
+      } catch (_) { /* may already be active */ }
+
+      await props.plugin.call('menuicons', 'select', 'remixaiassistant')
+      await new Promise((resolve) => setTimeout(resolve, 500))
+
+      // Send a DApp creation request to the AI
+      const prompt = `I want to create a DApp frontend for my deployed contract ${primaryContract.name} at address ${primaryContract.address} on ${networkName}. Please guide me through the DApp creation process.`
+
+      await (props.plugin as any).call('remixaiassistant', 'chatPipe', prompt, false, {
+        source: 'fab-button',
+        presetId: 'quickdapp-start',
+        displayText: `Create a DApp\n${primaryContract.name} · ${networkName}`
+      })
+
       // trackMatomoEvent({ category: 'editor', action: 'create_dapp', name: 'quickDapp', isClick: true })
     } catch (error) {
       console.error('Error triggering Dapp creation:', error)
+      await props.plugin.call('notification', 'toast', 'Could not start DApp creation. Please try again.')
     }
   }
 
