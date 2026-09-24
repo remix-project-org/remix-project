@@ -683,7 +683,7 @@ export class NudgePlugin extends Plugin {
    * Auto-open the farewell modal when a beta tester is within the
    * configured threshold of their `expires_at`. Honours per-expiry
    * localStorage dismissal ("Remind me later" timestamp / "never").
-   */  private async _maybeShowBetaFarewell(betaGroup: { expires_at?: string | null }): Promise<void> {
+   */ private async _maybeShowBetaFarewell(betaGroup: { expires_at?: string | null }): Promise<void> {
     const expiresAt = betaGroup?.expires_at
     if (!expiresAt) return
     const expiresMs = Date.parse(expiresAt)
@@ -1082,7 +1082,7 @@ export class NudgePlugin extends Plugin {
     this.trackMatomoEvent({ category: 'nudge', action: 'dismissed', name: id, isClick: true })
   }
 
-/** Clear all active nudges and queue */
+  /** Clear all active nudges and queue */
   clearActive(): void {
     this.state = {
       ...this.state,
