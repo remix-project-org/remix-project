@@ -59,9 +59,23 @@ export class SlitherHandler extends BaseToolHandler {
         return this.createErrorResult('No compilation result available for the specified file path. Please compile the contract first.');
       }
 
-      const compilerConfig = await plugin.call('solidity' as any , 'getCurrentCompilerConfig');
+      // Get compiler state which includes version and remappings
+      const compilerState = await plugin.call('solidity' as any, 'getCompilerState');
 
-      const flattened = await plugin.call('contractflattener', 'flattenContract', compilationResult.source, args.filePath, compilationResult.data, compilationResult.input, false);
+      const { sources } = compilationResult.source;
+
+      const remappings: string[] = compilerState?.remappings || [];
+
+      // Prepare request body
+      const requestBody: { sources: Record<string, { content: string }>; version?: string; remappings?: string[] } = {
+        sources,
+        version: compilerState?.currentVersion
+      };
+
+      // Only include remappings if they exist
+      if (remappings.length > 0) {
+        requestBody.remappings = remappings;
+      }
 
       // Call external Slither endpoint
       const response = await fetch(endpointUrls.mcpCorsProxy + '/slither/analyze', {
@@ -69,10 +83,7 @@ export class SlitherHandler extends BaseToolHandler {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          sources: { [args.filePath]: { content: flattened } },
-          version: compilerConfig?.currentVersion
-        })
+        body: JSON.stringify(requestBody)
       });
 
       if (!response.ok) {
@@ -90,7 +101,7 @@ export class SlitherHandler extends BaseToolHandler {
       return this.createSuccessResult(result);
 
     } catch (error) {
-      return this.createErrorResult(`Scan failed: ${error.message}`);
+      return this.createErrorResult(`Scan failed: ${error instanceof Error ? error.message : String(error)}`);
     }
   }
 }
