@@ -279,12 +279,10 @@ export class RightSidePanel extends AbstractPanel {
       return
     }
 
-    // Showing the panel (e.g. via the topbar toggle) while the AI chat itself is
-    // in the center panel means "bring it back": leave AI mode, whose handler
-    // re-shows this panel.
+    // AI mode with the chat pinned here: its content is in the center panel, so
+    // there is nothing to show. Stay in AI mode (the toggle never exits it).
     if (this.isHidden && this.aiModeActive && currentPlugin === 'remixaiassistant') {
-      this.aiModeHidPanel = true
-      await this.call('remixaiassistant', 'restorePanel')
+      this.call('notification', 'toast', 'RemixAI is open in AI mode. Pin a plugin to use the Right Side Panel.')
       return
     }
 
@@ -369,9 +367,9 @@ export class RightSidePanel extends AbstractPanel {
     const ai = this.plugins['remixaiassistant']
 
     if (active) {
-      // The chat moved to the center panel: collapse this panel if it was
-      // showing the chat.
-      if (ai && ai.active && !this.isHidden) {
+      // AI mode takes the whole workspace: collapse this panel whatever it
+      // shows (the chat moved to the center; any other plugin comes back on exit).
+      if (!this.isHidden) {
         this.aiModeHidPanel = true
         await this.togglePanel()
       }
@@ -380,7 +378,11 @@ export class RightSidePanel extends AbstractPanel {
 
     const hidPanel = this.aiModeHidPanel
     this.aiModeHidPanel = false
-    if (!ai) return // chat is docked in the left panel; nothing to do here
+    if (!ai) {
+      // Chat is docked in the left panel: just bring back the plugin shown here.
+      if (hidPanel && this.isHidden) await this.togglePanel()
+      return
+    }
 
     const otherActive = Object.keys(this.plugins).some((name) => name !== 'remixaiassistant' && this.plugins[name].active)
     if (!ai.active && otherActive) {

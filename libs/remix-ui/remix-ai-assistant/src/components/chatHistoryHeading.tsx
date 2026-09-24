@@ -35,7 +35,7 @@ export default function ChatHistoryHeading({
     : null
 
   return (
-    <section className={`d-flex flex-row justify-content-between align-items-center px-2 py-1 border-0 border-top border-bottom border-[#3F4455]`} data-theme={theme?.toLowerCase()}
+    <section className={`d-flex flex-row justify-content-between align-items-center px-2 ${isAiChatMaximized ? 'py-2 ai-mode-heading' : 'py-1 border-top'} border-0 border-bottom border-[#3F4455]`} data-theme={theme?.toLowerCase()}
       style={{ backgroundColor: theme && theme.toLowerCase() === 'dark' ? '#222336' : '#eff1f5' }}>
       <div className="flex-grow-1 overflow-hidden me-2">
         {truncatedTitle ? (
@@ -64,7 +64,7 @@ export default function ChatHistoryHeading({
         {truncatedTitle && (
           <CustomTooltip tooltipText={'Start a new chat'}>
             <button
-              className="btn btn-sm btn-link text-decoration-none"
+              className="btn btn-sm btn-link text-decoration-none d-inline-flex align-items-center"
               onClick={onNewChat}
               data-id="new-chat-btn new-conversation-btn"
             >
@@ -77,7 +77,7 @@ export default function ChatHistoryHeading({
           tooltipText={showHistorySidebar ? 'Hide chat history' : 'Show chat history'}
         >
           <button
-            className={`btn btn-sm ${showHistorySidebar ? 'btn-primary' : 'btn-link'}`}
+            className={`btn btn-sm text-decoration-none d-inline-flex align-items-center ${showHistorySidebar ? 'btn-primary' : 'btn-link'}`}
             onClick={onToggleHistory}
             data-id="toggle-history-btn"
           >
@@ -89,7 +89,7 @@ export default function ChatHistoryHeading({
           placement="bottom-start"
         >
           <button
-            className="btn btn-sm btn-link"
+            className="btn btn-sm btn-link text-decoration-none d-inline-flex align-items-center"
             onClick={() => {
               if (currentConversationId) {
                 archiveChat(currentConversationId)
@@ -104,12 +104,12 @@ export default function ChatHistoryHeading({
         {isAiChatMaximized && onExitAIMode && (
           <CustomTooltip tooltipText={'Exit AI mode'} placement="bottom-start">
             <button
-              className="btn btn-sm btn-link"
+              className="btn btn-sm btn-link text-decoration-none d-inline-flex align-items-center"
               onClick={onExitAIMode}
               data-id="exit-ai-mode-btn"
             >
               {/* codicon-screen-normal as unicode, as in panel-header.tsx */}
-              <span className="codicon-screen-icon">{''}</span>
+              <span className="codicon-screen-icon ai-mode-exit-icon">{''}</span>
             </button>
           </CustomTooltip>
         )}

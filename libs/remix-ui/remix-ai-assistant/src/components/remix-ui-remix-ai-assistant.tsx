@@ -2805,137 +2805,187 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
         </div>
       </div>
     ) : (() => {
+      // Strips (cooldown / notice / auto-selected model) and the prompt sit under
+      // the messages: inside the chat column in AI mode (so one background spans
+      // header to prompt, and the history sidebar gets the full height), below the
+      // whole panel when docked.
+      const stripsEl = (
+        <>
+          {cooldownDisplay && (
+            <CooldownBanner
+              display={cooldownDisplay}
+              onDismiss={() => {
+                dismissedCooldownKeyRef.current = `${cooldownDisplay.code}:${cooldownDisplay.expiresAt ?? ''}`
+                setCooldownDisplay(null)
+              }}
+            />
+          )}
+          {chatNotice && (
+            <div className="rai-panel-strip">
+              <ChatNoticeStrip
+                notice={chatNotice}
+                onAction={(action) => { void handleChatNoticeAction(action) }}
+                onDismiss={dismissChatNotice}
+              />
+            </div>
+          )}
+          {runModel && (
+            <div className="rai-panel-strip">
+              <div
+                className="rai-run-model"
+                data-id="remix-ai-run-model"
+                title={`Auto selected ${runModel} for this answer`}
+              >
+                <i className="fa-solid fa-wand-magic-sparkles rai-run-model__icon"></i>
+                <span className="rai-run-model__text">Using {runModelLabel}</span>
+              </div>
+            </div>
+          )}
+        </>
+      )
+      const promptEl = (
+        messages.length > 0 ? (
+          <AiChatPromptAreaForHistory
+            themeTracker={themeTracker}
+            showHistorySidebar={props.showHistorySidebar || false}
+            isMaximized={props.isMaximized}
+            modelOpt={modelOpt}
+            menuRef={menuRef}
+            assistantChoice={assistantChoice}
+            setAssistantChoice={setAssistantChoice}
+            mcpEnabled={mcpEnabled}
+            mcpEnhanced={mcpEnhanced}
+            setMcpEnhanced={setMcpEnhanced}
+            availableModels={availableModels}
+            selectedModel={selectedModel}
+            handleModelSelection={handleModelSelection}
+            onLockedModelClick={handleLockedModelClick}
+            upgradePillState={pillStates.upgrade}
+            buyCreditsPillState={pillStates.buyCredits}
+            onBuyCreditsClick={handleBuyCreditsClick}
+            input={input}
+            setInput={setInput}
+            isStreaming={isStreaming}
+            handleSend={handleSend}
+            stopRequest={stopRequest}
+            handleSetModel={handleSetModel}
+            handleGenerateWorkspace={handleGenerateWorkspace}
+            dispatchActivity={dispatchActivity as any}
+            modelBtnRef={modelBtnRef}
+            modelSelectorBtnRef={modelSelectorBtnRef}
+            textareaRef={textareaRef}
+            maximizePanel={maximizePanel}
+            setShowOllamaModelSelector={setShowOllamaModelSelector}
+            showOllamaModelSelector={showOllamaModelSelector}
+            showModelSelector={showModelSelector}
+            setShowModelSelector={setShowModelSelector}
+            selectedModelId={selectedModelId}
+            handleOllamaModelSelection={handleOllamaModelSelection}
+            selectedOllamaModel={selectedOllamaModel}
+            ollamaModels={ollamaModels}
+            ollamaModelOpt={ollamaModelOpt}
+            ollamaMenuRef={ollamaMenuRef}
+            messages={messages}
+            handleLoadSkills={handleLoadSkills}
+            handleOpenSettings={handleOpenSettings}
+            handleLoadAuditChecklist={handleLoadAuditChecklist}
+            handleGasOptimisationAudit={handleGasOptimisationAudit}
+            usingOwnApiKey={usingOwnApiKey}
+            byokKeyPresence={byokKeyPresence}
+            onAddApiKeyClick={handleOpenSettings}
+            aiRoute={aiRouteStatus.route}
+            aiRouteReady={aiRouteStatus.ready}
+            isAuthenticated={isAuthenticated}
+            onSignIn={handleSignIn}
+            hasAuditorPermission={hasAuditorPermission}
+            hasSkillsPermission={hasSkillsPermission}
+            onUpgradeRequired={handleFeatureUpgradeRequired}
+            getRequiredPlanName={getRequiredPlanName}
+            cheapModelsOnly={cheapModelsOnly}
+            hasCheapModels={hasCheapModels}
+            onToggleCheapModels={handleToggleCheapModels}
+          />
+        ) : (
+          <AiChatPromptArea
+            themeTracker={themeTracker}
+            showHistorySidebar={props.showHistorySidebar || false}
+            isMaximized={props.isMaximized}
+            modelOpt={modelOpt}
+            menuRef={menuRef}
+            assistantChoice={assistantChoice}
+            setAssistantChoice={setAssistantChoice}
+            mcpEnabled={mcpEnabled}
+            mcpEnhanced={mcpEnhanced}
+            setMcpEnhanced={setMcpEnhanced}
+            availableModels={availableModels}
+            selectedModel={selectedModel}
+            handleModelSelection={handleModelSelection}
+            onLockedModelClick={handleLockedModelClick}
+            upgradePillState={pillStates.upgrade}
+            buyCreditsPillState={pillStates.buyCredits}
+            onBuyCreditsClick={handleBuyCreditsClick}
+            input={input}
+            setInput={setInput}
+            isStreaming={isStreaming}
+            handleSend={handleSend}
+            stopRequest={stopRequest}
+            handleSetModel={handleSetModel}
+            handleGenerateWorkspace={handleGenerateWorkspace}
+            dispatchActivity={dispatchActivity as any}
+            modelBtnRef={modelBtnRef}
+            modelSelectorBtnRef={modelSelectorBtnRef}
+            textareaRef={textareaRef}
+            maximizePanel={maximizePanel}
+            setShowOllamaModelSelector={setShowOllamaModelSelector}
+            showOllamaModelSelector={showOllamaModelSelector}
+            showModelSelector={showModelSelector}
+            setShowModelSelector={setShowModelSelector}
+            selectedModelId={selectedModelId}
+            handleOllamaModelSelection={handleOllamaModelSelection}
+            selectedOllamaModel={selectedOllamaModel}
+            ollamaModels={ollamaModels}
+            ollamaModelOpt={ollamaModelOpt}
+            ollamaMenuRef={ollamaMenuRef}
+            messages={messages}
+            handleLoadSkills={handleLoadSkills}
+            handleOpenSettings={handleOpenSettings}
+            handleLoadAuditChecklist={handleLoadAuditChecklist}
+            handleGasOptimisationAudit={handleGasOptimisationAudit}
+            usingOwnApiKey={usingOwnApiKey}
+            byokKeyPresence={byokKeyPresence}
+            onAddApiKeyClick={handleOpenSettings}
+            aiRoute={aiRouteStatus.route}
+            aiRouteReady={aiRouteStatus.ready}
+            isAuthenticated={isAuthenticated}
+            onSignIn={handleSignIn}
+            hasAuditorPermission={hasAuditorPermission}
+            hasSkillsPermission={hasSkillsPermission}
+            onUpgradeRequired={handleFeatureUpgradeRequired}
+            getRequiredPlanName={getRequiredPlanName}
+            cheapModelsOnly={cheapModelsOnly}
+            hasCheapModels={hasCheapModels}
+            onToggleCheapModels={handleToggleCheapModels}
+          />
+        )
+      )
+      const dockedHistoryOpen = !props.isMaximized && !!props.showHistorySidebar && !!props.conversations
       const chatBody = (
         <div
-          className="d-flex flex-column w-100 h-100"
+          className={`d-flex flex-row w-100 h-100 ${props.isMaximized ? 'ai-mode' : ''}`}
           ref={aiChatRef}
           style={{ overflow: 'hidden' }}
           data-theme={themeTracker && themeTracker?.name.toLowerCase()}
           data-was-loading={wasInitializingRef.current ? 'true' : undefined}
         >
-          {/* Main content area with sidebar and chat */}
-          <div className="d-flex flex-grow-1" style={{ overflow: 'hidden', minHeight: 0 }}>
-            {/* Maximized Mode: Always show chat area */}
-            {props.isMaximized ? (
-              <div className={`d-flex flex-column flex-grow-1 always-show ${messages.length === 0 ? 'ai-assistant-bg' : 'ai-chat-area-flat'}`} style={{ overflow: 'hidden', minHeight: 0 }} data-theme={themeTracker && themeTracker?.name.toLowerCase()}>
-                <ChatHistoryHeading
-                  onNewChat={props.onNewConversation || (() => {})}
-                  onToggleHistory={props.onToggleHistorySidebar || (() => {})}
-                  showHistorySidebar={props.showHistorySidebar || false}
-                  archiveChat={props.onArchiveConversation || (() => {})}
-                  currentConversationId={props.currentConversationId}
-                  showButton
-                  theme={themeTracker?.name}
-                  chatTitle={headerChatTitle}
-                  isAiChatMaximized={props.isMaximized}
-                  onExitAIMode={() => props.plugin.restorePanel()}
-                />
-                <section id="remix-ai-chat-history" className="d-flex flex-column p-2" style={{ flex: 1, overflow: 'auto', minHeight: 0 }} ref={chatHistoryRef}>
-                  <div data-id="remix-ai-assistant-ready"></div>
-                  {/* hidden hook for E2E tests: data-streaming="true|false" */}
-                  <div
-                    data-id="remix-ai-streaming"
-                    className='d-none'
-                    data-streaming={isStreaming ? 'true' : 'false'}
-                  ></div>
-                  <ChatHistoryComponent
-                    messages={messages}
-                    isStreaming={isStreaming}
-                    isThinking={isThinking}
-                    sendPrompt={sendPrompt}
-                    recordFeedback={recordFeedback}
-                    historyRef={historyRef}
-                    theme={themeTracker?.name}
-                    plugin={props.plugin}
-                    handleGenerateWorkspace={handleGenerateWorkspace}
-                    handleLoadSkills={handleLoadSkills}
-                    allowedMcps={modelAccess.allowedMcps}
-                    onDappReviewAcceptAll={handleDappReviewAcceptAll}
-                    onDappReviewRevertAll={handleDappReviewRevertAll}
-                    onDappReviewViewDiff={handleDappReviewViewDiff}
-                  />
-                  {pendingApprovals.length > 1 && (
-                    <div className="hitl-pending-summary">
-                      <div className="d-flex justify-content-between align-items-center">
-                        <span className="fw-bold">Multiple Changes Pending ({pendingApprovals.length})</span>
-                        <div className="d-flex gap-2">
-                          <button
-                            className="btn btn-success btn-sm"
-                            onClick={handleApproveAll}
-                            data-id="approve-all-changes"
-                          >
-                          Approve All
-                          </button>
-                          <button
-                            className="btn btn-danger btn-sm"
-                            onClick={handleRejectAll}
-                            data-id="reject-all-changes"
-                          >
-                          Discard All
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-                  {pendingApprovals.map((approval) => (
-                    <div key={approval.requestId} style={{ padding: '0 12px', marginBottom: '8px' }}>
-                      <ToolApprovalModal
-                        request={approval}
-                        onApprove={(options) => handleApproveToolAction(approval, options)}
-                        onReject={() => handleRejectToolAction(approval)}
-                        onReviewChanges={() => handleReviewChanges(approval)}
-                        isReviewing={reviewingApprovals.has(approval.requestId)}
-                      />
-                    </div>
-                  ))}
-                </section>
-                {autoAcceptBannerEl}
-              </div>
-            ) : (
-            /* Non-Maximized Mode: Toggle between history view and chat view */
-              props.showHistorySidebar && props.isMaximized === false && props.conversations ? (
-                <div className="d-flex flex-column flex-grow-1 ai-history-view-bg nonMaximizedMode" style={{ overflow: 'hidden', minHeight: 0 }} data-theme={themeTracker && themeTracker?.name.toLowerCase()}>
-                  {/* Back button header */}
-                  <div
-                    className="p-2 border-bottom"
-                  >
-                    <button
-                      className={`btn btn-sm ${themeTracker?.name.toLowerCase() === 'dark' ? 'btn-dark' : 'btn-light text-light-emphasis'}`}
-                      onClick={props.onToggleHistorySidebar || (() => {})}
-                      data-id="chat-history-back-btn"
-                    >
-                      <i className="fas fa-chevron-left me-3"></i>
-                      <span>Back to chat</span>
-                    </button>
-                  </div>
-                  {/* Chat history content */}
-                  <div className="flex-grow-1" style={{ overflow: 'hidden', minHeight: 0 }}>
-                    <ChatHistorySidebar
-                      conversations={props.conversations}
-                      currentConversationId={props.currentConversationId || null}
-                      showArchived={showArchivedConversations}
-                      onNewConversation={props.onNewConversation || (() => {})}
-                      onLoadConversation={async (id) => {
-                        await props.onLoadConversation?.(id)
-                        // Close sidebar after loading conversation in non-maximized mode
-                        await props.onToggleHistorySidebar?.()
-                      }}
-                      onArchiveConversation={props.onArchiveConversation || (async (id: string) => {})}
-                      onDeleteConversation={props.onDeleteConversation || (async (id: string) => {})}
-                      onDeleteAllConversations={props.onDeleteAllConversations}
-                      onToggleArchived={() => setShowArchivedConversations(!showArchivedConversations)}
-                      onClose={props.onToggleHistorySidebar || (() => {})}
-                      onSearch={props.onSearch}
-                      isFloating={false}
-                      isMaximized={false}
-                      theme={themeTracker?.name}
-                    />
-                  </div>
-                  {autoAcceptBannerEl}
-                </div>
-              ) : (
-              /* Show chat area when sidebar is closed */
-                <div className={`d-flex flex-column flex-grow-1 sideBarIsClosed ${messages.length === 0 ? 'ai-assistant-bg' : 'ai-chat-area-flat'}`} style={{ overflow: 'hidden', minHeight: 0 }} data-theme={themeTracker && themeTracker?.name.toLowerCase()}>
+          {/* One main column in both modes: content, then strips + prompt, so the
+              empty-chat gradient is painted once, header to prompt. */}
+          <div
+            className={`ai-chat-main d-flex flex-column flex-grow-1 ${messages.length === 0 && !dockedHistoryOpen ? 'ai-assistant-bg' : ''}`}
+            style={{ overflow: 'hidden', minHeight: 0, minWidth: 0 }}
+          >
+            <div className="d-flex flex-grow-1" style={{ overflow: 'hidden', minHeight: 0 }}>
+              {props.isMaximized ? (
+                <div className={`d-flex flex-column flex-grow-1 always-show ai-mode-column ${messages.length === 0 ? '' : 'ai-chat-area-flat'}`} style={{ overflow: 'hidden', minHeight: 0, minWidth: 0 }} data-theme={themeTracker && themeTracker?.name.toLowerCase()}>
                   <ChatHistoryHeading
                     onNewChat={props.onNewConversation || (() => {})}
                     onToggleHistory={props.onToggleHistorySidebar || (() => {})}
@@ -2946,6 +2996,7 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
                     theme={themeTracker?.name}
                     chatTitle={headerChatTitle}
                     isAiChatMaximized={props.isMaximized}
+                    onExitAIMode={() => props.plugin.restorePanel()}
                   />
                   <section id="remix-ai-chat-history" className="d-flex flex-column p-2" style={{ flex: 1, overflow: 'auto', minHeight: 0 }} ref={chatHistoryRef}>
                     <div data-id="remix-ai-assistant-ready"></div>
@@ -2981,14 +3032,14 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
                               onClick={handleApproveAll}
                               data-id="approve-all-changes"
                             >
-                            Approve All
+                          Approve All
                             </button>
                             <button
                               className="btn btn-danger btn-sm"
                               onClick={handleRejectAll}
                               data-id="reject-all-changes"
                             >
-                            Discard All
+                          Discard All
                             </button>
                           </div>
                         </div>
@@ -3008,184 +3059,151 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
                   </section>
                   {autoAcceptBannerEl}
                 </div>
-              )
-            )}
-            {/* Maximized Mode: history sidebar on the right of the chat, under the header's history toggle */}
-            {props.isMaximized && props.showHistorySidebar && props.conversations && (
-              <ChatHistorySidebar
-                conversations={props.conversations}
-                currentConversationId={props.currentConversationId || null}
-                showArchived={showArchivedConversations}
-                onNewConversation={props.onNewConversation || (() => {})}
-                onLoadConversation={props.onLoadConversation || (async (id: string) => {})}
-                onArchiveConversation={props.onArchiveConversation || (async (id: string) => {})}
-                onDeleteConversation={props.onDeleteConversation || (async (id: string) => {})}
-                onDeleteAllConversations={props.onDeleteAllConversations}
-                onToggleArchived={() => setShowArchivedConversations(!showArchivedConversations)}
-                onClose={props.onToggleHistorySidebar || (() => {})}
-                onSearch={props.onSearch}
-                isFloating={false}
-                isMaximized={true}
-                theme={themeTracker?.name}
-              />
-            )}
+              ) : (
+              /* Non-Maximized Mode: Toggle between history view and chat view */
+                props.showHistorySidebar && props.isMaximized === false && props.conversations ? (
+                  <div className="d-flex flex-column flex-grow-1 ai-history-view-bg nonMaximizedMode" style={{ overflow: 'hidden', minHeight: 0 }} data-theme={themeTracker && themeTracker?.name.toLowerCase()}>
+                    {/* Back button header */}
+                    <div
+                      className="p-2 border-bottom"
+                    >
+                      <button
+                        className={`btn btn-sm ${themeTracker?.name.toLowerCase() === 'dark' ? 'btn-dark' : 'btn-light text-light-emphasis'}`}
+                        onClick={props.onToggleHistorySidebar || (() => {})}
+                        data-id="chat-history-back-btn"
+                      >
+                        <i className="fas fa-chevron-left me-3"></i>
+                        <span>Back to chat</span>
+                      </button>
+                    </div>
+                    {/* Chat history content */}
+                    <div className="flex-grow-1" style={{ overflow: 'hidden', minHeight: 0 }}>
+                      <ChatHistorySidebar
+                        conversations={props.conversations}
+                        currentConversationId={props.currentConversationId || null}
+                        showArchived={showArchivedConversations}
+                        onNewConversation={props.onNewConversation || (() => {})}
+                        onLoadConversation={async (id) => {
+                          await props.onLoadConversation?.(id)
+                          // Close sidebar after loading conversation in non-maximized mode
+                          await props.onToggleHistorySidebar?.()
+                        }}
+                        onArchiveConversation={props.onArchiveConversation || (async (id: string) => {})}
+                        onDeleteConversation={props.onDeleteConversation || (async (id: string) => {})}
+                        onDeleteAllConversations={props.onDeleteAllConversations}
+                        onToggleArchived={() => setShowArchivedConversations(!showArchivedConversations)}
+                        onClose={props.onToggleHistorySidebar || (() => {})}
+                        onSearch={props.onSearch}
+                        isFloating={false}
+                        isMaximized={false}
+                        theme={themeTracker?.name}
+                      />
+                    </div>
+                    {autoAcceptBannerEl}
+                  </div>
+                ) : (
+                  /* Show chat area when sidebar is closed */
+                  <div className={`d-flex flex-column flex-grow-1 sideBarIsClosed ${messages.length === 0 ? '' : 'ai-chat-area-flat'}`} style={{ overflow: 'hidden', minHeight: 0 }} data-theme={themeTracker && themeTracker?.name.toLowerCase()}>
+                    <ChatHistoryHeading
+                      onNewChat={props.onNewConversation || (() => {})}
+                      onToggleHistory={props.onToggleHistorySidebar || (() => {})}
+                      showHistorySidebar={props.showHistorySidebar || false}
+                      archiveChat={props.onArchiveConversation || (() => {})}
+                      currentConversationId={props.currentConversationId}
+                      showButton
+                      theme={themeTracker?.name}
+                      chatTitle={headerChatTitle}
+                      isAiChatMaximized={props.isMaximized}
+                    />
+                    <section id="remix-ai-chat-history" className="d-flex flex-column p-2" style={{ flex: 1, overflow: 'auto', minHeight: 0 }} ref={chatHistoryRef}>
+                      <div data-id="remix-ai-assistant-ready"></div>
+                      {/* hidden hook for E2E tests: data-streaming="true|false" */}
+                      <div
+                        data-id="remix-ai-streaming"
+                        className='d-none'
+                        data-streaming={isStreaming ? 'true' : 'false'}
+                      ></div>
+                      <ChatHistoryComponent
+                        messages={messages}
+                        isStreaming={isStreaming}
+                        isThinking={isThinking}
+                        sendPrompt={sendPrompt}
+                        recordFeedback={recordFeedback}
+                        historyRef={historyRef}
+                        theme={themeTracker?.name}
+                        plugin={props.plugin}
+                        handleGenerateWorkspace={handleGenerateWorkspace}
+                        handleLoadSkills={handleLoadSkills}
+                        allowedMcps={modelAccess.allowedMcps}
+                        onDappReviewAcceptAll={handleDappReviewAcceptAll}
+                        onDappReviewRevertAll={handleDappReviewRevertAll}
+                        onDappReviewViewDiff={handleDappReviewViewDiff}
+                      />
+                      {pendingApprovals.length > 1 && (
+                        <div className="hitl-pending-summary">
+                          <div className="d-flex justify-content-between align-items-center">
+                            <span className="fw-bold">Multiple Changes Pending ({pendingApprovals.length})</span>
+                            <div className="d-flex gap-2">
+                              <button
+                                className="btn btn-success btn-sm"
+                                onClick={handleApproveAll}
+                                data-id="approve-all-changes"
+                              >
+                              Approve All
+                              </button>
+                              <button
+                                className="btn btn-danger btn-sm"
+                                onClick={handleRejectAll}
+                                data-id="reject-all-changes"
+                              >
+                              Discard All
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                      {pendingApprovals.map((approval) => (
+                        <div key={approval.requestId} style={{ padding: '0 12px', marginBottom: '8px' }}>
+                          <ToolApprovalModal
+                            request={approval}
+                            onApprove={(options) => handleApproveToolAction(approval, options)}
+                            onReject={() => handleRejectToolAction(approval)}
+                            onReviewChanges={() => handleReviewChanges(approval)}
+                            isReviewing={reviewingApprovals.has(approval.requestId)}
+                          />
+                        </div>
+                      ))}
+                    </section>
+                    {autoAcceptBannerEl}
+                  </div>
+                )
+              )}
+            </div>
+            {/* Docked history view takes the full height: hide (not unmount) the prompt */}
+            <div className={`d-flex flex-column flex-shrink-0 ${dockedHistoryOpen ? 'd-none' : ''}`}>
+              {stripsEl}
+              {promptEl}
+            </div>
           </div>
-
-          {cooldownDisplay && (
-            <CooldownBanner
-              display={cooldownDisplay}
-              onDismiss={() => {
-                dismissedCooldownKeyRef.current = `${cooldownDisplay.code}:${cooldownDisplay.expiresAt ?? ''}`
-                setCooldownDisplay(null)
-              }}
+          {/* Maximized Mode: history sidebar on the right of the chat, under the header's history toggle */}
+          {props.isMaximized && props.showHistorySidebar && props.conversations && (
+            <ChatHistorySidebar
+              conversations={props.conversations}
+              currentConversationId={props.currentConversationId || null}
+              showArchived={showArchivedConversations}
+              onNewConversation={props.onNewConversation || (() => {})}
+              onLoadConversation={props.onLoadConversation || (async (id: string) => {})}
+              onArchiveConversation={props.onArchiveConversation || (async (id: string) => {})}
+              onDeleteConversation={props.onDeleteConversation || (async (id: string) => {})}
+              onDeleteAllConversations={props.onDeleteAllConversations}
+              onToggleArchived={() => setShowArchivedConversations(!showArchivedConversations)}
+              onClose={props.onToggleHistorySidebar || (() => {})}
+              onSearch={props.onSearch}
+              isFloating={false}
+              isMaximized={true}
+              theme={themeTracker?.name}
             />
           )}
-          {chatNotice && (
-            <div className="rai-panel-strip">
-              <ChatNoticeStrip
-                notice={chatNotice}
-                onAction={(action) => { void handleChatNoticeAction(action) }}
-                onDismiss={dismissChatNotice}
-              />
-            </div>
-          )}
-          {runModel && (
-            <div className="rai-panel-strip">
-              <div
-                className="rai-run-model"
-                data-id="remix-ai-run-model"
-                title={`Auto selected ${runModel} for this answer`}
-              >
-                <i className="fa-solid fa-wand-magic-sparkles rai-run-model__icon"></i>
-                <span className="rai-run-model__text">Using {runModelLabel}</span>
-              </div>
-            </div>
-          )}
-          {
-            messages.length > 0 ? (
-              <AiChatPromptAreaForHistory
-                themeTracker={themeTracker}
-                showHistorySidebar={props.showHistorySidebar || false}
-                isMaximized={props.isMaximized}
-                modelOpt={modelOpt}
-                menuRef={menuRef}
-                assistantChoice={assistantChoice}
-                setAssistantChoice={setAssistantChoice}
-                mcpEnabled={mcpEnabled}
-                mcpEnhanced={mcpEnhanced}
-                setMcpEnhanced={setMcpEnhanced}
-                availableModels={availableModels}
-                selectedModel={selectedModel}
-                handleModelSelection={handleModelSelection}
-                onLockedModelClick={handleLockedModelClick}
-                upgradePillState={pillStates.upgrade}
-                buyCreditsPillState={pillStates.buyCredits}
-                onBuyCreditsClick={handleBuyCreditsClick}
-                input={input}
-                setInput={setInput}
-                isStreaming={isStreaming}
-                handleSend={handleSend}
-                stopRequest={stopRequest}
-                handleSetModel={handleSetModel}
-                handleGenerateWorkspace={handleGenerateWorkspace}
-                dispatchActivity={dispatchActivity as any}
-                modelBtnRef={modelBtnRef}
-                modelSelectorBtnRef={modelSelectorBtnRef}
-                textareaRef={textareaRef}
-                maximizePanel={maximizePanel}
-                setShowOllamaModelSelector={setShowOllamaModelSelector}
-                showOllamaModelSelector={showOllamaModelSelector}
-                showModelSelector={showModelSelector}
-                setShowModelSelector={setShowModelSelector}
-                selectedModelId={selectedModelId}
-                handleOllamaModelSelection={handleOllamaModelSelection}
-                selectedOllamaModel={selectedOllamaModel}
-                ollamaModels={ollamaModels}
-                ollamaModelOpt={ollamaModelOpt}
-                ollamaMenuRef={ollamaMenuRef}
-                messages={messages}
-                handleLoadSkills={handleLoadSkills}
-                handleOpenSettings={handleOpenSettings}
-                handleLoadAuditChecklist={handleLoadAuditChecklist}
-                handleGasOptimisationAudit={handleGasOptimisationAudit}
-                usingOwnApiKey={usingOwnApiKey}
-                byokKeyPresence={byokKeyPresence}
-                onAddApiKeyClick={handleOpenSettings}
-                aiRoute={aiRouteStatus.route}
-                aiRouteReady={aiRouteStatus.ready}
-                isAuthenticated={isAuthenticated}
-                onSignIn={handleSignIn}
-                hasAuditorPermission={hasAuditorPermission}
-                hasSkillsPermission={hasSkillsPermission}
-                onUpgradeRequired={handleFeatureUpgradeRequired}
-                getRequiredPlanName={getRequiredPlanName}
-                cheapModelsOnly={cheapModelsOnly}
-                hasCheapModels={hasCheapModels}
-                onToggleCheapModels={handleToggleCheapModels}
-              />
-            ) : (
-              <AiChatPromptArea
-                themeTracker={themeTracker}
-                showHistorySidebar={props.showHistorySidebar || false}
-                isMaximized={props.isMaximized}
-                modelOpt={modelOpt}
-                menuRef={menuRef}
-                assistantChoice={assistantChoice}
-                setAssistantChoice={setAssistantChoice}
-                mcpEnabled={mcpEnabled}
-                mcpEnhanced={mcpEnhanced}
-                setMcpEnhanced={setMcpEnhanced}
-                availableModels={availableModels}
-                selectedModel={selectedModel}
-                handleModelSelection={handleModelSelection}
-                onLockedModelClick={handleLockedModelClick}
-                upgradePillState={pillStates.upgrade}
-                buyCreditsPillState={pillStates.buyCredits}
-                onBuyCreditsClick={handleBuyCreditsClick}
-                input={input}
-                setInput={setInput}
-                isStreaming={isStreaming}
-                handleSend={handleSend}
-                stopRequest={stopRequest}
-                handleSetModel={handleSetModel}
-                handleGenerateWorkspace={handleGenerateWorkspace}
-                dispatchActivity={dispatchActivity as any}
-                modelBtnRef={modelBtnRef}
-                modelSelectorBtnRef={modelSelectorBtnRef}
-                textareaRef={textareaRef}
-                maximizePanel={maximizePanel}
-                setShowOllamaModelSelector={setShowOllamaModelSelector}
-                showOllamaModelSelector={showOllamaModelSelector}
-                showModelSelector={showModelSelector}
-                setShowModelSelector={setShowModelSelector}
-                selectedModelId={selectedModelId}
-                handleOllamaModelSelection={handleOllamaModelSelection}
-                selectedOllamaModel={selectedOllamaModel}
-                ollamaModels={ollamaModels}
-                ollamaModelOpt={ollamaModelOpt}
-                ollamaMenuRef={ollamaMenuRef}
-                messages={messages}
-                handleLoadSkills={handleLoadSkills}
-                handleOpenSettings={handleOpenSettings}
-                handleLoadAuditChecklist={handleLoadAuditChecklist}
-                handleGasOptimisationAudit={handleGasOptimisationAudit}
-                usingOwnApiKey={usingOwnApiKey}
-                byokKeyPresence={byokKeyPresence}
-                onAddApiKeyClick={handleOpenSettings}
-                aiRoute={aiRouteStatus.route}
-                aiRouteReady={aiRouteStatus.ready}
-                isAuthenticated={isAuthenticated}
-                onSignIn={handleSignIn}
-                hasAuditorPermission={hasAuditorPermission}
-                hasSkillsPermission={hasSkillsPermission}
-                onUpgradeRequired={handleFeatureUpgradeRequired}
-                getRequiredPlanName={getRequiredPlanName}
-                cheapModelsOnly={cheapModelsOnly}
-                hasCheapModels={hasCheapModels}
-                onToggleCheapModels={handleToggleCheapModels}
-              />
-            )
-          }
 
           {/* API Key Error Toast */}
           {apiKeyError && (

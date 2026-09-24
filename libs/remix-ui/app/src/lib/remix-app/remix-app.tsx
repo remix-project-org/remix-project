@@ -376,14 +376,14 @@ const RemixApp = (props: IRemixAppUi) => {
                   </div>
                 )}
                 <div className={`remixIDE ${appReady ? '' : 'd-none'}`} data-id="remixIDE">
-                  <div ref={iconPanelRef} id="icon-panel" data-id="remixIdeIconPanel" className="custom_icon_panel iconpanel bg-light">
+                  <div ref={iconPanelRef} id="icon-panel" data-id="remixIdeIconPanel" className="custom_icon_panel iconpanel bg-light border-end">
                     {props.app.menuicons.render()}
                   </div>
                   <div
                     ref={sidePanelRef}
                     id="side-panel"
                     data-id="remixIdeSidePanel"
-                    className={`sidepanel border-end border-start ${hideSidePanel ? 'd-none' : ''}`}
+                    className={`sidepanel border-end ${hideSidePanel ? 'd-none' : ''}`}
                   >
                     {props.app.sidePanel.render()}
                   </div>

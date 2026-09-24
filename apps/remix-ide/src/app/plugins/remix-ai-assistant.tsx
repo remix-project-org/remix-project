@@ -55,6 +55,7 @@ export class RemixAIAssistant extends ViewPlugin {
   conversations: ConversationMetadata[] = []
   showHistorySidebar: boolean = false
   isMaximized: boolean = false
+  aiModePanelState: { leftHidden: boolean, terminalHidden: boolean } | null = null
   private _initializing: boolean = true
   private _initStarted: boolean = false
 
@@ -437,6 +438,14 @@ export class RemixAIAssistant extends ViewPlugin {
         await this.call('menuicons', 'select', 'filePanel')
       }
     } catch (e) { /* left panel not available */ }
+    // AI mode takes the whole workspace: hide the left panel and the terminal
+    // (the right panel hides itself on `aiModeChanged`), remembering which were
+    // open so exiting brings back exactly those.
+    const leftHidden = await this.call('sidePanel', 'isPanelHidden').catch(() => true)
+    const terminalHidden = await this.call('terminal', 'isPanelHidden').catch(() => true)
+    this.aiModePanelState = { leftHidden, terminalHidden }
+    if (!leftHidden) await this.call('sidePanel', 'togglePanel')
+    if (!terminalHidden) await this.call('terminal', 'togglePanel')
     this.emit('aiModeChanged', true)
     trackMatomoEvent(this, { category: 'ai', action: 'remixAI', name: 'maximized', isClick: true })
   }
@@ -446,6 +455,15 @@ export class RemixAIAssistant extends ViewPlugin {
     this.isMaximized = false
     this.renderComponent()
     await this.call('layout', 'restoreFromAIChatMaximized')
+    // Re-show only what AI mode hid and the user hasn't reopened meanwhile.
+    const prev = this.aiModePanelState
+    this.aiModePanelState = null
+    if (prev) {
+      try {
+        if (!prev.leftHidden && await this.call('sidePanel', 'isPanelHidden')) await this.call('sidePanel', 'togglePanel')
+        if (!prev.terminalHidden && await this.call('terminal', 'isPanelHidden')) await this.call('terminal', 'togglePanel')
+      } catch (e) { /* panel not available */ }
+    }
     this.emit('aiModeChanged', false)
     trackMatomoEvent(this, { category: 'ai', action: 'remixAI', name: 'restored', isClick: true })
   }

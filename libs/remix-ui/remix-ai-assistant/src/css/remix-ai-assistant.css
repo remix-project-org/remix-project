@@ -1918,3 +1918,67 @@ code {
   padding: 1px 6px;
   font-weight: 600;
 }
+
+/* --------------------------------------------------------
+   AI mode (chat maximized into the center panel)
+   Root is a row: [.ai-chat-main] [history sidebar].
+   -------------------------------------------------------- */
+
+/* One background for the whole chat (both modes): .ai-chat-main
+   gets .ai-assistant-bg for an empty chat and its ::before spans
+   header → prompt, so the prompt and strips must not paint their
+   own gradient/background over it. */
+.ai-chat-main.ai-assistant-bg .ai-assistant-prompt-bg {
+  background: transparent !important;
+}
+
+.ai-chat-main.ai-assistant-bg .ai-assistant-prompt-bg::before {
+  display: none !important;
+}
+
+.ai-chat-main.ai-assistant-bg .rai-panel-strip {
+  background: transparent;
+}
+
+/* AI mode: centered reading column. Content is capped at 860px
+   while the background and scrollbar still span the full width.
+   (!important beats the Bootstrap p-2 utility on the section.) */
+.ai-mode #remix-ai-chat-history,
+.ai-mode #remix-ai-prompt-area,
+.ai-mode .rai-panel-strip {
+  padding-left: max(0.5rem, calc((100% - 860px) / 2)) !important;
+  padding-right: max(0.5rem, calc((100% - 860px) / 2)) !important;
+}
+
+/* AI mode header: line "New chat" and the icons up with the input
+   box edges (column padding + the prompt box's .mx-2). */
+.ai-mode .ai-mode-heading {
+  padding-left: calc(max(0.5rem, calc((100% - 860px) / 2)) + 0.5rem) !important;
+  padding-right: calc(max(0.5rem, calc((100% - 860px) / 2)) + 0.5rem) !important;
+}
+
+/* Header: codicon glyph sized/centered like its FontAwesome siblings */
+.ai-mode-exit-icon {
+  font-size: 16px;
+  line-height: 1;
+  vertical-align: middle;
+}
+
+/* History sidebar: full-height column on the right of the chat */
+.chat-history-sidebar-maximized {
+  width: 320px;
+  min-width: 320px;
+  max-width: 320px;
+  border-left: 1px solid var(--bs-border-color) !important;
+}
+
+/* History header actions (both modes): compact, one line */
+.chat-history-sidebar .chat-history-action {
+  font-size: 0.8rem;
+  padding: 0.2rem 0.5rem;
+  white-space: nowrap;
+}
+
+.chat-history-sidebar .chat-history-sidebar-header .sidebar-title {
+  font-size: 0.95rem;
+}

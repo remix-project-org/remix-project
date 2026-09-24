@@ -826,7 +826,7 @@ export function RemixUiTopbar() {
   return (
     <section
       ref={sectionRef}
-      className="h-100 d-flex bg-light border flex-nowrap px-2"
+      className="h-100 d-flex bg-light border-top border-bottom flex-nowrap px-2"
     >
       <div className="d-flex flex-row align-items-center justify-content-between w-100" style={{ minWidth: 0 }}>
         <div

@@ -199,12 +199,35 @@ export const PromptArea: React.FC<PromptAreaProps> = ({
   const shortcutsRef = useRef<HTMLDivElement>(null)
   const [activeShortcut, setActiveShortcut] = useState<string | null>(null)
 
+  // Auto-size the textarea to its content. Skipped while it isn't rendered
+  // (e.g. mounted inside a still-hidden panel on a mode switch): a hidden
+  // textarea measures 0 and would stay collapsed at min-height until typing.
+  const resizeTextarea = useCallback(() => {
+    const el = textareaRef?.current
+    if (!el || el.offsetWidth === 0) return
+    el.style.height = 'auto'
+    el.style.height = `${el.scrollHeight}px`
+  }, [textareaRef])
+
   useEffect(() => {
-    if (textareaRef?.current) {
-      textareaRef.current.style.height = 'auto'
-      textareaRef.current.style.height = `${textareaRef.current.scrollHeight}px`
-    }
-  }, [input])
+    resizeTextarea()
+  }, [input, resizeTextarea])
+
+  // Re-size when the width changes: hidden → visible, docked ↔ AI mode, panel
+  // resizes (text wraps differently). Height-only changes are ignored, as they
+  // come from resizeTextarea itself.
+  useEffect(() => {
+    const el = textareaRef?.current
+    if (!el || typeof ResizeObserver === 'undefined') return
+    let lastWidth = el.offsetWidth
+    const observer = new ResizeObserver(() => {
+      if (el.offsetWidth === lastWidth) return
+      lastWidth = el.offsetWidth
+      resizeTextarea()
+    })
+    observer.observe(el)
+    return () => observer.disconnect()
+  }, [textareaRef, resizeTextarea])
 
   // Handle autocomplete visibility
   useEffect(() => {
