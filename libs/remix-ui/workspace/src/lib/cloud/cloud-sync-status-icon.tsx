@@ -248,7 +248,8 @@ export const CloudToggle: React.FC<CloudToggleProps> = ({
         {/* Status label (relative sync time when active, "Off" otherwise) */}
         <span
           style={{
-            fontSize: '0.85rem',
+            fontSize: '0.75rem',
+            fontWeight: 500,
             lineHeight: 1,
             color: iconColor,
             whiteSpace: 'nowrap',
