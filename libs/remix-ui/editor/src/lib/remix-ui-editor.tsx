@@ -1519,23 +1519,48 @@ export const EditorUI = (props: EditorUIProps) => {
     }
   }
 
-  const handleGasAudit = async () => {
+  const handleEditWithAI = async () => {
     try {
-      // Trigger gas audit plugin
-      await props.plugin.call('gasEstimator', 'activate')
-      // trackMatomoEvent({ category: 'editor', action: 'activate', name: 'gasEstimator', isClick: true })
+      // Trigger AI edit functionality
+      await props.plugin.call('remixAI', 'code_generation')
+      // trackMatomoEvent({ category: 'editor', action: 'ai_edit', name: 'remixAI', isClick: true })
     } catch (error) {
-      console.error('Error triggering gas audit:', error)
+      console.error('Error triggering AI edit:', error)
     }
   }
 
-  const handleSecurityAudit = async () => {
+  const handleExplainContract = async () => {
     try {
-      // Trigger security analysis plugin
-      await props.plugin.call('solidityStaticAnalysis', 'activate')
-      // trackMatomoEvent({ category: 'editor', action: 'activate', name: 'solidityStaticAnalysis', isClick: true })
+      // Match bottom-bar.tsx implementation
+      const currentFile = props.currentFile
+      if (!currentFile) {
+        await props.plugin.call('notification', 'toast', 'No file selected to explain.')
+        return
+      }
+
+      // Show right side panel if it's hidden
+      const isPanelHidden = await props.plugin.call('rightSidePanel', 'isPanelHidden')
+      if (isPanelHidden) {
+        await props.plugin.call('rightSidePanel', 'togglePanel')
+      }
+
+      await props.plugin.call('menuicons', 'select', 'remixaiassistant')
+      await new Promise((resolve) => setTimeout(resolve, 500))
+      const content = await props.plugin.call('fileManager', 'readFile', currentFile)
+      await (props.plugin as any).call('remixAI', 'chatPipe', 'code_explaining', content + "\n\nExplain briefly the snipped above!", undefined, undefined, { source: 'fab-button', presetId: 'explain-contract' })
+      // trackMatomoEvent({ category: 'editor', action: 'explain_contract', name: 'remixAI', isClick: true })
     } catch (error) {
-      console.error('Error triggering security audit:', error)
+      console.error('Error triggering contract explanation:', error)
+    }
+  }
+
+  const handleCreateDapp = async () => {
+    try {
+      // Trigger Dapp creation
+      await props.plugin.call('quickDapp', 'activate')
+      // trackMatomoEvent({ category: 'editor', action: 'create_dapp', name: 'quickDapp', isClick: true })
+    } catch (error) {
+      console.error('Error triggering Dapp creation:', error)
     }
   }
 
@@ -2104,11 +2129,12 @@ export const EditorUI = (props: EditorUIProps) => {
         />
       )}
 
-      {/* Floating Action Button for Audits */}
+      {/* Floating Action Button for AI Tools */}
       {!props.isDiff && props.currentFile && (
         <FloatingActionButton
-          onGasAudit={handleGasAudit}
-          onSecurityAudit={handleSecurityAudit}
+          onEditWithAI={handleEditWithAI}
+          onExplainContract={handleExplainContract}
+          onCreateDapp={handleCreateDapp}
         />
       )}
     </div>

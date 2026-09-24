@@ -1,11 +1,12 @@
 import React, { useState } from 'react'
 
 interface FloatingActionButtonProps {
-  onGasAudit: () => void
-  onSecurityAudit: () => void
+  onEditWithAI: () => void
+  onExplainContract: () => void
+  onCreateDapp: () => void
 }
 
-export const FloatingActionButton: React.FC<FloatingActionButtonProps> = ({ onGasAudit, onSecurityAudit }) => {
+export const FloatingActionButton: React.FC<FloatingActionButtonProps> = ({ onEditWithAI, onExplainContract, onCreateDapp }) => {
   const [isExpanded, setIsExpanded] = useState(false)
 
   const toggleExpand = () => {
@@ -19,24 +20,35 @@ export const FloatingActionButton: React.FC<FloatingActionButtonProps> = ({ onGa
           <button
             className="fab-menu-item"
             onClick={() => {
-              onGasAudit()
+              onEditWithAI()
               setIsExpanded(false)
             }}
-            title="AI-powered gas optimization analysis"
+            title="Edit your code with AI assistance"
           >
-            <i className="fas fa-gas-pump"></i>
-            <span className="fab-menu-text">Gas Audit</span>
+            <i className="fas fa-edit"></i>
+            <span className="fab-menu-text">Edit with AI</span>
           </button>
           <button
             className="fab-menu-item"
             onClick={() => {
-              onSecurityAudit()
+              onExplainContract()
               setIsExpanded(false)
             }}
-            title="AI-powered security analysis"
+            title="Get AI explanation of your contract"
           >
-            <i className="fas fa-shield-alt"></i>
-            <span className="fab-menu-text">Security Audit</span>
+            <i className="fas fa-file-contract"></i>
+            <span className="fab-menu-text">Explain contract</span>
+          </button>
+          <button
+            className="fab-menu-item"
+            onClick={() => {
+              onCreateDapp()
+              setIsExpanded(false)
+            }}
+            title="Create a Dapp from your contract"
+          >
+            <i className="fas fa-rocket"></i>
+            <span className="fab-menu-text">Create a DApp</span>
           </button>
         </div>
       )}

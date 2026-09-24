@@ -169,14 +169,14 @@ div.monaco-list-row > span.title {
     display: flex;
     flex-direction: column;
     align-items: flex-end;
-    gap: 12px;
+    gap: 10px;
     z-index: 1000;
     pointer-events: all;
 }
 
 .fab-main-button {
-    width: 56px;
-    height: 56px;
+    width: 48px;
+    height: 48px;
     border-radius: 50%;
     background: color-mix(in srgb, var(--custom-ai-color) 15%, var(--bs-body-bg));
     border: 2px solid var(--custom-ai-color);
@@ -186,18 +186,18 @@ div.monaco-list-row > span.title {
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 1.3rem;
+    font-size: 1.1rem;
     transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     position: relative;
     overflow: hidden;
 }
 
 .fab-ai-logo {
-    height: 36px;
-    width: 36px;
+    height: 30px;
+    width: 30px;
     object-fit: contain;
     pointer-events: none;
-    padding: 6px;
+    padding: 5px;
 }
 
 .fab-main-button::before {
@@ -235,25 +235,25 @@ div.monaco-list-row > span.title {
 .fab-menu {
     display: flex;
     flex-direction: column;
-    gap: 12px;
+    gap: 10px;
     animation: fabMenuSlideIn 0.3s ease-out;
 }
 
 .fab-menu-item {
     display: flex;
     align-items: center;
-    gap: 12px;
-    padding: 12px 16px;
+    gap: 10px;
+    padding: 10px 14px;
     background: var(--bs-body-bg);
     border: 1px solid color-mix(in srgb, var(--custom-ai-color) 30%, transparent);
-    border-radius: 28px;
+    border-radius: 24px;
     color: var(--bs-body-color);
     cursor: pointer;
-    font-size: 0.9rem;
+    font-size: 0.85rem;
     box-shadow: 0 2px 8px color-mix(in srgb, var(--custom-ai-color) 20%, transparent);
     transition: all 0.2s ease;
     white-space: nowrap;
-    min-width: 180px;
+    min-width: 160px;
     position: relative;
     overflow: hidden;
 }
@@ -286,9 +286,9 @@ div.monaco-list-row > span.title {
 }
 
 .fab-menu-item i {
-    width: 20px;
+    width: 18px;
     text-align: center;
-    font-size: 1rem;
+    font-size: 0.9rem;
     color: var(--custom-ai-color);
 }
 
