@@ -36,6 +36,7 @@ import { GenerationParams } from '@remix/remix-ai-core';
 import { RemixInLineCompletionProvider } from './providers/inlineCompletionProvider'
 import { RemixTSCompletionProvider } from './providers/tsCompletionProvider'
 import { TooltipPopOver, openContextualTooltip } from './tooltipPopOver'
+import { FloatingActionButton } from './FloatingActionButton'
 
 const _paq = (window._paq = window._paq || []) // eslint-disable-line
 
@@ -1518,6 +1519,26 @@ export const EditorUI = (props: EditorUIProps) => {
     }
   }
 
+  const handleGasAudit = async () => {
+    try {
+      // Trigger gas audit plugin
+      await props.plugin.call('gasEstimator', 'activate')
+      // trackMatomoEvent({ category: 'editor', action: 'activate', name: 'gasEstimator', isClick: true })
+    } catch (error) {
+      console.error('Error triggering gas audit:', error)
+    }
+  }
+
+  const handleSecurityAudit = async () => {
+    try {
+      // Trigger security analysis plugin
+      await props.plugin.call('solidityStaticAnalysis', 'activate')
+      // trackMatomoEvent({ category: 'editor', action: 'activate', name: 'solidityStaticAnalysis', isClick: true })
+    } catch (error) {
+      console.error('Error triggering security audit:', error)
+    }
+  }
+
   function handleEditorWillMount(monaco) {
 
     monacoRef.current = monaco
@@ -1920,7 +1941,7 @@ export const EditorUI = (props: EditorUIProps) => {
   }
 
   return (
-    <div className="w-100 h-100 d-flex flex-column-reverse">
+    <div className="w-100 h-100 d-flex flex-column-reverse position-relative">
       {props.isDiff && (
         <>
           {/* Action Buttons */}
@@ -2080,6 +2101,14 @@ export const EditorUI = (props: EditorUIProps) => {
           plugin={props.plugin}
           contextLines={tooltipData.contextLines}
           isSelectedText={tooltipData.isSelectedText}
+        />
+      )}
+
+      {/* Floating Action Button for Audits */}
+      {!props.isDiff && props.currentFile && (
+        <FloatingActionButton
+          onGasAudit={handleGasAudit}
+          onSecurityAudit={handleSecurityAudit}
         />
       )}
     </div>
