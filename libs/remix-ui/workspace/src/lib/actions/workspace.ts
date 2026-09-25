@@ -748,8 +748,19 @@ export const loadWorkspacePreset = async (template: WorkspaceTemplate = 'remixDe
         files = await templateWithContent[template](opts, plugin)
       }
       if (files) {
+        const isSkippedConfigFile = (path: string) => {
+          const base = path.split('/').pop().toLowerCase()
+          return base === '.prettierrc' || base === '.prettierrc.json' || base === '.prettierrc.js' || base === '.prettierrc.yaml' || base === '.prettierrc.yml' ||
+            base === '.eslintrc' || base === '.eslintrc.json' || base === '.eslintrc.js' || base === '.eslintrc.cjs' ||
+            base === '.editorconfig' || base === '.gitignore' || base === '.gitattributes' ||
+            base === 'tsconfig.json' || base === 'jsconfig.json'
+        }
         for (const file in files) {
           try {
+            if (isSkippedConfigFile(file) && await plugin.fileManager.exists(file)) {
+              // Don't overwrite or rename common config files if workspace already has one
+              continue
+            }
             const uniqueFileName = await createNonClashingNameAsync(file, plugin.fileManager)
             if (file === 'remix.config.json') {
               let remixConfig = JSON.parse(files[file])
