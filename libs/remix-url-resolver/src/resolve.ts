@@ -148,13 +148,17 @@ export class RemixURLResolver {
         if (deps) {
           // Packages have usually a slash in the name which make it difficult to distinguish them from a path.
           // we first try to resolve the path with a slash. packages like @openzepplin/contracts will be resolved in that case.
-          let transformedUrl = getPkg(fetchUrl.split('/')[0] + '/' + fetchUrl.split('/')[1], yarnLock, packageLock, deps, url, fetchUrl)
-          if (!transformedUrl) {
+          let resolved = getPkg(fetchUrl.split('/')[0] + '/' + fetchUrl.split('/')[1], yarnLock, packageLock, deps, url)
+          if (!resolved) {
             // then we fallback to the case where the package doesn't have a slash in its name.
-            transformedUrl = getPkg(fetchUrl.split('/')[0], yarnLock, packageLock, deps, url, fetchUrl)
+            resolved = getPkg(fetchUrl.split('/')[0], yarnLock, packageLock, deps, url)
           }
-          if (transformedUrl) {
-            fetchUrl = transformedUrl
+          if (typeof resolved === 'string') {
+            fetchUrl = resolved
+          } else if (resolved) {
+            // the dependency is pinned to a github repo, fetch the file from there instead of the npm registry.
+            // if that fails we fall through to the npm gateways below.
+            return await this.handleGithubCall(resolved.repo, resolved.filePath)
           }
         }
       } catch (e) {
@@ -309,7 +313,17 @@ function semverRegex() {
   return /(?<=^v?|\sv?)(?:(?:0|[1-9]\d{0,9}?)\.){2}(?:0|[1-9]\d{0,9})(?:-(?:--+)?(?:0|[1-9]\d*|\d*[a-z]+\d*)){0,100}(?=$| |\+|\.)(?:(?<=-\S+)(?:\.(?:--?|[\da-z-]*[a-z-]\d*|0|[1-9]\d*)){1,100}?)?(?!\.)(?:\+(?:[\da-z]\.?-?){1,100}?(?!\w))?(?!\+)/gi;
 }
 
-function getPkg(pkg, yarnLock, packageLock, deps, url, fetchUrl) {
+interface GithubPkg {
+  repo: string;
+  filePath: string
+}
+
+/**
+ * Resolve `url` against the versions declared by the project.
+ * Returns the versioned npm path, or a { repo, filePath } target when the
+ * dependency is pinned to a github repo, or null when the package is unknown.
+ */
+function getPkg(pkg, yarnLock, packageLock, deps, url): string | GithubPkg | null {
   let version
   if (yarnLock) {
     // yarn.lock
@@ -332,19 +346,21 @@ function getPkg(pkg, yarnLock, packageLock, deps, url, fetchUrl) {
     version = deps[pkg]
   }
   if (version) {
-    // If the entry is pointing to a github repo, redirect to correct handler instead of continuing
-    if (version.startsWith("github:")) {
-      const [, repo, tag] = version.match(/github:([^#]+)#(.+)/);
-      const filePath = url.replace(/^[^/]+\//, '');
-      return this.handleGithubCall(repo, `blob/${tag}/${filePath}`);
+    // If the entry is pointing to a github repo, hand the target back to the caller
+    // so it can redirect to the github handler instead of hitting the npm gateways.
+    if (version.startsWith('github:')) {
+      const match = version.match(/^github:([^#]+)(?:#(.+))?$/)
+      if (!match) return null
+      const [, repo, reference] = match
+      const filePath = url.replace(/^[^/]+\//, '')
+      // handleGithubCall parses the `blob/<ref>/` prefix and defaults to master without it
+      return { repo, filePath: reference ? `blob/${reference}/${filePath}` : filePath }
     }
     if (version.startsWith('npm:')) {
-      fetchUrl = url.replace(pkg, version.replace('npm:', ''))
-      return fetchUrl
+      return url.replace(pkg, version.replace('npm:', ''))
     } else {
       // const versionSemver = semver.minVersion(version)
-      fetchUrl = url.replace(pkg, `${pkg}@${version}`)
-      return fetchUrl
+      return url.replace(pkg, `${pkg}@${version}`)
     }
   }
   return null
