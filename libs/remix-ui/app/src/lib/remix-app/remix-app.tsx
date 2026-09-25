@@ -1,5 +1,5 @@
 /* eslint-disable @nrwl/nx/enforce-module-boundaries */
-import React, { useCallback, useEffect, useMemo, useReducer, useRef, useState } from 'react'
+import React, { useEffect, useReducer, useRef, useState } from 'react'
 import './style/remix-app.css'
 import 'libs/remix-ui/remix-ai-assistant/src/css/remix-ai-assistant.css'
 import { RemixUIMainPanel } from '@remix-ui/panel'
@@ -18,7 +18,6 @@ import { appReducer } from './reducer/app'
 import { appInitialState } from './state/app'
 import isElectron from 'is-electron'
 import { desktopConnectionType, AppConfig } from '@remix-api'
-import { FloatingChatHistory } from './components/chatHistory/floatingChatHistory'
 import { appActionTypes } from './actions/app'
 import { DesktopRedirectOverlay } from '@remix-ui/login'
 
@@ -60,7 +59,6 @@ const RemixApp = (props: IRemixAppUi) => {
   const [leftPanelCoeff, setLeftPanelCoeff] = useState<number>(undefined)
   const [rightPanelCoeff, setRightPanelCoeff] = useState<number>(undefined)
   const [themeTracker, setThemeTracker] = useState<{name: string, quality: string, backgroundColor: string, fillColor: string, shapeColor: string, textColor: string, url: string}>(null);
-  const [showAiChatHistory, setShowAiChatHistory] = useState<boolean>(false)
 
   const [online, setOnline] = useState<boolean>(true)
   const [viewportSize, setViewportSize] = useState<{ width: number; height: number }>({
@@ -183,16 +181,6 @@ const RemixApp = (props: IRemixAppUi) => {
     // Remove the SAME function reference
     return () => {
       window.removeEventListener('ideThemeChanged', handleThemeChange)
-    }
-  }, [])
-
-  useEffect(() => {
-    const handler = (event: any) => {
-      setShowAiChatHistory(event.detail.isMaximized)
-    }
-    window.addEventListener('rightSidePanelMaximized', handler)
-    return () => {
-      window.removeEventListener('rightSidePanelMaximized', handler)
     }
   }, [])
 
@@ -371,40 +359,6 @@ const RemixApp = (props: IRemixAppUi) => {
     viewportSize.width * (viewportSize.width < 768 ? 0.86 : viewportSize.width < 1280 ? 0.3 : 0.24)
   )
 
-  const chatWidthFraction = viewportSize.width < 768 ? 0.86 : viewportSize.width < 1920 ? 0.22 : 0.18
-  const floatingChatWidth = Math.max(260, Math.round(viewportSize.width * chatWidthFraction))
-  const floatingChatStyle = useMemo<React.CSSProperties>(() => {
-    const height = topBarHeight + (topBarHeight - 8)
-    return {
-      position: 'fixed',
-      overflow: 'hidden',
-      top: `${height}px`,
-      right: '0.8rem',
-      width: `${floatingChatWidth}px`,
-      height: `calc(94vh - ${height}px)`,
-      zIndex: 1050
-    }
-  }, [floatingChatWidth, topBarHeight])
-  const [showArchived, setShowArchived] = useState(false);
-
-  // Memoize callbacks to prevent unnecessary re-renders
-  const handleLoadConversation = useCallback((id: string) => {
-    props.app.remixAiAssistant.loadConversation(id)
-  }, [props.app.remixAiAssistant])
-
-  const handleToggleArchived = useCallback(() => {
-    setShowArchived(!showArchived)
-  }, [showArchived])
-
-  const handleClose = useCallback(() => {}, [])
-
-  const handleSearch = useCallback(async (query: string) => {
-    if (props.app.remixAiAssistant.searchConversations) {
-      return await props.app.remixAiAssistant.searchConversations(query)
-    }
-    return []
-  }, [props.app.remixAiAssistant])
-
   return (
     //@ts-ignore
     <IntlProvider locale={locale.code} messages={locale.messages}>
@@ -423,33 +377,15 @@ const RemixApp = (props: IRemixAppUi) => {
                     {props.app.topBar.render()}
                   </div>
                 )}
-                <div className={`remixIDE ${appReady ? '' : 'd-none'} ${showAiChatHistory ? 'chat-history-open' : ''}`} data-id="remixIDE">
-                  {showAiChatHistory ? <div className={`${themeTracker.name.toLowerCase() === 'dark' ? 'bg-dark text-light' : 'bg-light text-dark'} rounded-3 p-1`} style={floatingChatStyle}>
-                    <FloatingChatHistory
-                      conversations={props.app.remixAiAssistant.conversations}
-                      currentConversationId={props.app.remixAiAssistant.currentConversationId}
-                      showArchived={showArchived}
-                      onNewConversation={props.app.remixAiAssistant.newConversation}
-                      onLoadConversation={handleLoadConversation}
-                      onArchiveConversation={props.app.remixAiAssistant.archiveConversation}
-                      onDeleteConversation={props.app.remixAiAssistant.deleteConversation}
-                      onToggleArchived={handleToggleArchived}
-                      onClose={handleClose}
-                      onSearch={handleSearch}
-                      isFloating={false}
-                      isMaximized={false}
-                      panelWidth={floatingChatWidth}
-                      theme={themeTracker.name}
-                    />
-                  </div> : null}
-                  <div ref={iconPanelRef} id="icon-panel" data-id="remixIdeIconPanel" className="custom_icon_panel iconpanel bg-light">
+                <div className={`remixIDE ${appReady ? '' : 'd-none'}`} data-id="remixIDE">
+                  <div ref={iconPanelRef} id="icon-panel" data-id="remixIdeIconPanel" className="custom_icon_panel iconpanel bg-light border-end">
                     {props.app.menuicons.render()}
                   </div>
                   <div
                     ref={sidePanelRef}
                     id="side-panel"
                     data-id="remixIdeSidePanel"
-                    className={`sidepanel border-end border-start ${hideSidePanel ? 'd-none' : ''}`}
+                    className={`sidepanel border-end ${hideSidePanel ? 'd-none' : ''}`}
                   >
                     {props.app.sidePanel.render()}
                   </div>

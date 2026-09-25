@@ -78,18 +78,21 @@ export const ChatHistorySidebar: React.FC<ChatHistorySidebarProps> = ({
 
   return (
     <div
-      className={`chat-history-sidebar border-0 d-flex flex-column h-100 ${isFloating ? 'chat-history-sidebar-floating ' : isMaximized ? '' : 'w-100'}`}
-      style={isMaximized && !isFloating ? { width: '350px', minWidth: '350px', maxWidth: '350px' } : isFloating ? { width: '350px', minWidth: '350px' } : { minWidth: '350px', backgroundColor: theme === 'dark' ? 'var(--bs-dark)' : 'var(--bs-light)' }}
+      className={`chat-history-sidebar border-0 d-flex flex-column h-100 ${isFloating ? 'chat-history-sidebar-floating ' : isMaximized ? 'chat-history-sidebar-maximized' : 'w-100'}`}
+      style={isMaximized || isFloating ? undefined : { backgroundColor: theme === 'dark' ? 'var(--bs-dark)' : 'var(--bs-light)' }}
       data-id="chat-history-sidebar"
       data-theme={theme?.toLowerCase()}
     >
-      {/* Header */}
-      <div className="border-0 p-3" style={{ backgroundColor: theme.toLowerCase() === 'dark' ? '#222336' : '#eff1f5' }}>
-        <div className="d-flex justify-content-between align-items-center mb-3">
+      {/* Header: title + count (+ close in AI mode), search, list actions */}
+      <div className="chat-history-sidebar-header border-0 px-3 pt-3 pb-2" style={{ backgroundColor: theme.toLowerCase() === 'dark' ? '#222336' : '#eff1f5' }}>
+        <div className="d-flex justify-content-between align-items-center mb-2">
+          <h6 className="mb-0 fw-semibold sidebar-title text-truncate" data-id="chat-history-sidebar-title">
+            {'Chat history'} <span className="ms-1 fw-normal text-muted">{filteredConversations.length}</span>
+          </h6>
           {isMaximized && (
-            <CustomTooltip tooltipText="Close sidebar">
+            <CustomTooltip tooltipText="Close chat history">
               <button
-                className="btn btn-sm p-0 sidebar-close-btn"
+                className="btn btn-sm p-0 sidebar-close-btn d-inline-flex align-items-center"
                 onClick={onClose}
                 data-id="close-sidebar-btn"
               >
@@ -100,52 +103,47 @@ export const ChatHistorySidebar: React.FC<ChatHistorySidebarProps> = ({
         </div>
 
         {/* Search Bar */}
-        <div className="search-bar mb-2 p-1">
+        <div className="search-bar mb-2">
           <i className={`fas ${isSearching ? 'fa-spinner fa-spin' : 'fa-search'} search-icon`}></i>
           <input
             type="text"
-            className="form-control search-input ps-4 "
+            className="form-control form-control-sm search-input"
             placeholder="Search conversations..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             data-id="search-conversations-input"
-            style={{ backgroundColor: theme.toLowerCase() === 'dark' ? '#333446' : '#e4e8f1', color: theme.toLowerCase() === 'dark' ? '#FFF' : '#333446' }}
+            style={{ paddingLeft: '2.25rem', backgroundColor: theme.toLowerCase() === 'dark' ? '#333446' : '#e4e8f1', color: theme.toLowerCase() === 'dark' ? '#FFF' : '#333446' }}
           />
         </div>
 
-        <div className="d-flex justify-content-between align-items-center mb-2">
-          <h6 className="mb-0 fw-normal sidebar-title" data-id="chat-history-sidebar-title">
-            {'Chat history'} <span className="ms-2 text-muted">{filteredConversations.length}</span>
-          </h6>
-          <div className="d-flex gap-2">
-            <button
-              className={`btn btn-sm btn-archive-toggle ${showArchived ? 'active' : ''}`}
-              onClick={onToggleArchived}
-              data-id="toggle-archived-btn"
-            >
-              <i className="fas fa-archive me-2"></i>
-              {showArchived ? 'Show Active' : `Archived (${archivedCount})`}
-            </button>
-            {onDeleteAllConversations && filteredConversations.length > 0 && (
-              <CustomTooltip tooltipText="Delete all conversations">
-                <button
-                  className="btn btn-sm btn-danger"
-                  onClick={() => {
-                    const confirmMsg = showArchived
-                      ? `Delete all ${filteredConversations.length} archived conversations? This action cannot be undone.`
-                      : `Delete all ${filteredConversations.length} conversations? This action cannot be undone.`
-                    if (confirm(confirmMsg)) {
-                      onDeleteAllConversations()
-                    }
-                  }}
-                  data-id="delete-all-conversations-btn"
-                >
-                  <i className="fas fa-trash-alt me-2"></i>
-                  Delete All
-                </button>
-              </CustomTooltip>
-            )}
-          </div>
+        <div className="d-flex justify-content-between align-items-center gap-2 flex-wrap">
+          <button
+            className={`btn btn-sm btn-archive-toggle chat-history-action ${showArchived ? 'active' : ''}`}
+            onClick={onToggleArchived}
+            data-id="toggle-archived-btn"
+          >
+            <i className={`fas ${showArchived ? 'fa-arrow-left' : 'fa-archive'} me-1`}></i>
+            {showArchived ? 'Show Active' : `Archived (${archivedCount})`}
+          </button>
+          {onDeleteAllConversations && filteredConversations.length > 0 && (
+            <CustomTooltip tooltipText="Delete all conversations">
+              <button
+                className="btn btn-sm btn-link text-danger text-decoration-none chat-history-action"
+                onClick={() => {
+                  const confirmMsg = showArchived
+                    ? `Delete all ${filteredConversations.length} archived conversations? This action cannot be undone.`
+                    : `Delete all ${filteredConversations.length} conversations? This action cannot be undone.`
+                  if (confirm(confirmMsg)) {
+                    onDeleteAllConversations()
+                  }
+                }}
+                data-id="delete-all-conversations-btn"
+              >
+                <i className="fas fa-trash-alt me-1"></i>
+                Delete All
+              </button>
+            </CustomTooltip>
+          )}
         </div>
       </div>
 

@@ -386,6 +386,23 @@ export function RemixUiTopbar() {
     }
   }, [refreshAiPanelState])
 
+  useEffect(() => {
+    const applyAiMode = async (active: boolean) => {
+      setAiReviewModeActive(active)
+      document.body.classList.toggle('ai-review-mode', active)
+      try {
+        await plugin.call('editor', 'setForceReadOnly', active)
+      } catch (e) {
+        console.error('[Topbar] Failed to toggle editor read-only mode:', e)
+      }
+      refreshAiPanelState()
+    }
+    plugin.on('remixaiassistant', 'aiModeChanged', applyAiMode)
+    return () => {
+      plugin.off('remixaiassistant', 'aiModeChanged')
+    }
+  }, [refreshAiPanelState])
+
   // rightPanelHidden is driven by the rightSidePanelShown/Hidden events subscribed above;
   // re-derive the AI icon state whenever it (or the current workspace) changes.
   useEffect(() => {
@@ -783,39 +800,17 @@ export function RemixUiTopbar() {
     )
   }
 
-  // Locks the editor read-only and widens the AI assistant panel, for reviewing code alongside RemixAI.
+  // AI mode = the AI chat maximized into the center panel. The remixaiassistant
+  // plugin owns it; the switcher state is driven by its `aiModeChanged` event
+  // (see applyAiMode), so every entry point (panel header, chat header, file
+  // clicks) keeps it in sync.
   const toggleAiReviewMode = async () => {
     const next = !aiReviewModeActive
-    setAiReviewModeActive(next)
     trackMatomoEvent({ category: 'topbar', action: 'aiReviewMode', name: next ? 'enabled' : 'disabled', isClick: true })
-
     try {
-      await plugin.call('editor', 'setForceReadOnly', next)
+      await plugin.call('remixaiassistant', next ? 'maximizePanel' : 'restorePanel')
     } catch (e) {
-      console.error('[Topbar] Failed to toggle editor read-only mode:', e)
-    }
-
-    document.body.classList.toggle('ai-review-mode', next)
-
-    if (next) {
-      try {
-        const pState = await plugin.call('menuicons', 'getPluginState', 'remixaiassistant')
-        if (pState && pState.pinned) {
-          if (!aiPanelActive) await plugin.call('rightSidePanel', 'highlight')
-        } else {
-          await plugin.call('menuicons', 'toggle', 'remixaiassistant')
-        }
-        refreshAiPanelState()
-      } catch (e) {
-        console.error('[Topbar] Failed to open the AI assistant panel:', e)
-      }
-
-      plugin.call('rightSidePanel', 'maximizePanel')
-    } else {
-      if (await plugin.call('rightSidePanel', 'isRightSidePanelMaximized')) {
-        // this will set the default width
-        plugin.call('rightSidePanel', 'maximizePanel')
-      }
+      console.error('[Topbar] Failed to switch AI mode:', e)
     }
   }
 
@@ -886,7 +881,7 @@ export function RemixUiTopbar() {
   return (
     <section
       ref={sectionRef}
-      className="h-100 d-flex bg-light border flex-nowrap px-2"
+      className="h-100 d-flex bg-light border-top border-bottom flex-nowrap px-2"
     >
       <div className="d-flex flex-row align-items-center justify-content-between w-100" style={{ minWidth: 0 }}>
         <div
@@ -981,6 +976,7 @@ export function RemixUiTopbar() {
               <div
                 key="mode-toggle-group"
                 className="ai-mode-toggle-group d-flex ms-2"
+                data-id="aiModeSwitcher"
                 data-active={aiReviewModeActive ? 'ai' : 'code'}
               >
                 <div className="ai-mode-toggle-thumb" />
@@ -1148,8 +1144,13 @@ export function RemixUiTopbar() {
             <i className="fa fa-cog"></i>
           </span>
           <span
-            className={`ms-3 remixai-topbar-icon${aiPanelActive ? ' active' : ''}`}
+            className={`ms-3 remixai-topbar-icon${aiPanelActive || aiReviewModeActive ? ' active' : ''}`}
             onClick={async () => {
+              // AI mode: the chat is already in the center panel — just focus it
+              if (aiReviewModeActive) {
+                await plugin.call('remixaiassistant', 'focusChatInput')
+                return
+              }
               const pState = await plugin.call('menuicons', 'getPluginState', 'remixaiassistant')
               if (pState && pState.pinned) {
                 // When the AI panel is already open, clicking the icon closes it; otherwise open it.

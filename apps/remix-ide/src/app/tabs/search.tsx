@@ -6,7 +6,7 @@ const profile = {
   name: 'search',
   displayName: 'Search in files',
   methods: [''],
-  events: [],
+  events: ['searchResultClicked'],
   icon: 'assets/img/search_icon.webp',
   description: 'Find and replace in file explorer',
   kind: '',

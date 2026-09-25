@@ -20,8 +20,23 @@ const profile = {
   version: packageJson.version,
   maintainedBy: 'Remix',
   permission: true,
-  events: ['toolApprovalResponse', 'stopRequested'],
-  methods: ['chatPipe', 'handleExternalMessage', 'getProfile', 'deleteConversation','loadConversations', 'newConversation', 'archiveConversation', 'respondToToolApproval', 'stopRequest', 'submitChatInput', 'refineQueuedConversationTitle']
+  events: ['toolApprovalResponse', 'stopRequested', 'aiModeChanged', 'chatEngaged'],
+  methods: ['chatPipe', 'handleExternalMessage', 'getProfile', 'deleteConversation','loadConversations', 'newConversation', 'archiveConversation', 'respondToToolApproval', 'stopRequest', 'submitChatInput', 'refineQueuedConversationTitle', 'maximizePanel', 'restorePanel', 'isAIModeActive', 'focusChatInput']
+}
+
+/**
+ * Never activated through the plugin manager — a plain profile object used
+ * purely as a key into `mainPanel`'s `plugins` dict, so the chat's maximized
+ * view has a permanent DOM host to portal into. Because it never goes through
+ * `manager.activatePlugin`, it never fires `manager/pluginActivated`, so
+ * `tab-proxy.js`/`vertical-icons.tsx` never give it a tab or a rail icon.
+ */
+const maximizedHostProfile = {
+  name: 'remixaiassistant-maximized-host',
+  displayName: 'RemixAI Assistant',
+  description: 'Maximized host container for RemixAI Assistant (internal, not a real plugin)',
+  version: packageJson.version,
+  methods: []
 }
 
 export class RemixAIAssistant extends ViewPlugin {
@@ -40,6 +55,7 @@ export class RemixAIAssistant extends ViewPlugin {
   conversations: ConversationMetadata[] = []
   showHistorySidebar: boolean = false
   isMaximized: boolean = false
+  aiModePanelState: { leftHidden: boolean, terminalHidden: boolean } | null = null
   private _initializing: boolean = true
   private _initStarted: boolean = false
 
@@ -67,15 +83,26 @@ export class RemixAIAssistant extends ViewPlugin {
     }
     localStorage.setItem('remixaiassistant_firstload_flag', '1')
 
-    // Listen to layout events for maximization state
-    this.on('layout', 'maximiseRightSidePanel', () => {
-      this.setMaximized(true)
-    })
-    this.on('layout', 'resetRightSidePanel', () => {
-      this.setMaximized(false)
-    })
-    this.on('layout', 'enhanceRightSidePanel', () => {
-      this.setMaximized(true)
+    // Permanent placeholder host in the center/main panel that the chat's
+    // maximized view portals into (see maximizePanel()). Registered once,
+    // directly, bypassing plugin activation so it never gets a tab/rail icon.
+    try {
+      await this.call('mainPanel', 'addView', maximizedHostProfile,
+        <div id="ai-chat-maximized-host" data-id="ai-chat-maximized-host" style={{ height: '100%', width: '100%' }} />)
+    } catch (error) {
+      remixAILogger.error('Failed to register AI chat maximized host in mainPanel:', error)
+    }
+
+    // Leave AI mode only on explicit user navigation — files opened/edited by
+    // the AI agent itself fire the generic fileManager/tabs events too, and must
+    // not kick the user out mid-conversation.
+    this.on('filePanel', 'fileClickedFromExplorer', () => { this.restorePanel() })
+    this.on('search', 'searchResultClicked', () => { this.restorePanel() })
+    this.on('tabs', 'switchApp', async (name: string) => {
+      if (!this.isMaximized) return
+      // File tabs also emit switchApp (with a path); only apps like Home count.
+      const target = await this.call('manager', 'getProfile', name).catch(() => null)
+      if (target) this.restorePanel()
     })
 
     // Initialize storage
@@ -394,9 +421,69 @@ export class RemixAIAssistant extends ViewPlugin {
     this.renderComponent()
   }
 
-  setMaximized(maximized: boolean) {
-    this.isMaximized = maximized
+  /**
+   * Enter "AI mode": the chat is portaled into the center panel (by the React
+   * component once `isMaximized` flips) and the tabs bar is hidden. This is the
+   * single entry point; the right panel and the topbar react to `aiModeChanged`.
+   */
+  async maximizePanel() {
+    if (this.isMaximized) return
+    this.isMaximized = true
     this.renderComponent()
+    await this.call('layout', 'showAIChatMaximized', maximizedHostProfile.name)
+    // If the chat is docked (and shown) in the left panel, don't leave an empty
+    // container there once its content moves to the center.
+    try {
+      if (await this.call('sidePanel', 'currentFocus') === this.profile.name) {
+        await this.call('menuicons', 'select', 'filePanel')
+      }
+    } catch (e) { /* left panel not available */ }
+    // AI mode takes the whole workspace: hide the left panel and the terminal
+    // (the right panel hides itself on `aiModeChanged`), remembering which were
+    // open so exiting brings back exactly those.
+    const leftHidden = await this.call('sidePanel', 'isPanelHidden').catch(() => true)
+    const terminalHidden = await this.call('terminal', 'isPanelHidden').catch(() => true)
+    this.aiModePanelState = { leftHidden, terminalHidden }
+    if (!leftHidden) await this.call('sidePanel', 'togglePanel')
+    if (!terminalHidden) await this.call('terminal', 'togglePanel')
+    this.emit('aiModeChanged', true)
+    trackMatomoEvent(this, { category: 'ai', action: 'remixAI', name: 'maximized', isClick: true })
+  }
+
+  async restorePanel() {
+    if (!this.isMaximized) return
+    this.isMaximized = false
+    this.renderComponent()
+    await this.call('layout', 'restoreFromAIChatMaximized')
+    // Re-show only what AI mode hid and the user hasn't reopened meanwhile.
+    const prev = this.aiModePanelState
+    this.aiModePanelState = null
+    if (prev) {
+      try {
+        if (!prev.leftHidden && await this.call('sidePanel', 'isPanelHidden')) await this.call('sidePanel', 'togglePanel')
+        if (!prev.terminalHidden && await this.call('terminal', 'isPanelHidden')) await this.call('terminal', 'togglePanel')
+      } catch (e) { /* panel not available */ }
+    }
+    this.emit('aiModeChanged', false)
+    trackMatomoEvent(this, { category: 'ai', action: 'remixAI', name: 'restored', isClick: true })
+  }
+
+  isAIModeActive() {
+    return this.isMaximized
+  }
+
+  /** Called by the chat UI when the user reaches for the docked chat (focuses
+   *  the input, or presses anywhere in it; the input is disabled while signed
+   *  out). Drives the AI-mode intro nudge, which is moot once in AI mode. */
+  notifyChatEngaged() {
+    if (this.isMaximized) return
+    this.emit('chatEngaged')
+  }
+
+  /** Focus the prompt. In AI mode (the only case callers use it: RemixAI icons
+   *  clicked while the chat is in the center) also spotlight the prompt box. */
+  focusChatInput() {
+    this.chatRef?.current?.focusInput({ highlight: this.isMaximized })
   }
 
   /**
@@ -503,12 +590,15 @@ export class RemixAIAssistant extends ViewPlugin {
 
   chatPipe = (message: string, isEditorCodeAnalysis: boolean = false, metadata?: ChatPromptMetadata) => {
     remixAILogger.log('[QuickDapp] chatPipe received, length:', message?.length)
-    // Show right side panel if it's hidden
-    this.call('rightSidePanel', 'isPanelHidden').then((isPanelHidden) => {
-      if (isPanelHidden) {
-        this.call('rightSidePanel', 'togglePanel')
-      }
-    })
+    // Show right side panel if it's hidden (not in AI mode: the chat is already
+    // shown in the center panel, and showing the panel would leave AI mode)
+    if (!this.isMaximized) {
+      this.call('rightSidePanel', 'isPanelHidden').then((isPanelHidden) => {
+        if (isPanelHidden) {
+          this.call('rightSidePanel', 'togglePanel')
+        }
+      })
+    }
 
     // Navigate back to chat view if the history sidebar is open
     if (this.showHistorySidebar) {

@@ -143,6 +143,8 @@ const Icon = ({ iconRecord, verticalIconPlugin, contextMenuAction, theme, showLa
               <div
                 className={`remixui_icon_ai py-1 ${showLabel ? 'remixui_icon_labeled' : ''} ${isHighlighted ? 'remixui_icon--active' : ''}`}
                 onClick={() => {
+                  // AI mode: the chat is already in the center panel (focuses its input instead)
+                  if ((verticalIconPlugin as any).interceptAIModeClick?.(name)) return
                   if (iconRecord.pinned) {
                     // highlight() only ever shows the panel — togglePanel() actually
                     // closes it too, so re-clicking an already-open pinned icon closes it

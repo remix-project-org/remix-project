@@ -6,7 +6,6 @@ import './panel.css'
 import { CustomTooltip, RenderIf, RenderIfNot } from '@remix-ui/helper'
 import { TrackingContext } from '@remix-ide/tracking'
 import { PluginPanelEvent } from '@remix-api'
-import { appActionTypes, AppContext } from '@remix-ui/app'
 
 export interface RemixPanelProps {
   plugins: Record<string, PluginRecord>,
@@ -20,9 +19,7 @@ export interface RemixPanelProps {
 const RemixUIPanelHeader = (props: RemixPanelProps) => {
   const [plugin, setPlugin] = useState<PluginRecord>()
   const [toggleExpander, setToggleExpander] = useState<boolean>(false)
-  const [trackMaximize, setTrackMaximize] = useState<boolean>(false);
   const { trackMatomoEvent } = useContext(TrackingContext)
-  const appContext = useContext(AppContext)
   const intl = useIntl()
 
   useEffect(() => {
@@ -88,21 +85,6 @@ const RemixUIPanelHeader = (props: RemixPanelProps) => {
       </section>
     )
   }
-
-  useEffect(() => {
-    function handleMaximize() {
-      if (plugin?.profile.name.toLowerCase() === 'remixaiassistant') {
-        setTrackMaximize(props.isMaximized as boolean);
-        dispatchEvent(new CustomEvent('rightSidePanelMaximized', { detail: { isMaximized: props.isMaximized } }));
-      }
-    }
-
-    (props.sourcePlugin as any)?.on('rightSidePanel', 'rightSidePanelMaximized', handleMaximize);
-
-    return () => {
-      (props.sourcePlugin as any)?.off('rightSidePanel', 'rightSidePanelMaximized', handleMaximize);
-    }
-  }, [props.sourcePlugin, props.isMaximized, plugin?.profile.name, appContext])
 
   return (
     <header className="d-flex flex-column">

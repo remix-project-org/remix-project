@@ -6,7 +6,7 @@ import { QueryParams } from '@remix-project/remix-lib'
 const profile: Profile = {
   name: 'layout',
   description: 'layout',
-  methods: ['minimize', 'minimizeSidePanel', 'maximiseSidePanel', 'resetSidePanel', 'maximizeTerminal', 'maximiseRightSidePanel', 'resetRightSidePanel']
+  methods: ['minimize', 'minimizeSidePanel', 'maximiseSidePanel', 'resetSidePanel', 'maximizeTerminal', 'maximiseRightSidePanel', 'resetRightSidePanel', 'showAIChatMaximized', 'restoreFromAIChatMaximized']
 }
 
 interface panelState {
@@ -33,6 +33,9 @@ export class Layout extends Plugin {
   // @ts-ignore
   panels: panels
   enhanced: { [key: string]: boolean | { coeff?: number } }
+  aiChatMaximized = false
+  preAIChatMaximizedState: { mainActive: boolean, mainFocus: string | null } | null = null
+  aiModeTarget: { editor?: boolean, main?: string } | null = null
   maximized: { [key: string]: {
     maximized: boolean
     coeff?: number
@@ -58,6 +61,19 @@ export class Layout extends Plugin {
     this.event = new EventEmitter()
   }
 
+  // While the AI chat occupies the center panel, file/tab events (e.g. the AI
+  // agent opening a file) must not reveal the editor behind the hidden tab
+  // bar — remember the target instead and apply it when AI mode ends.
+  private showEditor() {
+    if (this.aiChatMaximized) {
+      this.aiModeTarget = { editor: true }
+      return
+    }
+    this.panels.editor.active = true
+    this.panels.main.active = false
+    this.event.emit('change', null)
+  }
+
   private isEnhancedPanel(name: string) {
     return Boolean(this.enhanced[name])
   }
@@ -71,25 +87,24 @@ export class Layout extends Plugin {
 
   async onActivation (): Promise<void> {
     this.on('fileManager', 'currentFileChanged', () => {
-      this.panels.editor.active = true
-      this.panels.main.active = false
-      this.event.emit('change', null)
+      this.showEditor()
     })
     this.on('fileManager', 'openDiff', () => {
-      this.panels.editor.active = true
-      this.panels.main.active = false
-      this.event.emit('change', null)
+      this.showEditor()
     })
     this.on('tabs', 'openFile', () => {
-      this.panels.editor.active = true
-      this.panels.main.active = false
-      this.event.emit('change', null)
+      this.showEditor()
     })
     this.on('tabs', 'switchApp', async (name: string) => {
       // 'switchApp' fires for every tab switch, including file tabs, but showContent
       // only knows about plugins rendered in mainPanel (e.g. quick-dapp). Skip anything else.
       const targetProfile = await this.call('manager', 'getProfile', name)
       if (targetProfile && targetProfile.location === 'mainPanel') {
+        if (this.aiChatMaximized) {
+          // Center panel is taken by the AI chat; apply on leaving AI mode.
+          this.aiModeTarget = { main: name }
+          return
+        }
         this.call('mainPanel', 'showContent', name)
         this.panels.editor.active = false
         this.panels.main.active = true
@@ -97,14 +112,10 @@ export class Layout extends Plugin {
       }
     })
     this.on('tabs', 'closeApp', (name: string) => {
-      this.panels.editor.active = true
-      this.panels.main.active = false
-      this.event.emit('change', null)
+      this.showEditor()
     })
     this.on('tabs', 'openDiff', () => {
-      this.panels.editor.active = true
-      this.panels.main.active = false
-      this.event.emit('change', null)
+      this.showEditor()
     })
     this.on('manager', 'activate', (profile: Profile) => {
       switch (profile.name) {
@@ -232,5 +243,47 @@ export class Layout extends Plugin {
     const current = await this.call('rightSidePanel', 'currentFocus')
     this.enhanced[current] = false
     this.event.emit('resetRightSidePanel')
+  }
+
+  /**
+   * Swap the center/main panel over to a `mainPanel`-hosted view and hide the
+   * file-tabs bar, so the takeover doesn't read as "just another tab". Distinct
+   * from the generic `tabs/switchApp` handling above (which never touches
+   * `panels.tabs`) because every other `location: 'mainPanel'` plugin (e.g.
+   * quick-dapp-v2) must keep showing the tab bar as usual.
+   */
+  async showAIChatMaximized (hostName: string) {
+    const mainPanel = this.panels.main.plugin as any
+    this.preAIChatMaximizedState = {
+      mainActive: this.panels.main.active,
+      mainFocus: mainPanel.currentFocus()
+    }
+    this.aiModeTarget = null
+    this.aiChatMaximized = true
+    await this.call('mainPanel', 'showContent', hostName)
+    this.panels.editor.active = false
+    this.panels.tabs.active = false
+    // The bottom bar belongs to the code editor, not the AI chat
+    this.panels.bottomBar.active = false
+    this.panels.main.active = true
+    this.event.emit('change', null)
+  }
+
+  // Puts the center panel back: whatever was requested during AI mode (a file
+  // or app opened meanwhile), else what was showing before (e.g. the Home tab,
+  // itself a mainPanel view), else the editor.
+  async restoreFromAIChatMaximized () {
+    const prev = this.preAIChatMaximizedState
+    const target = this.aiModeTarget
+    this.preAIChatMaximizedState = null
+    this.aiModeTarget = null
+    this.aiChatMaximized = false
+    const restoreMain = target ? target.main : (prev && prev.mainActive ? prev.mainFocus : null)
+    if (restoreMain) await this.call('mainPanel', 'showContent', restoreMain)
+    this.panels.editor.active = !restoreMain
+    this.panels.main.active = !!restoreMain
+    this.panels.tabs.active = true
+    this.panels.bottomBar.active = true
+    this.event.emit('change', null)
   }
 }

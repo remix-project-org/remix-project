@@ -52,7 +52,7 @@ const profile = {
     'readFileFromWorkspace',
     'existsInWorkspace'
   ],
-  events: ['setWorkspace', 'workspaceRenamed', 'workspaceDeleted', 'workspaceCreated'],
+  events: ['setWorkspace', 'workspaceRenamed', 'workspaceDeleted', 'workspaceCreated', 'fileClickedFromExplorer'],
   icon: 'assets/img/fileManager.webp',
   description: 'Remix IDE file explorer',
   kind: 'fileexplorer',

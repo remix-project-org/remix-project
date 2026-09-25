@@ -742,6 +742,9 @@ export const emitContextMenuEvent = async (cmd: customAction) => {
 }
 
 export const handleClickFile = async (path: string, type: 'file' | 'folder' ) => {
+  // Distinct from fileManager's currentFileChanged (which programmatic opens,
+  // e.g. by the AI agent, also fire): lets listeners react to user clicks only.
+  plugin.emit('fileClickedFromExplorer', path)
   if (type === 'file' && path.endsWith('.md')) {
     // just opening the preview
     await plugin.call('doc-viewer' as any, 'viewDocs', [path])

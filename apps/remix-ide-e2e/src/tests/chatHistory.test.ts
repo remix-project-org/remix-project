@@ -325,14 +325,15 @@ const test = {
       })
       .click('*[data-id="chat-history-back-btn"]')
   },
-  'Should show floating chat history when maximized #group1': function (browser: NightwatchBrowser) {
+  'Should show chat history inline when maximized (AI mode) #group1': function (browser: NightwatchBrowser) {
     browser
       .waitForElementVisible('*[data-id="maximizeRightSidePanel"]')
       .click('*[data-id="maximizeRightSidePanel"]')
       .pause(500)
-      .waitForElementVisible('*[data-id="chat-history-sidebar-maximized"]', 500)
-      .assert.visible('*[data-id="floating-chat-heading"]')
-      .assert.containsText('*[data-id="floating-chat-heading"]', 'Chat history')
+      .waitForElementVisible('#ai-chat-maximized-host *[data-id="toggle-history-btn"]')
+      .click('#ai-chat-maximized-host *[data-id="toggle-history-btn"]')
+      .waitForElementVisible('#ai-chat-maximized-host *[data-id="chat-history-sidebar"]', 5000)
+      .assert.containsText('#ai-chat-maximized-host *[data-id="chat-history-sidebar-title"]', 'Chat history')
   },
 
   'Should seed many conversations into IndexedDB for scroll test #group2': function (browser: NightwatchBrowser) {
@@ -443,21 +444,23 @@ const test = {
       })
   },
 
-  'Should scroll conversation list in floating chat history (full-screen mode) #group2': function (browser: NightwatchBrowser) {
+  'Should scroll conversation list in the inline history sidebar (AI mode) #group2': function (browser: NightwatchBrowser) {
     browser
       // Close the non-maximized sidebar first to get back to chat view
       .click('*[data-id="chat-history-back-btn"]')
       .pause(500)
-      // Go full-screen — toggle-history-btn is hidden by design in this mode
+      // Enter AI mode (chat maximized into the center panel), then open history inline
       .waitForElementVisible('*[data-id="maximizeRightSidePanel"]')
       .click('*[data-id="maximizeRightSidePanel"]')
       .pause(500)
-      .waitForElementVisible('*[data-id="chat-history-sidebar-maximized"]', 5000)
-      // Verify the floating sidebar-body overflows with many conversations
+      .waitForElementVisible('#ai-chat-maximized-host *[data-id="toggle-history-btn"]')
+      .click('#ai-chat-maximized-host *[data-id="toggle-history-btn"]')
+      .waitForElementVisible('#ai-chat-maximized-host *[data-id="chat-history-sidebar"]', 5000)
+      // Verify the sidebar-body overflows with many conversations
       .execute(function () {
-        const sidebar = document.querySelector('[data-id="chat-history-sidebar-maximized"]')
+        const sidebar = document.querySelector('#ai-chat-maximized-host [data-id="chat-history-sidebar"]')
         const sidebarBody = sidebar ? sidebar.querySelector('.sidebar-body') as HTMLElement : null
-        if (!sidebarBody) return { error: 'sidebar-body not found inside chat-history-sidebar-maximized' }
+        if (!sidebarBody) return { error: 'sidebar-body not found inside the AI mode history sidebar' }
         return {
           scrollHeight: sidebarBody.scrollHeight,
           clientHeight: sidebarBody.clientHeight,
@@ -465,23 +468,27 @@ const test = {
         }
       }, [], function (result) {
         const info = result.value as any
-        browser.assert.ok(!info.error, `floating sidebar-body found: ${info.error || 'ok'}`)
-        browser.assert.ok(info.overflows, `Floating sidebar-body overflows: scrollHeight(${info.scrollHeight}) > clientHeight(${info.clientHeight})`)
+        browser.assert.ok(!info.error, `AI mode sidebar-body found: ${info.error || 'ok'}`)
+        browser.assert.ok(info.overflows, `AI mode sidebar-body overflows: scrollHeight(${info.scrollHeight}) > clientHeight(${info.clientHeight})`)
       })
       // Confirm programmatic scrolling works
       .execute(function () {
-        const sidebar = document.querySelector('[data-id="chat-history-sidebar-maximized"]')
+        const sidebar = document.querySelector('#ai-chat-maximized-host [data-id="chat-history-sidebar"]')
         const sidebarBody = sidebar ? sidebar.querySelector('.sidebar-body') as HTMLElement : null
         if (!sidebarBody) return -1
         sidebarBody.scrollTop = sidebarBody.scrollHeight
         return sidebarBody.scrollTop
       }, [], function (result) {
-        browser.assert.ok((result.value as number) > 0, `Floating sidebar scrolled: scrollTop is ${result.value} (> 0)`)
+        browser.assert.ok((result.value as number) > 0, `AI mode sidebar scrolled: scrollTop is ${result.value} (> 0)`)
       })
+      // Close the inline history before leaving AI mode (history visibility is shared with the docked view)
+      .click('#ai-chat-maximized-host *[data-id="toggle-history-btn"]')
+      .pause(300)
   },
   'Should update lastAccessedAt on conversation load #group2': function (browser: NightwatchBrowser) {
     browser
-      .click('*[data-id="maximizeRightSidePanel"]')
+      // Leave AI mode (the right panel and its maximize button are hidden while in it)
+      .click('#ai-chat-maximized-host *[data-id="exit-ai-mode-btn"]')
       .pause(500)
       .click('*[data-id="toggle-history-btn"]')
       .pause(500)
