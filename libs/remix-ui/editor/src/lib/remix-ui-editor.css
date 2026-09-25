@@ -165,7 +165,7 @@ div.monaco-list-row > span.title {
 .fab-container {
     position: absolute;
     bottom: 20px;
-    right: 36px;
+    right: 35px;
     display: flex;
     flex-direction: column;
     align-items: flex-end;
