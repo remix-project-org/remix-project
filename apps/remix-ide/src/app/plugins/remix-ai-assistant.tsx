@@ -20,7 +20,7 @@ const profile = {
   version: packageJson.version,
   maintainedBy: 'Remix',
   permission: true,
-  events: ['toolApprovalResponse', 'stopRequested', 'aiModeChanged'],
+  events: ['toolApprovalResponse', 'stopRequested', 'aiModeChanged', 'chatEngaged'],
   methods: ['chatPipe', 'handleExternalMessage', 'getProfile', 'deleteConversation','loadConversations', 'newConversation', 'archiveConversation', 'respondToToolApproval', 'stopRequest', 'submitChatInput', 'refineQueuedConversationTitle', 'maximizePanel', 'restorePanel', 'isAIModeActive', 'focusChatInput']
 }
 
@@ -470,6 +470,14 @@ export class RemixAIAssistant extends ViewPlugin {
 
   isAIModeActive() {
     return this.isMaximized
+  }
+
+  /** Called by the chat UI when the user reaches for the docked chat (focuses
+   *  the input, or presses anywhere in it; the input is disabled while signed
+   *  out). Drives the AI-mode intro nudge, which is moot once in AI mode. */
+  notifyChatEngaged() {
+    if (this.isMaximized) return
+    this.emit('chatEngaged')
   }
 
   focusChatInput() {

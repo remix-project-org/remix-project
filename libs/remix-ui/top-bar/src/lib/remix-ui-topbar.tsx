@@ -921,6 +921,7 @@ export function RemixUiTopbar() {
               <div
                 key="mode-toggle-group"
                 className="ai-mode-toggle-group d-flex ms-2"
+                data-id="aiModeSwitcher"
                 data-active={aiReviewModeActive ? 'ai' : 'code'}
               >
                 <div className="ai-mode-toggle-thumb" />

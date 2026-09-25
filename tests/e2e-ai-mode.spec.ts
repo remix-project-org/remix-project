@@ -39,6 +39,9 @@ async function click (page: Page, target: string | Locator) {
 }
 
 async function loadIde (page: Page) {
+  // The AI-mode intro callout is covered by e2e-ai-mode-nudge.spec.ts; keep it
+  // out of the way here (it appears on the first press inside the chat).
+  await page.addInitScript(() => localStorage.setItem('remix_nudge_dismissed_permanent', JSON.stringify(['ai-mode-intro'])))
   await page.goto('http://127.0.0.1:8080/#lang=en')
   await expect(page.locator('[data-id="apploaded"]')).toBeAttached({ timeout: 90_000 })
   await expect(page.locator(sel.chatReady)).toBeAttached({ timeout: 90_000 })

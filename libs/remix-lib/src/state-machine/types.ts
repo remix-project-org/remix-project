@@ -106,7 +106,7 @@ export type SerializedConditionInput = SerializedCondition
 // ─── Nudge Engine Types ──────────────────────────────────────────────
 
 export interface NudgeAction {
-  type: 'toast' | 'modal' | 'hint' | 'widget'
+  type: 'toast' | 'modal' | 'hint' | 'widget' | 'callout'
   title?: string
   message: string
   actionLabel?: string // e.g. "Try it now"
@@ -120,6 +120,9 @@ export interface NudgeAction {
   hintColor?: string // CSS color override, e.g. '#10b981', 'var(--bs-warning)'
   widgetColor?: string // accent color for the widget, e.g. '#6366f1'
   widgetBg?: string // background gradient start color for the illustration area
+  anchor?: string // type:'callout' — data-id (or id) of the element the callout points at
+  badge?: string // type:'callout' — small label above the title, e.g. 'New'
+  secondaryLabel?: string // type:'callout' — secondary button that just closes it, e.g. 'Got it'
 }
 
 export interface NudgeRule {

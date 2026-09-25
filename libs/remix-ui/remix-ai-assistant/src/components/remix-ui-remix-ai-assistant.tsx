@@ -2976,6 +2976,10 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
           style={{ overflow: 'hidden' }}
           data-theme={themeTracker && themeTracker?.name.toLowerCase()}
           data-was-loading={wasInitializingRef.current ? 'true' : undefined}
+          onFocus={(e) => {
+            if ((e.target as HTMLElement).id === 'remix-ai-prompt-input') props.plugin.notifyChatEngaged()
+          }}
+          onPointerDownCapture={() => props.plugin.notifyChatEngaged()}
         >
           {/* One main column in both modes: content, then strips + prompt, so the
               empty-chat gradient is painted once, header to prompt. */}
