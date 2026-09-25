@@ -447,16 +447,6 @@ const HelpPanelUI: React.FC<{ plugin: HelpPlugin }> = ({ plugin }) => {
           <span className="help-panel-header-dot" />
           {isBeta ? 'Beta Guides' : 'Guides'}
         </div>
-        <button
-          className="help-panel-discord-btn"
-          onClick={() => {
-            trackMatomoEvent({ category: 'help', action: 'betaLinkClicked', name: 'discord', isClick: true })
-            window.open(DISCORD_URL, '_blank')
-          }}
-        >
-          <i className="fab fa-discord"></i>
-          User Feedback
-        </button>
       </div>
       <p className="help-panel-header-sub">
         Deep dives into every feature unlocked for you.

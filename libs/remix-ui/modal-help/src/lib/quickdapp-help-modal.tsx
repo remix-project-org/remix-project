@@ -613,19 +613,6 @@ const QuickDAppHelpModal: React.FC<QuickDAppHelpModalProps> = ({
                 <path d="M8 7l4 3-4 3" />
               </svg>
               QuickDApp
-              <span
-                style={{
-                  fontFamily: "'JetBrains Mono', monospace",
-                  fontSize: 9, letterSpacing: 1.5,
-                  textTransform: "uppercase" as const,
-                  color: c.gn,
-                  background: "rgba(107,219,138,0.12)",
-                  padding: "3px 10px", borderRadius: 5,
-                  border: "0.5px solid rgba(107,219,138,0.25)",
-                }}
-              >
-                Beta Perk
-              </span>
             </h2>
             <CloseButton onClick={handleClose} />
           </div>

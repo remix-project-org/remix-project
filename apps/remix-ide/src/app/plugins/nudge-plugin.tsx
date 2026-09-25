@@ -5,6 +5,7 @@ import { NudgeEngine, all, any } from '@remix-project/remix-lib'
 import { PRO_DEMOS } from '@remix-ui/modal-help'
 import { isMigrationHandoff, isMigrationPromptSnoozed, parseMigrationConfig, shouldPromptMigration } from '@remix-ui/domain-migration'
 import type { NudgeRule, NudgeAction, SerializedNudgeRule } from '@remix-project/remix-lib'
+import type { BillingLocale } from '@remix-ui/plan-manager'
 import { trackMatomoEvent as baseTrackMatomoEvent, NudgeEvent, MatomoEvent, Features, PendingCheckout } from '@remix-api'
 import * as packageJson from '../../../../../package.json'
 import './nudge-widget.css'
@@ -19,6 +20,15 @@ const MCP_SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fil
 const CLAUDE_SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640" fill="currentColor"><path d="M164.4 404.5L265.1 348L266.8 343.1L265.1 340.4L260.2 340.4L243.4 339.4L185.9 337.8L136 335.7L87.7 333.1L75.5 330.5L64.1 315.5L65.3 308L75.5 301.1L90.2 302.4C109.1 303.7 136.1 305.5 171.2 308L206.4 310.1L258.6 315.5L266.9 315.5L268.1 312.1L265.3 310L263.1 307.9L212.8 273.8L158.4 237.8L129.9 217.1L114.5 206.6L106.7 196.8L103.3 175.3L117.3 159.9L136.1 161.2L140.9 162.5L159.9 177.2L200.6 208.7L253.7 247.8L261.5 254.3L264.6 252.1L265 250.5L261.5 244.7L232.6 192.5L201.8 139.4L188.1 117.4L184.5 104.2C183.2 98.8 182.3 94.2 182.3 88.7L198.2 67.1L207 64.3L228.2 67.1L237.1 74.9L250.3 105.1L271.7 152.6L304.9 217.2L314.6 236.4L319.8 254.2L321.7 259.6L325.1 259.6L325.1 256.5L327.8 220.1L332.8 175.4L337.7 117.9L339.4 101.7L347.4 82.3L363.3 71.8L375.7 77.7L385.9 92.4L384.5 101.9L378.4 141.4L366.5 203.3L358.7 244.8L363.2 244.8L368.4 239.6L389.4 211.8L424.6 167.7L440.1 150.2L458.2 130.9L469.8 121.7L491.8 121.7L508 145.8L500.7 170.7L478 199.4L459.2 223.8L432.2 260.1L415.4 289.1L417 291.4L421 291L481.9 278L514.8 272.1L554.1 265.4L571.9 273.7L573.8 282.1L566.8 299.3L524.8 309.7L475.6 319.5L402.3 336.8L401.4 337.5L402.4 338.8L435.4 341.9L449.5 342.7L484.1 342.7L548.5 347.5L565.3 358.6L575.4 372.2L573.7 382.6L547.8 395.8C532.3 392.1 493.4 382.9 431.2 368.1L403.2 361.1L399.3 361.1L399.3 363.4L422.6 386.2L465.3 424.8L518.8 474.6L521.5 486.9L514.6 496.6L507.3 495.6L460.3 460.2L442.2 444.3L401.1 409.7L398.4 409.7L398.4 413.3L407.9 427.2L457.9 502.4L460.5 525.4L456.9 532.9L443.9 537.4L429.7 534.8L400.4 493.7L370.2 447.4L345.8 405.9L342.8 407.6L328.4 562.4L321.7 570.3L306.2 576.2L293.2 566.4L286.3 550.5L293.2 519L301.5 477.9L308.2 445.2L314.3 404.6L317.9 391.1L317.7 390.2L314.7 390.6L284.1 432.6L237.6 495.5L200.8 534.9L192 538.4L176.7 530.5L178.1 516.4L186.6 503.8L237.5 439L268.2 398.8L288 375.6L287.9 372.2L286.7 372.2L151.4 460L127.3 463.1L116.9 453.4L118.2 437.5L123.1 432.3L163.8 404.3L163.7 404.4L163.7 404.5z"/></svg>`
 
 /* ─── Helpers ─── */
+
+/**
+ * Countries we run regional pricing for. Paddle prices in the local currency,
+ * so the nudge can quote a real local amount instead of the USD list price.
+ */
+const REGIONAL_PRICING_COUNTRIES: Record<string, string> = {
+  NG: 'Nigeria',
+  IN: 'India'
+}
 
 /**
  * Resolve whether a feature is enabled in an `auth.getAllPermissions()`
@@ -59,8 +69,8 @@ const profile = {
   name: 'nudgePlugin',
   displayName: 'Nudge Plugin',
   description: 'Contextual feature discovery widget — surfaces tips, CTAs, and hints based on user context',
-  methods: ['dismiss', 'dismissPermanent', 'addRule', 'addRules', 'fire', 'clearActive'],
-  events: ['nudgeTriggered', 'nudgeDismissed'],
+  methods: ['dismiss', 'dismissPermanent', 'addRule', 'addRules', 'fire', 'clearActive', 'getBanner', 'dismissBanner'],
+  events: ['nudgeTriggered', 'nudgeDismissed', 'nudgeBannerChanged'],
   icon: '',
   location: 'none',
   version: packageJson.version,
@@ -102,6 +112,13 @@ export class NudgePlugin extends Plugin {
   // After a successful upgrade, the help guide to open once the plan-manager
   // panel closes (so it doesn't fight the still-open checkout panel).
   private _pendingPlanGuide: string | null = null
+  // Last billing locale turned into engine facts — the plan manager replays a
+  // cached locale on activation and again once a live preview lands.
+  private _billingLocaleSignature = ''
+  // A country-specific pricing offer is live, so the generic free-plan upsell
+  // stands down (same audience, weaker copy).
+  private _regionalOfferActive = false
+  private _activeBanner: NudgeRule | null = null
 
   // Type-safe tracker defaulting to NudgeEvent
   private trackMatomoEvent = <T extends MatomoEvent = NudgeEvent>(event: T) => {
@@ -141,6 +158,9 @@ export class NudgePlugin extends Plugin {
         // Announcement-style nudges that open their own rich UI instead of
         // rendering one of the built-in cards.
         this._invokeTarget(rule.action.actionTarget)
+      } else if (rule.action.type === 'banner') {
+        this._activeBanner = rule
+        this.emit('nudgeBannerChanged', rule)
       } else if (rule.action.type === 'hint') {
         this._handleHint(rule)
       } else if (rule.action.type === 'callout') {
@@ -296,10 +316,17 @@ export class NudgePlugin extends Plugin {
       }
     })
 
+    // Visitor's billing country, resolved by Paddle's price preview (replayed
+    // from cache on activation, refreshed once a live preview lands).
+    this.on('planManager' as any, 'billingLocaleResolved', (locale: BillingLocale) => {
+      this._applyBillingLocale(locale)
+    })
+
     // Plan purchased — user is no longer on free plan, retire the upgrade nudge
     this.on('planManager' as any, 'purchaseConfirmed', (info?: { intent?: string; label?: string }) => {
       this.engine_.unfire('user:on_free_plan')
       this.engine_.disableRule('free-plan-upgrade')
+      this.engine_.disableRule('regional-pricing-offer')
 
       // Only celebrate / suppress for an actual plan upgrade (not top-ups,
       // cancellations or reactivations).
@@ -480,7 +507,6 @@ export class NudgePlugin extends Plugin {
     }
 
     this.engine_.unfire('user:logged_in')
-    this.engine_.unfire('user:logged_in_beta')
     this.engine_.fire('user:not_logged_in')
   }
 
@@ -491,7 +517,6 @@ export class NudgePlugin extends Plugin {
       const groups = permissions?.feature_groups || []
       const betaGroup = groups.find((g: any) => g.name === 'beta')
       if (betaGroup) {
-        this.engine_.fire('user:logged_in_beta')
         // Surface the farewell modal if their beta is wrapping up.
         // Fire-and-forget — failures (helpPlugin not ready, storage
         // blocked, etc.) shouldn't break the nudge flow.
@@ -517,7 +542,26 @@ export class NudgePlugin extends Plugin {
   private async _checkFreePlanNudge(): Promise<void> {
     this.log('[NudgePlugin] _checkFreePlanNudge: start')
     try {
-      // 1. Does the user already have an active paid subscription?
+      // 1. Check if user has Pro plan (not Starter, not Beta)
+      const permissions = await this.call('auth' as any, 'getAllPermissions').catch(() => null)
+
+      // Check for "pro" feature group
+      const hasProGroup = permissions?.feature_groups?.some?.((g: any) => g.name === 'pro')
+
+      if (hasProGroup) {
+        this.log('[NudgePlugin] _checkFreePlanNudge: user has Pro plan, skipping nudge')
+        return
+      }
+
+      // Check for Pro-specific features (ai:auditor is Pro-only)
+      const hasProFeature = permissions?.features?.['ai:auditor']?.is_enabled === true
+
+      if (hasProFeature) {
+        this.log('[NudgePlugin] _checkFreePlanNudge: user has Pro features, skipping nudge')
+        return
+      }
+
+      // 2. Does the user already have an active paid subscription?
       const billingApi = await this.call('auth' as any, 'getBillingApi')
       this.log('[NudgePlugin] _checkFreePlanNudge: billingApi resolved', billingApi)
       const subResp = await billingApi.getSubscription()
@@ -568,7 +612,7 @@ export class NudgePlugin extends Plugin {
               : `$${(Number(introDiscount.amount) || 0).toFixed(2)} off ${duration}`
             const discountedLabel = `$${(dc / 100).toFixed(2)}`
             const regularLabel = `$${(priceCents / 100).toFixed(2)}`
-            message = `Limited offer: ${offerLabel} — get ${planName} for just ${discountedLabel}/${unit} (regular ${regularLabel}). Premium models, MCP tools, and higher credit quotas included.`
+            message = `Limited offer: ${offerLabel} — get ${planName} for just ${discountedLabel}/${unit} (regular ${regularLabel}). Premium models, MCP tools, security and gas audit and initial credits included.`
             this.log('[NudgePlugin] _checkFreePlanNudge: discount message built', { offerLabel, discountedLabel, regularLabel })
           } else {
             const priceLabel = `$${(priceCents / 100).toFixed(2)}`
@@ -587,7 +631,7 @@ export class NudgePlugin extends Plugin {
         id: 'free-plan-upgrade',
         condition: 'user:on_free_plan',
         action: {
-          type: 'widget',
+          type: 'banner',
           position: 'right',
           hidePermanentDismiss: true,
           title,
@@ -599,7 +643,8 @@ export class NudgePlugin extends Plugin {
           widgetBg: 'rgba(139, 92, 246, 0.1)',
         },
         showOnce: 'session',
-        priority: 13
+        priority: 13,
+        enabled: !this._regionalOfferActive
       })
       this.engine_.fire('user:on_free_plan')
       this.log('[NudgePlugin] _checkFreePlanNudge: done')
@@ -610,11 +655,66 @@ export class NudgePlugin extends Plugin {
   }
 
   /**
+   * Turn the resolved billing country into engine facts: a generic
+   * `user:country_<cc>` event any rule can target, plus a regional-pricing
+   * nudge (with the real local price when Paddle gave us one) for the
+   * countries we run local rates in.
+   */
+  private _applyBillingLocale(locale: BillingLocale | null | undefined): void {
+    const countryCode = locale?.countryCode?.toUpperCase()
+    if (!locale || !countryCode) return
+
+    const signature = `${countryCode}|${locale.currencyCode}|${locale.lowestPlanPrice ?? ''}|${locale.lowestPlanIsIntroOffer}`
+    if (signature === this._billingLocaleSignature) return
+    this._billingLocaleSignature = signature
+    this.log('[NudgePlugin] billing locale', locale)
+
+    const country = REGIONAL_PRICING_COUNTRIES[countryCode]
+    if (country) {
+      const billedIn = locale.currencyCode && locale.currencyCode !== 'USD'
+        ? `, billed in ${locale.currencyCode}`
+        : ''
+      const message = locale.lowestPlanPrice
+        ? locale.lowestPlanIsIntroOffer
+          ? `Paid plans start at ${locale.lowestPlanPrice}/month with the current launch offer${billedIn}.`
+          : `Paid plans start at ${locale.lowestPlanPrice}/month in ${country}${billedIn}.`
+        : `We now have rates tailored to ${country} — see what your plan costs here.`
+      this.engine_.addRule({
+        id: 'regional-pricing-offer',
+        // Only upsell people it can help: anonymous visitors, or signed-in
+        // users confirmed to be on the free plan. Paid and beta users never
+        // get either fact, so they never see it.
+        condition: all(
+          `user:country_${countryCode.toLowerCase()}`,
+          any('user:not_logged_in', 'user:on_free_plan')
+        ),
+        action: {
+          type: 'banner',
+          position: 'right',
+          title: `Special rates for ${country}`,
+          message,
+          actionLabel: 'See Plans',
+          actionTarget: 'planManager::open::plans',
+          icon: 'fas fa-tags',
+          widgetColor: '#2fbfb1',
+          widgetBg: 'rgba(47, 191, 177, 0.1)'
+        },
+        showOnce: 'session',
+        priority: 14
+      })
+      this._regionalOfferActive = true
+      this.engine_.disableRule('free-plan-upgrade')
+    }
+
+    // Fire last so the rule above is registered before the engine evaluates.
+    this.engine_.fire(`user:country_${countryCode.toLowerCase()}`)
+  }
+
+  /**
    * Auto-open the farewell modal when a beta tester is within the
    * configured threshold of their `expires_at`. Honours per-expiry
    * localStorage dismissal ("Remind me later" timestamp / "never").
-   */
-  private async _maybeShowBetaFarewell(betaGroup: { expires_at?: string | null }): Promise<void> {
+   */  private async _maybeShowBetaFarewell(betaGroup: { expires_at?: string | null }): Promise<void> {
     const expiresAt = betaGroup?.expires_at
     if (!expiresAt) return
     const expiresMs = Date.parse(expiresAt)
@@ -711,30 +811,12 @@ export class NudgePlugin extends Plugin {
 
     /* ─── Authenticated — contextual feature discovery ─── */
 
-    // Beta welcome — first thing a beta tester sees after logging in
-    this.engine_.addRule({
-      id: 'beta-welcome',
-      condition: 'user:logged_in_beta',
-      action: {
-        type: 'widget',
-        title: 'Welcome to Remix Beta',
-        message: 'You\'ve unlocked premium AI models, MCP Integrations, cloud sync, and QuickDApp. Tap to take a quick tour.',
-        actionLabel: 'Take the Tour',
-        actionTarget: 'helpPlugin::showModal::beta-reel',
-        icon: 'fas fa-sparkles',
-        widgetColor: '#2fbfb1',
-        widgetBg: 'rgba(47, 191, 177, 0.1)'
-      },
-      showOnce: true,
-      priority: 15
-    })
-
     // Premium AI models — triggers when user opens the AI chat
     this.engine_.addRule({
       id: 'try-opus-model',
-      condition: all('user:logged_in_beta', 'ai:chat_opened'),
+      condition: all('user:logged_in', 'ai:chat_opened'),
       action: {
-        type: 'widget',
+        type: 'banner',
         title: 'Try a Premium Model',
         message: 'You have access to Claude Opus — it excels at complex Solidity patterns and audits.',
         actionLabel: 'Learn More',
@@ -750,9 +832,9 @@ export class NudgePlugin extends Plugin {
     // Cloud Workspaces — triggers when user switches workspaces
     this.engine_.addRule({
       id: 'try-cloud-workspaces',
-      condition: all('user:logged_in_beta', 'workspace:switched'),
+      condition: all('user:logged_in', 'workspace:switched'),
       action: {
-        type: 'widget',
+        type: 'banner',
         title: 'Try Cloud Workspaces',
         message: 'Your projects are only stored locally. Enable cloud sync to access them from any device, anytime.',
         actionLabel: 'Learn More',
@@ -765,48 +847,12 @@ export class NudgePlugin extends Plugin {
       priority: 9
     })
 
-    // MCP Tools — triggers when user opens AI chat (they'll likely want on-chain data)
-    this.engine_.addRule({
-      id: 'try-mcp-tools',
-      condition: all('user:logged_in_beta', 'ai:chat_opened'),
-      action: {
-        type: 'widget',
-        title: 'AI with Superpowers',
-        message: 'Your AI assistant connects to Alchemy, Etherscan, The Graph, and more through MCP — ask it to fetch on-chain data or verify contracts directly in chat.',
-        actionLabel: 'Learn More',
-        actionTarget: 'helpPlugin::showModal::mcp',
-        icon: MCP_SVG,
-        widgetColor: '#8b5cf6',
-        widgetBg: 'rgba(139, 92, 246, 0.08)'
-      },
-      showOnce: 'session',
-      priority: 8
-    })
-
-    // QuickDApp — triggers when user deploys a contract successfully
-    this.engine_.addRule({
-      id: 'try-quickdapp',
-      condition: all('user:logged_in_beta', 'contract:deployed'),
-      action: {
-        type: 'widget',
-        title: 'Try QuickDApp',
-        message: 'Your contract is deployed! Generate a ready-to-use frontend dashboard to interact with it — no front-end code needed.',
-        actionLabel: 'Learn More',
-        actionTarget: 'helpPlugin::showModal::quickdapp',
-        icon: 'fas fa-rocket',
-        widgetColor: '#e67e22',
-        widgetBg: 'rgba(230, 126, 34, 0.1)'
-      },
-      showOnce: 'session',
-      priority: 7
-    })
-
     // Cloud Workspaces — persistent nudge for local-only users
     this.engine_.addRule({
       id: 'try-cloud-toggle',
-      condition: all('user:logged_in_beta', 'workspace:local_only', 'lifecycle:APP_LOADED'),
+      condition: all('user:logged_in', 'workspace:local_only', 'lifecycle:APP_LOADED'),
       action: {
-        type: 'widget',
+        type: 'banner',
         title: 'Cloud Workspaces',
         message: 'Your projects are only stored locally. Enable cloud sync to access them anywhere.',
         actionLabel: 'Learn More',
@@ -820,9 +866,9 @@ export class NudgePlugin extends Plugin {
     // Solidity-specific hint — when editing a .sol file, suggest the AI for help
     this.engine_.addRule({
       id: 'hint-ai-for-solidity',
-      condition: all('user:logged_in_beta', 'editor:solidity_active'),
+      condition: all('user:logged_in', 'editor:solidity_active'),
       action: {
-        type: 'widget',
+        type: 'banner',
         title: 'RemixAI Knows Solidity',
         message: 'Ask RemixAI to explain, audit, or optimize your contract. It understands your project context through MCP.',
         actionLabel: 'Learn More',
@@ -838,9 +884,9 @@ export class NudgePlugin extends Plugin {
     // Deployment nudge — after deploying a contract, suggest QuickDapp
     this.engine_.addRule({
       id: 'quickdapp-after-deploy',
-      condition: all('user:logged_in_beta', 'contract:deployed'),
+      condition: all('user:logged_in', 'contract:deployed'),
       action: {
-        type: 'widget',
+        type: 'banner',
         title: 'Build a DApp from This',
         message: 'You just deployed a contract — now generate a dApp to get an instant front-end to interact with it.',
         actionLabel: 'Learn More',
@@ -881,7 +927,7 @@ export class NudgePlugin extends Plugin {
       id: 'signup-after-chat',
       condition: all('ai:chat_while_logged_out', 'config:invite_only'),
       action: {
-        type: 'widget',
+        type: 'banner',
         title: 'Unlock Premium AI Models',
         message: 'You\'re using the free tier. Sign up to access Claude Opus, GPT-4, and MCP-powered tools for deeper contract analysis.',
         actionLabel: 'Sign Up Free',
@@ -899,9 +945,9 @@ export class NudgePlugin extends Plugin {
     // After AI generates a workspace, suggest cloud sync
     this.engine_.addRule({
       id: 'cloud-after-ai-workspace',
-      condition: all('user:logged_in_beta', 'ai:workspace_generated'),
+      condition: all('user:logged_in', 'ai:workspace_generated'),
       action: {
-        type: 'widget',
+        type: 'banner',
         title: 'Save This to the Cloud',
         message: 'Your AI-generated workspace is local only. Did you know you can sync it to the cloud and access it from anywhere?',
         actionLabel: 'Learn More',
@@ -917,9 +963,9 @@ export class NudgePlugin extends Plugin {
     // After chatting a few times, hint about code explain shortcut
     this.engine_.addRule({
       id: 'hint-code-explain',
-      condition: all('user:logged_in_beta', 'ai:chat_message', 'editor:solidity_active'),
+      condition: all('user:logged_in', 'ai:chat_message', 'editor:solidity_active'),
       action: {
-        type: 'widget',
+        type: 'banner',
         title: 'Quick Tip: Explain Code',
         message: 'Right-click any code and select "Explain this" — RemixAI will break it down for you instantly.',
         actionLabel: 'Got It',
@@ -1065,7 +1111,22 @@ export class NudgePlugin extends Plugin {
     }, 300)
   }
 
-  /** Clear all active nudges and queue */
+  /** Return the currently active banner nudge (null if none). */
+  getBanner(): NudgeRule | null {
+    return this._activeBanner
+  }
+
+  /** Dismiss the banner nudge — hides it and marks it shown via the engine. */
+  dismissBanner(): void {
+    if (!this._activeBanner) return
+    const id = this._activeBanner.id
+    this._activeBanner = null
+    this.emit('nudgeBannerChanged', null)
+    this.emit('nudgeDismissed', { id, permanent: false })
+    this.trackMatomoEvent({ category: 'nudge', action: 'dismissed', name: id, isClick: true })
+  }
+
+/** Clear all active nudges and queue */
   clearActive(): void {
     this.state = {
       ...this.state,

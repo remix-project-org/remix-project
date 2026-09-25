@@ -73,8 +73,8 @@ const profile = {
   name: 'planManager',
   displayName: 'Plan & Credits',
   description: 'Manage your subscription, top up credits and review AI usage',
-  methods: ['open', 'close', 'toggle', 'setCheckoutResult', 'reportCreditsExhausted', 'refresh', 'purchaseCredits', 'subscribeToPlan', 'changePlan', 'cancelSubscription', 'reactivateSubscription', 'resolveConfirm', 'cancelCheckout', 'resumeCheckout', 'dismissResumeNudge', 'getPendingCheckouts', 'discardCheckout'],
-  events: ['opened', 'closed', 'checkoutResultChanged', 'pendingCheckoutsChanged', 'purchaseConfirmed'],
+  methods: ['open', 'close', 'toggle', 'setCheckoutResult', 'reportCreditsExhausted', 'refresh', 'purchaseCredits', 'subscribeToPlan', 'changePlan', 'cancelSubscription', 'reactivateSubscription', 'resolveConfirm', 'cancelCheckout', 'resumeCheckout', 'dismissResumeNudge', 'getPendingCheckouts', 'discardCheckout', 'getBillingLocale'],
+  events: ['opened', 'closed', 'checkoutResultChanged', 'pendingCheckoutsChanged', 'purchaseConfirmed', 'billingLocaleResolved'],
   icon: PLAN_ICON,
   location: 'sidePanel',
   version: packageJson.version,
@@ -83,6 +83,42 @@ const profile = {
 
 // Re-export public types for other packages.
 export type { CheckoutResult, CheckoutResultKind, CheckoutIntent, OpenIntent, OpenReason }
+
+/**
+ * The visitor's billing region, as resolved by Paddle's IP geo-location
+ * during a PricePreview. Broadcast via the `billingLocaleResolved` event so
+ * non-billing surfaces (e.g. the nudge engine) can tailor copy per country.
+ */
+export interface BillingLocale {
+  /** ISO-3166 alpha-2 country code Paddle localized to, e.g. 'NG'. */
+  countryCode: string | null
+  /** Currency Paddle will charge in, e.g. 'NGN'. */
+  currencyCode: string
+  /** Cheapest monthly plan in local currency (formatted), when resolvable. */
+  lowestPlanPrice: string | null
+  /** Whether `lowestPlanPrice` is an intro/launch offer rather than the list price. */
+  lowestPlanIsIntroOffer: boolean
+}
+
+const BILLING_LOCALE_STORAGE_KEY = 'remix:billing-locale'
+
+/**
+ * Last session's resolved locale. Paddle can only price-preview once it is
+ * initialized, so the cache is what makes the country available at startup.
+ */
+function readStoredBillingLocale(): BillingLocale | null {
+  try {
+    const raw = localStorage.getItem(BILLING_LOCALE_STORAGE_KEY)
+    if (!raw) return null
+    const parsed = JSON.parse(raw)
+    // Reject pre-discount-aware caches so we never quote a stale list price.
+    return parsed && typeof parsed.currencyCode === 'string' && typeof parsed.lowestPlanIsIntroOffer === 'boolean'
+      ? parsed as BillingLocale
+      : null
+  } catch {
+    return null
+  }
+}
 
 export class PlanManagerPlugin extends ViewPlugin {
   dispatch: React.Dispatch<any> = () => {}
@@ -120,6 +156,15 @@ export class PlanManagerPlugin extends ViewPlugin {
   // hosted-checkout fallback can report WHY it fell back (config/token problem
   // vs a blocked CDN/global vs no attempt yet). Cleared on a successful init.
   private lastPaddleInitIssue: 'config_missing' | 'script_blocked' | null = null
+
+  // Visitor's billing region from Paddle's IP geo-location. Resolved as soon
+  // as Paddle is ready (not only when the panel opens) so country-targeted
+  // messaging can run early in the session.
+  private billingLocale: BillingLocale | null = null
+  private billingLocaleProbed = false
+  // One batched catalog PricePreview is shared between the early locale probe
+  // and the panel, keyed by the set of Paddle price ids it covered.
+  private catalogPriceCache: { key: string; value: CatalogPricePreview } | null = null
 
   // Load watchdog for the inline overlay. Paddle sometimes emits nothing (or a
   // payload-less checkout.error) when the iframe fails to render — so after we
@@ -215,6 +260,15 @@ export class PlanManagerPlugin extends ViewPlugin {
   async onActivation(): Promise<void> {
     this.renderComponent()
 
+    // Replay last session's region immediately — Paddle can only price-preview
+    // once it has an authenticated client token, and country-targeted messaging
+    // shouldn't have to wait for that round trip.
+    const storedLocale = readStoredBillingLocale()
+    if (storedLocale) {
+      this.billingLocale = storedLocale
+      this.emit('billingLocaleResolved', storedLocale)
+    }
+
     // Detect whether this (web) instance was launched from Remix Desktop to
     // complete a purchase. Captured once here so a later URL rewrite can't
     // lose the marker before checkout finishes.
@@ -274,9 +328,8 @@ export class PlanManagerPlugin extends ViewPlugin {
       if (s.isAuthenticated) {
         void this.initPaddleSingleton()
         // Auth is the driving motor: every login must (re)load the catalog of
-        // available products, exactly like permissions/balance. The eager load
-        // in onActivation runs while still anonymous and 401s, so without this
-        // the panel can open (e.g. via a sign-in CTA) with no plans/packages.
+        // available products, exactly like permissions/balance — the anonymous
+        // catalog can hide products only available to the signed-in user.
         this.store.send({ type: 'CATALOG_LOAD' })
         void this.loadCatalog()
         void this.loadAccountData()
@@ -820,6 +873,11 @@ export class PlanManagerPlugin extends ViewPlugin {
     })
     if (priceIds.size === 0) return null
 
+    // The early locale probe and the panel ask for the same batch — serve the
+    // second caller from cache instead of hitting Paddle twice.
+    const cacheKey = Array.from(priceIds).sort().join('|')
+    if (this.catalogPriceCache?.key === cacheKey) return this.catalogPriceCache.value
+
     if (!this.paddle && !getPaddle()) {
       await this.initPaddleSingleton()
     }
@@ -872,11 +930,94 @@ export class PlanManagerPlugin extends ViewPlugin {
           formatted: formatPaddleMinor(rawMinor, currencyCode)
         }
       })
-      return { currencyCode, byPaddlePriceId }
+      const preview: CatalogPricePreview = { currencyCode, byPaddlePriceId }
+      this.catalogPriceCache = { key: cacheKey, value: preview }
+      this.publishBillingLocale(result?.data?.address?.countryCode ?? null, currencyCode, preview)
+      return preview
     } catch (err) {
       planManagerLogger.warn('[PlanManager] previewCatalogPrices failed', err)
       return null
     }
+  }
+
+  /**
+   * The region Paddle resolved for this visitor (IP geo-location), or the
+   * previous session's cached value until the first preview lands.
+   */
+  async getBillingLocale(): Promise<BillingLocale | null> {
+    return this.billingLocale
+  }
+
+  /**
+   * Learn the visitor's country from Paddle as soon as the (public) catalog
+   * lands, rather than waiting for the panel to be opened. Runs once per
+   * session; a catalog reload after sign-in retries if it hadn't resolved.
+   */
+  private async resolveBillingLocale(): Promise<void> {
+    if (this.billingLocaleProbed) return
+    try {
+      if (await this.previewCatalogPrices()) this.billingLocaleProbed = true
+    } catch (err) {
+      planManagerLogger.warn('[PlanManager] resolveBillingLocale failed', err)
+    }
+  }
+
+  /** Cache + broadcast the locale, but only when something actually changed. */
+  private publishBillingLocale(countryCode: string | null, currencyCode: string, preview: CatalogPricePreview): void {
+    const lowest = this.lowestLocalizedPlanPrice(preview)
+    const locale: BillingLocale = {
+      countryCode: countryCode ?? this.billingLocale?.countryCode ?? null,
+      currencyCode,
+      lowestPlanPrice: lowest?.formatted ?? null,
+      lowestPlanIsIntroOffer: lowest?.isIntroOffer ?? false
+    }
+    const current = this.billingLocale
+    if (current
+      && current.countryCode === locale.countryCode
+      && current.currencyCode === locale.currencyCode
+      && current.lowestPlanPrice === locale.lowestPlanPrice
+      && current.lowestPlanIsIntroOffer === locale.lowestPlanIsIntroOffer) return
+
+    this.billingLocale = locale
+    try {
+      localStorage.setItem(BILLING_LOCALE_STORAGE_KEY, JSON.stringify(locale))
+    } catch { /* storage blocked — the locale stays in memory for this session */ }
+    planManagerLogger.log('[PlanManager:price] billing locale resolved', locale)
+    this.emit('billingLocaleResolved', locale)
+  }
+
+  /**
+   * Cheapest monthly plan a visitor can actually pay today, localized — powers
+   * regional pricing copy. Mirrors the plan cards: percentage intro discounts
+   * come off the localized base, fixed-amount (USD) ones are skipped because
+   * they can't be converted.
+   */
+  private lowestLocalizedPlanPrice(preview: CatalogPricePreview): { formatted: string; isIntroOffer: boolean } | null {
+    let lowestMinor = Number.POSITIVE_INFINITY
+    let lowest: { formatted: string; isIntroOffer: boolean } | null = null
+    this.store.getSnapshot().catalogPlans.forEach((plan: any) => {
+      const intro: any = (plan?.introDiscounts ?? [])[0] ?? null
+      const introPct = intro?.discountType === 'percentage' ? Number(intro.amount) || 0 : 0
+      const prices: any[] = Array.isArray(plan?.prices) ? plan.prices : []
+      prices
+        .filter((pr: any) => (pr?.billing_interval ?? plan?.billingInterval) === 'month')
+        .forEach((pr: any) => {
+          const pid = paddlePriceIdOf(pr, plan)
+          const localized = pid ? preview.byPaddlePriceId[pid] : undefined
+          if (!localized || localized.rawMinor <= 0) return
+          const discounted = introPct > 0
+            ? Math.max(0, Math.floor(localized.rawMinor * (1 - introPct / 100)))
+            : localized.rawMinor
+          const effective = discounted > 0 ? discounted : localized.rawMinor
+          if (effective >= lowestMinor) return
+          lowestMinor = effective
+          lowest = {
+            formatted: effective === localized.rawMinor ? localized.formatted : formatPaddleMinor(effective, localized.currencyCode),
+            isIntroOffer: effective !== localized.rawMinor
+          }
+        })
+    })
+    return lowest
   }
 
   /**
@@ -1332,19 +1473,15 @@ export class PlanManagerPlugin extends ViewPlugin {
         // Remember why the inline SDK is unavailable so a later hosted-checkout
         // fallback can attribute itself (token/billing-config problem).
         this.lastPaddleInitIssue = 'config_missing'
-        // Init only works once the user is logged in and the bearer token
-        // successfully fetches billing/config. For an anonymous user this is
-        // expected (config isn't fetched without a token), so we stay quiet.
-        // The signal worth capturing is "authenticated but STILL no client
-        // token" — that points at billing/config or the token itself failing.
-        const isAuthenticated = this.store.getSnapshot().isAuthenticated
-        if (isAuthenticated && !this.paddleConfigMissingReported) {
+        // billing/config serves the client token to anonymous callers too, so
+        // a missing token is always a real problem — either the endpoint or
+        // the token itself is failing.
+        if (!this.paddleConfigMissingReported) {
           this.paddleConfigMissingReported = true
+          const isAuthenticated = this.store.getSnapshot().isAuthenticated
           const token = await this.call('auth', 'getToken').catch(() => null)
           reportCheckoutTelemetry('paddle.config.missing', {
-            message: token
-              ? 'billing/config returned no Paddle client token'
-              : 'Authenticated but no access token available',
+            message: 'billing/config returned no Paddle client token',
             detail: {
               isAuthenticated,
               hasToken: !!token,
@@ -2271,6 +2408,9 @@ export class PlanManagerPlugin extends ViewPlugin {
 
       this.trackCheckout('catalog_loaded', undefined, `plans:${plans.length}|pkgs:${packages.length}`)
       this.store.send({ type: 'CATALOG_LOADED', plans, packages })
+      // Catalog is the only prerequisite for a price preview, so learn the
+      // visitor's country now rather than when the panel first opens.
+      void this.resolveBillingLocale()
     } catch (err: any) {
       this.store.send({ type: 'CATALOG_FAILED', message: err?.message ?? 'Catalog load failed' })
     }
@@ -2554,7 +2694,10 @@ export class PlanManagerPlugin extends ViewPlugin {
       })
       if (gateEnabled && (emailMissing || emailUnverified) && !panelAlreadyOpen) {
         planManagerLogger.log('[PlanManager:email-gate] auto-opening panel → email-unverified')
-        if (Math.random() < 0.60) {
+        // Don't show upgrade modal to Pro users
+        const hasProGroup = permissions?.feature_groups?.some?.((g: any) => g.name === 'pro')
+        const hasProFeature = permissions?.features?.['ai:auditor']?.is_enabled === true
+        if (Math.random() < 0.60 && !hasProGroup && !hasProFeature) {
           this.call('nudgePlugin', 'fire', 'app:time-to-promote-plans')
         }
         // Catalog wasn't loaded as part of this path — fetch it now so the
@@ -2594,7 +2737,10 @@ export class PlanManagerPlugin extends ViewPlugin {
       if (canShowPlans && isFreePlan && !this.freePlanAutoOpenFired && !panelAlreadyOpen) {
         this.freePlanAutoOpenFired = true
         planManagerLogger.log('[PlanManager:free-plan-gate] auto-opening panel → free plan')
-        if (Math.random() < 0.60) {
+        // Don't show upgrade modal to Pro users (even if they appear as free plan due to special access)
+        const hasProGroup = permissions?.feature_groups?.some?.((g: any) => g.name === 'pro')
+        const hasProFeature = permissions?.features?.['ai:auditor']?.is_enabled === true
+        if (Math.random() < 0.60 && !hasProGroup && !hasProFeature) {
           this.call('nudgePlugin', 'fire', 'app:time-to-promote-plans')
         }
         // Catalog wasn't loaded as part of this path — fetch it now so plans
@@ -2916,7 +3062,11 @@ const PlanManagerOverlay: React.FC<{
           since none of the data-driven UI is meaningful without a user.
         */}
         {!checkoutResult && !snap.isAuthenticated && (
-          <SignInPromptScreen plugin={plugin} />
+          <SignInPromptScreen
+            plugin={plugin}
+            plans={visiblePlans}
+            localizedPrices={catalogPrices?.byPaddlePriceId ?? null}
+          />
         )}
 
         {!checkoutResult && snap.isAuthenticated && snap.dataState === 'loading' && <PlanManagerSkeleton />}
@@ -4072,7 +4222,9 @@ const PlanCard: React.FC<{
   onReactivate: () => void
   /** Localized list prices keyed by Paddle price id; null = USD fallback. */
   localizedPrices: Record<string, LocalizedCatalogPrice> | null
-}> = ({ plan, isSubscriptionCurrent, accessGroup, isRecommended, isPurchasing, anyPurchasing, isTrialEligible, cancelledNotice, onSubscribe, onCancel, onReactivate, localizedPrices }) => {
+  /** Catalog preview for signed-out visitors — prices only, no purchase affordances. */
+  readOnly?: boolean
+}> = ({ plan, isSubscriptionCurrent, accessGroup, isRecommended, isPurchasing, anyPurchasing, isTrialEligible, cancelledNotice, onSubscribe, onCancel, onReactivate, localizedPrices, readOnly }) => {
   const pricesArr: any[] = Array.isArray(plan.prices) ? plan.prices : []
   const activePrices = pricesArr.filter((pr: any) => pr.is_active !== false)
   const hasMonthly = activePrices.some((pr: any) => pr.billing_interval === 'month')
@@ -4273,22 +4425,24 @@ const PlanCard: React.FC<{
         ))}
       </ul>
 
-      <button
-        className={`pm-plan__btn ${disabled ? 'is-disabled' : ''} ${showTrial ? 'is-trial' : ''}`}
-        disabled={disabled}
-        onClick={() => { if (!disabled) onSubscribe(plan.id, selectedPriceId) }}
-      >
-        {isSubscriptionCurrent ? 'Active'
-          : isPurchasing ? <><i className="fas fa-spinner fa-spin"></i> Opening checkout…</>
-            : isAccessActive ? 'Access active'
-              : isFree ? 'Always free'
-                : showTrial
-                  ? <><i className="fas fa-flask"></i> Start {trialDays}-day free trial</>
-                  : `Switch to ${plan.name}`}
-      </button>
+      {!readOnly && (
+        <button
+          className={`pm-plan__btn ${disabled ? 'is-disabled' : ''} ${showTrial ? 'is-trial' : ''}`}
+          disabled={disabled}
+          onClick={() => { if (!disabled) onSubscribe(plan.id, selectedPriceId) }}
+        >
+          {isSubscriptionCurrent ? 'Active'
+            : isPurchasing ? <><i className="fas fa-spinner fa-spin"></i> Opening checkout…</>
+              : isAccessActive ? 'Access active'
+                : isFree ? 'Always free'
+                  : showTrial
+                    ? <><i className="fas fa-flask"></i> Start {trialDays}-day free trial</>
+                    : `Switch to ${plan.name}`}
+        </button>
+      )}
       {/* Cancel affordance — only on the active *paid* plan. Free /
           beta have no subscription row to cancel. */}
-      {isSubscriptionCurrent && !isFree && (
+      {!readOnly && isSubscriptionCurrent && !isFree && (
         <>
           {cancelledNotice && (
             <div className="pm-plan__cancel-notice" role="status">
@@ -4775,7 +4929,9 @@ const PlansSection: React.FC<{
   cancelledNotice: { expiresOn: string | null } | null
   /** Localized list prices keyed by Paddle price id (from batched PricePreview); null = USD fallback. */
   localizedPrices: Record<string, LocalizedCatalogPrice> | null
-}> = ({ plans, currentPlanId, userFeatureGroups, isTrialEligible, purchasingId, requiredFeature, onSubscribe, onCancel, onReactivate, cancelledNotice, localizedPrices }) => {
+  /** Catalog preview for signed-out visitors — prices only, no purchase affordances. */
+  readOnly?: boolean
+}> = ({ plans, currentPlanId, userFeatureGroups, isTrialEligible, purchasingId, requiredFeature, onSubscribe, onCancel, onReactivate, cancelledNotice, localizedPrices, readOnly }) => {
   if (plans.length === 0) {
     return (
       <div className="pm-empty">
@@ -4838,6 +4994,7 @@ const PlansSection: React.FC<{
             isTrialEligible={isTrialEligible}
             cancelledNotice={cancelledNotice}
             localizedPrices={localizedPrices}
+            readOnly={readOnly}
             onSubscribe={onSubscribe}
             onCancel={onCancel}
             onReactivate={onReactivate}
@@ -5477,7 +5634,10 @@ const PlanManagerSkeleton: React.FC = () => (
  */
 const SignInPromptScreen: React.FC<{
   plugin: any
-}> = ({ plugin }) => {
+  /** Public catalog, rendered display-only below the prompt. */
+  plans: any[]
+  localizedPrices: Record<string, LocalizedCatalogPrice> | null
+}> = ({ plugin, plans, localizedPrices }) => {
   const [showLoginModal, setShowLoginModal] = React.useState(false)
   const [pending, setPending] = React.useState(false)
 
@@ -5489,41 +5649,65 @@ const SignInPromptScreen: React.FC<{
 
   return (
     <>
-      <section className="pm-signin">
-        <div className="pm-signin__halo" aria-hidden />
-        <div className="pm-signin__inner">
-          <div className="pm-signin__badge">
-            <i className="fas fa-sparkles"></i>
-            <span>Account required</span>
+      <div className="pm-signedout">
+        <section className={`pm-signin${plans.length > 0 ? ' pm-signin--compact' : ''}`}>
+          <div className="pm-signin__halo" aria-hidden />
+          <div className="pm-signin__inner">
+            <div className="pm-signin__badge">
+              <i className="fas fa-sparkles"></i>
+              <span>Account required</span>
+            </div>
+            <h2 className="pm-signin__title">Create a free account to use RemixAI</h2>
+
+            <ul className="pm-signin__perks">
+              <li><i className="fas fa-robot"></i> Solidity Assistant, Code Completion, and Security Audits</li>
+              <li><i className="fas fa-lock"></i> Authorize via your existing identity — we never see your password.</li>
+            </ul>
+
+            <div className="pm-signin__actions">
+              <button
+                className="pm-signin__btn pm-signin__btn--primary"
+                onClick={handleSignIn}
+                disabled={pending}
+                data-id="planManagerSignIn"
+              >
+                {pending
+                  ? <><i className="fas fa-spinner fa-spin"></i> Opening sign-in…</>
+                  : <><i className="fas fa-right-to-bracket"></i> Sign in to Remix</>}
+              </button>
+            </div>
+
+            <p className="pm-signin__legal">
+              By continuing, you agree to the&nbsp;
+              <a href="https://remix-project.org/terms" target="_blank" rel="noreferrer">Terms of Service</a>
+              &nbsp;and&nbsp;
+              <a href="https://remix-project.org/privacy" target="_blank" rel="noreferrer">Privacy Policy</a>.
+            </p>
           </div>
-          <h2 className="pm-signin__title">Create a free account to use RemixAI</h2>
-
-          <ul className="pm-signin__perks">
-            <li><i className="fas fa-robot"></i> Solidity Assistant, Code Completion, and Security Audits</li>
-            <li><i className="fas fa-lock"></i> Authorize via your existing identity — we never see your password.</li>
-          </ul>
-
-          <div className="pm-signin__actions">
-            <button
-              className="pm-signin__btn pm-signin__btn--primary"
-              onClick={handleSignIn}
-              disabled={pending}
-              data-id="planManagerSignIn"
-            >
-              {pending
-                ? <><i className="fas fa-spinner fa-spin"></i> Opening sign-in…</>
-                : <><i className="fas fa-right-to-bracket"></i> Sign in to Remix</>}
-            </button>
-          </div>
-
-          <p className="pm-signin__legal">
-            By continuing, you agree to the&nbsp;
-            <a href="https://remix-project.org/terms" target="_blank" rel="noreferrer">Terms of Service</a>
-            &nbsp;and&nbsp;
-            <a href="https://remix-project.org/privacy" target="_blank" rel="noreferrer">Privacy Policy</a>.
-          </p>
-        </div>
-      </section>
+        </section>
+        {plans.length > 0 && (
+          <section className="pm-signin-catalog" data-id="pm-signin-catalog">
+            <header className="pm-signin-catalog__head">
+              <h3>What you can upgrade to</h3>
+              <p>Sign in to pick a plan — prices shown for your region.</p>
+            </header>
+            <PlansSection
+              plans={plans}
+              currentPlanId={null}
+              userFeatureGroups={[]}
+              isTrialEligible={false}
+              purchasingId={null}
+              requiredFeature={null}
+              cancelledNotice={null}
+              localizedPrices={localizedPrices}
+              readOnly
+              onSubscribe={() => { /* display only — the sign-in CTA above is the entry point */ }}
+              onCancel={() => { /* display only */ }}
+              onReactivate={() => { /* display only */ }}
+            />
+          </section>
+        )}
+      </div>
       {showLoginModal && (
         <LoginModal onClose={() => setShowLoginModal(false)} plugin={plugin} />
       )}

@@ -415,7 +415,7 @@ export async function authorizeDelegation (contractAddress: string, plugin: Envi
       await plugin.call('udappDeployedContracts', 'addInstance', selectedAccount, artefact.contract.abi, 'Delegated ' + artefact.name, contractObject)
       await plugin.call('compilerArtefacts', 'addResolvedContract', selectedAccount, data)
       plugin.call('terminal', 'log', { type: 'info',
-        value: `Contract interation with ${selectedAccount} has been added to the deployed contracts. Please make sure the contract is pinned.` })
+        value: `Contract interaction with ${selectedAccount} has been added to the deployed contracts. Please make sure the contract is pinned.` })
     }
     plugin.call('terminal', 'log', { type: 'info',
       value: `Delegation for ${selectedAccount} activated. This account will be running the code located at ${contractAddress} .` })

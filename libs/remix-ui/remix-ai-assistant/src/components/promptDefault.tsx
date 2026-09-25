@@ -27,7 +27,7 @@ export function PromptDefault(props: PromptDefaultProps) {
 
   return (
     <div
-      className="d-flex justify-content-end gap-3 align-items-center w-100 px-1"
+      className="d-flex align-items-center flex-shrink-0 ps-1"
       style={{
         backgroundColor: props.themeTracker && props.themeTracker?.name.toLowerCase() === 'light' ? '#d9dee8' : '#222336',
       }}

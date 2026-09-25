@@ -376,21 +376,6 @@ const CloudHelpModal: React.FC<CloudHelpModalProps> = ({
             <h2 style={{ fontSize: 18, fontWeight: 500, color: c.tx, display: "flex", alignItems: "center", gap: 10, margin: 0 }}>
               <i className="fas fa-cloud" style={{ fontSize: 18, color: c.bl }}></i>
                             Cloud Workspaces
-              <span
-                style={{
-                  fontFamily: "'JetBrains Mono', monospace",
-                  fontSize: 9,
-                  letterSpacing: 1.5,
-                  textTransform: "uppercase" as const,
-                  color: c.bl,
-                  background: "rgba(91,156,245,0.12)",
-                  padding: "3px 10px",
-                  borderRadius: 5,
-                  border: "0.5px solid rgba(91,156,245,0.25)",
-                }}
-              >
-                                Beta Perk
-              </span>
             </h2>
             <CloseButton onClick={onClose} />
           </div>

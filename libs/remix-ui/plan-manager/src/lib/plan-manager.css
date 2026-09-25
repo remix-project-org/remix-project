@@ -2551,6 +2551,68 @@
 }
 .pm-signin__legal a:hover { color: var(--bs-heading-color); }
 
+/* Signed-out body — owns its own scroll so the prompt + catalog are never
+   clipped by the shell's max-height. */
+.pm-signedout {
+  position: relative;
+  z-index: 2;
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+/* Compact variant — used when the public catalog is shown underneath, so the
+   prompt + three plan cards fit in the panel without scrolling. */
+.pm-signin--compact { margin: 16px 28px 16px; }
+.pm-signin--compact .pm-signin__inner { padding: 20px 28px 18px; gap: 12px; }
+.pm-signin--compact .pm-signin__badge { padding: 4px 9px; font-size: 10px; }
+.pm-signin--compact .pm-signin__title { font-size: 18px; margin: 0; }
+.pm-signin--compact .pm-signin__perks { margin: 0; gap: 6px 20px; }
+.pm-signin--compact .pm-signin__perks li { font-size: 12px; gap: 8px; }
+.pm-signin--compact .pm-signin__perks i { width: 18px; height: 18px; font-size: 10px; }
+.pm-signin--compact .pm-signin__actions { margin-top: 2px; }
+.pm-signin--compact .pm-signin__btn { padding: 8px 14px; font-size: 13px; }
+.pm-signin--compact .pm-signin__legal { margin: 0; font-size: 11px; }
+
+/* Public catalog shown under the sign-in prompt — display only, no CTAs. */
+.pm-signin-catalog {
+  margin: 0 28px 20px;
+}
+.pm-signin-catalog__head {
+  margin-bottom: 10px;
+}
+.pm-signin-catalog__head h3 {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--bs-heading-color);
+}
+.pm-signin-catalog__head p {
+  margin: 2px 0 0;
+  font-size: 12px;
+  color: var(--bs-body-color);
+}
+.pm-signin-catalog .pm-plans { gap: 12px; }
+.pm-signin-catalog .pm-plan {
+  cursor: default;
+  padding: 16px 16px 14px;
+  gap: 10px;
+}
+.pm-signin-catalog .pm-plan__name { font-size: 15px; }
+.pm-signin-catalog .pm-plan__tag { margin-top: 3px; font-size: 11px; }
+.pm-signin-catalog .pm-plan__price { padding: 10px 0 0; gap: 6px; }
+.pm-signin-catalog .pm-plan__price-num { font-size: 24px; }
+.pm-signin-catalog .pm-plan__price-cad { font-size: 10px; }
+.pm-signin-catalog .pm-plan__features { gap: 6px; }
+.pm-signin-catalog .pm-plan__features li { font-size: 12px; line-height: 1.4; gap: 8px; }
+.pm-signin-catalog .pm-plan__intro-offer,
+.pm-signin-catalog .pm-plan__intro-credits { font-size: 11px; }
+.pm-signin-catalog .pm-enterprise-strip { padding: 8px 14px; }
+
+@media (max-width: 720px) {
+  .pm-signin-catalog { margin: 0 16px 16px; }
+}
+
 @media (max-width: 720px) {
   .pm-signin { margin: 16px; }
   .pm-signin__inner { padding: 28px 24px 24px; }

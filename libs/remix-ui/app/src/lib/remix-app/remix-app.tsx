@@ -6,6 +6,7 @@ import { RemixUIMainPanel } from '@remix-ui/panel'
 import MatomoDialog from './components/modals/matomo'
 import ManagePreferencesDialog from './components/modals/managePreferences'
 import { OriginWarning } from './components/modals/origin-warning'
+import { NudgeBanner } from './components/modals/nudge-banner'
 import DragBar from './components/dragbar/dragbar'
 import { AppProvider } from './context/provider'
 import { AuthProvider } from './context/auth-context'
@@ -370,6 +371,7 @@ const RemixApp = (props: IRemixAppUi) => {
               {showManagePreferencesDialog && <ManagePreferencesDialog></ManagePreferencesDialog>}
               <div className="d-flex flex-column col-12 vh-100">
                 <OriginWarning />
+                <NudgeBanner />
                 {!props.app.desktopClientMode && (
                   <div ref={topBarRef} className='top-bar'>
                     {props.app.topBar.render()}

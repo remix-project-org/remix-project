@@ -12,6 +12,7 @@ import { ToggleSwitch } from '@remix-ui/toggle'
 import { ContractKebabMenu } from './contractKebabMenu'
 import { VerificationSettingsUI } from '../components/verificationSettingsUI'
 import { TrackingContext } from '@remix-ide/tracking'
+import { useAuth } from '@remix-ui/app'
 
 const txFormat = remixLib.execution.txFormat
 const txHelper = remixLib.execution.txHelper
@@ -20,6 +21,7 @@ const queryParams = new remixLib.QueryParams()
 function DeployPortraitView() {
   const { plugin, widgetState, dispatch, themeQuality } = useContext(DeployAppContext)
   const { trackMatomoEvent } = useContext(TrackingContext)
+  const { isAuthenticated } = useAuth()
   // TODO: Move all state to reducer
   const [selectedProvider, setSelectedProvider] = useState<Provider | null>(null)
   const [expandedInputs, setExpandedInputs] = useState<Set<number>>(new Set())
@@ -34,6 +36,8 @@ function DeployPortraitView() {
   const [showProxyDropdown, setShowProxyDropdown] = useState<boolean>(false)
   const [isVerifyChecked, setVerifyChecked] = useState<boolean>(false)
   const [isNetworkSupported, setNetworkSupported] = useState<boolean>(false)
+  const [aiFilledInputs, setAiFilledInputs] = useState<Set<number>>(new Set())
+  const [isAutoFilling, setIsAutoFilling] = useState(false)
   const contractKebabIconRef = useRef<HTMLElement>(null)
   const intl = useIntl()
 
@@ -48,6 +52,17 @@ function DeployPortraitView() {
 
     plugin.on('udappEnv', 'providersChanged', (provider: Provider) => {
       setSelectedProvider(provider)
+    })
+
+    plugin.on('remixAI', 'setConstructorInputRequest', (params: string[]) => {
+      const newValues: {[key: number]: string} = {}
+      const filled = new Set<number>()
+      params.forEach((value, index) => { newValues[index] = value; filled.add(index) })
+      setInputValues(newValues)
+      requestAnimationFrame(() => {
+        setAiFilledInputs(filled)
+        setTimeout(() => setAiFilledInputs(new Set()), 1500)
+      })
     })
   }, [])
 
@@ -244,6 +259,62 @@ function DeployPortraitView() {
     }
   }
 
+  const handleAutoFillWithAI = async () => {
+    if (!isAuthenticated) {
+      plugin.call('planManager' as any, 'open' as any, { reason: 'sign-in' })
+      return
+    }
+    trackMatomoEvent?.({ category: 'udapp', action: 'autoFillWithAI', name: 'deploy', isClick: true })
+    const inputs = constructorInterface?.inputs
+    if (!inputs || inputs.length === 0) return
+
+    const abi = selectedContract?.contractData?.object?.abi
+    const devdoc = selectedContract?.contractData?.object?.devdoc
+    const userdoc = selectedContract?.contractData?.object?.userdoc
+
+    const n = inputs.length
+    const paramLines = inputs.map((input: any, i: number) =>
+      `  ${i + 1}. ${input.name || `param${i}`}: ${input.type}`
+    ).join('\n')
+    let prompt = `Generate one random but realistic example value per parameter and return them as a JSON array with exactly ${n} element(s).\n\nRules:\n- The outer array must have exactly ${n} element(s) — one per parameter, in order\n- For Solidity array types (e.g. bytes32[], uint256[], address[]) the element must itself be a JSON array (e.g. for bytes32[] use ["0xaaa...","0xbbb..."])\n- For tuple/struct types use a JSON object\n- For simple scalar types (address, uint256, bool, string, bytes32 …) use a plain value\n\nParameters (${n} total):\n${paramLines}\n\nReturn ONLY the raw JSON array. No explanation, no markdown.`
+    if (abi) {
+      prompt += `\n\nFull ABI:\n${JSON.stringify(abi, null, 2)}`
+    }
+    if (devdoc && Object.keys(devdoc).length > 0) {
+      prompt += `\n\nNatSpec devdoc:\n${JSON.stringify(devdoc, null, 2)}`
+    }
+    if (userdoc && Object.keys(userdoc).length > 0) {
+      prompt += `\n\nNatSpec userdoc:\n${JSON.stringify(userdoc, null, 2)}`
+    }
+
+    setIsAutoFilling(true)
+    try {
+      const result = await plugin.call('remixAI' as any, 'basic_prompt', prompt)
+      const cleaned = (result as string).replace(/```json\n?/g, '').replace(/```\n?/g, '').trim()
+      const values: any[] = JSON.parse(cleaned)
+      if (!Array.isArray(values) || values.length !== n) {
+        console.error(`Auto fill with AI: expected ${n} value(s), got`, values)
+        return
+      }
+      const newValues: {[key: number]: string} = {}
+      const filled = new Set<number>()
+      values.forEach((value, index) => {
+        newValues[index] = typeof value === 'string' ? value : JSON.stringify(value)
+        filled.add(index)
+      })
+
+      setInputValues(newValues)
+      requestAnimationFrame(() => {
+        setAiFilledInputs(filled)
+        setTimeout(() => setAiFilledInputs(new Set()), 1500)
+      })
+    } catch (e) {
+      console.error('Auto fill with AI failed:', e)
+    } finally {
+      setIsAutoFilling(false)
+    }
+  }
+
   const switchProxyAddress = (address: string) => {
     trackMatomoEvent?.({ category: 'udapp', action: 'proxyAddressSelected', name: shortenProxyAddress(address), isClick: true })
     setProxyAddress(address)
@@ -304,6 +375,7 @@ function DeployPortraitView() {
 
   return (
     <>
+      <style>{`@keyframes ai-fill-blink{0%,100%{box-shadow:none}30%,70%{box-shadow:0 0 0 2px rgba(100,196,255,0.6),inset 0 0 6px rgba(100,196,255,0.2)}}.ai-filled-input{animation:ai-fill-blink 1.5s ease-in-out}`}</style>
       <div className="card" style={{ background: 'var(--custom-onsurface-layer-1)' }}>
         <div className="p-3 d-flex align-items-center justify-content-between">
           <div className='d-flex align-items-center gap-2 w-100' data-id="deploy-widget-header" style={{ justifyContent: 'space-between' }}>
@@ -679,7 +751,7 @@ function DeployPortraitView() {
                             <div className="position-relative flex-fill input-with-copy-hover">
                               <input
                                 type="text"
-                                className="form-control form-control-sm border-0"
+                                className={`form-control form-control-sm border-0${aiFilledInputs.has(index) ? ' ai-filled-input' : ''}`}
                                 placeholder={input.type}
                                 value={currentValue}
                                 onChange={(e) => handleInputChange(index, e.target.value)}
@@ -699,7 +771,7 @@ function DeployPortraitView() {
                         {isExpanded && (
                           <div className="mt-2 position-relative input-with-copy-hover">
                             <textarea
-                              className="form-control form-control-sm border-0"
+                              className={`form-control form-control-sm border-0${aiFilledInputs.has(index) ? ' ai-filled-input' : ''}`}
                               placeholder={input.type}
                               value={currentValue}
                               onChange={(e) => handleInputChange(index, e.target.value)}
@@ -725,19 +797,28 @@ function DeployPortraitView() {
                   })
                 }
                 {/* Call Data and Parameters */}
-                <div className="d-flex align-items-center justify-content-between gap-2">
+                <div className="d-flex align-items-center gap-1 flex-wrap">
                   <CopyToClipboard tip="Copy Call Data" icon="fa-clipboard" direction="bottom" getContent={getEncodedCall} callback={() => trackMatomoEvent?.({ category: 'udapp', action: 'copyCallData', name: 'clicked', isClick: true })}>
-                    <button className="btn btn-sm flex-fill border-0" style={{ minWidth: '120px', backgroundColor: 'var(--custom-onsurface-layer-3)' }}>
+                    <button className="btn btn-sm border-0 d-flex align-items-center gap-1 flex-fill" style={{ backgroundColor: 'var(--custom-onsurface-layer-3)', whiteSpace: 'nowrap', padding: '4px 8px' }}>
                       <span className="text-secondary font-sm">Call data</span>
-                      <i className="far fa-copy ms-2 text-secondary font-sm"></i>
+                      <i className="far fa-copy text-secondary font-sm"></i>
                     </button>
                   </CopyToClipboard>
                   <CopyToClipboard tip="Copy Parameters" icon="fa-clipboard" direction="bottom" getContent={getEncodedParams} callback={() => trackMatomoEvent?.({ category: 'udapp', action: 'copyParameters', name: 'clicked', isClick: true })}>
-                    <button className="btn btn-sm flex-fill border-0" style={{ minWidth: '120px', backgroundColor: 'var(--custom-onsurface-layer-3)' }}>
-                      <span className="text-secondary font-sm">Parameters</span>
-                      <i className="far fa-copy ms-2 text-secondary font-sm"></i>
+                    <button className="btn btn-sm border-0 d-flex align-items-center gap-1 flex-fill" style={{ backgroundColor: 'var(--custom-onsurface-layer-3)', whiteSpace: 'nowrap', padding: '4px 8px' }}>
+                      <span className="text-secondary font-sm">Params</span>
+                      <i className="far fa-copy text-secondary font-sm"></i>
                     </button>
                   </CopyToClipboard>
+                  <CustomTooltip placement="top" tooltipText="Auto-generate random example values instantly. Only for testing contracts.">
+                    <button data-id="deploy-auto-fill-with-ai" className="btn btn-ai text-nowrap" onClick={handleAutoFillWithAI} disabled={isAutoFilling}>
+                      {isAutoFilling
+                        ? <i className="fas fa-spinner fa-spin me-1"></i>
+                        : <img src="assets/img/remixAI_small.svg" alt="Remix AI" className="me-1" />
+                      }
+                      Auto-Fill with AI Samples
+                    </button>
+                  </CustomTooltip>
                 </div>
               </div>
             )}

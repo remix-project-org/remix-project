@@ -212,15 +212,9 @@ export class AuthPlugin extends Plugin {
    */
   async getPaddleConfig(): Promise<{ clientToken: string | null; environment: 'sandbox' | 'production' }> {
     try {
-      // Ensure we have a token set
-      const token = await this.getToken()
-
-      // The billing /config endpoint requires auth. When the user isn't logged
-      // in there is nothing to fetch — skip the request instead of firing a
-      // guaranteed 401 (which also needlessly trips the token-refresh path).
-      if (!token) {
-        return { clientToken: null, environment: 'sandbox' }
-      }
+      // Attaches the bearer when we have one; the endpoint also serves
+      // anonymous callers so Paddle can price-preview before sign-in.
+      await this.getToken()
 
       const response = await this.billingApi.getConfig()
       if (response.ok && response.data?.paddle) {

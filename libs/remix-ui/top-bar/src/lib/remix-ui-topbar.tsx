@@ -16,7 +16,6 @@ import { TopbarContext } from '../context/topbarContext'
 import { WorkspacesDropdown } from '../components/WorkspaceDropdown'
 import { useOnClickOutside } from 'libs/remix-ui/remix-ai-assistant/src/components/onClickOutsideHook'
 import { deleteWorkspace, fetchWorkspaceDirectory, deleteAllWorkspaces as deleteAllWorkspacesAction, handleDownloadFiles, handleDownloadWorkspace, handleExpandPath, publishToGist, renameWorkspace, restoreBackupZip, switchToWorkspace } from 'libs/remix-ui/workspace/src/lib/actions'
-import { GitHubUser } from 'libs/remix-api/src/lib/types/git'
 import { GitHubCallback } from '../topbarUtils/gitOauthHandler'
 import { CustomTooltip } from 'libs/remix-ui/helper/src/lib/components/custom-tooltip'
 import { useCloneRepositoryModal } from '../components/CloneRepositoryModal'
@@ -61,8 +60,6 @@ export function RemixUiTopbar() {
   const [bottomPanelHidden, setBottomPanelHidden] = useState<boolean>(false)
   const [rightPanelHidden, setRightPanelHidden] = useState<boolean>(false)
 
-  const [user, setUser] = useState<GitHubUser | null>(null);
-  const [error, setError] = useState<string | null>(null);
   const [loginMode, setLoginMode] = useState<LoginMode | null>(null);
   const [loginModeMessage, setLoginModeMessage] = useState<string>('');
   const [adminOverride, setAdminOverride] = useState<boolean>(false);
@@ -76,6 +73,7 @@ export function RemixUiTopbar() {
   const [panelControlMenuOpen, setPanelControlMenuOpen] = useState(false)
   const [aiPanelActive, setAiPanelActive] = useState<boolean>(false)
   const [aiReviewModeActive, setAiReviewModeActive] = useState<boolean>(false)
+  const [hasActiveSubscription, setHasActiveSubscription] = useState<boolean>(false)
   const sectionRef = useRef<HTMLElement>(null)
   const panelControlRef = useRef<HTMLDivElement>(null)
   const rightSideRef = useRef<HTMLDivElement>(null)
@@ -87,6 +85,68 @@ export function RemixUiTopbar() {
 
   // Auth state for cloud backup/restore and support link
   const { isAuthenticated, token, features } = useAuth()
+
+  // Check for Pro subscription when user is authenticated
+  useEffect(() => {
+    const checkProSubscription = async () => {
+      if (!isAuthenticated) {
+        setHasActiveSubscription(false)
+        return
+      }
+
+      try {
+        // Check if user has Pro plan (not Starter, not Beta)
+        const permissions = await plugin.call('auth', 'getAllPermissions').catch(() => null)
+
+        // Check for "pro" feature group
+        const hasProGroup = permissions?.feature_groups?.some?.((g: any) => g.name === 'pro')
+
+        if (hasProGroup) {
+          setHasActiveSubscription(true)
+          return
+        }
+
+        // Check for Pro-specific features (ai:auditor is Pro-only, not available in Starter)
+        const hasProFeature = permissions?.features?.['ai:auditor']?.is_enabled === true
+
+        if (hasProFeature) {
+          setHasActiveSubscription(true)
+          return
+        }
+
+        // Fallback: check billing API for active Pro subscription
+        try {
+          const billingApi = await plugin.call('auth', 'getBillingApi')
+          const subResp = await billingApi.getSubscription()
+          const subData = subResp?.data
+          const sub = subData?.subscription
+
+          // Only hide upgrade button if they have an active Paddle subscription
+          const hasActive = subData?.hasActiveSubscription ||
+            (sub && ['active', 'trialing', 'past_due'].includes(sub?.status))
+
+          setHasActiveSubscription(!!hasActive)
+        } catch (e) {
+          setHasActiveSubscription(false)
+        }
+      } catch (e) {
+        setHasActiveSubscription(false)
+      }
+    }
+
+    checkProSubscription()
+
+    // Listen for subscription changes when user purchases Pro
+    const handlePurchaseConfirmed = () => {
+      checkProSubscription()
+    }
+
+    plugin.on('planManager', 'purchaseConfirmed', handlePurchaseConfirmed)
+
+    return () => {
+      plugin.off('planManager', 'purchaseConfirmed')
+    }
+  }, [isAuthenticated, plugin])
 
   // Use the clone repository modal hook
   const { showCloneModal } = useCloneRepositoryModal({
@@ -272,11 +332,6 @@ export function RemixUiTopbar() {
       plugin.off('feedback', 'openFeedbackForm')
     }
   }, [])
-
-  const handleLoginSuccess = (user: GitHubUser, token: string) => {
-    setUser(user);
-    setError(null);
-  };
 
   async function openTemplateExplorer(): Promise<void> {
     await global.plugin.call('templateexplorermodal', 'updateTemplateExplorerInFileMode', false)
@@ -1007,20 +1062,22 @@ export function RemixUiTopbar() {
             )}
             {isAuthenticated && (
               <>
-                <CustomTooltip placement="bottom" tooltipText="Check out the features in Remix Pro : Security & Gas Audits, the Code Helper, Web3 API connectors (the Graph, Etherscan, Alchemy) and more!">
-                  <span
-                    className="btn btn-sm d-flex align-items-center gap-1 text-nowrap"
-                    style={{ cursor: 'pointer', padding: '0.25rem 0.6rem' , border: "1px solid color-mix(in srgb, var(--custom-primary) 64%, transparent)", color: 'var(--custom-primary)', fontSize:"12px", fontWeight:'700', lineHeight:'normal' }}
-                    onClick={() => {
-                      try { plugin.call('planManager', 'open', 'plans') } catch { /* plugin not ready */ }
-                      trackMatomoEvent({ category: 'topbar', action: 'upgrade', name: 'Upgrade', isClick: true })
-                    }}
-                    data-id="topbar-upgradeBtn"
-                  >
-                    {/* <i className="fas fa-layer-group"></i> */}
-                    <span>Upgrade</span>
-                  </span>
-                </CustomTooltip>
+                {!hasActiveSubscription && (
+                  <CustomTooltip placement="bottom" tooltipText="Check out the features in Remix Pro : Security & Gas Audits, the Code Helper, Web3 API connectors (the Graph, Etherscan, Alchemy) and more!">
+                    <span
+                      className="btn btn-sm d-flex align-items-center gap-1 text-nowrap"
+                      style={{ cursor: 'pointer', padding: '0.25rem 0.6rem' , border: "1px solid color-mix(in srgb, var(--custom-primary) 64%, transparent)", color: 'var(--custom-primary)', fontSize:"12px", fontWeight:'700', lineHeight:'normal' }}
+                      onClick={() => {
+                        try { plugin.call('planManager', 'open', 'plans') } catch { /* plugin not ready */ }
+                        trackMatomoEvent({ category: 'topbar', action: 'upgrade', name: 'Upgrade', isClick: true })
+                      }}
+                      data-id="topbar-upgradeBtn"
+                    >
+                      {/* <i className="fas fa-layer-group"></i> */}
+                      <span>Upgrade</span>
+                    </span>
+                  </CustomTooltip>
+                )}
                 <CustomTooltip placement="bottom" tooltipText="Use RemixAI for editing contracts, code analysis, deployments and more!">
                   <span
                     className="btn btn-sm btn-ai d-flex align-items-center gap-1 text-nowrap"

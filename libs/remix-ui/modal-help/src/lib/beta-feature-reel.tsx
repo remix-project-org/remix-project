@@ -541,21 +541,6 @@ const BetaFeatureReel: React.FC<BetaFeatureReelProps> = ({
               </svg>
             </span>
             <span>Unlocked for You</span>
-            <span
-              style={{
-                fontFamily: "'JetBrains Mono', monospace",
-                fontSize: 9,
-                textTransform: "uppercase",
-                letterSpacing: 1.5,
-                color: "#2fbfb1",
-                background: "rgba(47,191,177,0.12)",
-                padding: "2px 8px",
-                borderRadius: 4,
-                border: "0.5px solid rgba(47,191,177,0.25)",
-              }}
-            >
-              Beta Perk
-            </span>
             <div
               onClick={() => window.open(DISCORD_URL, '_blank')}
               style={{

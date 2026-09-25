@@ -2380,13 +2380,32 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
   }, [hasCheapModels, cheapModelsOnly])
 
   const handleToggleCheapModels = useCallback(() => {
-    // Side effects stay out of the state updater — React treats updaters as
-    // pure and calls them twice under StrictMode, double-counting the event.
     const next = !cheapModelsOnly
     setCheapModelsOnly(next)
     dispatchActivity('button', 'cheapModelsOnly')
     trackMatomoEvent({ category: 'ai', action: 'remixAI', name: next ? 'cheap_models_on' : 'cheap_models_off', value: 'manual', isClick: true })
-  }, [cheapModelsOnly])
+
+    if (next) {
+      // Switch to the first available cheap model
+      const target = availableModels
+        .filter(m => m.available && m.provider !== 'ollama' && isCheapModel(m))
+        .sort((a, b) => a.sortOrder - b.sortOrder)[0]
+      if (target) void handleModelSelection(modelKey(target))
+    } else {
+      // Switch back to the auto model, or fall back to the backend default
+      const autoModel = availableModels.find(m => isAutoModelId(m.id) && m.available !== false)
+      if (autoModel) {
+        void handleModelSelection(modelKey(autoModel))
+      } else {
+        void (async () => {
+          try {
+            const def: AIModel | null = await props.plugin.call('assistantState' as any, 'getDefaultModel')
+            if (def && def.available !== false) void handleModelSelection(modelKey(def))
+          } catch { /* ignore */ }
+        })()
+      }
+    }
+  }, [cheapModelsOnly, availableModels, handleModelSelection, props.plugin])
 
   // A confirmed starter credit pack arms the switch to the low-cost tier.
   useEffect(() => {

@@ -727,114 +727,109 @@ export const PromptArea: React.FC<PromptAreaProps> = ({
                 {activeCommandHint}
               </div>
             )}
-            <div className="d-flex flex-row align-items-center">
-              {/* <div className="d-flex flex-row align-items-center"> */}
-              <button
-                onClick={handleSetModel}
-                className="btn btn-text btn-sm small font-weight-light text-dark align-self-end border-0 rounded"
-                data-assist-btn="assistant-selector-btn"
-                data-id="ai-model-selector-btn"
-                ref={modelBtnRef}
-              >
-                <div className="d-flex flex-row flex-nowrap align-items-center justify-content-center">
-                  <span className="text-nowrap">
-                    {selectedModel?.displayName || 'Select Model'}
-                  </span>
-                  {usingOwnApiKey && (
-                    <CustomTooltip tooltipText="Using your own API key">
-                      <span
-                        className="badge bg-success ms-2"
-                        style={{ fontSize: '0.6rem', padding: '2px 4px', color: themeTracker && themeTracker?.name.toLowerCase() === 'light' ? '' :'#000' }}
-                        data-id="own-api-key-badge"
-                      >
-                        <i className="fas fa-key me-1" style={{ fontSize: '0.5rem' }}></i>
-                        Own Key
-                      </span>
-                    </CustomTooltip>
-                  )}
-                  <CustomTooltip
-                    tooltipText={
-                      aiRoute === 'agent'
-                        ? 'DeepAgent ready — subagents + tools available'
-                        : aiRoute === 'tools'
-                          ? 'MCP tools ready (no subagents)'
-                          : aiRoute === 'chat'
-                            ? 'Plain chat — no tools or subagents'
-                            : 'Initialising agents — please wait'
-                    }
-                  >
-                    <span
-                      className={`badge ms-2 ${
-                        aiRoute === 'agent'
-                          ? 'bg-success'
-                          : aiRoute === 'tools'
-                            ? 'bg-info'
-                            : aiRoute === 'chat'
-                              ? 'bg-secondary'
-                              : 'bg-warning'
-                      }`}
-                      style={{ fontSize: '0.6rem', padding: '2px 4px', visibility: selectedModel ? 'visible' : 'hidden', color: themeTracker && themeTracker?.name.toLowerCase() === 'light' ? '' :'#000' }}
-                      data-id="ai-route-status"
-                      data-route={aiRoute}
-                    >
-                      {aiRoute === 'agent'
-                        ? 'Agent'
-                        : aiRoute === 'tools'
-                          ? 'Tools'
-                          : aiRoute === 'chat'
-                            ? 'Chat'
-                            : 'Initialising…'}
-                    </span>
-                  </CustomTooltip>
-                  <span className={showModelSelector ? "fa fa-caret-up ms-1" : "fa fa-caret-down ms-1"}></span>
-                </div>
-              </button>
-              <CustomTooltip
-                tooltipText={
-                  !hasCheapModels
-                    ? 'No low-cost model is available on your plan'
-                    : cheapModelsOnly
-                      ? 'Showing only low-cost models in the selector. Click to show every model.'
-                      : 'Show only low-cost models in the selector — the cheapest tier across all providers, to make your credits last longer.'
-                }
-              >
+            <div className="d-flex flex-row align-items-center justify-content-between">
+              <div className="d-flex flex-row align-items-center" style={{ minWidth: 0, overflow: 'hidden' }}>
                 <button
-                  type="button"
-                  onClick={() => onToggleCheapModels?.()}
-                  disabled={!hasCheapModels}
-                  className={`btn btn-text btn-sm small font-weight-light border-0 rounded align-self-center d-flex flex-row flex-nowrap align-items-center justify-content-center ${cheapModelsOnly ? 'text-success' : 'text-secondary'}`}
-                  data-id="ai-cheap-models-toggle"
-                  data-active={cheapModelsOnly ? 'true' : 'false'}
-                  data-available={hasCheapModels ? 'true' : 'false'}
-                  aria-pressed={cheapModelsOnly}
-                  aria-label="Show only low-cost models"
-                >
-                  <i className={`fa-solid ${cheapModelsOnly ? 'fa-toggle-on' : 'fa-toggle-off'} me-1`} style={{ fontSize: '1.15rem', lineHeight: 1, verticalAlign: 'middle' }}></i>
-                  <span style={{ fontSize: '0.75rem', lineHeight: 1, whiteSpace: 'nowrap', verticalAlign: 'middle' }}>low-cost AI</span>
-                </button>
-              </CustomTooltip>
-              {selectedModel?.provider === 'ollama' && ollamaModels.length > 0 && (
-                <button
-                  onClick={() => setShowOllamaModelSelector(prev => !prev)}
-                  className="btn btn-text btn-sm small font-weight-light text-secondary align-self-end border border-text rounded ms-2"
-                  style={{ whiteSpace: 'nowrap', minWidth: 'fit-content' }}
-                  ref={modelSelectorBtnRef}
-                  data-id="ollama-model-selector"
+                  onClick={handleSetModel}
+                  className="btn btn-text btn-sm small font-weight-light text-dark align-self-end border-0 rounded"
                   data-assist-btn="assistant-selector-btn"
+                  data-id="ai-model-selector-btn"
+                  ref={modelBtnRef}
                 >
                   <div className="d-flex flex-row flex-nowrap align-items-center justify-content-center">
-                    <span style={{ whiteSpace: 'nowrap' }}>{selectedOllamaModel || 'Select Ollama Model'}</span>
-                    <span className={showOllamaModelSelector ? "fa fa-caret-up ms-1" : "fa fa-caret-down ms-1"}></span>
+                    <span className="text-nowrap">
+                      {selectedModel?.displayName || 'Select Model'}
+                    </span>
+                    {usingOwnApiKey && (
+                      <CustomTooltip tooltipText="Using your own API key">
+                        <span
+                          className="badge bg-success ms-2"
+                          style={{ fontSize: '0.6rem', padding: '2px 4px', color: themeTracker && themeTracker?.name.toLowerCase() === 'light' ? '' :'#000' }}
+                          data-id="own-api-key-badge"
+                        >
+                          <i className="fas fa-key me-1" style={{ fontSize: '0.5rem' }}></i>
+                          Own Key
+                        </span>
+                      </CustomTooltip>
+                    )}
+                    <CustomTooltip
+                      tooltipText={
+                        aiRoute === 'agent'
+                          ? 'DeepAgent ready — subagents + tools available'
+                          : aiRoute === 'tools'
+                            ? 'MCP tools ready (no subagents)'
+                            : aiRoute === 'chat'
+                              ? 'Plain chat — no tools or subagents'
+                              : 'Initialising agents — please wait'
+                      }
+                    >
+                      <span
+                        className={`badge ms-2 ${
+                          aiRoute === 'agent'
+                            ? 'bg-success'
+                            : aiRoute === 'tools'
+                              ? 'bg-info'
+                              : aiRoute === 'chat'
+                                ? 'bg-secondary'
+                                : 'bg-warning'
+                        }`}
+                        style={{ fontSize: '0.6rem', padding: '2px 4px', visibility: selectedModel ? 'visible' : 'hidden', color: themeTracker && themeTracker?.name.toLowerCase() === 'light' ? '' :'#000' }}
+                        data-id="ai-route-status"
+                        data-route={aiRoute}
+                      >
+                        {aiRoute === 'agent'
+                          ? 'Agent'
+                          : aiRoute === 'tools'
+                            ? 'Tools'
+                            : aiRoute === 'chat'
+                              ? 'Chat'
+                              : 'Initialising…'}
+                      </span>
+                    </CustomTooltip>
+                    <span className={showModelSelector ? "fa fa-caret-up ms-1" : "fa fa-caret-down ms-1"}></span>
                   </div>
                 </button>
-              )}
+                <CustomTooltip
+                  tooltipText={
+                    !hasCheapModels
+                      ? 'No low-cost model is available on your plan'
+                      : cheapModelsOnly
+                        ? 'Showing only low-cost models in the selector. Click to show every model.'
+                        : 'Show only low-cost models in the selector — the cheapest tier across all providers, to make your credits last longer.'
+                  }
+                >
+                  <button
+                    type="button"
+                    onClick={() => onToggleCheapModels?.()}
+                    disabled={!hasCheapModels}
+                    className={`btn btn-text btn-sm small font-weight-light border-0 rounded align-self-center d-flex flex-row flex-nowrap align-items-center justify-content-center ${cheapModelsOnly ? 'text-success' : 'text-secondary'}`}
+                    data-id="ai-cheap-models-toggle"
+                    data-active={cheapModelsOnly ? 'true' : 'false'}
+                    data-available={hasCheapModels ? 'true' : 'false'}
+                    aria-pressed={cheapModelsOnly}
+                    aria-label="Show only low-cost models"
+                  >
+                    <i className={`fa-solid ${cheapModelsOnly ? 'fa-toggle-on' : 'fa-toggle-off'} me-1`} style={{ fontSize: '1.15rem', lineHeight: 1, verticalAlign: 'middle' }}></i>
+                    <span style={{ fontSize: '0.75rem', lineHeight: 1, whiteSpace: 'nowrap', verticalAlign: 'middle' }}>low-cost AI</span>
+                  </button>
+                </CustomTooltip>
+                {selectedModel?.provider === 'ollama' && ollamaModels.length > 0 && (
+                  <button
+                    onClick={() => setShowOllamaModelSelector(prev => !prev)}
+                    className="btn btn-text btn-sm small font-weight-light text-secondary align-self-end border border-text rounded ms-2"
+                    style={{ whiteSpace: 'nowrap', minWidth: 'fit-content' }}
+                    ref={modelSelectorBtnRef}
+                    data-id="ollama-model-selector"
+                    data-assist-btn="assistant-selector-btn"
+                  >
+                    <div className="d-flex flex-row flex-nowrap align-items-center justify-content-center">
+                      <span style={{ whiteSpace: 'nowrap' }}>{selectedOllamaModel || 'Select Ollama Model'}</span>
+                      <span className={showOllamaModelSelector ? "fa fa-caret-up ms-1" : "fa fa-caret-down ms-1"}></span>
+                    </div>
+                  </button>
+                )}
+              </div>
               <PromptDefault
-                // Only render the cancel/stop affordance for an actual
-                // in-flight inference. When the route is merely "not
-                // ready yet" (e.g. anonymous user, agents still booting)
-                // we must show the disabled send button instead — a
-                // stop button that cancels nothing is broken UX and
-                // confused users into thinking the assistant was stuck.
                 isStreaming={isStreaming}
                 disabled={!composerReady}
                 handleSend={handleSend}
