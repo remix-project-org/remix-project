@@ -35,6 +35,14 @@
   overflow: hidden;
 }
 
+/* Make workspace select text more prominent */
+.workspacesSelect [data-id="workspacesSelect-togglerText"] {
+  font-weight: 500;
+  color: var(--bs-body-color);
+  font-size: 0.875rem;
+  filter: brightness(1.15);
+}
+
 .panel-control-btn {
   display: flex;
   align-items: center;
@@ -68,13 +76,13 @@
    - inactive rollover (hover): border gets brighter, interior stays the same
    - active (AI panel open): bright border, brighter interior */
 .remixai-topbar-icon {
-  font-size: 1.2rem;
+  font-size: 1rem;
   cursor: pointer;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 32px;
-  height: 32px;
+  width: 28px;
+  height: 28px;
   border-radius: 4px;
   background-color: rgba(91, 207, 207, 0.07);
   border: 1px solid rgba(91, 207, 207, 0.25);
@@ -191,6 +199,38 @@ body.ai-review-mode #main-panel {
 .topbar-ai-credits-icon {
   width: 12px;
   height: 12px;
+}
+
+/* Consistent text sizing for top bar elements - Remix branding */
+.text-primary.ms-2.font-weight-light.text-uppercase.cursor-pointer {
+  font-size: 1.2rem !important;
+}
+
+/* Version button consistent sizing */
+span.btn.btn-sm.border.border-secondary {
+  font-size: 0.75rem !important;
+  font-weight: 500 !important;
+  line-height: 1.2 !important;
+}
+
+/* Top bar button labels consistent sizing */
+[data-id="topbar-upgradeBtn"] span,
+[data-id="topbar-aiCreditsBtn"] span,
+[data-id="topbar-supportBtn"] span,
+[data-id="topbar-feedbackIcon"] span {
+  font-size: 0.75rem !important;
+  font-weight: 500 !important;
+  line-height: normal !important;
+}
+
+/* Top bar icon buttons consistent sizing */
+.topbar-icon-btn {
+  font-size: 1rem;
+  cursor: pointer;
+}
+
+.topbar-icon-btn i {
+  font-size: 1rem;
 }
 
 .top-bar-dropdownItem:hover {
