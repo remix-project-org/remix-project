@@ -9,6 +9,7 @@ import type { BillingLocale } from '@remix-ui/plan-manager'
 import { trackMatomoEvent as baseTrackMatomoEvent, NudgeEvent, MatomoEvent, Features, PendingCheckout } from '@remix-api'
 import * as packageJson from '../../../../../package.json'
 import './nudge-widget.css'
+import axios from 'axios'
 
 declare global {
   interface Window { __IS_E2E_TEST__?: boolean }
@@ -156,6 +157,7 @@ export class NudgePlugin extends Plugin {
 
     this._setupBuiltinRules()
     this._setupEventListeners()
+    this._setupDidYouKnowTips()
     this.renderComponent()
   }
 
@@ -1011,6 +1013,40 @@ export class NudgePlugin extends Plugin {
 
     /* ─── Hint decorations (pulsating dots / glows on UI elements) ─── */
 
+  }
+
+  /* ─── Did You Know Tips (migrated from status bar) ─── */
+
+  private async _setupDidYouKnowTips(): Promise<void> {
+    try {
+      const response = await axios.get('https://raw.githubusercontent.com/remix-project-org/remix-dynamics/main/ide/tips.json')
+      const tips = response.data
+      if (!Array.isArray(tips) || tips.length === 0) return
+
+      // Pick a random tip
+      const randomTip = tips[Math.floor(Math.random() * tips.length)]
+
+      // Add a rule to show the tip as a banner only after significant user actions
+      // Very low priority ensures all important nudges show first
+      this.engine_.addRule({
+        id: 'did-you-know-tip',
+        condition: any('contract:deployed', 'git:committed', 'ai:workspace_generated'),
+        action: {
+          type: 'banner',
+          position: 'right',
+          title: 'Did You Know?',
+          message: randomTip,
+          icon: 'fa-solid fa-lightbulb',
+          widgetColor: '#22c55e',
+          widgetBg: 'rgba(34, 197, 94, 0.1)'
+        },
+        showOnce: 'session',
+        priority: 1
+      })
+    } catch (error) {
+      this.log('[NudgePlugin] Failed to fetch did you know tips:', error)
+      // Silently fail - tips are not critical
+    }
   }
 
   /* ─── Public methods (callable by other plugins) ─── */

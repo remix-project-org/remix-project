@@ -8,7 +8,7 @@ import axios from 'axios'
 // eslint-disable-next-line @nrwl/nx/enforce-module-boundaries
 import { StatusBar } from 'apps/remix-ide/src/app/components/status-bar'
 import { StatusBarContextProvider } from '../contexts/statusbarcontext'
-import DidYouKnow from './components/didYouKnow'
+// import DidYouKnow from './components/didYouKnow' // Removed: functionality merged into nudge banner
 import { AppContext, appPlatformTypes, platformContext } from '@remix-ui/app'
 import { DesktopStatus } from './components/desktopStatus'
 import { desktopConnectionType } from '@remix-api'
@@ -120,9 +120,10 @@ export function RemixUIStatusBar({ statusBarPlugin }: RemixUIStatusBarProps) {
               </div>}
           </div>
 
-          <div className="w-100 remixui_statusbar">
+          {/* Removed: Did You Know now shown in nudge banner */}
+          {/* <div className="w-100 remixui_statusbar">
             <DidYouKnow />
-          </div>
+          </div> */}
 
           <div className="remixui_statusbar d-flex w-100 justify-content-end p-0">
 
