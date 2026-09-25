@@ -62,7 +62,7 @@ const STALE_REF_HINT = 'Call inspect_ui again to get fresh refs — the UI has c
 // DOM snapshot
 // ---------------------------------------------------------------------------
 
-const MAX_SNAPSHOT_NODES = 400
+const MAX_SNAPSHOT_NODES = 900
 const MAX_TEXT_LEN = 100
 
 const INTERACTIVE_TAGS = new Set(['A', 'BUTTON', 'INPUT', 'SELECT', 'TEXTAREA', 'SUMMARY', 'OPTION'])
@@ -80,8 +80,7 @@ const TAG_TO_ROLE: Record<string, string> = {
   IFRAME: 'iframe', LABEL: 'label', FORM: 'form', NAV: 'navigation'
 }
 
-function isVisible(el: Element): boolean {
-  const style = window.getComputedStyle(el)
+function isVisible(el: Element, style: CSSStyleDeclaration): boolean {
   if (style.display === 'none' || style.visibility === 'hidden' || style.opacity === '0') return false
   const rect = el.getBoundingClientRect()
   if (rect.width === 0 || rect.height === 0) return false
@@ -142,7 +141,13 @@ function accessibleName(el: Element): string {
   return ''
 }
 
-function isInteractive(el: Element): boolean {
+/**
+ * `parentIsPointer` is the computed `cursor` of the nearest ancestor, needed
+ * because `cursor` is an inherited property: without it every icon and label
+ * inside a clickable row also looks clickable, and one row yields five refs.
+ * Only the outermost element of a pointer subtree is claimed.
+ */
+function isInteractive(el: Element, style: CSSStyleDeclaration, parentIsPointer: boolean): boolean {
   if (INTERACTIVE_TAGS.has(el.tagName)) return true
   if (el.hasAttribute('onclick')) return true
   if ((el as HTMLElement).isContentEditable) return true
@@ -150,6 +155,20 @@ function isInteractive(el: Element): boolean {
   if (role && ['button', 'link', 'tab', 'menuitem', 'checkbox', 'radio', 'switch', 'option', 'combobox', 'textbox'].includes(role)) return true
   const tabIndex = el.getAttribute('tabindex')
   if (tabIndex && tabIndex !== '-1') return true
+
+  // React attaches nothing to the node itself when a container owns the
+  // handler. The file explorer is the extreme case: every row is a plain <li>
+  // and a single `onClick` on the virtuoso wrapper walks up from `event.target`
+  // looking for `data-path`. None of the signals above fire, so before this
+  // check the whole file tree came back with zero refs — the model could read
+  // the file names and had no way to click any of them.
+  if (el.hasAttribute('data-path')) return true
+
+  // The general form of the same problem: a div styled as clickable. The
+  // stylesheet uses `cursor: pointer` to tell the user it is actionable, which
+  // is the same thing the model needs to know.
+  if (style.cursor === 'pointer' && !parentIsPointer) return true
+
   return false
 }
 
@@ -161,13 +180,24 @@ interface SnapshotLine {
 function describe(el: Element, interactive: boolean): string {
   const parts: string[] = [roleOf(el)]
 
-  const name = accessibleName(el).slice(0, MAX_TEXT_LEN)
+  // A row claimed through `data-path` or `cursor: pointer` usually carries its
+  // label in a nested span, so `accessibleName` finds nothing on the node
+  // itself. Falling back to the subtree text is what makes such a row readable
+  // as `listitem "1_Storage.sol"` rather than an anonymous `listitem`.
+  let name = accessibleName(el)
+  if (!name && interactive) name = (el.textContent || '').replace(/\s+/g, ' ').trim()
+  name = name.slice(0, MAX_TEXT_LEN)
   if (name) parts.push(JSON.stringify(name))
 
   if (interactive) parts.push(`[ref=${registerRef(el)}]`)
 
   const dataId = el.getAttribute('data-id')
   if (dataId) parts.push(`data-id=${dataId}`)
+
+  // The explorer addresses rows by workspace-relative path; surfacing it saves
+  // the model from parsing it back out of the data-id.
+  const dataPath = el.getAttribute('data-path')
+  if (dataPath) parts.push(`path=${JSON.stringify(dataPath)}`)
 
   if (el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement) {
     if (el.value) parts.push(`value=${JSON.stringify(el.value.slice(0, MAX_TEXT_LEN))}`)
@@ -192,19 +222,28 @@ function snapshot(root: Element): { lines: SnapshotLine[]; truncated: boolean } 
   // container can legitimately have a zero-size box (display:contents, a
   // wrapper whose children are absolutely positioned) while everything inside
   // it is on screen — bailing there would silently return an empty tree.
-  const walk = (el: Element, depth: number, isRoot = false): void => {
+  const walk = (el: Element, depth: number, isRoot = false, parentIsPointer = false): void => {
     if (lines.length >= MAX_SNAPSHOT_NODES) {
       truncated = true
       return
     }
     if (isSkippedTag(el)) return
-    if (!isRoot && !isVisible(el)) return
+
+    // Resolved once and shared: `isVisible` and `isInteractive` both need it,
+    // and `getComputedStyle` is the expensive call in this walk.
+    let style: CSSStyleDeclaration
+    try {
+      style = window.getComputedStyle(el)
+    } catch {
+      return
+    }
+    if (!isRoot && !isVisible(el, style)) return
 
     // One malformed node must not lose the whole snapshot.
     let interactive = false
     let name = ''
     try {
-      interactive = isInteractive(el)
+      interactive = isInteractive(el, style, parentIsPointer)
       name = accessibleName(el)
     } catch { /* treat as an unnamed, non-interactive container */ }
 
@@ -225,7 +264,8 @@ function snapshot(root: Element): { lines: SnapshotLine[]; truncated: boolean } 
     // its icon spans and produce a wall of noise.
     if (interactive && (el.textContent || '').length < MAX_TEXT_LEN) return
 
-    for (const child of Array.from(el.children)) walk(child, childDepth)
+    const childParentIsPointer = parentIsPointer || style.cursor === 'pointer'
+    for (const child of Array.from(el.children)) walk(child, childDepth, false, childParentIsPointer)
   }
 
   walk(root, 0, true)
@@ -272,7 +312,7 @@ interface InspectUIArgs { selector?: string }
 
 export class InspectUIHandler extends BaseToolHandler {
   name = 'inspect_ui'
-  description = 'Take a structured text snapshot of what is currently visible in the Remix IDE: roles, labels, data-ids, values and a [ref=eN] handle for every interactive element. Call this before clicking or typing — click_element and type_into_element only accept refs from the most recent snapshot. Cheap: prefer this over capture_ui_screenshot unless the visual appearance itself matters. For where a feature lives in general, call get_ui_map first — it is static and answers most "where is X" questions without a snapshot.'
+  description = 'Take a structured text snapshot of what is currently visible in the Remix IDE: roles, labels, data-ids, values and a [ref=eN] handle for every interactive element. Call this before clicking or typing — click_element and type_into_element only accept refs from the most recent snapshot. Cheap: prefer this over capture_ui_screenshot unless the visual appearance itself matters. For where a feature lives in general, call get_ui_map first — it is static and answers most "where is X" questions without a snapshot. Note that the file explorer tree is virtualised: only the rows currently scrolled into view exist, so a file you cannot see here is not missing — use open_file instead of hunting for it.'
   inputSchema = {
     type: 'object',
     properties: {
@@ -651,6 +691,113 @@ export class ScrollElementHandler extends BaseToolHandler {
 }
 
 // ---------------------------------------------------------------------------
+// open_file
+// ---------------------------------------------------------------------------
+
+/** The explorer keys rows on the workspace-relative path, without a leading slash. */
+function treeRowPath(path: string): string {
+  return path.replace(/^\.?\//, '').replace(/^\/+/, '')
+}
+
+/**
+ * Scrolls the explorer row for `path` into view if it happens to be mounted.
+ *
+ * Best effort by design: the tree is virtualised with react-virtuoso, so rows
+ * outside the scroll viewport do not exist in the DOM at all. Opening the file
+ * is what actually reveals it — `currentFileChanged` makes the explorer expand
+ * the parent folders and select the row — and this is only the final nudge.
+ */
+function scrollTreeRowIntoView(path: string): void {
+  const rel = treeRowPath(path)
+  // The value goes inside a quoted attribute selector, so only the quote and
+  // the backslash need escaping — CSS.escape would escape it as an identifier,
+  // which is the wrong grammar here.
+  const escape = (v: string) => v.replace(/["\\]/g, '\\$&')
+
+  for (const candidate of [rel, `/${rel}`]) {
+    const row = document.querySelector(`[data-id="treeViewLitreeViewItem${escape(candidate)}"]`)
+    if (row) {
+      row.scrollIntoView({ block: 'center' })
+      return
+    }
+  }
+}
+
+interface OpenFileArgs { path: string; reveal?: boolean }
+
+export class OpenFileHandler extends BaseToolHandler {
+  name = 'open_file'
+  description = 'Open a file in the Remix editor so the user can actually see it on screen, and select it in the file explorer. This is the correct tool for "open X", "show me X" or "take me to X" — file_read only returns the contents to you and changes nothing on screen. Do not try to reach a file by clicking the explorer: the tree is virtualised, so any file outside the visible scroll area is absent from the DOM and inspect_ui cannot return a ref for it.'
+  inputSchema = {
+    type: 'object',
+    properties: {
+      path: {
+        type: 'string',
+        description: 'Workspace-relative path of the file, e.g. "contracts/1_Storage.sol". Use directory_list or grep_file first if you only know part of the name.'
+      },
+      reveal: {
+        type: 'boolean',
+        description: 'Also focus the File explorer panel so the selected file is visible in the tree. Defaults to true.'
+      }
+    },
+    required: ['path']
+  }
+
+  getPermissions(): string[] { return ['file:read', 'ui:interact'] }
+
+  validate(args: OpenFileArgs): boolean | string {
+    const required = this.validateRequired(args, ['path'])
+    if (required !== true) return required
+    return this.validateTypes(args, { path: 'string' })
+  }
+
+  async execute(args: OpenFileArgs, plugin: Plugin): Promise<IMCPToolResult> {
+    const path = args.path.trim()
+
+    try {
+      const exists = await plugin.call('fileManager', 'exists', path)
+      if (!exists) {
+        return this.createErrorResult(
+          `No file at "${path}". Paths are workspace-relative (e.g. "contracts/1_Storage.sol") — call directory_list to see what is there.`
+        )
+      }
+    } catch (e: any) {
+      return this.createErrorResult(`Could not check "${path}": ${e?.message || e}`)
+    }
+
+    try {
+      // Opens it in the editor and emits `currentFileChanged`, which is what
+      // makes the explorer expand the parent folders and highlight the row.
+      await plugin.call('fileManager', 'open', path)
+    } catch (e: any) {
+      return this.createErrorResult(`Failed to open "${path}": ${e?.message || e}`)
+    }
+
+    let revealed = false
+    if (args.reveal !== false) {
+      try {
+        // Activates the plugin and reveals its panel in one step; a no-op when
+        // the explorer is already the focused side panel.
+        await plugin.call('menuicons', 'select', 'filePanel')
+        revealed = true
+      } catch {
+        // The user keeps whatever panel they were on; the file is still open.
+      }
+    }
+
+    if (typeof document !== 'undefined') {
+      try {
+        scrollTreeRowIntoView(path)
+      } catch { /* cosmetic only */ }
+    }
+
+    return this.createSuccessResult(
+      `Opened "${path}" in the editor${revealed ? ' and focused the File explorer' : ''}. It is now the active file on screen.`
+    )
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Registration
 // ---------------------------------------------------------------------------
 
@@ -666,6 +813,7 @@ export const UI_AUTOMATION_TOOL_NAMES = [
   'inspect_ui',
   'get_ui_state',
   'capture_ui_screenshot',
+  'open_file',
   'click_element',
   'type_into_element',
   'scroll_element'
@@ -677,6 +825,7 @@ export function createUIAutomationTools(): RemixToolDefinition[] {
     new InspectUIHandler(),
     new GetUIStateHandler(),
     new CaptureUIScreenshotHandler(),
+    new OpenFileHandler(),
     new ClickElementHandler(),
     new TypeIntoElementHandler(),
     new ScrollElementHandler()

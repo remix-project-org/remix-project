@@ -1,9 +1,9 @@
 {
   "$schema": "remix-ui-map/1",
-  "description": "Static map of the Remix IDE interface. Tells the assistant where each capability lives and how to reach it, so it does not have to guess selectors or discover the layout by trial and error. Prefer the `pluginCall` on an area over clicking: it is stable, whereas `dataId` values are DOM details that can change. Use inspect_ui for the live state of whatever is currently on screen; this file is the fixed geography around it.",
+  "description": "Static map of the Remix IDE interface. Tells the assistant where each capability lives and how to reach it, so it does not have to guess selectors or discover the layout by trial and error. Reach a capability with its dedicated tool first (open_file, solidity_compile, deploy_contract, ...): those drive the IDE through the plugin engine, which is stable, whereas `dataId` values are DOM details that can change and clicking is the last resort. Use inspect_ui for the live state of whatever is currently on screen; this file is the fixed geography around it.",
   "conventions": {
     "dataId": "Every interactive element in Remix carries a `data-id` attribute. Address it in CSS as [data-id=\"<value>\"].",
-    "pluginCall": "Remix is a plugin engine. `plugin.call(<target>, <method>, ...args)` is the reliable way to drive the IDE; clicking is the fallback when no method exists.",
+    "pluginCall": "Remix is a plugin engine, and `preferPluginCalls` records the internal call a capability is reached by. You cannot issue these calls directly — they are what the dedicated tools do for you, so read them as a pointer to the right tool. When a listed call has no tool behind it, clicking a `dataId` via inspect_ui + click_element is the only route.",
     "activation": "A plugin must be active before its panel can be focused. `menuicons.select(<name>)` activates and reveals a sidePanel plugin in one step.",
     "iframes": "Plugins with kind 'iframe' render cross-origin. Their internals are invisible to inspect_ui and blank in screenshots — drive them through their plugin methods only."
   },
@@ -108,8 +108,9 @@
         "fileManager.getCurrentFile()",
         "fileManager.getOpenedFiles()"
       ],
+      "preferTools": ["open_file(path) — opens a file in the editor and selects it in the tree; the only reliable way to put a file on screen"],
       "elements": [
-        { "label": "File tree", "dataId": "filePanelFileExplorerTree" },
+        { "label": "File tree", "dataId": "filePanelFileExplorerTree", "note": "Virtualised with react-virtuoso: only the rows scrolled into view exist in the DOM, and collapsed folders contribute no rows at all. inspect_ui therefore cannot return a ref for an arbitrary file — call open_file(path) instead of clicking the tree." },
         { "label": "Create menu", "dataId": "fileExplorerCreateButton", "children": ["fileExplorerCreateButton-createNewFile", "fileExplorerCreateButton-createNewFolder", "fileExplorerCreateButton-createNewWorkspace", "fileExplorerCreateButton-cloneGitRepository", "fileExplorerCreateButton-importFromHttps", "fileExplorerCreateButton-importFromIpfs", "fileExplorerCreateButton-localFileSystem", "fileExplorerCreateButton-uploadFolder"] },
         { "label": "Per-row hover actions", "dataId": "fileExplorerHoverIcons-rename", "children": ["fileExplorerHoverIcons-createNewFile", "fileExplorerHoverIcons-createNewFolder", "fileExplorerHoverIcons-delete"] },
         { "label": "Jump to contract / dapp", "dataId": "fileExplorerGoToContractButton", "children": ["fileExplorerGoToDappButton", "fileExplorerViewDappButton"] }

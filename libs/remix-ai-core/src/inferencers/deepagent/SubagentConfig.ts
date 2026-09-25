@@ -138,7 +138,7 @@ export async function buildSubagentConfigs(
       systemPrompt: REMIX_VISION_SUBAGENT_PROMPT,
       model,
       tools: uiTools,
-      description: 'Sees and operates the Remix IDE interface. Delegate here for anything about what is on the user\'s screen — "what am I looking at", "why is this panel showing an error", "where do I find X", reading a rendered view — and for driving the UI directly (clicking a button, filling a field, switching panels). The only agent with screenshot, DOM-inspection and click/type access; no other agent can see the interface.'
+      description: 'Sees and operates the Remix IDE interface. Delegate here for anything about what is on the user\'s screen — "what am I looking at", "why is this panel showing an error", "where do I find X", reading a rendered view — for putting a file on screen ("open X", "show me X", "take me to X"), and for driving the UI directly (clicking a button, filling a field, switching panels). The only agent that can change what the user sees; no other agent can see or touch the interface.'
     })
   }
 

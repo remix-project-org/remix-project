@@ -284,7 +284,8 @@ export function getQuickDappToolsForQuickDappSpecialist(tools: DynamicStructured
 export function getUIToolsForVisionSpecialist(tools: DynamicStructuredTool[]): DynamicStructuredTool[] {
   const uiToolNames = [
     'get_ui_map', 'get_ui_state', 'inspect_ui', 'capture_ui_screenshot',
-    'click_element', 'type_into_element', 'scroll_element'
+    'open_file', 'click_element', 'type_into_element', 'scroll_element',
+    'directory_list', 'grep_file'
   ]
 
   return tools.filter(tool => uiToolNames.includes(tool.name))
