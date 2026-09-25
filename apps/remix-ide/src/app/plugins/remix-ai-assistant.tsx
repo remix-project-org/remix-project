@@ -480,8 +480,10 @@ export class RemixAIAssistant extends ViewPlugin {
     this.emit('chatEngaged')
   }
 
+  /** Focus the prompt. In AI mode (the only case callers use it: RemixAI icons
+   *  clicked while the chat is in the center) also spotlight the prompt box. */
   focusChatInput() {
-    this.chatRef?.current?.focusInput()
+    this.chatRef?.current?.focusInput({ highlight: this.isMaximized })
   }
 
   /**

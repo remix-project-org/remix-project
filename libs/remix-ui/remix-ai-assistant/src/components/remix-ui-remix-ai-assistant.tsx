@@ -70,7 +70,8 @@ export interface RemixUiRemixAiAssistantHandle {
   /** Programmatically send a prompt to the chat (returns after processing starts) */
   sendChat: (prompt: string, isEditorCodeAnalysis?: boolean, metadata?: ChatPromptMetadata) => Promise<void>
   submitCurrentInput: () => Promise<void>
-  focusInput: () => void
+  /** Focus the prompt; `highlight` also plays the one-shot spotlight around the prompt box */
+  focusInput: (options?: { highlight?: boolean }) => void
   addAssistantMessage: (text: string) => void
   clearChat: () => void
   /** Returns current chat history array */
@@ -2608,8 +2609,22 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
       submitCurrentInput: async () => {
         await handleSend()
       },
-      focusInput: () => {
+      focusInput: (options?: { highlight?: boolean }) => {
         textareaRef.current?.focus()
+        if (!options?.highlight) return
+        // One-shot "spotlight" (light circling the border, then a fading glow)
+        // so the user sees where the focus went. Restarted on every call.
+        const box = aiChatRef.current?.querySelector('[data-id="remix-ai-prompt-area"]') as HTMLElement | null
+        if (!box) return
+        box.classList.remove('ai-input-spotlight')
+        void box.offsetWidth // reflow, so re-adding the class restarts the animation
+        box.classList.add('ai-input-spotlight')
+        const done = (e: AnimationEvent) => {
+          if (e.target !== box || e.animationName !== 'ai-spot-glow') return
+          box.classList.remove('ai-input-spotlight')
+          box.removeEventListener('animationend', done)
+        }
+        box.addEventListener('animationend', done)
       },
       addAssistantMessage: (text: string) => {
         if (!text) return

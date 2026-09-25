@@ -1982,3 +1982,67 @@ code {
 .chat-history-sidebar .chat-history-sidebar-header .sidebar-title {
   font-size: 0.95rem;
 }
+
+/* --------------------------------------------------------
+   Prompt spotlight (AI mode): played once when a RemixAI icon
+   focuses the chat. A light travels one turn around the prompt
+   box border, then the box holds a soft glow that fades out.
+   Class added/removed by focusInput({ highlight: true }).
+   -------------------------------------------------------- */
+
+@property --ai-spot-angle {
+  syntax: '<angle>';
+  inherits: false;
+  initial-value: 0deg;
+}
+
+.prompt-area.ai-input-spotlight {
+  animation: ai-spot-glow 1.6s ease-out forwards;
+}
+
+/* Border-only ring (masked to a 2px band), following the box radius */
+.prompt-area.ai-input-spotlight::before {
+  content: '';
+  position: absolute;
+  inset: -1px;
+  padding: 2px;
+  border-radius: inherit;
+  background: conic-gradient(
+    from var(--ai-spot-angle),
+    transparent 0deg,
+    transparent 250deg,
+    color-mix(in srgb, var(--custom-ai-color) 60%, transparent) 320deg,
+    var(--custom-ai-color) 352deg,
+    transparent 360deg
+  );
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask: linear-gradient(#000 0 0) content-box exclude, linear-gradient(#000 0 0);
+  pointer-events: none;
+  z-index: 1;
+  animation:
+    ai-spot-sweep 1s cubic-bezier(0.45, 0, 0.25, 1) forwards,
+    ai-spot-fade 0.6s ease-out 1s forwards;
+}
+
+@keyframes ai-spot-sweep {
+  from { --ai-spot-angle: 0deg; }
+  to { --ai-spot-angle: 360deg; }
+}
+
+@keyframes ai-spot-fade {
+  to { opacity: 0; }
+}
+
+@keyframes ai-spot-glow {
+  0% { box-shadow: 0 0 0 0 transparent; }
+  55% { box-shadow: 0 0 16px 1px color-mix(in srgb, var(--custom-ai-color) 40%, transparent); }
+  100% { box-shadow: 0 0 0 0 transparent; }
+}
+
+/* Reduced motion: no travelling light, just the brief glow */
+@media (prefers-reduced-motion: reduce) {
+  .prompt-area.ai-input-spotlight::before {
+    display: none;
+  }
+}

@@ -258,6 +258,22 @@ test('the AI mode header has no top border (the topbar already draws it)', async
   expect(borderTop).toBe('0px')
 })
 
+test('in AI mode, RemixAI icons focus the prompt and play the one-shot spotlight', async ({ page }) => {
+  await loadIde(page)
+  await enterAiMode(page)
+  const box = page.locator(`${sel.host} [data-id="remix-ai-prompt-area"]`)
+  await expect(box).not.toHaveClass(/ai-input-spotlight/)
+
+  for (const icon of ['[data-id="remixai-assistant-icon"]', '[data-id="verticalIconsKindremixaiassistant"]']) {
+    await click(page, icon)
+    await expectAiMode(page)
+    // (The input itself can't take focus here: it's disabled while signed out)
+    await expect(box).toHaveClass(/ai-input-spotlight/)
+    // One turn + fade, then the class is removed
+    await expect(box).not.toHaveClass(/ai-input-spotlight/, { timeout: 5000 })
+  }
+})
+
 test('a file opened programmatically keeps AI mode; a File Explorer click leaves it', async ({ page }) => {
   await loadIde(page)
   await enterAiMode(page)
