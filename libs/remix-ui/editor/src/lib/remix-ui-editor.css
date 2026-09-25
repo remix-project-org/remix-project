@@ -164,8 +164,8 @@ div.monaco-list-row > span.title {
 /* Floating Action Button Styles */
 .fab-container {
     position: absolute;
-    bottom: 24px;
-    right: 24px;
+    bottom: 20px;
+    right: 36px;
     display: flex;
     flex-direction: column;
     align-items: flex-end;
