@@ -415,7 +415,7 @@ export const templatesRepository = [
       },
       {
         value: "ammDex",
-        displayName: 'AMM / DEX Pool',
+        displayName: 'AMM DEX Pool',
         tagList: ["DeFi", "AMM", "Solidity"],
         description: 'Constant-product AMM (x*y=k) with LP tokens and 0.3% swap fee (Uniswap V2 style)',
       },
@@ -427,7 +427,7 @@ export const templatesRepository = [
       },
       {
         value: "stablecoin",
-        displayName: 'Collateralized Stablecoin (CDP)',
+        displayName: 'Collateralized Stablecoin CDP',
         tagList: ["DeFi", "Stablecoin", "Solidity"],
         description: 'Collateralized Debt Position system that mints a USD-pegged stablecoin (MakerDAO style)',
       },
