@@ -6,7 +6,7 @@ import React, { useState, useRef, useEffect, useReducer, useContext, useCallback
 import { FormattedMessage } from 'react-intl'
 import { Tab, Tabs, TabList, TabPanel } from 'react-tabs'
 import './remix-ui-tabs.css'
-import { QuickDappBanner } from './components/QuickDappBanner'
+// import { QuickDappBanner } from './components/QuickDappBanner' // Removed: functionality now covered by FAB
 import { QuickDappContractSelector, QuickDappFigmaPreparationResult, QuickDappSetupOptions } from '@remix-ui/quick-dapp-v2'
 import { DeployedContract } from '@remix-ui/run-tab-deployed-contracts'
 // AIRequestForm import removed — DApp creation now goes through AI Assistant chatPipe
@@ -659,9 +659,10 @@ export const TabsUI = (props: TabsUIProps) => {
     props.plugin.call('notification', 'toast', text, duration)
   }
 
-  const handleQuickDappBannerClose = () => {
-    setBannerVisible(false)
-  }
+  // Removed: QuickDapp functionality now covered by FAB
+  // const handleQuickDappBannerClose = () => {
+  //   setBannerVisible(false)
+  // }
 
   const handleQuickDappStartNow = async () => {
 
@@ -842,12 +843,13 @@ For Inline mode, preserve the existing /frontend overwrite confirmation flow.`
     setBannerVisible(true)
   }, [tabsState.selectedIndex])
 
-  const shouldShowQuickDappBanner = (() => {
-    if (tabsState.currentExt !== 'sol' || !bannerVisible) return false
-    const quickdappEnabled = appContext?.appConfig?.['quickdapp.enabled']
-    if (quickdappEnabled === false) return false
-    return true
-  })()
+  // Removed: QuickDapp functionality now covered by FAB
+  // const shouldShowQuickDappBanner = (() => {
+  //   if (tabsState.currentExt !== 'sol' || !bannerVisible) return false
+  //   const quickdappEnabled = appContext?.appConfig?.['quickdapp.enabled']
+  //   if (quickdappEnabled === false) return false
+  //   return true
+  // })()
 
   let mainLabel = ''
   if (canRunScenario) {
@@ -1084,12 +1086,13 @@ For Inline mode, preserve the existing /frontend overwrite confirmation flow.`
 
         </div>
       </div>
-      {shouldShowQuickDappBanner && (
+      {/* Removed: QuickDapp functionality now covered by FAB */}
+      {/* {shouldShowQuickDappBanner && (
         <QuickDappBanner
           onClose={handleQuickDappBannerClose}
           onStartNow={handleQuickDappStartNow}
         />
-      )}
+      )} */}
       {quickDappStartSetup && (
         <QuickDappContractSelector
           show

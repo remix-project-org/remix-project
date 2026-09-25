@@ -36,6 +36,7 @@ import { GenerationParams } from '@remix/remix-ai-core';
 import { RemixInLineCompletionProvider } from './providers/inlineCompletionProvider'
 import { RemixTSCompletionProvider } from './providers/tsCompletionProvider'
 import { TooltipPopOver, openContextualTooltip } from './tooltipPopOver'
+import { FloatingActionButton } from './FloatingActionButton'
 
 const _paq = (window._paq = window._paq || []) // eslint-disable-line
 
@@ -1518,6 +1519,149 @@ export const EditorUI = (props: EditorUIProps) => {
     }
   }
 
+  const handleEditWithAI = async () => {
+    try {
+      const currentFile = props.currentFile
+      if (!currentFile) {
+        await props.plugin.call('notification', 'toast', 'No file selected to edit.')
+        return
+      }
+
+      // Show right side panel if it's hidden
+      const isPanelHidden = await props.plugin.call('rightSidePanel', 'isPanelHidden')
+      if (isPanelHidden) {
+        await props.plugin.call('rightSidePanel', 'togglePanel')
+      }
+
+      // Select the AI assistant
+      await props.plugin.call('menuicons', 'select', 'remixaiassistant')
+      await new Promise((resolve) => setTimeout(resolve, 500))
+
+      // Send the edit prompt with the file path
+      await (props.plugin as any).call('remixaiassistant', 'chatPipe', `help me to edit the following file ${currentFile}`, false, { source: 'fab-button', presetId: 'edit-file' })
+
+    } catch (error) {
+      console.error('Error triggering AI edit:', error)
+    }
+  }
+
+  const handleExplainContract = async () => {
+    try {
+      // Match bottom-bar.tsx implementation
+      const currentFile = props.currentFile
+      if (!currentFile) {
+        await props.plugin.call('notification', 'toast', 'No file selected to explain.')
+        return
+      }
+
+      // Show right side panel if it's hidden
+      const isPanelHidden = await props.plugin.call('rightSidePanel', 'isPanelHidden')
+      if (isPanelHidden) {
+        await props.plugin.call('rightSidePanel', 'togglePanel')
+      }
+
+      await props.plugin.call('menuicons', 'select', 'remixaiassistant')
+      await new Promise((resolve) => setTimeout(resolve, 500))
+      const content = await props.plugin.call('fileManager', 'readFile', currentFile)
+      await (props.plugin as any).call('remixAI', 'chatPipe', 'code_explaining', content + "\n\nExplain briefly the snipped above!", undefined, undefined, { source: 'fab-button', presetId: 'explain-contract' })
+      // trackMatomoEvent({ category: 'editor', action: 'explain_contract', name: 'remixAI', isClick: true })
+    } catch (error) {
+      console.error('Error triggering contract explanation:', error)
+    }
+  }
+
+  const handleCreateDapp = async () => {
+    try {
+      // Check if there are deployed contracts
+      let instances: any[] = []
+      try {
+        const deployed = await props.plugin.call('udappDeployedContracts', 'getDeployedContracts') || []
+        instances = deployed.filter((contract: any) => contract?.address && contract?.name)
+      } catch (e) {
+        console.warn('[QuickDapp] Could not fetch deployed contracts:', e)
+        await props.plugin.call('notification', 'toast', 'Could not check deployed contracts. Please try again.')
+        return
+      }
+
+      if (instances.length === 0) {
+        let environmentName = 'Current environment'
+        try {
+          const providerObject = await props.plugin.call('blockchain', 'getProviderObject')
+          const providerName = providerObject?.name || ''
+          if (providerName.startsWith('vm')) {
+            environmentName = 'Remix VM'
+          } else {
+            const network = await props.plugin.call('network', 'detectNetwork')
+            environmentName = network?.name || providerName || environmentName
+          }
+        } catch (_) { /* keep fallback */ }
+        await props.plugin.call('notification', 'toast', `No deployed contracts found in ${environmentName}. Please deploy a contract first.`)
+        return
+      }
+
+      // Get primary contract info
+      const currentFile = props.currentFile
+      const currentFileName = currentFile?.split('/').pop() || ''
+      let matchingInstances: any[] = []
+
+      if (currentFileName && instances.length > 0) {
+        matchingInstances = instances.filter((inst) => {
+          const instFile = inst.contractData?.contract?.file || inst.filePath || ''
+          return instFile && instFile.endsWith(currentFileName)
+        })
+        if (matchingInstances.length === 0) {
+          const baseName = currentFileName.replace('.sol', '')
+          matchingInstances = instances.filter((inst) =>
+            baseName.toLowerCase().includes(inst.name?.toLowerCase())
+          )
+        }
+      }
+
+      const primaryContract = matchingInstances[0] || instances[0]
+
+      // Get network info
+      let networkName = 'Current network'
+      try {
+        const providerObject = await props.plugin.call('blockchain', 'getProviderObject')
+        const providerName = providerObject?.name || ''
+        if (providerName.startsWith('vm')) {
+          networkName = 'Remix VM'
+        } else {
+          const network = await props.plugin.call('network', 'detectNetwork')
+          networkName = network?.name || providerName
+        }
+      } catch (_) { /* keep fallback */ }
+
+      // Show right side panel if hidden
+      const isPanelHidden = await props.plugin.call('rightSidePanel', 'isPanelHidden')
+      if (isPanelHidden) {
+        await props.plugin.call('rightSidePanel', 'togglePanel')
+      }
+
+      // Activate AI assistant
+      try {
+        await props.plugin.call('manager', 'activatePlugin', 'remix-ai-assistant')
+      } catch (_) { /* may already be active */ }
+
+      await props.plugin.call('menuicons', 'select', 'remixaiassistant')
+      await new Promise((resolve) => setTimeout(resolve, 500))
+
+      // Send a DApp creation request to the AI
+      const prompt = `I want to create a DApp frontend for my deployed contract ${primaryContract.name} at address ${primaryContract.address} on ${networkName}. Please guide me through the DApp creation process.`
+
+      await (props.plugin as any).call('remixaiassistant', 'chatPipe', prompt, false, {
+        source: 'fab-button',
+        presetId: 'quickdapp-start',
+        displayText: `Create a DApp\n${primaryContract.name} · ${networkName}`
+      })
+
+      // trackMatomoEvent({ category: 'editor', action: 'create_dapp', name: 'quickDapp', isClick: true })
+    } catch (error) {
+      console.error('Error triggering Dapp creation:', error)
+      await props.plugin.call('notification', 'toast', 'Could not start DApp creation. Please try again.')
+    }
+  }
+
   function handleEditorWillMount(monaco) {
 
     monacoRef.current = monaco
@@ -1920,7 +2064,7 @@ export const EditorUI = (props: EditorUIProps) => {
   }
 
   return (
-    <div className="w-100 h-100 d-flex flex-column-reverse">
+    <div className="w-100 h-100 d-flex flex-column-reverse position-relative">
       {props.isDiff && (
         <>
           {/* Action Buttons */}
@@ -2080,6 +2224,16 @@ export const EditorUI = (props: EditorUIProps) => {
           plugin={props.plugin}
           contextLines={tooltipData.contextLines}
           isSelectedText={tooltipData.isSelectedText}
+        />
+      )}
+
+      {/* Floating Action Button for AI Tools */}
+      {!props.isDiff && props.currentFile && (
+        <FloatingActionButton
+          onEditWithAI={handleEditWithAI}
+          onExplainContract={handleExplainContract}
+          onCreateDapp={handleCreateDapp}
+          currentFileExt={props.currentFile?.split('.').pop()?.toLowerCase()}
         />
       )}
     </div>
