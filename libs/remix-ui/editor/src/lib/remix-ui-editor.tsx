@@ -1521,9 +1521,25 @@ export const EditorUI = (props: EditorUIProps) => {
 
   const handleEditWithAI = async () => {
     try {
-      // Trigger AI edit functionality
-      await props.plugin.call('remixAI', 'code_generation')
-      // trackMatomoEvent({ category: 'editor', action: 'ai_edit', name: 'remixAI', isClick: true })
+      const currentFile = props.currentFile
+      if (!currentFile) {
+        await props.plugin.call('notification', 'toast', 'No file selected to edit.')
+        return
+      }
+
+      // Show right side panel if it's hidden
+      const isPanelHidden = await props.plugin.call('rightSidePanel', 'isPanelHidden')
+      if (isPanelHidden) {
+        await props.plugin.call('rightSidePanel', 'togglePanel')
+      }
+
+      // Select the AI assistant
+      await props.plugin.call('menuicons', 'select', 'remixaiassistant')
+      await new Promise((resolve) => setTimeout(resolve, 500))
+
+      // Send the edit prompt with the file path
+      await (props.plugin as any).call('remixaiassistant', 'chatPipe', `help me to edit the following file ${currentFile}`, false, { source: 'fab-button', presetId: 'edit-file' })
+
     } catch (error) {
       console.error('Error triggering AI edit:', error)
     }
