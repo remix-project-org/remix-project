@@ -5,13 +5,26 @@ interface FloatingActionButtonProps {
   onEditWithAI: () => void
   onExplainContract: () => void
   onCreateDapp: () => void
+  currentFileExt?: string
 }
 
-export const FloatingActionButton: React.FC<FloatingActionButtonProps> = ({ onEditWithAI, onExplainContract, onCreateDapp }) => {
+export const FloatingActionButton: React.FC<FloatingActionButtonProps> = ({ onEditWithAI, onExplainContract, onCreateDapp, currentFileExt }) => {
   const [isExpanded, setIsExpanded] = useState(false)
 
   const toggleExpand = () => {
     setIsExpanded(!isExpanded)
+  }
+
+  const getExplainLabel = () => {
+    if (['sol', 'vy', 'circom'].includes(currentFileExt || '')) return 'Explain contract'
+    if (['js', 'ts'].includes(currentFileExt || '')) return 'Explain script'
+    return 'Explain file'
+  }
+
+  const getExplainTooltip = () => {
+    if (['sol', 'vy', 'circom'].includes(currentFileExt || '')) return 'Get AI explanation of your contract'
+    if (['js', 'ts'].includes(currentFileExt || '')) return 'Get AI explanation of your script'
+    return 'Get AI explanation of your file'
   }
 
   return (
@@ -30,7 +43,7 @@ export const FloatingActionButton: React.FC<FloatingActionButtonProps> = ({ onEd
               <span className="fab-menu-text">Edit with AI</span>
             </button>
           </CustomTooltip>
-          <CustomTooltip placement="left" tooltipText="Get AI explanation of your contract">
+          <CustomTooltip placement="left" tooltipText={getExplainTooltip()}>
             <button
               className="fab-menu-item"
               onClick={() => {
@@ -39,7 +52,7 @@ export const FloatingActionButton: React.FC<FloatingActionButtonProps> = ({ onEd
               }}
             >
               <i className="fas fa-file-contract"></i>
-              <span className="fab-menu-text">Explain contract</span>
+              <span className="fab-menu-text">{getExplainLabel()}</span>
             </button>
           </CustomTooltip>
           <CustomTooltip placement="left" tooltipText="Create a Dapp from your contract">

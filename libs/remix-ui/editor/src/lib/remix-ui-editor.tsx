@@ -2217,6 +2217,7 @@ export const EditorUI = (props: EditorUIProps) => {
           onEditWithAI={handleEditWithAI}
           onExplainContract={handleExplainContract}
           onCreateDapp={handleCreateDapp}
+          currentFileExt={props.currentFile?.split('.').pop()?.toLowerCase()}
         />
       )}
     </div>
