@@ -1,0 +1,7 @@
+[package]
+name = "range_proof"
+authors = [""]
+compiler_version = ">=0.18.0"
+type = "bin"
+
+[dependencies]

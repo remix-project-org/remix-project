@@ -477,12 +477,12 @@ export const populateWorkspace = async (
     const isActive = await plugin.call('manager', 'isActive', 'dgit')
     if (!isActive) await plugin.call('manager', 'activatePlugin', 'dgit')
   }
-  if (workspaceTemplateName === 'semaphore' || workspaceTemplateName === 'hashchecker' || workspaceTemplateName === 'rln') {
+  if (['semaphore', 'hashchecker', 'rln', 'ageVerifierCircom', 'sudokuCircom', 'merkleProofCircom', 'privateVotingCircom', 'tornadoCashCircom'].includes(workspaceTemplateName)) {
     const isCircomActive = await plugin.call('manager', 'isActive', 'circuit-compiler')
     if (!isCircomActive) await plugin.call('manager', 'activatePlugin', 'circuit-compiler')
     await trackMatomoEventAsync(plugin, { category: 'circuit-compiler', action: 'template', name: 'create', value: workspaceTemplateName, isClick: false })
   }
-  if (workspaceTemplateName === 'multNr' || workspaceTemplateName === 'stealthDropNr') {
+  if (['multNr', 'stealthDropNr', 'rangeProofNr', 'votingNr', 'recursiveNr', 'sudokuNr', 'zkKYCNr'].includes(workspaceTemplateName)) {
     const isNoirActive = await plugin.call('manager', 'isActive', 'noir-compiler')
     if (!isNoirActive) await plugin.call('manager', 'activatePlugin', 'noir-compiler')
     await trackMatomoEventAsync(plugin, { category: 'noir-compiler', action: 'template', name: 'create', value: workspaceTemplateName, isClick: false })
@@ -748,8 +748,19 @@ export const loadWorkspacePreset = async (template: WorkspaceTemplate = 'remixDe
         files = await templateWithContent[template](opts, plugin)
       }
       if (files) {
+        const isSkippedConfigFile = (path: string) => {
+          const base = path.split('/').pop().toLowerCase()
+          return base === '.prettierrc' || base === '.prettierrc.json' || base === '.prettierrc.js' || base === '.prettierrc.yaml' || base === '.prettierrc.yml' ||
+            base === '.eslintrc' || base === '.eslintrc.json' || base === '.eslintrc.js' || base === '.eslintrc.cjs' ||
+            base === '.editorconfig' || base === '.gitignore' || base === '.gitattributes' ||
+            base === 'tsconfig.json' || base === 'jsconfig.json'
+        }
         for (const file in files) {
           try {
+            if (isSkippedConfigFile(file) && await plugin.fileManager.exists(file)) {
+              // Don't overwrite or rename common config files if workspace already has one
+              continue
+            }
             const uniqueFileName = await createNonClashingNameAsync(file, plugin.fileManager)
             if (file === 'remix.config.json') {
               let remixConfig = JSON.parse(files[file])

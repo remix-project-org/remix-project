@@ -277,31 +277,6 @@ export const templatesRepository = [
     ]
   },
   {
-    name: "Cookbook",
-    tooltip: "Cookbook is a Smart Contract Search Tool. Click here to open Cookbook and browse Contracts.",
-    onClick: async () => {
-      // await pluginCall('manager', 'activatePlugin', 'cookbookdev')
-      // await pluginCall('sidePanel', 'focus', 'cookbookdev')
-    },
-    onClickLabel: 'Open Cookbook Plugin',
-    // description: 'Discover more templates!',
-    items: [
-      {
-        value: "cookbook",
-        displayName: "Cookbook",
-        tagList: ['Cookbook'],
-        description: 'Discover more templates!',
-      }
-    ],
-  },
-  {
-    name: "0xProject",
-    items: [
-      { value: "zeroxErc20", displayName: "ERC20", tagList: ["ERC20", "Solidity"], description: "A fungible token contract by 0xProject",
-      }
-    ]
-  },
-  {
     name: "Gnosis Safe",
     items: [
       { value: "gnosisSafeMultisig", tagList: ["Solidity"],
@@ -324,7 +299,27 @@ export const templatesRepository = [
       { value: "rln", tagList: ["ZKP", "Circom"],
         displayName: 'Rate-Limiting Nullifier',
         description: 'Rate Limiting Nullifier Circom circuit',
-      }
+      },
+      { value: "ageVerifierCircom", tagList: ["ZKP", "Circom"],
+        displayName: 'Age Verifier',
+        description: 'Prove age >= minimum without revealing the actual age (Poseidon commitment + range check)',
+      },
+      { value: "sudokuCircom", tagList: ["ZKP", "Circom"],
+        displayName: 'ZK Sudoku',
+        description: 'Prove knowledge of a valid 9×9 Sudoku solution without revealing it',
+      },
+      { value: "merkleProofCircom", tagList: ["ZKP", "Circom"],
+        displayName: 'Merkle Inclusion Proof',
+        description: 'Prove a leaf is in a Merkle tree without revealing its position or path',
+      },
+      { value: "privateVotingCircom", tagList: ["ZKP", "Circom"],
+        displayName: 'Private Voting',
+        description: 'Anonymous on-chain voting — proves registration and prevents double voting',
+      },
+      { value: "tornadoCashCircom", tagList: ["ZKP", "Circom"],
+        displayName: 'Coin Mixer (Tornado pattern)',
+        description: 'Deposit/withdraw circuit that breaks the link between sender and recipient',
+      },
     ]
   },
   {
@@ -334,7 +329,30 @@ export const templatesRepository = [
         displayName: 'Simple Multiplier',
         description: 'A simple multiplier circuit',
       },
-      { value: "stealthDropNr", tagList: ["ZKP", "Noir"], displayName: 'Stealth Drop' }
+      { value: "stealthDropNr", tagList: ["ZKP", "Noir"],
+        displayName: 'Stealth Drop',
+        description: 'Private airdrop using ECDSA, Merkle proofs and nullifiers',
+      },
+      { value: "rangeProofNr", tagList: ["ZKP", "Noir"],
+        displayName: 'Range Proof',
+        description: 'Prove a private value lies within public bounds without revealing it',
+      },
+      { value: "votingNr", tagList: ["ZKP", "Noir"],
+        displayName: 'Anonymous Voting',
+        description: 'Cast a verifiable vote using Pedersen commitments and nullifiers',
+      },
+      { value: "recursiveNr", tagList: ["ZKP", "Noir"],
+        displayName: 'Recursive Proof',
+        description: "Inner circuit marked #[recursive] for Noir's native proof aggregation",
+      },
+      { value: "sudokuNr", tagList: ["ZKP", "Noir"],
+        displayName: 'ZK Sudoku',
+        description: 'Prove knowledge of a valid 4×4 Sudoku solution without revealing it',
+      },
+      { value: "zkKYCNr", tagList: ["ZKP", "Noir"],
+        displayName: 'ZK KYC',
+        description: 'Selective credential disclosure — prove age and nationality without revealing personal data',
+      },
     ]
   },
   {
@@ -428,7 +446,99 @@ export const templatesRepository = [
         description: 'CRE Bootcamp: Building World Cup Prediction Markets'
       }
     ]
-  }
+  },
+  {
+    name: 'DeFi Protocols',
+    items: [
+      {
+        value: "erc4626Vault",
+        displayName: 'ERC-4626 Tokenized Vault',
+        tagList: ["DeFi", "ERC4626", "Solidity"],
+        description: 'Yield-bearing vault following the ERC-4626 standard (Yearn, Aave aTokens)',
+      },
+      {
+        value: "ammDex",
+        displayName: 'AMM DEX Pool',
+        tagList: ["DeFi", "AMM", "Solidity"],
+        description: 'Constant-product AMM (x*y=k) with LP tokens and 0.3% swap fee (Uniswap V2 style)',
+      },
+      {
+        value: "lendingProtocol",
+        displayName: 'Lending & Borrowing Pool',
+        tagList: ["DeFi", "Lending", "Solidity"],
+        description: 'Utilization-based lending pool with collateral and liquidation (Compound/Aave style)',
+      },
+      {
+        value: "stablecoin",
+        displayName: 'Collateralized Stablecoin CDP',
+        tagList: ["DeFi", "Stablecoin", "Solidity"],
+        description: 'Collateralized Debt Position system that mints a USD-pegged stablecoin (MakerDAO style)',
+      },
+      {
+        value: "derivativesProtocol",
+        displayName: 'Derivatives & Synthetics',
+        tagList: ["DeFi", "Derivatives", "Solidity"],
+        description: 'Perpetual futures with funding rates + European options with cash settlement (dYdX, GMX, Opyn style)',
+      },
+      {
+        value: "yieldAggregator",
+        displayName: 'Yield Aggregator Vault',
+        tagList: ["DeFi", "Yield", "Solidity"],
+        description: 'Auto-compounding ERC-4626 vault with keeper-based harvesting (Yearn style)',
+      },
+    ]
+  },
+  {
+    name: 'Governance & Identity',
+    items: [
+      {
+        value: "daoGovernance",
+        displayName: 'DAO Governance',
+        tagList: ["DAO", "Governance", "Solidity"],
+        description: 'On-chain Governor with timelock: propose, vote, queue, and execute (OpenZeppelin Governor)',
+      },
+      {
+        value: "ensSystem",
+        displayName: 'ENS Registry & Resolver',
+        tagList: ["ENS", "Identity", "Solidity"],
+        description: 'Ethereum Name Service registry and public resolver for human-readable names',
+      },
+    ]
+  },
+  {
+    name: 'Account Abstraction & Proxies',
+    items: [
+      {
+        value: "erc4337Account",
+        displayName: 'ERC-4337 Smart Wallet',
+        tagList: ["AA", "ERC4337", "Solidity"],
+        description: 'Account abstraction wallet, factory, and paymaster following ERC-4337',
+      },
+      {
+        value: "proxyPatterns",
+        displayName: 'Proxy & Upgradeability Patterns',
+        tagList: ["Proxy", "Upgradeable", "Solidity"],
+        description: 'All three proxy patterns: Transparent, UUPS, and Beacon with example implementations',
+      },
+    ]
+  },
+  {
+    name: 'NFT & Bridges',
+    items: [
+      {
+        value: "nftMarketplace",
+        displayName: 'NFT Marketplace',
+        tagList: ["NFT", "Marketplace", "Solidity"],
+        description: 'Fixed-price NFT marketplace with EIP-2981 royalties and protocol fees (Seaport inspired)',
+      },
+      {
+        value: "crossChainBridge",
+        displayName: 'Cross-Chain Bridge',
+        tagList: ["Bridge", "L2", "Solidity"],
+        description: 'Lock-and-mint bridge connecting L1 and L2 (Arbitrum/Optimism canonical bridge pattern)',
+      },
+    ]
+  },
 ]
 
 export const metadata = {
