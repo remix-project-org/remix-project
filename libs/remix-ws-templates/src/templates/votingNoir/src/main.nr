@@ -8,10 +8,10 @@ fn main(
     commitment: pub Field
 ) {
     // Commitment binds the vote to a specific voter_secret without revealing it
-    let commitment_parts = std::hash::pedersen([voter_secret, vote_option, nonce]);
-    assert(commitment_parts[0] == commitment);
+    let commitment_parts = std::hash::pedersen_hash([voter_secret, vote_option, nonce]);
+    assert(commitment_parts == commitment);
 
     // Nullifier lets the contract detect double-voting without revealing who voted
-    let nullifier_parts = std::hash::pedersen([voter_secret]);
-    assert(nullifier_parts[0] == nullifier);
+    let nullifier_parts = std::hash::pedersen_hash([voter_secret]);
+    assert(nullifier_parts == nullifier);
 }
