@@ -175,9 +175,6 @@ export const TemplateExplorerProvider = (props: { plugin: TemplateExplorerModalP
       )
   }, [state.selectedTag, state.searchTerm, state.templateRepository])
 
-  const fileModeOnlyCategories = useMemo(() => new Set(['GitHub Actions', 'Contract Verification', 'Solidity CREATE2', 'Generic ZKP']), [])
-  const bothModesCategories = useMemo(() => new Set(['Chainlink CRE']), [])
-
   const dedupedTemplates = useMemo((): TemplateCategory[] => {
     const recentSet = new Set<string>((recentTemplates || []).map((t: any) => t && t.value))
     const seen = new Set<string>()
@@ -194,7 +191,7 @@ export const TemplateExplorerProvider = (props: { plugin: TemplateExplorerModalP
       return unique
     }
 
-    let processedTemplates = (filteredTemplates || []).map((group: any) => ({
+    const processedTemplates = (filteredTemplates || []).map((group: any) => ({
       ...group,
       items: makeUniqueItems(group && group.items ? group.items : [])
     })).filter((g: any) => {
@@ -205,19 +202,6 @@ export const TemplateExplorerProvider = (props: { plugin: TemplateExplorerModalP
         (g.hasOptions && g.name !== 'Cookbook')
       )
     })
-
-    if (state.manageCategory === 'Template') {
-      // Hide file-only categories when managing templates (workspace creation mode).
-      // But always show categories that support both modes
-      processedTemplates = processedTemplates.filter((category: TemplateCategory) =>
-        !fileModeOnlyCategories.has(category?.name) || bothModesCategories.has(category?.name)
-      )
-    } else if (state.manageCategory === 'Files') {
-      // In file mode, only surface the file-only categories and both-modes categories.
-      processedTemplates = processedTemplates.filter((category: TemplateCategory) =>
-        fileModeOnlyCategories.has(category?.name) || bothModesCategories.has(category?.name)
-      )
-    }
 
     // Find Cookbook from the original template repository
     const cookbookTemplate = (state.templateRepository as TemplateCategory[] || []).find(x => x.name === 'Cookbook')
@@ -236,7 +220,7 @@ export const TemplateExplorerProvider = (props: { plugin: TemplateExplorerModalP
     }
 
     return processedTemplates
-  }, [filteredTemplates, recentTemplates, state.manageCategory, state.templateRepository, state.searchTerm, fileModeOnlyCategories, bothModesCategories])
+  }, [filteredTemplates, recentTemplates, state.manageCategory, state.templateRepository, state.searchTerm])
 
   const handleTagClick = (tag: string) => {
     dispatch({ type: TemplateExplorerWizardAction.SET_SELECTED_TAG, payload: state.selectedTag === tag ? null : tag })

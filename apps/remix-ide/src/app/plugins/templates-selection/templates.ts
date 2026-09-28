@@ -1,4 +1,4 @@
-import { Template, TemplateGroup } from "@remix-ui/workspace"
+import { TemplateGroup } from "@remix-ui/workspace"
 export const templates = (intl: any, plugin: any): TemplateGroup[] => {
 
   return [
@@ -265,71 +265,6 @@ export const templates = (intl: any, plugin: any): TemplateGroup[] => {
       ]
     },
     {
-      name: "Cookbook",
-      tooltip: "Cookbook is a Smart Contract Search Tool. Click here to open Cookbook and browse Contracts.",
-      onClick: async () => {
-        await plugin.call('manager', 'activatePlugin', 'cookbookdev')
-        await plugin.call('sidePanel', 'focus', 'cookbookdev')
-      },
-      onClickLabel: 'Open Cookbook Plugin',
-      description: 'Discover more templates!',
-      items: [],
-      /*         {
-          value: "token-sale",
-          displayName: 'Token Sale',
-          description: "ERC20 token sale contact. Sell tokens for ETH"
-        },
-        {
-          value: "simple-nft-sale",
-          displayName: 'Simple Nft Sale',
-          description: "ERC721 NFT with an adjustable price & to mint free NFTs"
-        },
-        {
-          value: "Azuki-ERC721A-NFT-Sale-basic",
-          displayName: 'Azuki ERC721A NFT Sale basic',
-          description: "An implementation of the ERC721A standard"
-        },
-        {
-          value: "Azuki-ERC721A-NFT-Sale",
-          displayName: 'Azuki ERC721A NFT Sale',
-          description: "An extension of the ERC721A standard with wallet limit"
-        },
-        {
-          value: "token-staking-with-infinite-rewards",
-          displayName: 'Token Staking with infinite rewards',
-          description: "Token staking contract to reward ERC20 tokens for every token staked"
-        },
-        {
-          value: "nft-staking-with-infinite-rewards",
-          displayName: 'NFT Staking with infinite rewards',
-          description: "NFT staking contract to reward exact number of ERC20 tokens per day"
-        },
-        {
-          value: "basic-dao",
-          displayName: 'Basic DAO',
-          description: "A very simple implementation of a DAO"
-        },
-        {
-          value: "soulbound-nft",
-          displayName: 'Soulbound NFT',
-          description: "ERC721 Soulbound NFT with no transfer capability"
-        },
-        { value: "multi-collection-nft-with-burnable-nfts-and-pausable-transfers",
-          displayName: 'Multi collection NFT',
-          description: "Multi collection NFT with:",
-          opts: {
-            burnable: true,
-            pausable: true
-          }, },
-      ]*/
-    },
-    {
-      name: "0xProject",
-      items: [
-        { value: "zeroxErc20", displayName: "ERC20", tagList: ["ERC20", "Solidity"], description: "A fungible token contract by 0xProject" }
-      ]
-    },
-    {
       name: "Gnosis Safe",
       items: [
         { value: "gnosisSafeMultisig", tagList: ["Solidity"], displayName: intl.formatMessage({ id: 'filePanel.multiSigWallet' }), description: 'Deploy or customize the Gnosis Safe MultiSig Wallet' }
@@ -424,6 +359,98 @@ export const templates = (intl: any, plugin: any): TemplateGroup[] => {
         }
       ],
       IsArtefact: true
+    },
+    {
+      name: 'DeFi Protocols',
+      items: [
+        {
+          value: "erc4626Vault",
+          displayName: 'ERC-4626 Tokenized Vault',
+          tagList: ["DeFi", "ERC4626", "Solidity"],
+          description: 'Yield-bearing vault following the ERC-4626 standard (Yearn, Aave aTokens)'
+        },
+        {
+          value: "ammDex",
+          displayName: 'AMM DEX Pool',
+          tagList: ["DeFi", "AMM", "Solidity"],
+          description: 'Constant-product AMM (x*y=k) with LP tokens and 0.3% swap fee (Uniswap V2 style)'
+        },
+        {
+          value: "lendingProtocol",
+          displayName: 'Lending & Borrowing Pool',
+          tagList: ["DeFi", "Lending", "Solidity"],
+          description: 'Utilization-based lending pool with collateral and liquidation (Compound/Aave style)'
+        },
+        {
+          value: "stablecoin",
+          displayName: 'Collateralized Stablecoin CDP',
+          tagList: ["DeFi", "Stablecoin", "Solidity"],
+          description: 'Collateralized Debt Position system that mints a USD-pegged stablecoin (MakerDAO style)'
+        },
+        {
+          value: "derivativesProtocol",
+          displayName: 'Derivatives & Synthetics',
+          tagList: ["DeFi", "Derivatives", "Solidity"],
+          description: 'Perpetual futures with funding rates + European options with cash settlement (dYdX, GMX, Opyn style)'
+        },
+        {
+          value: "yieldAggregator",
+          displayName: 'Yield Aggregator Vault',
+          tagList: ["DeFi", "Yield", "Solidity"],
+          description: 'Auto-compounding ERC-4626 vault with keeper-based harvesting (Yearn style)'
+        }
+      ]
+    },
+    {
+      name: 'Governance & Identity',
+      items: [
+        {
+          value: "daoGovernance",
+          displayName: 'DAO Governance',
+          tagList: ["DAO", "Governance", "Solidity"],
+          description: 'On-chain Governor with timelock: propose, vote, queue, and execute (OpenZeppelin Governor)'
+        },
+        {
+          value: "ensSystem",
+          displayName: 'ENS Registry & Resolver',
+          tagList: ["ENS", "Identity", "Solidity"],
+          description: 'Ethereum Name Service registry and public resolver for human-readable names'
+        }
+      ]
+    },
+    {
+      name: 'Account Abstraction & Proxies',
+      items: [
+        {
+          value: "erc4337Account",
+          displayName: 'ERC-4337 Smart Wallet',
+          tagList: ["AA", "ERC4337", "Solidity"],
+          description: 'Account abstraction wallet, factory, and paymaster following ERC-4337'
+        },
+        {
+          value: "proxyPatterns",
+          displayName: 'Proxy & Upgradeability Patterns',
+          tagList: ["Proxy", "Upgradeable", "Solidity"],
+          description: 'All three proxy patterns: Transparent, UUPS, and Beacon proxies with example implementations'
+        }
+      ]
+    },
+    {
+      name: 'NFT & Bridges',
+      items: [
+        {
+          value: "nftMarketplace",
+          displayName: 'NFT Marketplace',
+          tagList: ["NFT", "Marketplace", "Solidity"],
+          description: 'Fixed-price NFT marketplace with EIP-2981 royalties and protocol fees (Seaport inspired)'
+        },
+        {
+          value: "crossChainBridge",
+          displayName: 'Cross-Chain Bridge',
+          tagList: ["Bridge", "L2", "Solidity"],
+          description: 'Lock-and-mint bridge connecting L1 and L2 (Arbitrum/Optimism canonical bridge pattern)'
+        }
+      ]
     }
   ]
 }
