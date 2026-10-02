@@ -1,0 +1,77 @@
+.swarm-collab-root {
+  /* Zero-height anchor, so the controls take no layout space. */
+  position: relative;
+  flex: none;
+  height: 0;
+  z-index: 20;
+}
+
+.swarm-collab-toolbar {
+  position: absolute;
+  top: 6px;
+  right: 24px;
+  z-index: 20;
+}
+
+.swarm-collab-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  margin-right: 6px;
+  border-radius: 50%;
+  background: var(--bs-secondary-color, #888);
+}
+
+.swarm-collab-dot-live {
+  background: var(--bs-success, #2e7d32);
+}
+
+.swarm-collab-panel {
+  position: absolute;
+  top: 40px;
+  right: 24px;
+  z-index: 20;
+  width: 340px;
+}
+
+.swarm-collab-error {
+  position: absolute;
+  top: 40px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 21;
+  max-width: 60%;
+}
+
+.swarm-collab-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1050;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.4);
+}
+
+.swarm-collab-dialog {
+  width: 420px;
+  max-width: calc(100vw - 32px);
+}
+
+.swarm-collab-caret {
+  position: relative;
+  border-left: 2px solid var(--swarm-collab-color);
+  margin-left: -1px;
+}
+
+.swarm-collab-selection {
+  background: var(--swarm-collab-color);
+  opacity: 0.25;
+}
+
+.swarm-collab-color-0 { --swarm-collab-color: #e53935; }
+.swarm-collab-color-1 { --swarm-collab-color: #1e88e5; }
+.swarm-collab-color-2 { --swarm-collab-color: #43a047; }
+.swarm-collab-color-3 { --swarm-collab-color: #fb8c00; }
+.swarm-collab-color-4 { --swarm-collab-color: #8e24aa; }
+.swarm-collab-color-5 { --swarm-collab-color: #00897b; }
