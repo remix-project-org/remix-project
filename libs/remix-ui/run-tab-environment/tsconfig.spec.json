@@ -1,0 +1,21 @@
+{
+  "extends": "../../../tsconfig.base.json",
+  "ts-node": {
+    "compilerOptions": {
+      "module": "commonjs"
+    }
+  },
+  "compilerOptions": {
+    "module": "commonjs",
+    "target": "es2020",
+    "lib": ["es2020", "dom", "dom.iterable"],
+    "types": ["node", "mocha"],
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "downlevelIteration": true,
+    "noEmit": true
+  },
+  "include": [
+    "test/**/*.ts"
+  ]
+}
