@@ -19,7 +19,11 @@ export const eezInitialState: EezWidgetState = {
     isCreating: false,
     createError: null,
     createdTxHash: null
-  }
+  },
+  traceTxHash: '',
+  isTracing: false,
+  traceResult: null,
+  traceError: null
 }
 
 export const eezReducer = (state: EezWidgetState, action: Actions): EezWidgetState => {
@@ -116,8 +120,24 @@ export const eezReducer = (state: EezWidgetState, action: Actions): EezWidgetSta
         isCreating: false,
         createError: null,
         createdTxHash: null
-      }
+      },
+      traceTxHash: '',
+      isTracing: false,
+      traceResult: null,
+      traceError: null
     }
+
+  case 'SET_TRACE_TX_HASH':
+    return { ...state, traceTxHash: action.payload, traceResult: null, traceError: null }
+
+  case 'START_TRACE':
+    return { ...state, isTracing: true, traceResult: null, traceError: null }
+
+  case 'TRACE_SUCCESS':
+    return { ...state, isTracing: false, traceResult: action.payload, traceError: null }
+
+  case 'TRACE_ERROR':
+    return { ...state, isTracing: false, traceResult: null, traceError: action.payload }
 
   default:
     return state

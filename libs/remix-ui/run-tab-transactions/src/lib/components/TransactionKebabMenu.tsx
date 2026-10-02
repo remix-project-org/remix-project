@@ -10,6 +10,7 @@ interface TransactionKebabMenuProps {
   onHide: () => void
   transaction: Transaction
   onDebug?: (transaction: Transaction) => void
+  onCrossChainTrace?: (transaction: Transaction) => void
   onReplay?: (transaction: Transaction) => void
   onOpenInTerminal?: (transaction: Transaction) => void
   onOpenInExplorer?: (transaction: Transaction) => void
@@ -41,6 +42,7 @@ export const TransactionKebabMenu: React.FC<TransactionKebabMenuProps> = ({
   onHide,
   transaction,
   onDebug,
+  onCrossChainTrace,
   onReplay,
   onOpenInTerminal,
   onOpenInExplorer,
@@ -62,6 +64,14 @@ export const TransactionKebabMenu: React.FC<TransactionKebabMenuProps> = ({
       color: 'var(--bs-body-color)',
       action: 'transactionDebug' as const,
       onClick: () => onDebug(transaction)
+    },
+    onCrossChainTrace && {
+      id: 'crossChainTrace',
+      label: 'Trace cross-chain call',
+      icon: 'fas fa-route',
+      color: 'var(--bs-body-color)',
+      action: 'transactionCrossChainTrace' as const,
+      onClick: () => onCrossChainTrace(transaction)
     },
     onReplay && {
       id: 'replay',

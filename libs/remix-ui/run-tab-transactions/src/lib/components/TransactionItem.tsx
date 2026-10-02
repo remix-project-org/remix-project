@@ -41,6 +41,13 @@ export const TransactionItem = ({ transaction, openKebabMenuId, onKebabMenuToggl
     await debugTransaction(plugin, tx)
   }
 
+  const handleCrossChainTrace = async (tx: Transaction) => {
+    onKebabMenuToggle(null)
+    trackMatomoEvent?.({ category: 'udapp', action: 'transactionCrossChainTrace', name: shortenAddress(tx.record?.txHash), isClick: true })
+    window.dispatchEvent(new CustomEvent('udapp:switchTab', { detail: { tab: 'eez' } }))
+    await plugin.call('udappEez', 'openTraceTransaction', tx.record?.txHash)
+  }
+
   const handleReplay = async (tx: Transaction) => {
     onKebabMenuToggle(null)
     await replayTransaction(tx, widgetState.recorderData, plugin)
@@ -107,6 +114,7 @@ export const TransactionItem = ({ transaction, openKebabMenuId, onKebabMenuToggl
           onHide={() => onKebabMenuToggle(null)}
           transaction={transaction}
           onDebug={handleDebug}
+          onCrossChainTrace={handleCrossChainTrace}
           onReplay={handleReplay}
           onOpenInTerminal={handleOpenInTerminal}
           onOpenInExplorer={handleOpenInExplorer}

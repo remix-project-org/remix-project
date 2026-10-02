@@ -1,5 +1,6 @@
 import { bytesToHex, toChecksumAddress } from '@ethereumjs/util'
 import { BN } from 'bn.js'
+import { Interface } from 'ethers'
 import { ProcessLoadingParams } from '../types/remix-helper'
 
 export const extractNameFromKey = (key: string): string => {
@@ -418,3 +419,35 @@ export const addFrontendPrefix = (
 
   return filename;
 };
+
+export const EEZ_KNOWN_REVERT_ERRORS_ABI = [
+  'error UnauthorizedProxy()',
+  'error NotSelf()',
+  'error ExecutionNotFound()',
+  'error ExecutionNotInCurrentBlock()',
+  'error RollingHashMismatch()',
+  'error RollingHashNotCleared()',
+  'error ContextResult(bytes32 rollingHash, uint256 reentrantConsumed, uint256 callsProcessed)',
+  'error UnexpectedContextRevert(bytes revertData)',
+  'error StaticCallProxyNotDeployed(address sourceProxy)',
+  'error StaticCallWithValue()',
+  'error NonStaticSubCall()',
+  'error SameNetworkProxy(uint64 rollupId)',
+  'error Error(string)',
+  'error Panic(uint256)'
+]
+
+export function decodeEezRevertData(outputHex: string | undefined | null): string | null {
+  if (!outputHex || outputHex === '0x') return null
+  try {
+    const iface = new Interface(EEZ_KNOWN_REVERT_ERRORS_ABI)
+    const decoded = iface.parseError(outputHex)
+    if (!decoded) return null
+    if (decoded.name === 'Error') return decoded.args[0]
+    if (decoded.name === 'Panic') return `Panic (code ${decoded.args[0]})`
+    if (decoded.args.length === 0) return `${decoded.name}()`
+    return `${decoded.name}(${decoded.args.map((a: any) => a.toString()).join(', ')})`
+  } catch (e) {
+    return null
+  }
+}

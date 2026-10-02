@@ -28,6 +28,26 @@ export interface CreatedProxyEntry {
   timestamp: number
 }
 
+export interface ResolvedProxyInfo {
+  originalAddress: string
+  originalRollupId: string
+  originNetworkLabel: string | null
+}
+
+export interface TraceAddressInfo {
+  address: string
+  proxyInfo: ResolvedProxyInfo | null
+}
+
+export interface TransactionTraceResult {
+  txHash: string
+  success: boolean
+  error: string | null
+  decodedError: string | null
+  addresses: TraceAddressInfo[]
+  currentNetworkLabel: string
+}
+
 export interface EezWidgetState {
   networks: EezNetworkEntry[]
   originNetworkChainId: string | null
@@ -48,6 +68,10 @@ export interface EezWidgetState {
     createError: string | null
     createdTxHash: string | null
   }
+  traceTxHash: string
+  isTracing: boolean
+  traceResult: TransactionTraceResult | null
+  traceError: string | null
 }
 
 export interface EezAppContextType {
@@ -75,3 +99,7 @@ export type Actions =
   | { type: 'CREATE_ERROR'; payload: string }
   | { type: 'SET_THEME_QUALITY'; payload: string }
   | { type: 'NETWORK_CHANGED' }
+  | { type: 'SET_TRACE_TX_HASH'; payload: string }
+  | { type: 'START_TRACE' }
+  | { type: 'TRACE_SUCCESS'; payload: TransactionTraceResult }
+  | { type: 'TRACE_ERROR'; payload: string }

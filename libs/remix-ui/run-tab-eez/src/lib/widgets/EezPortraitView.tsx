@@ -1,7 +1,8 @@
 import React, { useContext } from 'react'
 import { Dropdown } from 'react-bootstrap'
 import { EezAppContext } from '../contexts'
-import { resolveProxyAddresses, previewProxyCreation, createProxy } from '../actions'
+import { resolveProxyAddresses, previewProxyCreation, createProxy, traceTransactionByHash } from '../actions'
+import { TraceAddressInfo, ResolvedProxyInfo } from '../types'
 import { FormattedMessage } from 'react-intl'
 import { CopyToClipboard } from '@remix-ui/clipboard'
 import { CustomMenu, CustomToggle, getTimeAgo } from '@remix-ui/helper'
@@ -13,10 +14,17 @@ function shorten(address: string) {
 
 function EezPortraitView() {
   const { plugin, widgetState, dispatch, themeQuality } = useContext(EezAppContext)
-  const { networks, addressInput, isResolving, resolutionRows, resolutionError, showCreateDialog, createdProxies, creator } = widgetState
+  const {
+    networks, addressInput, isResolving, resolutionRows, resolutionError, showCreateDialog, createdProxies, creator,
+    traceTxHash, isTracing, traceResult, traceError
+  } = widgetState
 
   const handleResolve = () => {
     resolveProxyAddresses(plugin, dispatch, networks, addressInput.trim())
+  }
+
+  const handleTrace = () => {
+    traceTransactionByHash(plugin, dispatch, networks, traceTxHash.trim())
   }
 
   const handleOpenCreateDialog = () => {
@@ -258,6 +266,115 @@ function EezPortraitView() {
             ))}
           </div>
         )}
+      </div>
+
+      <div className="m-3 mt-0 p-3 rounded" data-id="eezTraceSection" style={{ backgroundColor: 'var(--custom-onsurface-layer-2)' }}>
+        <p className="mb-0" style={{ color: themeQuality === 'dark' ? 'white' : 'black', fontSize: '0.9rem', fontWeight: 700 }}>
+          Trace Cross-Chain Transaction
+        </p>
+        <p style={{ color: 'var(--bs-tertiary)', fontSize: '0.7rem' }} className="mb-2 fw-light">
+          Enter the hash of a mined transaction on the currently connected network to see every address its execution touched.
+        </p>
+        <div className="d-flex align-items-center mb-2">
+          <label className="mb-0 me-2" style={{ color: 'var(--bs-tertiary)' }}>
+            Transaction hash
+          </label>
+        </div>
+        <div className="position-relative flex-fill mb-2">
+          <input
+            type="text"
+            className="form-control"
+            data-id="eezTraceTxHashInput"
+            placeholder="0x..."
+            value={traceTxHash}
+            onChange={(e) => dispatch({ type: 'SET_TRACE_TX_HASH', payload: e.target.value })}
+            style={{ backgroundColor: 'var(--bs-body-bg)', color: themeQuality === 'dark' ? 'white' : 'black', flex: 1, padding: '0.75rem', paddingRight: '5.5rem', fontSize: '0.75rem' }}
+          />
+          <button
+            className="btn btn-sm btn-primary"
+            data-id="eezTraceButton"
+            disabled={isTracing || !traceTxHash}
+            onClick={handleTrace}
+            style={{ position: 'absolute', right: '0.5rem', top: '50%', transform: 'translateY(-50%)', zIndex: 2, fontSize: '0.65rem', fontWeight: 'bold' }}
+          >
+            {isTracing ? 'Tracing...' : 'Trace'}
+          </button>
+        </div>
+        {traceError && <div className="text-danger small mb-2">{traceError}</div>}
+        {traceResult && (() => {
+          const proxiesTouched = traceResult.addresses.filter(
+            (a): a is TraceAddressInfo & { proxyInfo: ResolvedProxyInfo } => a.proxyInfo !== null
+          )
+          return (
+            <div className="mt-2">
+              <div
+                className="small mb-2 p-2 rounded"
+                style={{ backgroundColor: traceResult.success ? 'rgba(var(--bs-success-rgb), 0.08)' : 'rgba(var(--bs-danger-rgb), 0.08)', color: themeQuality === 'dark' ? 'white' : 'black' }}
+              >
+                {traceResult.success
+                  ? '✓ This transaction succeeded.'
+                  : `✗ This transaction reverted${traceResult.decodedError ? `: ${traceResult.decodedError}` : traceResult.error ? `: ${traceResult.error}` : '.'}`}
+              </div>
+              {proxiesTouched.length > 0 && (
+                <div className="small mb-2 p-2 rounded" style={{ backgroundColor: '#a56eff14', color: themeQuality === 'dark' ? 'white' : 'black' }}>
+                  <div style={{ fontWeight: 700 }}>
+                    This transaction is cross-chain — {proxiesTouched.length} {proxiesTouched.length === 1 ? 'proxy' : 'proxies'} touched:
+                  </div>
+                  <div className="mt-1 d-flex flex-column gap-1">
+                    {proxiesTouched.map((a) => (
+                      <div key={a.address} style={{ fontFamily: 'Monaco, monospace', fontSize: '10px' }}>
+                        {shorten(a.address)} → acts for {shorten(a.proxyInfo.originalAddress)} on {a.proxyInfo.originNetworkLabel || `network ${a.proxyInfo.originalRollupId}`}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+              {traceResult.addresses.length > 0 && (
+                <div>
+                  <div className="text-secondary" style={{ fontSize: '10px', textTransform: 'uppercase' }}>Addresses touched</div>
+                  <div className="d-flex flex-column gap-1 mt-1">
+                    {traceResult.addresses.map((a) => (
+                      <div
+                        key={a.address}
+                        className="d-flex align-items-center flex-wrap p-2 rounded"
+                        style={{ backgroundColor: 'var(--custom-onsurface-layer-3)', gap: '6px' }}
+                      >
+                        <div className="d-flex align-items-center flex-wrap" style={{ gap: '6px' }}>
+                          <span style={{ fontSize: '10px', fontFamily: 'Monaco, monospace' }}>{shorten(a.address)}</span>
+                          <CopyToClipboard tip="Copy address" icon="fa-copy" direction="top" getContent={() => a.address}>
+                            <i className="fa-solid fa-copy small" style={{ cursor: 'pointer' }}></i>
+                          </CopyToClipboard>
+                          <span className="badge" style={{ backgroundColor: '#64C4FF14', color: '#64c4ff', fontSize: '9px', fontWeight: 700 }}>
+                            {traceResult.currentNetworkLabel}
+                          </span>
+                          {a.proxyInfo && (
+                            <span className="badge" style={{ backgroundColor: '#a56eff14', color: '#a56eff', fontSize: '9px', fontWeight: 700 }}>
+                              Proxy
+                            </span>
+                          )}
+                        </div>
+                        {a.proxyInfo && (
+                          <div className="text-secondary text-center" style={{ flex: '1 1 auto', fontSize: '10px' }}>→</div>
+                        )}
+                        {a.proxyInfo && (
+                          <div className="d-flex align-items-center flex-wrap" style={{ gap: '6px' }}>
+                            <span style={{ fontSize: '10px', fontFamily: 'Monaco, monospace' }}>{shorten(a.proxyInfo.originalAddress)}</span>
+                            <CopyToClipboard tip="Copy address" icon="fa-copy" direction="top" getContent={() => a.proxyInfo.originalAddress}>
+                              <i className="fa-solid fa-copy small" style={{ cursor: 'pointer' }}></i>
+                            </CopyToClipboard>
+                            <span className="badge" style={{ backgroundColor: '#64C4FF14', color: '#64c4ff', fontSize: '9px', fontWeight: 700 }}>
+                              {a.proxyInfo.originNetworkLabel || `network ${a.proxyInfo.originalRollupId}`}
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )
+        })()}
       </div>
 
       {createdProxies.length > 0 && (

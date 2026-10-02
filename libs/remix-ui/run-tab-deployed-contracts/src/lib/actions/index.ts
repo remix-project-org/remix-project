@@ -3,6 +3,7 @@ import { trackMatomoEvent } from '@remix-api'
 import * as remixLib from '@remix-project/remix-lib'
 import { FuncABI } from '@remix-project/core-plugin'
 import { JsonRpcProvider, Contract } from 'ethers'
+import { decodeEezRevertData } from '@remix-ui/helper'
 // eslint-disable-next-line @nrwl/nx/enforce-module-boundaries
 import { DeployedContractsPlugin } from 'apps/remix-ide/src/app/udapp/udappDeployedContracts'
 import { Actions, DeployedContract } from '../types'
@@ -27,38 +28,110 @@ export interface CrossChainProxyInfo {
   originNetworkLabel: string | null
 }
 
+async function getEezContext(plugin: DeployedContractsPlugin): Promise<{ networks: EezNetworkEntry[]; currentNetwork: EezNetworkEntry } | null> {
+  const raw = await plugin.call('config', 'getAppParameter', EEZ_NETWORKS_CONFIG_KEY)
+  if (!raw) return null
+  const networks: EezNetworkEntry[] = JSON.parse(raw)
+  if (!networks.length) return null
+
+  const status = await plugin.call('blockchain', 'getCurrentNetworkStatus')
+  const chainId = status?.network?.id
+  const currentChainId = chainId === undefined || chainId === null ? null : String(chainId)
+  if (!currentChainId) return null
+
+  const currentNetwork = networks.find((n) => String(n.chainId) === currentChainId)
+  if (!currentNetwork?.eezContractAddress || !currentNetwork?.rpcUrl) return null
+
+  return { networks, currentNetwork }
+}
+
+function resolveProxyInfo(networks: EezNetworkEntry[], result: any): CrossChainProxyInfo | null {
+  const isProxy: boolean = result[0]
+  if (!isProxy) return null
+
+  const originalAddress: string = result[1]
+  const originalRollupId: string = result[2].toString()
+  const originNetwork = networks.find((n) => String(n.rollupId) === originalRollupId)
+
+  return { originalAddress, originalRollupId, originNetworkLabel: originNetwork?.label || null }
+}
+
 export async function checkCrossChainProxy(plugin: DeployedContractsPlugin, address: string): Promise<CrossChainProxyInfo | null> {
   try {
-    const raw = await plugin.call('config', 'getAppParameter', EEZ_NETWORKS_CONFIG_KEY)
-    if (!raw) return null
-    const networks: EezNetworkEntry[] = JSON.parse(raw)
-    if (!networks.length) return null
-
-    const status = await plugin.call('blockchain', 'getCurrentNetworkStatus')
-    const chainId = status?.network?.id
-    const currentChainId = chainId === undefined || chainId === null ? null : String(chainId)
-    if (!currentChainId) return null
-
-    const currentNetwork = networks.find((n) => String(n.chainId) === currentChainId)
-    if (!currentNetwork?.eezContractAddress || !currentNetwork?.rpcUrl) return null
+    const ctx = await getEezContext(plugin)
+    if (!ctx) return null
+    const { networks, currentNetwork } = ctx
 
     const provider = new JsonRpcProvider(currentNetwork.rpcUrl)
     try {
       const manager = new Contract(currentNetwork.eezContractAddress, AUTHORIZED_PROXIES_ABI, provider)
       const result = await manager.authorizedProxies(address)
-      const isProxy: boolean = result[0]
-      if (!isProxy) return null
-
-      const originalAddress: string = result[1]
-      const originalRollupId: string = result[2].toString()
-      const originNetwork = networks.find((n) => String(n.rollupId) === originalRollupId)
-
-      return { originalAddress, originalRollupId, originNetworkLabel: originNetwork?.label || null }
+      return resolveProxyInfo(networks, result)
     } finally {
       provider.destroy()
     }
   } catch (e) {
     return null
+  }
+}
+
+export interface TraceAddressInfo {
+  address: string
+  proxyInfo: CrossChainProxyInfo | null
+}
+
+export interface CrossChainTraceResult {
+  willSucceed: boolean
+  error: string | null
+  decodedError: string | null
+  addresses: TraceAddressInfo[]
+  currentNetworkLabel: string
+}
+
+function collectCallAddresses(frame: any, into: Set<string>) {
+  if (!frame) return
+  if (typeof frame.to === 'string') into.add(frame.to.toLowerCase())
+  if (Array.isArray(frame.calls)) {
+    for (const child of frame.calls) collectCallAddresses(child, into)
+  }
+}
+
+export async function traceCrossChainCall(
+  plugin: DeployedContractsPlugin,
+  to: string,
+  data: string,
+  from: string,
+  value: string
+): Promise<CrossChainTraceResult> {
+  const ctx = await getEezContext(plugin)
+  if (!ctx) throw new Error('The current network is not a configured EEZ network.')
+  const { networks, currentNetwork } = ctx
+
+  const provider = new JsonRpcProvider(currentNetwork.rpcUrl)
+  try {
+    const traceParams = [{ from, to, data, value }, 'latest', { tracer: 'callTracer' }]
+    const trace = await provider.send('debug_traceCall', traceParams)
+
+    const addressSet = new Set<string>()
+    collectCallAddresses(trace, addressSet)
+
+    const manager = new Contract(currentNetwork.eezContractAddress, AUTHORIZED_PROXIES_ABI, provider)
+    const addresses: TraceAddressInfo[] = await Promise.all(
+      Array.from(addressSet).map(async (addr): Promise<TraceAddressInfo> => {
+        try {
+          const result = await manager.authorizedProxies(addr)
+          return { address: addr, proxyInfo: resolveProxyInfo(networks, result) }
+        } catch (e) {
+          return { address: addr, proxyInfo: null }
+        }
+      })
+    )
+
+    const decodedError = trace.error ? (trace.revertReason || decodeEezRevertData(trace.output)) : null
+
+    return { willSucceed: !trace.error, error: trace.error || null, decodedError, addresses, currentNetworkLabel: currentNetwork.label }
+  } finally {
+    provider.destroy()
   }
 }
 

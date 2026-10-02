@@ -150,6 +150,7 @@ export interface UdappEvent extends MatomoEventBase {
     | 'transactionCopyHash'
     | 'transactionKebabMenuOpen'
     | 'transactionDebug'
+    | 'transactionCrossChainTrace'
     | 'transactionReplay'
     | 'transactionOpenTerminal'
     | 'transactionOpenExplorer'

@@ -144,3 +144,21 @@ button[data-id^="copyCalldata"],
 button[data-id^="copyParameters"] {
   border: 1px solid var(--bs-border-color) !important;
 }
+
+@keyframes tracePreviewSlideDown {
+  from {
+    max-height: 0;
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+  to {
+    max-height: 1000px;
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.trace-preview-slide {
+  overflow: hidden;
+  animation: tracePreviewSlideDown 0.6s ease-out;
+}

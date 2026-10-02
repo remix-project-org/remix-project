@@ -8,7 +8,7 @@ import { parseUnits } from 'ethers'
 import { FuncABI } from '@remix-project/core-plugin'
 import { DeployedContractsAppContext } from '../contexts'
 import { DeployedContract } from '../types'
-import { runTransactions, checkCrossChainProxy, CrossChainProxyInfo } from '../actions'
+import { runTransactions, checkCrossChainProxy, traceCrossChainCall, CrossChainProxyInfo, CrossChainTraceResult, TraceAddressInfo } from '../actions'
 import { ContractKebabMenu } from './ContractKebabMenu'
 import { EnsNaming } from './EnsNaming'
 import { QuickDappContractSelector, QuickDappFigmaPreparationResult, QuickDappSetupOptions } from '@remix-ui/quick-dapp-v2'
@@ -63,6 +63,13 @@ export function DeployedContractItem({ contract, index, collapseSignal, register
   const [quickDappFixedFrontendMode, setQuickDappFixedFrontendMode] = useState<'inline' | 'workspace' | undefined>()
   const [quickDappEnvironmentId, setQuickDappEnvironmentId] = useState<string>()
   const [crossChainProxyInfo, setCrossChainProxyInfo] = useState<CrossChainProxyInfo | null>(null)
+  const [tracePreview, setTracePreview] = useState<{
+    key: string
+    onConfirm: () => void
+    isLoading: boolean
+    result: CrossChainTraceResult | null
+    error: string | null
+      } | null>(null)
 
   useEffect(() => {
     plugin.call('udappEnv', 'getNetwork').then((net) => {
@@ -293,6 +300,168 @@ export function DeployedContractItem({ contract, index, collapseSignal, register
     }
   }
 
+  const buildCalldataForPreview = (funcIndex: number): string | null => {
+    const funcABI = functionABIs[funcIndex]
+    if (!funcABI) return null
+    try {
+      if (!funcABI.inputs || funcABI.inputs.length === 0) {
+        const encodeObj = txFormat.encodeData(funcABI, [], null)
+        return encodeObj.error ? null : encodeObj.data
+      }
+      const funcParams = funcInputs[funcIndex] || {}
+      const inputValues = funcABI.inputs.map((_: any, idx: number) => funcParams[idx] || '')
+      const multiString = getMultiValsString(inputValues)
+      if (!multiString) return null
+      const multiJSON = JSON.parse('[' + multiString + ']')
+      const encodeObj = txFormat.encodeData(funcABI, multiJSON, null)
+      return encodeObj.error ? null : encodeObj.data
+    } catch (e) {
+      return null
+    }
+  }
+
+  const previewThenExecute = async (key: string, calldata: string | null, sendValue: bigint, onConfirm: () => void) => {
+    if (!crossChainProxyInfo || !calldata) {
+      onConfirm()
+      return
+    }
+    setTracePreview({ key, onConfirm, isLoading: true, result: null, error: null })
+    try {
+      const from = await plugin.call('udappEnv', 'getSelectedAccount')
+      const dataHex = is0XPrefixed(calldata) ? calldata : `0x${calldata}`
+      const result = await traceCrossChainCall(plugin, contract.address, dataHex, from, '0x' + sendValue.toString(16))
+      setTracePreview({ key, onConfirm, isLoading: false, result, error: null })
+    } catch (e: any) {
+      setTracePreview({ key, onConfirm, isLoading: false, result: null, error: e?.message || 'Failed to preview this transaction.' })
+    }
+  }
+
+  const confirmTracePreview = () => {
+    const onConfirm = tracePreview?.onConfirm
+    setTracePreview(null)
+    onConfirm?.()
+  }
+
+  const cancelTracePreview = () => setTracePreview(null)
+
+  const renderTracePreview = (key: string) => {
+    if (!tracePreview || tracePreview.key !== key) return null
+    return (
+      <div
+        className="mt-2 p-3 rounded trace-preview-slide"
+        data-id="crossChainTracePreview"
+        style={{ backgroundColor: 'var(--custom-onsurface-layer-2)', border: '1px solid #a56eff44' }}
+      >
+        {tracePreview.isLoading && (
+          <div className="d-flex align-items-center gap-2 small text-secondary">
+            <i className="fas fa-spinner fa-spin"></i> Tracing execution…
+          </div>
+        )}
+        {tracePreview.error && (
+          <>
+            <div className="text-danger small mb-2">Preview unavailable: {tracePreview.error}</div>
+            <div className="d-flex gap-2">
+              <button className="btn btn-sm btn-secondary flex-fill" data-id="cancelTracePreviewBtn" onClick={cancelTracePreview}>Cancel</button>
+              <button className="btn btn-sm btn-primary flex-fill" data-id="confirmTracePreviewBtn" onClick={confirmTracePreview}>Send anyway</button>
+            </div>
+          </>
+        )}
+        {tracePreview.result && (() => {
+          const traceResult = tracePreview.result
+          const proxiesTouched = traceResult.addresses.filter(
+            (a): a is TraceAddressInfo & { proxyInfo: CrossChainProxyInfo } => a.proxyInfo !== null
+          )
+          return (
+            <>
+              {proxiesTouched.length > 0 && (
+                <div className="small mb-2 p-2 rounded" style={{ backgroundColor: '#a56eff14', color: themeQuality === 'dark' ? 'white' : 'black' }}>
+                  <div style={{ fontWeight: 700 }}>
+                    This transaction is cross-chain — {proxiesTouched.length} {proxiesTouched.length === 1 ? 'proxy' : 'proxies'} touched:
+                  </div>
+                </div>
+              )}
+              {traceResult.addresses.length > 0 && (
+                <div>
+                  <div className="text-secondary" style={{ fontSize: '10px', textTransform: 'uppercase' }}>Addresses touched</div>
+                  <div className="d-flex flex-column gap-1 mt-1">
+                    {traceResult.addresses.map((a) => {
+                      const proxyInfo = a.proxyInfo
+                      return (
+                        <div
+                          key={a.address}
+                          className="d-flex align-items-center flex-wrap p-2 rounded"
+                          style={{ backgroundColor: 'var(--custom-onsurface-layer-3)', gap: '6px' }}
+                        >
+                          <div className="d-flex align-items-center flex-wrap" style={{ gap: '6px' }}>
+                            <span style={{ fontSize: '10px', fontFamily: 'Monaco, monospace' }}>{shortenAddress(a.address)}</span>
+                            <CopyToClipboard tip={intl.formatMessage({ id: 'udapp.copyAddressTooltip' })} icon="fa-copy" direction="top" getContent={() => a.address}>
+                              <i className="fa-solid fa-copy small" style={{ cursor: 'pointer' }}></i>
+                            </CopyToClipboard>
+                            <CustomTooltip
+                              placement="top"
+                              tooltipId={`traceChainTooltip-${a.address}`}
+                              tooltipText={`Lives on ${traceResult.currentNetworkLabel}`}
+                            >
+                              <span className="badge" style={{ backgroundColor: '#64C4FF14', color: '#64c4ff', fontSize: '9px', fontWeight: 700 }}>
+                                {traceResult.currentNetworkLabel}
+                              </span>
+                            </CustomTooltip>
+                            {proxyInfo && (
+                              <CustomTooltip
+                                placement="top"
+                                tooltipId={`traceProxyTooltip-${a.address}`}
+                                tooltipText="Proxy"
+                              >
+                                <span className="badge" style={{ backgroundColor: '#a56eff14', color: '#a56eff', fontSize: '9px', fontWeight: 700 }}>
+                                  Proxy
+                                </span>
+                              </CustomTooltip>
+                            )}
+                          </div>
+                          {proxyInfo && (
+                            <div className="text-secondary text-center" style={{ flex: '1 1 auto', fontSize: '10px' }}>→</div>
+                          )}
+                          {proxyInfo && (
+                            <div className="d-flex align-items-center flex-wrap" style={{ gap: '6px' }}>
+                              <span style={{ fontSize: '10px', fontFamily: 'Monaco, monospace' }}>{shortenAddress(proxyInfo.originalAddress)}</span>
+                              <CopyToClipboard tip={intl.formatMessage({ id: 'udapp.copyAddressTooltip' })} icon="fa-copy" direction="top" getContent={() => proxyInfo.originalAddress}>
+                                <i className="fa-solid fa-copy small" style={{ cursor: 'pointer' }}></i>
+                              </CopyToClipboard>
+                              <CustomTooltip
+                                placement="top"
+                                tooltipId={`traceOriginChainTooltip-${a.address}`}
+                                tooltipText={`Original account on ${proxyInfo.originNetworkLabel || `network ${proxyInfo.originalRollupId}`}`}
+                              >
+                                <span className="badge" style={{ backgroundColor: '#64C4FF14', color: '#64c4ff', fontSize: '9px', fontWeight: 700 }}>
+                                  {proxyInfo.originNetworkLabel || `network ${proxyInfo.originalRollupId}`}
+                                </span>
+                              </CustomTooltip>
+                            </div>
+                          )}
+                        </div>
+                      )
+                    })}
+                  </div>
+                </div>
+              )}
+              <div className="small my-2 p-2 rounded" style={{ backgroundColor: traceResult.willSucceed ? `rgba(var(--bs-success-rgb), 0.08)` : `rgba(var(--bs-danger-rgb), 0.08)`, color: themeQuality === 'dark' ? 'white' : 'black' }}>
+                {traceResult.willSucceed
+                  ? '✓ This call is expected to succeed.'
+                  : `✗ This call is expected to revert${traceResult.decodedError ? `: ${traceResult.decodedError}` : traceResult.error ? `: ${traceResult.error}` : '.'}`}
+              </div>
+              <div className="d-flex gap-2 my-2">
+                <button className="btn btn-sm btn-secondary flex-fill" data-id="cancelTracePreviewBtn" onClick={cancelTracePreview}>Cancel</button>
+                <button className="btn btn-sm btn-primary flex-fill" data-id="confirmTracePreviewBtn" onClick={confirmTracePreview}>
+                  {traceResult.willSucceed ? 'Send Transaction' : 'Send anyway'}
+                </button>
+              </div>
+            </>
+          )
+        })()}
+      </div>
+    )
+  }
+
   const handleExecuteTransaction = async (funcIndex: number) => {
     const funcABI = functionABIs[funcIndex]
     const funcParams = funcInputs[funcIndex] || {}
@@ -370,27 +539,36 @@ export function DeployedContractItem({ contract, index, collapseSignal, register
 
     if (!funcABI) return setLlIError(intl.formatMessage({ id: 'udapp.llIError7' }))
 
-    try {
-      const sendValue = parseUnits(value.toString() || '0', valueUnit || 'wei')
-      const gasLimitValue = '0x' + new BN(gasLimit, 10).toString(16)
+    const sendValue = parseUnits(value.toString() || '0', valueUnit || 'wei')
+    const gasLimitValue = '0x' + new BN(gasLimit, 10).toString(16)
+    const calldataForSend = calldata
 
-      await runTransactions(
-        plugin,
-        dispatch,
-        index,
-        false,
-        funcABI,
-        calldata,
-        contract,
-        -1, // Use -1 for low level interactions
-        { value: sendValue, gasLimit: gasLimitValue }
-      )
-    } catch (error) {
-      const functionName =
-      funcABI.type === 'function' ? funcABI.name : `(${funcABI.type})`
-      const logMsg = `transact to ${contract.name}.${functionName} errored: ${error.message}`
+    const doSend = async () => {
+      try {
+        await runTransactions(
+          plugin,
+          dispatch,
+          index,
+          false,
+          funcABI,
+          calldataForSend,
+          contract,
+          -1, // Use -1 for low level interactions
+          { value: sendValue, gasLimit: gasLimitValue }
+        )
+      } catch (error) {
+        const functionName =
+        funcABI.type === 'function' ? funcABI.name : `(${funcABI.type})`
+        const logMsg = `transact to ${contract.name}.${functionName} errored: ${error.message}`
 
-      await plugin.call('terminal', 'logHtml', logBuilder(logMsg))
+        await plugin.call('terminal', 'logHtml', logBuilder(logMsg))
+      }
+    }
+
+    if (crossChainProxyInfo) {
+      previewThenExecute('lowLevel', calldataForSend || '0x', sendValue, () => { void doSend() })
+    } else {
+      await doSend()
     }
   }
 
@@ -911,12 +1089,19 @@ For Inline mode, preserve the existing /frontend overwrite confirmation flow. Co
                           {filteredFunctionABIs.map((funcABI: FuncABI, _filteredIdx: number) => {
                             const actualIndex = functionABIs.findIndex((f: FuncABI) => f === funcABI)
                             const isViewPure = funcABI.stateMutability === 'view' || funcABI.stateMutability === 'pure'
+                            const previewKey = `fn-${actualIndex}`
                             const executeHandler = () => {
                               if (selectedFunctionIndex !== actualIndex) {
                                 trackMatomoEvent?.({ category: 'udapp', action: 'deployedContractFunctionSelect', name: funcABI.name || `func${actualIndex}`, isClick: true })
                               }
                               setSelectedFunctionIndex(actualIndex)
-                              handleExecuteTransaction(actualIndex)
+                              const confirmExecute = () => handleExecuteTransaction(actualIndex)
+                              if (!isViewPure && crossChainProxyInfo) {
+                                const sendValue = parseUnits(value.toString() || '0', valueUnit || 'wei')
+                                previewThenExecute(previewKey, buildCalldataForPreview(actualIndex), sendValue, confirmExecute)
+                                return
+                              }
+                              confirmExecute()
                             }
                             const inputStyle = { background: 'var(--bs-body-bg)', color: 'var(--dark/text-quaternary, #959bad)', border: 'none', fontSize: '0.7rem', minHeight: '30px' }
                             return (
@@ -953,10 +1138,15 @@ For Inline mode, preserve the existing /frontend overwrite confirmation flow. Co
                                       style={{ fontSize: '11px', fontWeight: 600, padding: '3px 12px' }}
                                       onClick={executeHandler}
                                     >
-                                      {intl.formatMessage({ id: 'udapp.transactButton' })}
+                                      {crossChainProxyInfo ? 'Preview' : intl.formatMessage({ id: 'udapp.transactButton' })}
                                     </button>
                                   )}
                                 </div>
+                                {tracePreview?.key === previewKey && (
+                                  <div className="ps-3 mb-2">
+                                    {renderTracePreview(previewKey)}
+                                  </div>
+                                )}
                                 {/* Inputs area */}
                                 {funcABI.inputs.length > 0 && (
                                   <div className="ps-3">
@@ -978,7 +1168,7 @@ For Inline mode, preserve the existing /frontend overwrite confirmation flow. Co
                                           style={{ fontSize: '11px', fontWeight: 600 }}
                                           onClick={executeHandler}
                                         >
-                                          {intl.formatMessage({ id: 'udapp.transactButton' })}
+                                          {crossChainProxyInfo ? 'Preview' : intl.formatMessage({ id: 'udapp.transactButton' })}
                                         </button>
                                       </div>
                                     ) : (
@@ -1019,7 +1209,7 @@ For Inline mode, preserve the existing /frontend overwrite confirmation flow. Co
                                             style={{ fontSize: '11px', fontWeight: 600, padding: '3px 12px' }}
                                             onClick={executeHandler}
                                           >
-                                            {intl.formatMessage({ id: 'udapp.transactButton' })}
+                                            {crossChainProxyInfo ? 'Preview' : intl.formatMessage({ id: 'udapp.transactButton' })}
                                           </button>
                                         </>
                                       )}
@@ -1290,9 +1480,10 @@ For Inline mode, preserve the existing /frontend overwrite confirmation flow. Co
                     borderRadius: '4px'
                   }}
                 >
-                  {intl.formatMessage({ id: 'udapp.transactButton' })}
+                  {crossChainProxyInfo ? 'Preview' : intl.formatMessage({ id: 'udapp.transactButton' })}
                 </button>
               )}
+              {showLowLevel && renderTracePreview('lowLevel')}
 
               {/* Divider */}
               <div className="border-top my-3"></div>
