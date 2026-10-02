@@ -94,6 +94,102 @@ module.exports = {
         const finalCount = parseInt(result.value as string)
         browser.assert.equal(finalCount, initialAllCount, `Count should return to initial count after clearing filters.`)
       })
+  },
+
+  'Should only persist permission changes after confirmation #group1': function (browser: NightwatchBrowser) {
+    const permissionsButton = '[data-id="pluginManagerPermissionsButton"]'
+    const permissionCheckbox = '[data-id="permission-checkbox-fileManager-writeFile-e2ePlugin"]'
+    const removePermissionButton = '[data-id="pluginManagerSettingsRemovePermission-fileManager-writeFile-fileManager"]'
+
+    browser
+      .execute(function () {
+        localStorage.setItem(
+          'plugins/permissions',
+          JSON.stringify({
+            fileManager: {
+              writeFile: {
+                e2ePlugin: {
+                  allow: true
+                }
+              }
+            }
+          })
+        )
+      })
+      .click(permissionsButton)
+      .waitForElementVisible(permissionCheckbox)
+      .click(removePermissionButton)
+      .waitForElementNotPresent(permissionCheckbox)
+      .execute(
+        function () {
+          return JSON.parse(localStorage.getItem('plugins/permissions')).fileManager.writeFile.e2ePlugin.allow
+        },
+        [],
+        (result) => {
+          browser.assert.equal(result.value, true, 'Deleting a permission should remain a draft before confirmation.')
+        }
+      )
+      .click('[data-id="permissionsSettings-modal-footer-cancel-react"]')
+      .click(permissionsButton)
+      .waitForElementVisible(permissionCheckbox)
+      .assert.selected(permissionCheckbox, 'Cancel should restore a deleted permission.')
+      .click(permissionCheckbox)
+      .execute(
+        function () {
+          return JSON.parse(localStorage.getItem('plugins/permissions')).fileManager.writeFile.e2ePlugin.allow
+        },
+        [],
+        (result) => {
+          browser.assert.equal(result.value, true, 'Permission changes should remain a draft before confirmation.')
+        }
+      )
+      .click('[data-id="permissionsSettings-modal-footer-cancel-react"]')
+      .click(permissionsButton)
+      .waitForElementVisible(permissionCheckbox)
+      .assert.selected(permissionCheckbox, 'Cancel should restore the original permission.')
+      .click(permissionCheckbox)
+      .click('[data-id="permissionsSettings-modal-footer-ok-react"]')
+      .execute(
+        function () {
+          return JSON.parse(localStorage.getItem('plugins/permissions')).fileManager.writeFile.e2ePlugin.allow
+        },
+        [],
+        (result) => {
+          browser.assert.equal(result.value, false, 'OK should persist the permission change.')
+        }
+      )
+      .click(permissionsButton)
+      .waitForElementVisible(permissionCheckbox)
+      .click(permissionCheckbox)
+      .click('[data-id="permissionsSettings-modal-close"]')
+      .execute(
+        function () {
+          return JSON.parse(localStorage.getItem('plugins/permissions')).fileManager.writeFile.e2ePlugin.allow
+        },
+        [],
+        (result) => {
+          browser.assert.equal(result.value, false, 'Closing the dialog should discard the permission draft.')
+        }
+      )
+      .click(permissionsButton)
+      .waitForElementVisible(permissionCheckbox)
+      .assert.not.selected(permissionCheckbox, 'Closing the dialog should discard the in-memory permission draft.')
+      .click(permissionCheckbox)
+      .keys(browser.Keys.ESCAPE)
+      .waitForElementNotVisible('[data-id="permissionsSettingsModalDialogContainer-react"]')
+      .execute(
+        function () {
+          return JSON.parse(localStorage.getItem('plugins/permissions')).fileManager.writeFile.e2ePlugin.allow
+        },
+        [],
+        (result) => {
+          browser.assert.equal(result.value, false, 'Pressing Escape should discard the permission draft.')
+        }
+      )
+      .click(permissionsButton)
+      .waitForElementVisible(permissionCheckbox)
+      .assert.not.selected(permissionCheckbox, 'Pressing Escape should discard the in-memory permission draft.')
+      .click('[data-id="permissionsSettings-modal-footer-cancel-react"]')
       .end()
   }
 }
