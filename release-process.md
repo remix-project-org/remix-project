@@ -45,7 +45,7 @@ Once these commands run successfully, the version for each remix library will be
 
  - Create and merge bump PR to master
  
-## Remix IDE Release
+## Remix Web3 Release
 
 ### Part 1. Bump the version and update Beta
 
@@ -84,9 +84,9 @@ or individually:
 
 Publish a new release on GitHub using created tag and generate automated changelog by selecting the appropriate previous tag
 
-### Part 2. Update the Remix Live
+### Part 2. Update the Remix Web3
 
-Updating the `remix_live` branch latest to the `remix_beta` runs the CircleCI build which updates live version of Remix IDE.
+Updating the `remix_live` branch latest to the `remix_beta` runs the CircleCI build which updates live version of Remix Web3.
 
 Use this unified command:
 
@@ -99,7 +99,7 @@ or individually:
  - `git reset --hard <remix_beta-commit-hash>` or `<master-commit-hash>` sometimes
  - `git push -f origin remix_live`
 
- CircleCI will update `https://github.com/remix-project-org/remix-live` and through `gh-pages`, remix live will be deployed on `remix.ethereum.org`
+ CircleCI will update `https://github.com/remix-project-org/remix-live` and through `gh-pages`, Remix Web3 will be deployed on `remix.ethereum.org`
 
 :point_right: Ensure release highlights, version and blog link are properly updated in `remix-dynamics` repo's `live` branch.
  
@@ -112,6 +112,6 @@ or individually:
  - Update new feature freeze date under `freeze-date` in `.github/workflows/pr-reminder.yml` file
  - Create and merge PR to `master`
  
-## Remix IDE Alpha Release
+## Remix Web3 Alpha Release
 
 `alpha.remix.live` is automatically updated every time a commit is pushed to `master` branch

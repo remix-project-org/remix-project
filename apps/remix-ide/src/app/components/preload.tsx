@@ -120,7 +120,6 @@ function checkAndPersistNoMobileRedirect(): 'url' | 'storage' | 'none' {
 
 export const Preload = (props: PreloadProps) => {
   const { trackMatomoEvent } = useTracking()
-  const [tip, setTip] = useState<string>('')
   const [supported, setSupported] = useState<boolean>(true)
   const [error, setError] = useState<boolean>(false)
   const [showDownloader, setShowDownloader] = useState<boolean>(false)
@@ -273,25 +272,6 @@ export const Preload = (props: PreloadProps) => {
       !remixIndexedDB.current.loaded && (await setFileSystems())
     }
     loadStorage()
-
-    const abortController = new AbortController()
-    const signal = abortController.signal
-    async function showRemixTips() {
-      const response = await axios.get('https://raw.githubusercontent.com/remix-project-org/remix-dynamics/main/ide/tips.json', { signal })
-      if (signal.aborted) return
-      const tips = response.data
-      const index = Math.floor(Math.random() * (tips.length - 1))
-      setTip(tips[index])
-    }
-    try {
-      showRemixTips()
-    } catch (e) {
-      logPreload(e)
-    }
-
-    return () => {
-      abortController.abort();
-    };
   }, [])
 
   return (
@@ -300,7 +280,7 @@ export const Preload = (props: PreloadProps) => {
         <div className="preload-main">
           <div className="preload-logo text-center">
             <img src="assets/img/remix-logo-blue.png" alt="Remix logo" width="64" height="64" />
-            <div className="preload-title">REMIX IDE</div>
+            <div className="preload-title">Remix Web3</div>
             <div className="preload-sub"><span className="version">v{version}</span></div>
           </div>
           {!supported ? (
@@ -357,10 +337,9 @@ export const Preload = (props: PreloadProps) => {
           ) : null}
         </div>
         <div className="preload-bottom opt-out">
-          { tip && <div className='remix_tips text-center mt-3'>
-            <div><b>DID YOU KNOW</b></div>
-            <span>{tip}</span>
-          </div> }
+          { 
+            <div><b>Build onchain apps with AI, no setup required</b></div>
+          }
         </div>
       </div>
     </>

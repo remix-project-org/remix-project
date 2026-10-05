@@ -3,7 +3,7 @@
 Everyone is welcome to contribute to Remix's codebase. You can reach us on [Discord](https://discord.gg/MzhfCGstNA) with any questions.
 
 ## Development
-Remix libraries work closely with [Remix IDE](https://remix.ethereum.org). Each library has a README to explain its application.
+Remix libraries work closely with [Remix Web3](https://remix.ethereum.org). Each library has a README to explain its application.
 
 When you add code to a library, please add related unit tests.
 

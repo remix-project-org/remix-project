@@ -649,7 +649,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({ onClose, plugin }) => {
                     <i className="fas fa-arrow-left"></i>
                   </button>
                 ) : null}
-                <h5 className="modal-title mb-0">Remix IDE</h5>
+                <h5 className="modal-title mb-0">Remix Web3</h5>
                 <div className="close ms-auto login-modal-close-btn fs-5" data-id="loginModal" onClick={() => { trackEvent('closeLoginModal'); onClose() }}>
                   <i className="fas fa-times text-dark"></i>
                 </div>

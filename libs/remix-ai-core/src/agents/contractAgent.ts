@@ -53,7 +53,7 @@ export class ContractAgent {
         }, {})
         await statusCallback?.('Opening in new window...')
         await this.plugin.call('electronTemplates', 'loadTemplateInNewWindow', files)
-        //return "Feature not only available in the browser version of Remix IDE. Please use the browser version to generate secure code."
+        //return "Feature not only available in the browser version of Remix Web3. Please use the browser version to generate secure code."
         return "## New workspace created!  \nNavigate to the new window!"
       }
 

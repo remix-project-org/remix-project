@@ -43,7 +43,7 @@ const Model: ModelType = {
   },
   effects: {
     *connect(_, { put }) {
-      toast.info('connecting to the REMIX IDE')
+      toast.info('connecting to the Remix Web3')
 
       yield put({
         type: 'loading/save',

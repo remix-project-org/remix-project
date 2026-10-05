@@ -43,6 +43,6 @@
   "settings.ipfs-port": "PORTA",
   "settings.ipfs-project-id": "ID PROGETTO",
   "settings.ipfs-project-secret": "SEGRETO DEL PROGETTO",
-  "settings.analyticsInRemix": "Analytics nella Remix IDE",
+  "settings.analyticsInRemix": "Analytics nella Remix Web3",
   "settings.enableSaveEnvState": "Salva lo stato dell'ambiente"
 }

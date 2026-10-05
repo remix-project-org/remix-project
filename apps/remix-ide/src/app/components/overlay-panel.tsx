@@ -9,7 +9,7 @@ import { AppAction, appActionTypes, AppState } from '@remix-ui/app'
 const profile = {
   name: 'overlay',
   displayName: 'Overlay Panel',
-  description: 'Remix IDE overlay panel for full-screen plugin views',
+  description: 'Remix Web3 overlay panel for full-screen plugin views',
   version: packageJson.version,
   events: ['overlayOpened', 'overlayClosed'],
   methods: ['addView', 'removeView', 'showContent', 'showOverlay', 'hideOverlay', 'isOverlayVisible']

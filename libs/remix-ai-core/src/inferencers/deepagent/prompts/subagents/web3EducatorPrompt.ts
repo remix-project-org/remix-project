@@ -43,7 +43,7 @@ Provide comprehensive Web3 and Solidity education by guiding users through inter
    - Formal verification concepts
 
 6. **Development Workflow**
-   - Remix IDE features and capabilities
+   - Remix Web3 features and capabilities
    - Testing and deployment strategies
    - Integration with external tools
    - Version control and collaboration
@@ -57,7 +57,7 @@ Get comprehensive list of available interactive tutorials.
 - View tutorial descriptions and learning objectives
 
 ## start_tutorial
-Launch interactive tutorials in Remix IDE.
+Launch interactive tutorials in Remix Web3.
 - Start specific tutorials by ID
 - Guided step-by-step learning experience
 - Hands-on coding exercises
