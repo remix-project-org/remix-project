@@ -11,7 +11,7 @@ import { AppAction, appActionTypes, AppState } from '@remix-ui/app'
 const profile = {
   name: 'popupPanel',
   displayName: 'Popup Panel',
-  description: 'Remix IDE popup panel',
+  description: 'Remix Web3 popup panel',
   version: packageJson.version,
   events: [],
   methods: ['addView', 'removeView', 'showContent', 'showPopupPanel']

@@ -1,14 +1,14 @@
-# Remix IDE Blank Template
+# Remix Web3 Blank Template
 
-Welcome to your new **Remix IDE Blank Workspace**!
+Welcome to your new **Remix Web3 Blank Workspace**!
 
-This workspace has been generated using the "Blank Template" option in Remix IDE. It starts with only minimal configuration files, giving you full control to build your project from scratch.
+This workspace has been generated using the "Blank Template" option in Remix Web3. It starts with only minimal configuration files, giving you full control to build your project from scratch.
 
 ---
 
 ## What's Included?
 
-- **`remix.config.json`**: Default Remix IDE workspace configuration.
+- **`remix.config.json`**: Default Remix Web3 workspace configuration.
 - **`.prettierrc.json`**: Basic Prettier formatting rules for code consistency.
 
 No contract files, folders, or sample code are included.
@@ -28,7 +28,7 @@ No contract files, folders, or sample code are included.
 
 3. **Write & Compile Smart Contracts**
 
-   - Use the **Solidity Compiler** and **Deploy & Run Transactions** plugins (available in Remix IDE's left sidebar) to develop and test your contracts.
+   - Use the **Solidity Compiler** and **Deploy & Run Transactions** plugins (available in Remix Web3's left sidebar) to develop and test your contracts.
 
 4. **(Optional) Initialize Git**
 
@@ -38,13 +38,13 @@ No contract files, folders, or sample code are included.
 
 ## Useful Resources
 
-- [Remix IDE Documentation](https://remix-ide.readthedocs.io/)
+- [Remix Web3 Documentation](https://remix-ide.readthedocs.io/)
 - [Solidity Language Documentation](https://docs.soliditylang.org/)
-- [Remix IDE Community Forum](https://forum.remix.ethereum.org/)
+- [Remix Web3 Community Forum](https://forum.remix.ethereum.org/)
 
 ---
 
 Happy coding! 🚀 
 
-_Remix IDE Team_
+_Remix Web3 Team_
 

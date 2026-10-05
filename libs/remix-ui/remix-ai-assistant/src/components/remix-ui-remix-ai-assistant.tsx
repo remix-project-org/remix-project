@@ -118,7 +118,7 @@ const isAuditorAgentName = (name?: string): boolean =>
 const OLLAMA_NOT_AVAILABLE_MESSAGE = [
   '**Ollama is not available.**',
   '',
-  'To use Ollama with Remix IDE:',
+  'To use Ollama with Remix Web3:',
   '',
   '1. **Install Ollama**: Visit [ollama.ai](https://ollama.ai) to download',
   '2. **Start Ollama**: Run `ollama serve` in your terminal',

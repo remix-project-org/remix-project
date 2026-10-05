@@ -6,7 +6,7 @@
 [![contributions welcome](https://img.shields.io/badge/contributions-welcome-brightgreen.svg?style=flat)](https://github.com/remix-project-org/remix-project/issues)
 
 
-`@remix-project/remix-url-resolver` is a tool to handle import from different sources and resolve the content. It is used in Remix IDE to handle imports from `GitHub`, `Swarm`, `IPFS` and other URLs. 
+`@remix-project/remix-url-resolver` is a tool to handle import from different sources and resolve the content. It is used in Remix Web3 to handle imports from `GitHub`, `Swarm`, `IPFS` and other URLs. 
 
 ### Installation
 

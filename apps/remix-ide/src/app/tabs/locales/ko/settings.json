@@ -38,5 +38,5 @@
   "settings.ipfs-port": "포트",
   "settings.ipfs-project-id": "프로젝트 ID",
   "settings.ipfs-project-secret": "프로젝트 SECRET",
-  "settings.analyticsInRemix": "Remix IDE에서의 분석"
+  "settings.analyticsInRemix": "Remix Web3에서의 분석"
 }
