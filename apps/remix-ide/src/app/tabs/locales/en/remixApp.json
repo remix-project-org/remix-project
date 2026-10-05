@@ -2,7 +2,7 @@
   "remixApp.scrollToSeeAllTabs": "Scroll to see all tabs",
   "remixApp.alert": "Alert",
   "remixApp.ok": "OK",
-  "remixApp.enterText1": "Welcome to Remix IDE",
+  "remixApp.enterText1": "Welcome to Remix Web3",
   "remixApp.enterText2": "In order to understand your needs better, we would like to know how you typically use Remix",
   "remixApp.enterText3": "Learning - discovering web3 development",
   "remixApp.enterText4": "Prototyping - trying out concepts and techniques",
@@ -20,7 +20,7 @@
 
   "remixApp.mpOp1Title": "Matomo Anonymous Analytics (Necessary)",
   "remixApp.mpOp1Details": "Our use of anonymous analytics data helps us improve your experience by identifying bugs and important UX improvements. This data can also be used in overall statistics on Remix use in the wider Web3 ecosystem",
-  "remixApp.mpOp1Tooltip": "This is a necessary selection for a better experience of Remix IDE",
+  "remixApp.mpOp1Tooltip": "This is a necessary selection for a better experience of Remix Web3",
 
   "remixApp.mpOp2Title": "Matomo Performance Analytics",
   "remixApp.mpOp2Details": "Remix believes your privacy is of primary importance. Your help in making Remix the best possible open source public good toolset is also very important. Approval of performance analytics tracking greatly helps us refine and improve the toolset. Rest assured, we will never share this data with any third parties.",
@@ -32,7 +32,7 @@
 
   "remixApp.originWarningUnstable": "This UNSTABLE ALPHA branch of Remix has been moved to http://ethereum.github.io/remix-live-alpha.",
   "remixApp.originWarningAlpha": "Welcome to the Remix alpha instance. Please use it to try out latest features. But use preferably https://remix.ethereum.org for any production work.",
-  "remixApp.originWarningMoved": "The Remix IDE has moved to http://remix.ethereum.org. This instance of Remix you are visiting WILL NOT BE UPDATED. Please make a backup of your contracts and start using http://remix.ethereum.org",
+  "remixApp.originWarningMoved": "The Remix Web3 has moved to http://remix.ethereum.org. This instance of Remix you are visiting WILL NOT BE UPDATED. Please make a backup of your contracts and start using http://remix.ethereum.org",
   "remixApp.migrationBannerOld": "Remix is moving to {toDomain}. Your Workspaces are stored the browser and won't be accessible from the new URL unless you follow the move instructions.",
   "remixApp.migrationBannerOldAction": "Move my Workspaces",
   "remixApp.migrationBannerNew": "Welcome to the new home of Remix. Bookmark {toDomain} so you always land here.",

@@ -21,7 +21,7 @@ const profile = {
   name: 'terminal',
   methods: ['log', 'logHtml', 'logCopyableValues', 'togglePanel', 'isPanelHidden', 'maximizePanel', 'getLogs'],
   events: [],
-  description: 'Remix IDE terminal',
+  description: 'Remix Web3 terminal',
   version: packageJson.version
 }
 

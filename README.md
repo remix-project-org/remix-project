@@ -19,10 +19,10 @@
 
 ## Remix Project
 
-**Remix Project** is a rich toolset including Remix IDE, a comprehensive smart contract development tool. The Remix Project also includes Remix Plugin Engine and Remix Libraries which are low-level tools for wider use.  
+**Remix Project** is a rich toolset including Remix Web3, a comprehensive smart contract development tool. The Remix Project also includes Remix Plugin Engine and Remix Libraries which are low-level tools for wider use.  
 
-## Remix IDE
-**Remix IDE** is used for the entire journey of contract development by users of any knowledge level. It fosters a fast development cycle and has a rich set of plugins with intuitive GUIs. The IDE comes in 2 flavors and a VSCode extension:
+## Remix Web3
+**Remix Web3** is used for the entire journey of contract development by users of any knowledge level. It fosters a fast development cycle and has a rich set of plugins with intuitive GUIs. The IDE comes in 2 flavors and a VSCode extension:
 
 **Remix Online IDE**, see: [https://remix.ethereum.org](https://remix.ethereum.org)
 
@@ -34,7 +34,7 @@
 
 
 ## Remix libraries 
-Remix libraries are essential for Remix IDE's native plugins. Read more about libraries [here](libs/README.md)
+Remix libraries are essential for Remix Web3's native plugins. Read more about libraries [here](libs/README.md)
 
 ## Offline Usage
 
@@ -70,7 +70,7 @@ git clone https://github.com/remix-project-org/remix-project.git
 4. Build Remix project: `yarn build`
 5. Build and run project server: `yarn serve`. Optionally, run `yarn serve:hot` to enable hot module to reload for frontend updates.
 
-Open `http://127.0.0.1:8080` in your browser to load Remix IDE locally.
+Open `http://127.0.0.1:8080` in your browser to load Remix Web3 locally.
 
 Go to your `text editor` and start developing. The browser will automatically refresh when files are saved.
 

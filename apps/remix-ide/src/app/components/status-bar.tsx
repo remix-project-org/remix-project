@@ -13,7 +13,7 @@ import { AppAction } from '@remix-ui/app'
 const statusBarProfile: PluginProfile = {
   name: 'statusBar',
   displayName: 'Status Bar',
-  description: 'Remix IDE status bar panel',
+  description: 'Remix Web3 status bar panel',
   methods: ['isAIActive'],
   version: packageJson.version,
 }

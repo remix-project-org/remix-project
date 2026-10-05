@@ -66,14 +66,14 @@ const tests = {
         const connectedServers = aiPlugin.mcpInferencer.getConnectedServers();
         const connectionStatuses = aiPlugin.mcpInferencer.getConnectionStatuses();
 
-        const remixServerConnected = connectedServers.includes('Remix IDE Server');
-        const remixServerStatus = connectionStatuses.find(function (s: any) { return s.serverName === 'Remix IDE Server'; });
+        const remixServerConnected = connectedServers.includes('Remix Web3 Server');
+        const remixServerStatus = connectionStatuses.find(function (s: any) { return s.serverName === 'Remix Web3 Server'; });
 
         // Test server availability through inferencer
         aiPlugin.mcpInferencer.getAllTools().then(function (allTools) {
           return aiPlugin.mcpInferencer.getAllResources().then(function (allResources) {
-            const remixTools = allTools['Remix IDE Server'] || [];
-            const remixResources = allResources['Remix IDE Server'] || [];
+            const remixTools = allTools['Remix Web3 Server'] || [];
+            const remixResources = allResources['Remix Web3 Server'] || [];
 
             done({
               remixServerConnected: remixServerConnected,
@@ -168,7 +168,7 @@ const tests = {
               initiallyConnected: initialCount > 0,
               disconnectedSuccessfully: afterDisconnect.length === 0,
               reconnectedSuccessfully: afterReconnect.length > 0,
-              serverSurvivalTest: afterReconnect.includes('Remix IDE Server'),
+              serverSurvivalTest: afterReconnect.includes('Remix Web3 Server'),
               cleanupWorking: true
             });
           });
@@ -204,7 +204,7 @@ const tests = {
         // Create multiple concurrent tool executions
         for (let i = 0; i < 5; i++) {
           concurrentOperations.push(
-            aiPlugin.mcpInferencer.executeTool('Remix IDE Server', {
+            aiPlugin.mcpInferencer.executeTool('Remix Web3 Server', {
               name: 'get_compiler_config',
               arguments: {}
             })

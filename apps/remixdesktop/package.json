@@ -4,7 +4,7 @@
   "main": "build/main.js",
   "license": "MIT",
   "type": "commonjs",
-  "description": "Remix IDE Desktop",
+  "description": "Remix Web3 Desktop",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/remix-project-org/remix-desktop.git"

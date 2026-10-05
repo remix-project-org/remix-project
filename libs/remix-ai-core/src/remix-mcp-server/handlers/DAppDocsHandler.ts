@@ -499,7 +499,7 @@ export class GenerateDAppDocsHandler extends BaseToolHandler {
           `Use write_file with path "/${DAPP_DOCS_FILENAME}" only.\n\n` +
           `The ${DAPP_DOCS_FILENAME} file should include:\n` +
           `- Overview: one short paragraph describing the DApp\n` +
-          `- Current environment: one Markdown table with QuickDApp Preview availability, contract network, external website URL, whether the contract is reachable outside Remix IDE, and a reason when unavailable\n` +
+          `- Current environment: one Markdown table with QuickDApp Preview availability, contract network, external website URL, whether the contract is reachable outside Remix Web3, and a reason when unavailable\n` +
           `- How to use: short steps for the main user flows\n` +
           `- Features and contract coverage: one Markdown table with user action, contract function, transaction type, UI/source evidence, and coverage status\n` +
           `- Project files: only the main files a maintainer is likely to edit\n` +
@@ -514,7 +514,7 @@ export class GenerateDAppDocsHandler extends BaseToolHandler {
           `Derive transaction type only from ABI mutability: view or pure is "Read only", nonpayable is "State-changing transaction", and payable is "Payable transaction". ` +
           `Use an available gateway URL as the external website URL; otherwise state that the external website URL is not available. ` +
           `If the contract uses a Remix VM network, state that the DApp currently runs in QuickDApp Preview through the Remix VM provider bridge. ` +
-          `For Remix VM, state that the contract is not reachable outside Remix IDE because Remix VM is an in-browser blockchain. ` +
+          `For Remix VM, state that the contract is not reachable outside Remix Web3 because Remix VM is an in-browser blockchain. ` +
           `Do not say MetaMask or another browser wallet can connect to a Remix VM network, and do not instruct the user to publish that VM-bound DApp as a working public DApp. ` +
           `Never instruct the user to edit dapp.config.json manually. Contract address, ABI, or network binding changes are outside normal frontend updates. ` +
           `If the contract source is unavailable, do not infer access control, modifiers, internal validation, or other implementation behavior from the ABI alone. ` +

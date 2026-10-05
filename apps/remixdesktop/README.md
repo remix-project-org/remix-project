@@ -7,7 +7,7 @@
 In the main repo run yarn, then run yarn serve  
 In this directory apps/remixdesktop, yarn, then run: yarn start:dev to boot the electron app
 
-Then, the app will be started in live reload mode, and anything you do in Remix IDE will be reloaded.
+Then, the app will be started in live reload mode, and anything you do in Remix Web3 will be reloaded.
 It will not however reload electron code. You need to rerun yarn start:dev every time. 
 
 If you run into issues with yarn when native node modules are being rebuilt, you need
@@ -126,7 +126,7 @@ const exposedPLugins = ['fs', 'git', 'xterm', 'isogit', 'electronconfig', 'elect
 
 If you don't do this, it won't work.
 
-11. In Remix IDE create a plugin in src/app/plugins/electron. If everything works correctly the methods will be loaded from the electron side, no need to specify them here.
+11. In Remix Web3 create a plugin in src/app/plugins/electron. If everything works correctly the methods will be loaded from the electron side, no need to specify them here.
 This plugin is only a passthrough. 
 
 ```

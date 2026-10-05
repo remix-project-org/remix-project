@@ -1653,7 +1653,7 @@ export class GenerateDAppHandler extends BaseToolHandler {
           `3. NEVER create or modify dapp.config.json — it is managed by the system.\n` +
           (isRemixVM
             ? `\nREMIX VM RULES (LOCAL DEV MODE - CRITICAL):\n` +
-            `- Use window.ethereum directly: new ethers.BrowserProvider(window.ethereum). The Remix IDE preview provides it automatically.\n` +
+            `- Use window.ethereum directly: new ethers.BrowserProvider(window.ethereum). The Remix Web3 preview provides it automatically.\n` +
             `- Do NOT use window.__qdapp_getProvider(). Do NOT call wallet_switchEthereumChain or wallet_addEthereumChain.\n` +
             `- Do NOT show "Install MetaMask", "Wrong Network" warnings, or chain ID checks. The provider is always available and on the correct network.\n` +
             `- Simply connect: const provider = new ethers.BrowserProvider(window.ethereum); await provider.send("eth_requestAccounts", []); const signer = await provider.getSigner();\n` +
@@ -2258,7 +2258,7 @@ export class UpdateDAppHandler extends BaseToolHandler {
         ? ''
         : isLocalVM
           ? `\nREMIX VM RULES (LOCAL DEV MODE - CRITICAL):\n` +
-          `- Use window.ethereum directly: new ethers.BrowserProvider(window.ethereum). The Remix IDE preview provides it automatically.\n` +
+          `- Use window.ethereum directly: new ethers.BrowserProvider(window.ethereum). The Remix Web3 preview provides it automatically.\n` +
           `- Do NOT use window.__qdapp_getProvider(). Do NOT call wallet_switchEthereumChain or wallet_addEthereumChain.\n` +
           `- Do NOT show "Install MetaMask", "Wrong Network" warnings, or chain ID checks.\n` +
           `- MUST listen for window.ethereum accountsChanged and immediately update the visible connected account, signer, and contract instance when Deploy & Run account changes. Do not require a preview refresh.\n`

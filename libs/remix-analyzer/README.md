@@ -5,7 +5,7 @@
 [![GitHub](https://img.shields.io/github/license/mashape/apistatus.svg)](https://github.com/remix-project-org/remix-project/tree/master/libs/remix-analyzer)
 [![contributions welcome](https://img.shields.io/badge/contributions-welcome-brightgreen.svg?style=flat)](https://github.com/remix-project-org/remix-project/issues)
 
-`@remix-project/remix-analyzer` is a tool to perform static analysis on Solidity smart contracts to check security vulnerabilities and bad development practices. It works underneath Remix IDE "SOLIDITY STATIC ANALYSIS" plugin which is used to run analysis for a compiled contract according to selected modules.
+`@remix-project/remix-analyzer` is a tool to perform static analysis on Solidity smart contracts to check security vulnerabilities and bad development practices. It works underneath Remix Web3 "SOLIDITY STATIC ANALYSIS" plugin which is used to run analysis for a compiled contract according to selected modules.
 
 ### Installation
 `@remix-project/remix-analyzer` is an NPM package and can be installed using NPM as:
@@ -26,7 +26,7 @@ export default class staticAnalysisRunner {
     /**
      * Run analysis (Used by IDE)
      * @param compilationResult contract compilation result
-     * @param toRun module indexes (compiled from remix IDE)
+     * @param toRun module indexes (compiled from Remix Web3)
      * @param callback callback
      */
     run(compilationResult: CompilationResult, toRun: number[], callback: ((reports: AnalysisReport[]) => void)): void;

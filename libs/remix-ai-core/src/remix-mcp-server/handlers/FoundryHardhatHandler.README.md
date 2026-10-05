@@ -1,13 +1,13 @@
 # Foundry and Hardhat Handler for Remix MCP Server
 
-This handler provides AI agents with the ability to interact with Foundry and Hardhat development frameworks through the Remix IDE MCP Server.
+This handler provides AI agents with the ability to interact with Foundry and Hardhat development frameworks through the Remix Web3 MCP Server.
 
 ## Overview
 
 The `FoundryHardhatHandler.ts` file contains handlers that enable AI agents to:
 - Compile Solidity contracts using Foundry (`forge build`)
 - Compile Solidity contracts using Hardhat (`npx hardhat compile`)
-- Sync compilation artifacts with Remix IDE
+- Sync compilation artifacts with Remix Web3
 - Get information about Foundry and Hardhat usage
 
 ## Available Tools
@@ -22,7 +22,7 @@ Compiles Solidity contracts using Foundry's `forge build` command.
 {
   "sync": {
     "type": "boolean",
-    "description": "Whether to sync the compilation result with Remix IDE after compilation",
+    "description": "Whether to sync the compilation result with Remix Web3 after compilation",
     "default": true
   }
 }
@@ -33,9 +33,9 @@ Compiles Solidity contracts using Foundry's `forge build` command.
 **Underlying Command:** Calls `foundryPlugin.compile()` which runs `forge build`
 
 ### 2. `foundry_sync`
-Syncs Foundry compilation artifacts with Remix IDE.
+Syncs Foundry compilation artifacts with Remix Web3.
 
-**Description:** Sync Foundry compilation artifacts with Remix IDE. This updates Remix with the latest Foundry build artifacts from the out/ and cache/ directories.
+**Description:** Sync Foundry compilation artifacts with Remix Web3. This updates Remix with the latest Foundry build artifacts from the out/ and cache/ directories.
 
 **Input Schema:** No parameters required
 
@@ -53,7 +53,7 @@ Compiles Solidity contracts using Hardhat's `npx hardhat compile` command.
 {
   "sync": {
     "type": "boolean",
-    "description": "Whether to sync the compilation result with Remix IDE after compilation",
+    "description": "Whether to sync the compilation result with Remix Web3 after compilation",
     "default": true
   }
 }
@@ -64,9 +64,9 @@ Compiles Solidity contracts using Hardhat's `npx hardhat compile` command.
 **Underlying Command:** Calls `hardhatPlugin.compile()` which runs `npx hardhat compile`
 
 ### 4. `hardhat_sync`
-Syncs Hardhat compilation artifacts with Remix IDE.
+Syncs Hardhat compilation artifacts with Remix Web3.
 
-**Description:** Sync Hardhat compilation artifacts with Remix IDE. This updates Remix with the latest Hardhat build artifacts from the artifacts/ and cache/ directories.
+**Description:** Sync Hardhat compilation artifacts with Remix Web3. This updates Remix with the latest Hardhat build artifacts from the artifacts/ and cache/ directories.
 
 **Input Schema:** No parameters required
 
@@ -135,9 +135,9 @@ Executes any Hardhat command through the hardhatPlugin.
 - `npx hardhat console` - Open interactive console
 
 ### 7. `get_foundry_hardhat_info`
-Provides comprehensive information about using Foundry and Hardhat in Remix IDE.
+Provides comprehensive information about using Foundry and Hardhat in Remix Web3.
 
-**Description:** Get information about using Foundry and Hardhat in Remix IDE, including available commands and usage patterns.
+**Description:** Get information about using Foundry and Hardhat in Remix Web3, including available commands and usage patterns.
 
 **Input Schema:**
 ```json
@@ -172,7 +172,7 @@ Both plugins:
 1. Execute the compilation command using `spawn`
 2. Log output to the Remix terminal
 3. Watch for file changes in cache directories
-4. Emit compilation results to Remix IDE
+4. Emit compilation results to Remix Web3
 
 ### Registration
 
@@ -301,7 +301,7 @@ The handlers depend on:
 - `BaseToolHandler` from `RemixToolRegistry`
 - `IMCPToolResult` from MCP types
 - `Plugin` from `@remixproject/engine`
-- The respective Foundry and Hardhat plugins being available in the Remix IDE
+- The respective Foundry and Hardhat plugins being available in the Remix Web3
 
 ## Category
 

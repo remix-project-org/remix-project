@@ -1,6 +1,6 @@
 import { remixAILogger } from '../../helpers/logger'
 /**
- * DeepAgent Inferencer for Remix IDE
+ * DeepAgent Inferencer for Remix Web3
  * Integrates LangChain DeepAgent with Remix's AI system
  */
 
@@ -963,11 +963,11 @@ export class DeepAgentInferencer implements ICompletions, IGeneration {
 
     try {
       const connectedServers = this.mcpInferencer.getConnectedServers()
-      if (!connectedServers || !connectedServers.includes('Remix IDE Server')) {
+      if (!connectedServers || !connectedServers.includes('Remix Web3 Server')) {
         return ''
       }
 
-      const mcpClient = (this.mcpInferencer as any).mcpClients?.get('Remix IDE Server')
+      const mcpClient = (this.mcpInferencer as any).mcpClients?.get('Remix Web3 Server')
       if (!mcpClient || !mcpClient.isConnected()) {
         return ''
       }
@@ -1000,11 +1000,11 @@ export class DeepAgentInferencer implements ICompletions, IGeneration {
 
     try {
       const connectedServers = this.mcpInferencer.getConnectedServers()
-      if (!connectedServers || !connectedServers.includes('Remix IDE Server')) {
+      if (!connectedServers || !connectedServers.includes('Remix Web3 Server')) {
         return ''
       }
 
-      const mcpClient = (this.mcpInferencer as any).mcpClients?.get('Remix IDE Server')
+      const mcpClient = (this.mcpInferencer as any).mcpClients?.get('Remix Web3 Server')
       if (!mcpClient || !mcpClient.isConnected()) {
         return ''
       }

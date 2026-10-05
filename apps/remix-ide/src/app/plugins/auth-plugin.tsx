@@ -1787,7 +1787,7 @@ export class AuthPlugin extends Plugin {
 
       // Initialize the SDK
       const sdk = createBaseAccountSDK({
-        appName: 'Remix IDE',
+        appName: 'Remix Web3',
       })
       const provider = sdk.getProvider()
 
@@ -1917,7 +1917,7 @@ export class AuthPlugin extends Plugin {
       const siweMessage = new SiweMessage({
         domain: window.location.host,
         address: address,
-        statement: 'Sign in to Remix IDE with your Ethereum account',
+        statement: 'Sign in to Remix Web3 with your Ethereum account',
         uri: window.location.origin,
         version: '1',
         chainId: chainIdNumber,
@@ -2024,7 +2024,7 @@ export class AuthPlugin extends Plugin {
 
       // Initialize the SDK
       const sdk = createBaseAccountSDK({
-        appName: 'Remix IDE',
+        appName: 'Remix Web3',
       })
       const provider = sdk.getProvider()
 
@@ -2069,7 +2069,7 @@ export class AuthPlugin extends Plugin {
               uri: window.location.origin,
               nonce,
               chainId: BASE_MAINNET_CHAIN_ID,
-              statement: 'Sign in to Remix IDE with your Base account',
+              statement: 'Sign in to Remix Web3 with your Base account',
               issuedAt: new Date().toISOString(),
             },
           },

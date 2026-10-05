@@ -12,7 +12,7 @@ export default class staticAnalysisRunner {
   /**
    * Run analysis (Used by IDE)
    * @param compilationResult contract compilation result
-   * @param toRun module indexes (compiled from remix IDE)
+   * @param toRun module indexes (compiled from Remix Web3)
    * @param callback callback
    */
   run (compilationResult: CompilationResult, toRun: number[]): AnalysisReport[] {
