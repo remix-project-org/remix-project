@@ -1,21 +1,128 @@
 import React from 'react'
-import { JsonRpcProvider, Contract, Interface, isAddress } from 'ethers'
+import { JsonRpcProvider, Contract, Interface, InterfaceAbi, isAddress, isHexString } from 'ethers'
+import { decodeEezRevertData } from '@remix-ui/helper'
 // eslint-disable-next-line @nrwl/nx/enforce-module-boundaries
 import type { EezPlugin } from 'apps/remix-ide/src/app/udapp/udappEez'
-import { EEZ_ABI } from '../abi'
-import { Actions, EezNetworkEntry, ResolutionRow } from '../types'
+import { EEZ_ABI, EEZ_ROLLUP_ID_ABI } from '../abi'
+import { EEZ_COMPOSER_RPC_URLS } from '../constants'
+import { Actions, EezComposerInfo, EezComposerNetwork, EezNetworkEntry, ResolutionRow, ResolvedProxyInfo, TraceAddressInfo, TransactionTraceResult } from '../types'
 
-const CONFIG_KEY = 'eez-networks'
+const NOT_EEZ_NETWORK = 'The currently connected network is not part of an EEZ network.'
+export const EEZ_SETTINGS_KEY = 'eez-networks'
 
-export async function loadNetworks(plugin: EezPlugin, dispatch: React.Dispatch<Actions>): Promise<EezNetworkEntry[]> {
-  let networks: EezNetworkEntry[] = []
-  try {
-    const raw = await plugin.call('config', 'getAppParameter', CONFIG_KEY)
-    if (raw) networks = JSON.parse(raw)
-  } catch (e) {
-    console.error('Unable to load EEZ networks config', e)
+function collectCallAddresses(frame: any, into: Set<string>) {
+  if (!frame) return
+  if (typeof frame.to === 'string') into.add(frame.to.toLowerCase())
+  if (Array.isArray(frame.calls)) {
+    for (const child of frame.calls) collectCallAddresses(child, into)
   }
-  dispatch({ type: 'SET_NETWORKS', payload: networks })
+}
+
+function parseChainId(network: EezComposerNetwork): string | null {
+  if (network === undefined || network === null) return null
+  return String(network)
+}
+
+async function loadSettingsRpcUrls(plugin: EezPlugin): Promise<Record<string, string>> {
+  const urls: Record<string, string> = {}
+  try {
+    const raw = await plugin.call('config', 'getAppParameter', EEZ_SETTINGS_KEY)
+    const entries: { chainId?: string | number; rpcUrl?: string }[] = raw ? JSON.parse(raw) : []
+
+    for (const entry of entries) {
+      const chainId = String(entry?.chainId ?? '').trim()
+      const rpcUrl = (entry?.rpcUrl || '').trim()
+      if (chainId && rpcUrl) urls[chainId] = rpcUrl
+    }
+  } catch (e) {
+    console.warn('EEZ: unable to read the EEZ networks configured in Settings', e)
+  }
+  return urls
+}
+
+async function resolveRpcUrls(plugin: EezPlugin): Promise<Record<string, string>> {
+  return { ...(await loadSettingsRpcUrls(plugin)), ...EEZ_COMPOSER_RPC_URLS }
+}
+
+async function fetchComposerInfo(url: string, chainId: string): Promise<EezComposerInfo> {
+  const provider = new JsonRpcProvider(url, Number(chainId), { staticNetwork: true })
+  try {
+    return await provider.send('eez_composerInfo', [])
+  } finally {
+    provider.destroy()
+  }
+}
+
+function composerSupportsChain(info: EezComposerInfo, chainId: string): boolean {
+  return Object.values(info?.supportedNetworks || {}).some((network) => parseChainId(network) === chainId)
+}
+
+export async function discoverEezNetworks(plugin: EezPlugin, currentChainId: string): Promise<EezNetworkEntry[]> {
+  const rpcUrls = await resolveRpcUrls(plugin)
+  const composerUrl = rpcUrls[currentChainId]
+  if (!composerUrl) {
+    return []
+  }
+
+  let info: EezComposerInfo | null = null
+  try {
+    info = await fetchComposerInfo(composerUrl, currentChainId)
+  } catch (e: any) {
+    for (const [chainId, url] of Object.entries(rpcUrls)) {
+      if (chainId === currentChainId || url === composerUrl) continue
+      try {
+        const candidate = await fetchComposerInfo(url, chainId)
+        if (composerSupportsChain(candidate, currentChainId)) {
+          info = candidate
+          break
+        }
+      } catch (err) {
+        // not a composer endpoint, try the next one
+      }
+    }
+  }
+  if (!info) {
+    console.warn(`EEZ: no composer serving eez_composerInfo was found for chain ${currentChainId}. EEZ features are disabled for this network.`)
+    return []
+  }
+  if (!info?.eezContracts || !info?.supportedNetworks) {
+    plugin.call('terminal', 'log', { type: 'warn', value: `EEZ: unexpected eez_composerInfo response from ${composerUrl}: ${JSON.stringify(info)}` })
+    return []
+  }
+
+  const networks: EezNetworkEntry[] = []
+  for (const [key, network] of Object.entries(info.supportedNetworks)) {
+    const chainId = parseChainId(network)
+    const eezContractAddress = info.eezContracts[`${key}Address`] || info.eezContracts.eezRegistryAddress
+    if (!chainId || !eezContractAddress) {
+      console.warn(`EEZ: skipping supported network '${key}': missing chain id or EEZ contract address in eez_composerInfo`)
+      continue
+    }
+    networks.push({
+      id: key,
+      label: key.replace(/^eez/, 'EEZ '),
+      rpcUrl: rpcUrls[chainId] || null,
+      eezContractAddress,
+      rollupId: '',
+      chainId
+    })
+  }
+
+  await Promise.all(networks.map(async (network) => {
+    try {
+      const { provider, contract } = contractFor(network, EEZ_ROLLUP_ID_ABI)
+      try {
+        const rollupId = await contract.ROLLUP_ID().catch(() => contract.MAINNET_ROLLUP_ID())
+        network.rollupId = rollupId.toString()
+        if (network.rollupId === '0') network.eezContractAddress = info.eezContracts.eezRegistryAddress
+      } finally {
+        provider.destroy()
+      }
+    } catch (e) {
+      console.warn(`Unable to read the rollup id of ${network.label}`, e)
+    }
+  }))
+
   return networks
 }
 
@@ -34,9 +141,16 @@ function findByChainId(networks: EezNetworkEntry[], chainId: string | null): Eez
   return networks.find(n => String(n.chainId) === chainId)
 }
 
-function contractFor(network: EezNetworkEntry) {
-  const provider = new JsonRpcProvider(network.rpcUrl)
-  return { provider, contract: new Contract(network.eezContractAddress, EEZ_ABI, provider) }
+function contractFor(network: EezNetworkEntry, abi: InterfaceAbi = EEZ_ABI) {
+  if (!network.rpcUrl) throw new Error(`No RPC endpoint is configured for ${network.label} (chain ${network.chainId}). Add it in Settings > EEZ.`)
+  const provider = new JsonRpcProvider(network.rpcUrl, Number(network.chainId), { staticNetwork: true })
+
+  return { provider, contract: new Contract(network.eezContractAddress, abi, provider) }
+}
+
+function rollupIdOf(network: EezNetworkEntry): bigint {
+  if (!network.rollupId) throw new Error(`The rollup id of ${network.label} is unknown.`)
+  return BigInt(network.rollupId)
 }
 
 export async function resolveProxyAddresses(
@@ -50,7 +164,7 @@ export async function resolveProxyAddresses(
     return
   }
   if (networks.length === 0) {
-    dispatch({ type: 'RESOLVE_ERROR', payload: 'No EEZ networks configured. Add them in Settings > EEZ.' })
+    dispatch({ type: 'RESOLVE_ERROR', payload: NOT_EEZ_NETWORK })
     return
   }
 
@@ -61,10 +175,7 @@ export async function resolveProxyAddresses(
   const originNetwork = findByChainId(networks, currentChainId)
 
   if (!originNetwork) {
-    dispatch({
-      type: 'RESOLVE_ERROR',
-      payload: 'The currently connected network is not in the configured EEZ networks list. Add it in Settings > EEZ.'
-    })
+    dispatch({ type: 'RESOLVE_ERROR', payload: NOT_EEZ_NETWORK })
     return
   }
 
@@ -74,15 +185,18 @@ export async function resolveProxyAddresses(
       if (isOrigin) {
         return { network, isOrigin: true, proxyAddress: null, isDeployed: null, error: null }
       }
-      const { provider, contract } = contractFor(network)
+      let provider: JsonRpcProvider | null = null
       try {
-        const proxyAddress: string = await contract.computeCrossChainProxyAddress(address, BigInt(originNetwork.rollupId))
+        const target = contractFor(network)
+
+        provider = target.provider
+        const proxyAddress: string = await target.contract.computeCrossChainProxyAddress(address, rollupIdOf(originNetwork))
         const code = await provider.getCode(proxyAddress)
         return { network, isOrigin: false, proxyAddress, isDeployed: code !== '0x', error: null }
       } catch (e) {
         return { network, isOrigin: false, proxyAddress: null, isDeployed: null, error: e?.message || 'Failed to resolve' }
       } finally {
-        provider.destroy()
+        provider?.destroy()
       }
     })
   )
@@ -117,7 +231,7 @@ export async function previewProxyCreation(
   const currentChainId = await getCurrentChainId(plugin)
   const destinationNetwork = findByChainId(networks, currentChainId)
   if (!destinationNetwork) {
-    dispatch({ type: 'PREVIEW_ERROR', payload: 'The currently connected network is not in the configured EEZ networks list.' })
+    dispatch({ type: 'PREVIEW_ERROR', payload: NOT_EEZ_NETWORK })
     return
   }
   if (destinationNetwork.id === originNetwork.id) {
@@ -127,7 +241,7 @@ export async function previewProxyCreation(
 
   const { provider, contract } = contractFor(destinationNetwork)
   try {
-    const proxyAddress: string = await contract.computeCrossChainProxyAddress(originAddress, BigInt(originNetwork.rollupId))
+    const proxyAddress: string = await contract.computeCrossChainProxyAddress(originAddress, rollupIdOf(originNetwork))
     const code = await provider.getCode(proxyAddress)
     dispatch({ type: 'PREVIEW_SUCCESS', payload: { previewAddress: proxyAddress, previewIsDeployed: code !== '0x' } })
   } catch (e) {
@@ -153,7 +267,7 @@ export async function createProxy(
   const currentChainId = await getCurrentChainId(plugin)
   const destinationNetwork = findByChainId(networks, currentChainId)
   if (!destinationNetwork) {
-    dispatch({ type: 'CREATE_ERROR', payload: 'The currently connected network is not in the configured EEZ networks list.' })
+    dispatch({ type: 'CREATE_ERROR', payload: NOT_EEZ_NETWORK })
     return
   }
   if (destinationNetwork.id === originNetwork.id) {
@@ -165,7 +279,7 @@ export async function createProxy(
 
   try {
     const iface = new Interface(EEZ_ABI)
-    const funArgs = [originAddress, BigInt(originNetwork.rollupId)]
+    const funArgs = [originAddress, rollupIdOf(originNetwork)]
     const dataHex = iface.encodeFunctionData('createCrossChainProxy', funArgs)
     const funAbi = {
       name: 'createCrossChainProxy',
@@ -190,7 +304,7 @@ export async function createProxy(
     const { provider, contract } = contractFor(destinationNetwork)
     let proxyAddress = ''
     try {
-      proxyAddress = await contract.computeCrossChainProxyAddress(originAddress, BigInt(originNetwork.rollupId))
+      proxyAddress = await contract.computeCrossChainProxyAddress(originAddress, rollupIdOf(originNetwork))
     } finally {
       provider.destroy()
     }
@@ -220,4 +334,78 @@ export async function loadCreatedProxyWithSelectedAbi(plugin: EezPlugin, proxyAd
     throw new Error('No compiled contract selected in the Deploy tab to load this proxy with.')
   }
   await plugin.call('udappDeployedContracts', 'addInstance', proxyAddress, selected.contractData.abi, selected.name || '<eez proxy>')
+}
+
+function resolveProxyInfo(networks: EezNetworkEntry[], result: any): ResolvedProxyInfo | null {
+  const isProxy: boolean = result[0]
+  if (!isProxy) return null
+  const originalAddress: string = result[1]
+  const originalRollupId: string = result[2].toString()
+  const originNetwork = networks.find((n) => String(n.rollupId) === originalRollupId)
+  return { originalAddress, originalRollupId, originNetworkLabel: originNetwork?.label || null }
+}
+
+export async function traceTransactionByHash(
+  plugin: EezPlugin,
+  dispatch: React.Dispatch<Actions>,
+  networks: EezNetworkEntry[],
+  txHash: string
+) {
+  if (!isHexString(txHash, 32)) {
+    dispatch({ type: 'TRACE_ERROR', payload: 'Enter a valid transaction hash' })
+    return
+  }
+  if (networks.length === 0) {
+    dispatch({ type: 'TRACE_ERROR', payload: NOT_EEZ_NETWORK })
+    return
+  }
+
+  dispatch({ type: 'START_TRACE' })
+
+  const currentChainId = await getCurrentChainId(plugin)
+  const currentNetwork = findByChainId(networks, currentChainId)
+  if (!currentNetwork) {
+    dispatch({ type: 'TRACE_ERROR', payload: NOT_EEZ_NETWORK })
+    return
+  }
+
+  const { provider, contract } = contractFor(currentNetwork)
+  try {
+    const receipt = await provider.getTransactionReceipt(txHash)
+    if (!receipt) {
+      dispatch({ type: 'TRACE_ERROR', payload: 'Transaction not found on the currently connected network.' })
+      return
+    }
+
+    const trace = await provider.send('debug_traceTransaction', [txHash, { tracer: 'callTracer' }])
+    const addressSet = new Set<string>()
+    collectCallAddresses(trace, addressSet)
+
+    const addresses: TraceAddressInfo[] = await Promise.all(
+      Array.from(addressSet).map(async (addr): Promise<TraceAddressInfo> => {
+        try {
+          const result = await contract.authorizedProxies(addr)
+          return { address: addr, proxyInfo: resolveProxyInfo(networks, result) }
+        } catch (e) {
+          return { address: addr, proxyInfo: null }
+        }
+      })
+    )
+
+    const decodedError = trace.error ? (trace.revertReason || decodeEezRevertData(trace.output)) : null
+
+    const result: TransactionTraceResult = {
+      txHash,
+      success: !trace.error,
+      error: trace.error || null,
+      decodedError,
+      addresses,
+      currentNetworkLabel: currentNetwork.label
+    }
+    dispatch({ type: 'TRACE_SUCCESS', payload: result })
+  } catch (e: any) {
+    dispatch({ type: 'TRACE_ERROR', payload: e?.message || 'Failed to trace this transaction.' })
+  } finally {
+    provider.destroy()
+  }
 }

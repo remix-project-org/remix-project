@@ -2,6 +2,7 @@ import { Actions, EezWidgetState } from '../types'
 
 export const eezInitialState: EezWidgetState = {
   networks: [],
+  isDiscovering: false,
   originNetworkChainId: null,
   addressInput: '',
   isResolving: false,
@@ -30,6 +31,9 @@ export const eezReducer = (state: EezWidgetState, action: Actions): EezWidgetSta
   switch (action.type) {
   case 'SET_NETWORKS':
     return { ...state, networks: action.payload }
+
+  case 'SET_DISCOVERING':
+    return { ...state, isDiscovering: action.payload }
 
   case 'SET_ORIGIN_NETWORK_CHAIN_ID':
     return { ...state, originNetworkChainId: action.payload }

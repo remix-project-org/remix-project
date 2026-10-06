@@ -3,7 +3,6 @@ import { EezAppContext } from './contexts'
 // eslint-disable-next-line @nrwl/nx/enforce-module-boundaries
 import { EezPlugin } from 'apps/remix-ide/src/app/udapp/udappEez'
 import { eezReducer, eezInitialState } from './reducers'
-import { loadNetworks } from './actions'
 import EezPortraitView from './widgets/EezPortraitView'
 
 function EezWidget({ plugin }: { plugin: EezPlugin }) {
@@ -30,21 +29,8 @@ function EezWidget({ plugin }: { plugin: EezPlugin }) {
 
   useEffect(() => {
     if (!isPrimaryInstance.current) return
-    loadNetworks(plugin, localDispatch)
-
-    const handleContextChanged = () => {
-      localDispatch({ type: 'NETWORK_CHANGED' })
-      loadNetworks(plugin, localDispatch)
-    }
-    const handleConfigChanged = () => {
-      loadNetworks(plugin, localDispatch)
-    }
-    plugin.on('blockchain', 'contextChanged', handleContextChanged)
-    plugin.on('config', 'configChanged', handleConfigChanged)
-    return () => {
-      plugin.off('blockchain', 'contextChanged')
-      plugin.off('config', 'configChanged')
-    }
+    localDispatch({ type: 'SET_NETWORKS', payload: plugin.networks })
+    localDispatch({ type: 'SET_DISCOVERING', payload: plugin.isDiscovering })
   }, [plugin])
 
   useEffect(() => {

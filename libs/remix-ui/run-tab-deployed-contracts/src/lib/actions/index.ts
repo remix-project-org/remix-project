@@ -10,13 +10,12 @@ import { Actions, DeployedContract } from '../types'
 
 const txFormat = remixLib.execution.txFormat
 
-const EEZ_NETWORKS_CONFIG_KEY = 'eez-networks'
 const AUTHORIZED_PROXIES_ABI = ['function authorizedProxies(address) view returns (bool isProxy, address originalAddress, uint64 originalRollupId)']
 
 interface EezNetworkEntry {
   id: string
   label: string
-  rpcUrl: string
+  rpcUrl: string | null
   eezContractAddress: string
   rollupId: string
   chainId: string
@@ -29,10 +28,8 @@ export interface CrossChainProxyInfo {
 }
 
 async function getEezContext(plugin: DeployedContractsPlugin): Promise<{ networks: EezNetworkEntry[]; currentNetwork: EezNetworkEntry } | null> {
-  const raw = await plugin.call('config', 'getAppParameter', EEZ_NETWORKS_CONFIG_KEY)
-  if (!raw) return null
-  const networks: EezNetworkEntry[] = JSON.parse(raw)
-  if (!networks.length) return null
+  const networks: EezNetworkEntry[] = await plugin.call('udappEez', 'getNetworks')
+  if (!networks?.length) return null
 
   const status = await plugin.call('blockchain', 'getCurrentNetworkStatus')
   const chainId = status?.network?.id
@@ -43,6 +40,10 @@ async function getEezContext(plugin: DeployedContractsPlugin): Promise<{ network
   if (!currentNetwork?.eezContractAddress || !currentNetwork?.rpcUrl) return null
 
   return { networks, currentNetwork }
+}
+
+function providerFor(network: EezNetworkEntry) {
+  return new JsonRpcProvider(network.rpcUrl, Number(network.chainId), { staticNetwork: true })
 }
 
 function resolveProxyInfo(networks: EezNetworkEntry[], result: any): CrossChainProxyInfo | null {
@@ -62,7 +63,7 @@ export async function checkCrossChainProxy(plugin: DeployedContractsPlugin, addr
     if (!ctx) return null
     const { networks, currentNetwork } = ctx
 
-    const provider = new JsonRpcProvider(currentNetwork.rpcUrl)
+    const provider = providerFor(currentNetwork)
     try {
       const manager = new Contract(currentNetwork.eezContractAddress, AUTHORIZED_PROXIES_ABI, provider)
       const result = await manager.authorizedProxies(address)
@@ -104,10 +105,10 @@ export async function traceCrossChainCall(
   value: string
 ): Promise<CrossChainTraceResult> {
   const ctx = await getEezContext(plugin)
-  if (!ctx) throw new Error('The current network is not a configured EEZ network.')
+  if (!ctx) throw new Error('The current network is not part of an EEZ network.')
   const { networks, currentNetwork } = ctx
 
-  const provider = new JsonRpcProvider(currentNetwork.rpcUrl)
+  const provider = providerFor(currentNetwork)
   try {
     const traceParams = [{ from, to, data, value }, 'latest', { tracer: 'callTracer' }]
     const trace = await provider.send('debug_traceCall', traceParams)

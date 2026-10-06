@@ -5,10 +5,24 @@ import type { EezPlugin } from 'apps/remix-ide/src/app/udapp/udappEez'
 export interface EezNetworkEntry {
   id: string
   label: string
-  rpcUrl: string
+  // From EEZ_COMPOSER_RPC_URLS, else Settings > EEZ; null when no RPC is configured for this chain.
+  rpcUrl: string | null
   eezContractAddress: string
   rollupId: string
   chainId: string
+}
+
+export type EezComposerNetwork = number | string
+
+export interface EezComposerInfo {
+  eezContracts: {
+    eezRegistryAddress: string
+    eezRollupManagerAddress?: string
+    eezL1BridgeSender?: string
+    [contractName: string]: string | undefined
+  }
+  supportedNetworks: Record<string, EezComposerNetwork>
+  version: string
 }
 
 export interface ResolutionRow {
@@ -50,6 +64,7 @@ export interface TransactionTraceResult {
 
 export interface EezWidgetState {
   networks: EezNetworkEntry[]
+  isDiscovering: boolean
   originNetworkChainId: string | null
   addressInput: string
   isResolving: boolean
@@ -83,6 +98,7 @@ export interface EezAppContextType {
 
 export type Actions =
   | { type: 'SET_NETWORKS'; payload: EezNetworkEntry[] }
+  | { type: 'SET_DISCOVERING'; payload: boolean }
   | { type: 'SET_ORIGIN_NETWORK_CHAIN_ID'; payload: string | null }
   | { type: 'SET_ADDRESS_INPUT'; payload: string }
   | { type: 'SHOW_CREATE_DIALOG'; payload: boolean }

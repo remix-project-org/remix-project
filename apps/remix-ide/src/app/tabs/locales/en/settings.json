@@ -65,7 +65,7 @@
   "settings.analyticsDescription": "Control how Remix uses AI and analytics to improve your experience.",
   "settings.aiDescription": "The RemixAI Assistant enhances your coding experience with smart suggestions and automated insights. Manage how RemixAI interacts with your code and data.",
   "settings.servicesDescription": "Configure the settings for connected services, including Github, IPFS, Swarm, Sindri, Etherscan, The Graph and zkVerify.",
-  "settings.eezDescription": "Configure the RPC endpoint and EEZ contract address for each network in your cross-chain zone.",
+  "settings.eezDescription": "Configure RPC endpoints for local or custom EEZ networks. The live EEZ composer networks are built in.",
   "settings.eezNetworksSection": "Networks",
   "settings.linkedAccounts": "Linked Accounts",
   "settings.linkedAccountsDescription": "View and manage your connected authentication providers. All linked accounts share the same credits and subscriptions.",

@@ -15,7 +15,7 @@ function shorten(address: string) {
 function EezPortraitView() {
   const { plugin, widgetState, dispatch, themeQuality } = useContext(EezAppContext)
   const {
-    networks, addressInput, isResolving, resolutionRows, resolutionError, showCreateDialog, createdProxies, creator,
+    networks, isDiscovering, addressInput, isResolving, resolutionRows, resolutionError, showCreateDialog, createdProxies, creator,
     traceTxHash, isTracing, traceResult, traceError
   } = widgetState
 
@@ -46,6 +46,46 @@ function EezPortraitView() {
   const handleLoadResolvedProxy = async (proxyAddress: string) => {
     window.dispatchEvent(new CustomEvent('udapp:switchTab', { detail: { tab: 'contracts' } }))
     await plugin.call('udappDeployedContracts', 'openAddContractDialog', proxyAddress)
+  }
+
+  const handleOpenEezSettings = async () => {
+    const isActive = await plugin.call('manager', 'isActive', 'settings')
+    if (!isActive) await plugin.call('manager', 'activatePlugin', 'settings')
+    await plugin.call('tabs', 'focus', 'settings')
+    plugin.call('settings', 'showSection', 'eez')
+  }
+
+  if (isDiscovering || networks.length === 0) {
+    return (
+      <div className="d-flex flex-column gap-2 text-theme-contrast" data-id="eezPortraitView">
+        <div className="d-flex align-items-center px-3 py-1">
+          <h6 className="my-auto" style={{ margin: '0px', fontSize: '14px', fontWeight: '700', color: 'var(--bs-emphasis-color)' }}>
+            <FormattedMessage id="udapp.eezCrossChainProxy" defaultMessage="EEZ Cross-Chain Proxy" />
+          </h6>
+        </div>
+        <div className="m-3 mt-0 p-3 rounded" style={{ backgroundColor: 'var(--custom-onsurface-layer-2)' }}>
+          {isDiscovering ? (
+            <p className="mb-0 small text-secondary" data-id="eezCheckingNetwork">
+              <i className="fas fa-spinner fa-spin me-2"></i>
+              Checking the connected network for EEZ support...
+            </p>
+          ) : (
+            <div data-id="eezUnsupportedNetwork">
+              <p className="mb-2" style={{ color: themeQuality === 'dark' ? 'white' : 'black', fontSize: '0.9rem' }}>
+                EEZ is not available on this network
+              </p>
+              <p className="small text-secondary mb-0">
+                Switch to an EEZ-compatible network to use EEZ features, or configure your EEZ network's RPC in{' '}
+                <a href="#" className="text-primary" onClick={(e) => { e.preventDefault(); handleOpenEezSettings() }} data-id="eezOpenSettingsLink">
+                  Settings &gt; EEZ
+                </a>{' '}
+                and switch to that network.
+              </p>
+            </div>
+          )}
+        </div>
+      </div>
+    )
   }
 
   return (

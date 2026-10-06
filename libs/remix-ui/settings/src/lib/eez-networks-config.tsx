@@ -5,8 +5,6 @@ interface EezNetworkEntry {
   id: string
   label: string
   rpcUrl: string
-  eezContractAddress: string
-  rollupId: string
   chainId: string
 }
 
@@ -17,12 +15,12 @@ interface EezNetworksConfigProps {
 const CONFIG_KEY = 'eez-networks'
 
 function emptyEntry(): EezNetworkEntry {
-  return { id: `net-${Date.now()}-${Math.floor(Math.random() * 1000)}`, label: '', rpcUrl: '', eezContractAddress: '', rollupId: '', chainId: '' }
+  return { id: `net-${Date.now()}-${Math.floor(Math.random() * 1000)}`, label: '', rpcUrl: '', chainId: '' }
 }
 
 const defaultNetworks: EezNetworkEntry[] = [
-  { id: 'l1', label: 'L1', rpcUrl: '', eezContractAddress: '', rollupId: '0', chainId: '' },
-  { id: 'l2', label: 'L2', rpcUrl: '', eezContractAddress: '', rollupId: '1', chainId: '' }
+  { id: 'l1', label: 'L1', rpcUrl: '', chainId: '' },
+  { id: 'l2', label: 'L2', rpcUrl: '', chainId: '' }
 ]
 
 export const EezNetworksConfig: React.FC<EezNetworksConfigProps> = ({ plugin }) => {
@@ -33,7 +31,9 @@ export const EezNetworksConfig: React.FC<EezNetworksConfigProps> = ({ plugin }) 
     (async () => {
       try {
         const raw = await plugin.call('config', 'getAppParameter', CONFIG_KEY)
-        setNetworks(raw ? JSON.parse(raw) : defaultNetworks)
+        const stored: EezNetworkEntry[] = raw ? JSON.parse(raw) : defaultNetworks
+
+        setNetworks(stored.map(({ id, label, rpcUrl, chainId }) => ({ id, label: label || '', rpcUrl: rpcUrl || '', chainId: chainId ? String(chainId) : '' })))
       } catch (e) {
         setNetworks(defaultNetworks)
       }
@@ -63,26 +63,19 @@ export const EezNetworksConfig: React.FC<EezNetworksConfigProps> = ({ plugin }) 
   return (
     <div data-id="eezNetworksConfig">
       <p className="small text-secondary">
-        Configure the RPC endpoint and EEZ contract for each network in your zone.
+        Add the RPC endpoint for each chain of a local or custom EEZ zone. The live EEZ composer networks are built in;
+        contract addresses and rollup ids are read from the composer.
       </p>
       {networks.map((network) => (
         <div key={network.id} className="border rounded p-2 mb-2">
           <div className="row g-2">
-            <div className="col-6">
+            <div className="col-3">
               <label className="form-label small mb-0">Label</label>
               <input className="form-control form-control-sm" value={network.label} onChange={(e) => updateField(network.id, 'label', e.target.value)} />
             </div>
             <div className="col-6">
               <label className="form-label small mb-0">RPC URL</label>
               <input className="form-control form-control-sm" value={network.rpcUrl} onChange={(e) => updateField(network.id, 'rpcUrl', e.target.value)} placeholder="http://127.0.0.1:..." />
-            </div>
-            <div className="col-6">
-              <label className="form-label small mb-0">EEZ contract address</label>
-              <input className="form-control form-control-sm" value={network.eezContractAddress} onChange={(e) => updateField(network.id, 'eezContractAddress', e.target.value)} placeholder="0x..." />
-            </div>
-            <div className="col-3">
-              <label className="form-label small mb-0">Rollup id</label>
-              <input className="form-control form-control-sm" value={network.rollupId} onChange={(e) => updateField(network.id, 'rollupId', e.target.value)} placeholder="1" />
             </div>
             <div className="col-3">
               <label className="form-label small mb-0">Chain id</label>
