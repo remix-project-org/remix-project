@@ -34,7 +34,7 @@ interface DeployedContractItemProps {
 }
 
 export function DeployedContractItem({ contract, index, collapseSignal, registerRef, isKebabMenuOpen = false, onKebabMenuToggle }: DeployedContractItemProps) {
-  const { widgetState, dispatch, plugin, themeQuality } = useContext(DeployedContractsAppContext)
+  const { widgetState, dispatch, plugin, themeQuality, eezNetworksVersion } = useContext(DeployedContractsAppContext)
   const { trackMatomoEvent } = useContext(TrackingContext)
   const intl = useIntl()
   const { features } = useAuth()
@@ -92,12 +92,16 @@ export function DeployedContractItem({ contract, index, collapseSignal, register
   }, [])
 
   useEffect(() => {
+    let cancelled = false
     checkCrossChainProxy(plugin, contract.address).then((info) => {
-      if (!info) return
+      if (cancelled) return
       setCrossChainProxyInfo(info)
-      setGasLimit((current) => (current === 0 ? 5000000 : current))
+      if (info) setGasLimit((current) => (current === 0 ? 5000000 : current))
     })
-  }, [])
+    return () => {
+      cancelled = true
+    }
+  }, [eezNetworksVersion])
 
   const isFirstCollapseSignal = useRef(true)
   useEffect(() => {

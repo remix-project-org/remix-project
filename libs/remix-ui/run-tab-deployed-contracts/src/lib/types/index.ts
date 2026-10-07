@@ -36,6 +36,7 @@ export interface DeployedContractsAppContextType {
   dispatch: React.Dispatch<Actions>
   plugin: DeployedContractsPlugin
   themeQuality: string
+  eezNetworksVersion: number
 }
 
 export type Actions =

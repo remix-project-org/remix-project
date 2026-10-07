@@ -15,6 +15,7 @@ function DeployedContractsWidget({ plugin }: DeployedContractsWidgetProps) {
   const widgetInitializer = plugin.getWidgetState ? plugin.getWidgetState() : null
   const [widgetState, dispatch] = useReducer(deployedContractsReducer, widgetInitializer || deployedContractsInitialState)
   const [themeQuality, setThemeQuality] = useState<string>('dark')
+  const [eezNetworksVersion, setEezNetworksVersion] = useState<number>(0)
 
   useEffect(() => {
     if (plugin.setStateGetter) {
@@ -92,11 +93,21 @@ function DeployedContractsWidget({ plugin }: DeployedContractsWidgetProps) {
   }, [widgetState.lastLoadedChainId])
 
   useEffect(() => {
+    plugin.on('udappEez', 'networksChanged', () => {
+      setEezNetworksVersion((version) => version + 1)
+    })
+
+    return () => {
+      plugin.off('udappEez', 'networksChanged')
+    }
+  }, [])
+
+  useEffect(() => {
     plugin.emit('deployedInstanceUpdated', widgetState.deployedContracts)
   }, [widgetState.deployedContracts])
 
   return (
-    <DeployedContractsAppContext.Provider value={{ widgetState, dispatch, plugin, themeQuality }}>
+    <DeployedContractsAppContext.Provider value={{ widgetState, dispatch, plugin, themeQuality, eezNetworksVersion }}>
       <DeployedContractsPortraitView />
     </DeployedContractsAppContext.Provider>
   )

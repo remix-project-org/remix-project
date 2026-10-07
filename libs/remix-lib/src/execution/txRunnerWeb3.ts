@@ -68,8 +68,8 @@ export class TxRunnerWeb3 {
             } catch (e) {
               console.log(`Send transaction failed: ${e.message || e.error} . if you use an injected provider, please check it is properly unlocked. `)
               // in case the receipt is available, we consider that only the execution failed but the transaction went through.
-              // So we don't consider this to be an error.
-              if (e.receipt) resolve(await this.broadcastTx(tx, e.receipt.hash, isCreation, false, null))
+              const recoveredHash = e.receipt ? e.receipt.hash : e.info?.sendTransactionHash
+              if (recoveredHash) resolve(await this.broadcastTx(tx, recoveredHash, isCreation, false, null))
               else reject(e)
             }
           },
@@ -98,8 +98,8 @@ export class TxRunnerWeb3 {
         }
         console.log(`Send transaction failed: ${e.message} . if you use an injected provider, please check it is properly unlocked. `)
         // in case the receipt is available, we consider that only the execution failed but the transaction went through.
-        // So we don't consider this to be an error.
-        if (e.receipt) return await this.broadcastTx(tx, e.receipt.hash, isCreation, false, null)
+        const recoveredHash = e.receipt ? e.receipt.hash : e.info?.sendTransactionHash
+        if (recoveredHash) return await this.broadcastTx(tx, recoveredHash, isCreation, false, null)
         else throw (e)
       }
     }
@@ -182,22 +182,13 @@ export class TxRunnerWeb3 {
     const config = Registry.getInstance().get('config').api
 
     try {
-      const gasEstimationBigInt = await ethersProvider.estimateGas(txCopy)
-      // continueTxExecution()
-      const gasEstimation = Number(gasEstimationBigInt)
-      /*
-        * gasLimit is a value that can be set in the UI to hardcap value that can be put in a tx.
-        * e.g if the gasestimate
-        */
-      const gasLimitNum = typeof args.gasLimit === 'string' ? parseInt(args.gasLimit, 16) : args.gasLimit
-      if (args.gasLimit !== '0x0' && gasEstimation > gasLimitNum) {
-        throw new Error(`estimated gas for this transaction (${gasEstimation}) is higher than gasLimit set in the configuration  (${args.gasLimit}). Please raise the gas limit.`)
-      }
-
-      if (args.gasLimit === '0x0') {
-        tx['gasLimit'] = gasEstimation
-      } else {
+      // Trust and use user-defined gasLimit.
+      // This allows cross-chain transactions to execute successfully.
+      if (args.gasLimit !== '0x0') {
         tx['gasLimit'] = args.gasLimit
+      } else {
+        const gasEstimationBigInt = await ethersProvider.estimateGas(txCopy)
+        tx['gasLimit'] = Number(gasEstimationBigInt)
       }
 
       if (config.getUnpersistedProperty('doNotShowTransactionConfirmationAgain')) {
