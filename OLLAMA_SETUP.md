@@ -1,6 +1,6 @@
-# Ollama Integration with Remix IDE
+# Ollama Integration with Remix Web3
 
-This guide explains how to set up and use Ollama with Remix IDE for local AI-powered code completion and assistance. Note the restrictions listed below.
+This guide explains how to set up and use Ollama with Remix Web3 for local AI-powered code completion and assistance. Note the restrictions listed below.
 
 ## Table of Contents
 - [What is Ollama?](#what-is-ollama)
@@ -8,13 +8,13 @@ This guide explains how to set up and use Ollama with Remix IDE for local AI-pow
 - [CORS Configuration](#cors-configuration)
 - [Model Download and Management](#model-download-and-management)
 - [Recommended Models](#recommended-models)
-- [Using Ollama in Remix IDE](#using-ollama-in-remix-ide)
+- [Using Ollama in Remix Web3](#using-ollama-in-remix-ide)
 - [Troubleshooting](#troubleshooting)
 - [Advanced Configuration](#advanced-configuration)
 
 ## What is Ollama?
 
-Ollama is a local AI model runner that allows you to run large language models on your own machine. With Remix IDE's Ollama integration, you get:
+Ollama is a local AI model runner that allows you to run large language models on your own machine. With Remix Web3's Ollama integration, you get:
 
 - **Privacy**: All processing happens locally on your machine
 - **No API rate throttling**: No usage fees or rate limits
@@ -22,8 +22,8 @@ Ollama is a local AI model runner that allows you to run large language models o
 - **Code-optimized models**: Specialized models for coding tasks
 - **Fill-in-Middle (FIM) support**: Advanced code completion capabilities
 
-## Model compatible with the Remix IDE
-The following is a list of models compatible with the Remix IDE (both desktop and web). The models have been tested to provide acceptable results on mid-tier consumer GPUs. As operating Ollama independently, the user should understand the model performance criteria and their hardware specifications.
+## Model compatible with the Remix Web3
+The following is a list of models compatible with the Remix Web3 (both desktop and web). The models have been tested to provide acceptable results on mid-tier consumer GPUs. As operating Ollama independently, the user should understand the model performance criteria and their hardware specifications.
 
 - **codestral:latest**
 - **qwen3-coder:latest**
@@ -64,7 +64,7 @@ The service will run on `http://localhost:11434` by default.
 
 ## CORS Configuration
 
-To allow Remix IDE to communicate with Ollama, you need to configure CORS settings.
+To allow Remix Web3 to communicate with Ollama, you need to configure CORS settings.
 See [Ollama Cors Settings](https://objectgraph.com/blog/ollama-cors/).
 ## Model Download and Management
 
@@ -141,7 +141,7 @@ ollama pull codegemma:2b        # ~2GB, lightweight option
 | 13B-15B    | 16GB+        | Slower| Higher  | Development workstations |
 | 30B+       | 32GB+        | Slow  | Highest | High-end workstations only |
 
-## Using Ollama in Remix IDE
+## Using Ollama in Remix Web3
 
 ### Step 1: Verify Ollama is Running
 
@@ -150,9 +150,9 @@ Ensure Ollama is running and accessible:
 curl http://localhost:11434/api/tags
 ```
 
-### Step 2: Select Ollama in Remix IDE
+### Step 2: Select Ollama in Remix Web3
 
-1. Open Remix IDE
+1. Open Remix Web3
 2. Navigate to the AI Assistant panel
 3. Click the provider selector (shows current provider like "MistralAI")
 4. Select "Ollama" from the dropdown
@@ -221,7 +221,7 @@ ollama pull codestral:latest
 
 1. Verify `OLLAMA_ORIGINS` is set correctly
 2. Restart Ollama after changing CORS settings
-3. Clear browser cache and reload Remix IDE
+3. Clear browser cache and reload Remix Web3
 
 ### Performance Optimization
 
@@ -235,8 +235,8 @@ ollama pull codestral:latest
 ## Getting Help
 
 - **Ollama Documentation**: [https://ollama.ai/docs](https://ollama.ai/docs)
-- **Remix IDE Documentation**: [https://remix-ide.readthedocs.io](https://remix-ide.readthedocs.io)
-- **Community Support**: Remix IDE Discord/GitHub Issues
+- **Remix Web3 Documentation**: [https://remix-ide.readthedocs.io](https://remix-ide.readthedocs.io)
+- **Community Support**: Remix Web3 Discord/GitHub Issues
 - **Model Hub**: [https://ollama.ai/library](https://ollama.ai/library)
 
 ---

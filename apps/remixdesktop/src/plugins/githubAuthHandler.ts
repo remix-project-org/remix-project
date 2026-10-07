@@ -7,7 +7,7 @@ import { shell } from "electron";
 const profile: Profile = {
   name: 'githubAuthHandler',
   displayName: 'GitHub Auth Handler',
-  description: 'Handles GitHub authentication for Remix IDE',
+  description: 'Handles GitHub authentication for Remix Web3',
 }
 
 export class GitHubAuthHandler extends ElectronBasePlugin {
@@ -92,7 +92,7 @@ export class GitHubAuthHandler extends ElectronBasePlugin {
 const clientProfile: Profile = {
   name: 'githubAuthHandler',
   displayName: 'GitHub Auth Handler',
-  description: 'Handles GitHub authentication for Remix IDE',
+  description: 'Handles GitHub authentication for Remix Web3',
   methods: ['login'],
   events: ['GITHUB_AUTH_SUCCESS', 'GITHUB_AUTH_FAILURE'],
 }

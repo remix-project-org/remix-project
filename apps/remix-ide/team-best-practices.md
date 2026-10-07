@@ -11,7 +11,7 @@ This document link to other specialised best practices (like coding best practic
 Related links:
  - Public WebSite: https://remix.live
  - Remix basic FAQ: https://hackmd.io/KVooMJhWRImCGq6zkDgW9A
- - Remix live: https://remix.ethereum.org
+ - Remix Web3: https://remix.ethereum.org
  - Remix alpha live: https://alpha.remix.live
  - Remix beta live: https://beta.remix.live
  - Remix-lib NPM module: https://www.npmjs.com/package/@remix-project/remix-lib
@@ -70,7 +70,7 @@ Before starting to coding, we should ensure all devs / contributors are aware of
 
 # Story / Bug fix
 
-- Prioritised list of PRs / issues are tracked in a GitHub Project, Remix IDE issues are managed by a prioritized backlog.
+- Prioritised list of PRs / issues are tracked in a GitHub Project, Remix Web3 issues are managed by a prioritized backlog.
 - Every story can be executed by a single developer or a group of 2 or more developers (depending on the size and complexity)
 - Each dev should take the part he/she feels the most comfortable with.
 - Later progress and discussion is updated directly on the issue or pull request (github).

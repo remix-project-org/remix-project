@@ -1,5 +1,5 @@
 /**
- * Types and interfaces for Remix IDE MCP Resources
+ * Types and interfaces for Remix Web3 MCP Resources
  */
 
 import { IMCPResource, IMCPResourceContent } from '../../types/mcp';

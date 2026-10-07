@@ -1,7 +1,7 @@
 {
   "name": "@remix-project/remix-zkverify-core",
   "version": "0.1.0",
-  "description": "zkVerify (Kurier) integration for Remix IDE - ZK proof verification service",
+  "description": "zkVerify (Kurier) integration for Remix Web3 - ZK proof verification service",
   "main": "./src/index.js",
   "types": "src/index.d.ts",
   "typings": "src/index.d.ts",

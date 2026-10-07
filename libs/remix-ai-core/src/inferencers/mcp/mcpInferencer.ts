@@ -275,14 +275,14 @@ export class MCPInferencer extends RemoteInferencer implements ICompletions, IGe
       };
 
       // Always add project structure for internal remix MCP server
-      const hasInternalServer = this.mcpClients.has('Remix IDE Server')
+      const hasInternalServer = this.mcpClients.has('Remix Web3 Server')
 
       if (hasInternalServer) {
         const existingProjectStructure = selectedResources.find(r => r.resource.uri === 'context://workspace');
         if (existingProjectStructure === undefined) {
           selectedResources.push({
             resource: contextResource,
-            serverName: 'Remix IDE Server',
+            serverName: 'Remix Web3 Server',
             score: 1.0, // High score to ensure it's included
             components: { keywordMatch: 1.0, domainRelevance: 1.0, typeRelevance:1, priority:1, freshness:1 },
             reasoning: 'IDE context always included for internal remix MCP server'
@@ -650,7 +650,7 @@ export class MCPInferencer extends RemoteInferencer implements ICompletions, IGe
    * inferencer they were built with, and MCPServerManager.recreateInferencer-
    * AndConnect() removes every client from the old instance before swapping in
    * a new one. A tool call landing on the old instance then failed with
-   * `MCP server Remix IDE Server not found`. Recreate the client instead.
+   * `MCP server Remix Web3 Server not found`. Recreate the client instead.
    */
   private isInternalServer(serverName: string): boolean {
     return mcpDefaultServersConfig.defaultServers.some(
@@ -791,7 +791,7 @@ export class MCPInferencer extends RemoteInferencer implements ICompletions, IGe
 
     const executeToolDef = {
       name: "execute_tool",
-      description: `Execute TypeScript code to interact with the Remix IDE API.
+      description: `Execute TypeScript code to interact with the Remix Web3 API.
 
 ${apiDescription}
 

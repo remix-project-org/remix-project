@@ -53,7 +53,7 @@ const profile = {
     'requestCancelled'
   ],
   icon: 'assets/img/remix-logo-blue.png',
-  description: 'RemixAI provides AI services to Remix IDE.',
+  description: 'RemixAI provides AI services to Remix Web3.',
   kind: '',
   location: 'none',
   documentation: 'https://remix-ide.readthedocs.io/en/latest/ai.html',
@@ -955,7 +955,7 @@ export class RemixAIPlugin extends Plugin {
   }
 
   /**
-   * Generates a new remix IDE workspace based on the provided user prompt, optionally using Retrieval-Augmented Generation (RAG) context.
+   * Generates a new Remix Web3 workspace based on the provided user prompt, optionally using Retrieval-Augmented Generation (RAG) context.
    * - If `useRag` is `true`, the function fetches additional context from a RAG API and prepends it to the user prompt.
    */
   async generate(prompt: string, params: IParams=AssistantParams, newThreadID:string="", useRag:boolean=false, statusCallback?: (status: string) => Promise<void>): Promise<any> {

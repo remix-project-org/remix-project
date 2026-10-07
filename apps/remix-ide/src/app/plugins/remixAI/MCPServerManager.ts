@@ -113,8 +113,8 @@ export class MCPServerManager {
     const enabledServers = this.plugin.mcpServers.filter(s => s.enabled)
     if (enabledServers.length === 0) return Promise.resolve()
 
-    // Track which servers we're waiting for (excluding Remix IDE Server which is internal)
-    const serversToWaitFor = enabledServers.filter(s => s.name !== 'Remix IDE Server')
+    // Track which servers we're waiting for (excluding Remix Web3 Server which is internal)
+    const serversToWaitFor = enabledServers.filter(s => s.name !== 'Remix Web3 Server')
     if (serversToWaitFor.length === 0) return Promise.resolve()
 
     // Seed with already-resolved servers. Connection events may have fired

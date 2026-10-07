@@ -53,8 +53,8 @@ export const mcpDefaultServersConfig: MCPDefaultServersConfig = {
   version: "1.0.0",
   defaultServers: [
     {
-      name: 'Remix IDE Server',
-      description: 'Built-in Remix IDE MCP server providing access to workspace files and IDE features',
+      name: 'Remix Web3 Server',
+      description: 'Built-in Remix Web3 MCP server providing access to workspace files and IDE features',
       transport: 'internal',
       autoStart: true,
       enabled: true,

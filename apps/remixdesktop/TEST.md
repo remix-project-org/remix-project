@@ -15,7 +15,7 @@ Executables are stored in the ./release directory. Without that executable you c
 
 This is done by running yarn dist -c test_only.json
 
-Normally when you would do a 'real' release you would package remix IDE into the distributable but for local e2e this is not  necessary because it will use the remix IDE that is being served.
+Normally when you would do a 'real' release you would package Remix Web3 into the distributable but for local e2e this is not  necessary because it will use the Remix Web3 that is being served.
 
 
 ```
@@ -35,7 +35,7 @@ Normally when you would do a 'real' release you would package remix IDE into the
 
 ### Local testing
 
-In order to facilitate local testing nightwatch will boot the executable with the --e2e-local flag when running locally ( so outside of CIRCLE CI ). This means the electron app will load the local running Remix IDE.
+In order to facilitate local testing nightwatch will boot the executable with the --e2e-local flag when running locally ( so outside of CIRCLE CI ). This means the electron app will load the local running Remix Web3.
 
 So to start testing locally 
 - run the IDE with 'yarn serve' as you would normally do.
@@ -48,7 +48,7 @@ So to start testing locally
 
 ### Hot reload on local tests
 
-When Remix IDE changes the electron window that is open will hot reload just like a browser. But when you change electron code you need to rebuild the release.
+When Remix Web3 changes the electron window that is open will hot reload just like a browser. But when you change electron code you need to rebuild the release.
 
 ### Filesystem & native dialogs
 

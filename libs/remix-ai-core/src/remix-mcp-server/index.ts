@@ -1,6 +1,6 @@
 /**
  * Remix MCP Server - Main Export File
- * Provides a comprehensive in-browser MCP server for Remix IDE
+ * Provides a comprehensive in-browser MCP server for Remix Web3
  */
 
 // Core Server
@@ -104,7 +104,7 @@ export async function createRemixMCPServer(
   const serverConfig = {
     name: 'Remix MCP Server',
     version: '1.0.0',
-    description: 'In-browser MCP server for Remix IDE providing comprehensive smart contract development tools',
+    description: 'In-browser MCP server for Remix Web3 providing comprehensive smart contract development tools',
     debug,
     maxConcurrentTools: 10,
     toolTimeout: 60000 * 10, // 10 minutes

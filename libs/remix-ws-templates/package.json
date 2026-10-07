@@ -1,7 +1,7 @@
 {
   "name": "@remix-project/remix-ws-templates",
   "version": "1.0.87",
-  "description": "Create a Remix IDE workspace using different templates",
+  "description": "Create a Remix Web3 workspace using different templates",
   "main": "src/index.js",
   "types": "src/index.d.ts",
   "publishConfig": {

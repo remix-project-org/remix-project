@@ -65,9 +65,9 @@ function errorHandler (error: any, service: string) {
   program.version(version, '-v, --version')
 
   program
-    .description('Establish a two-way websocket connection between the local computer and Remix IDE for a folder')
+    .description('Establish a two-way websocket connection between the local computer and Remix Web3 for a folder')
     .option('-u, --remix-ide  <url>', 'URL of remix instance allowed to connect')
-    .option('-s, --shared-folder <path>', 'Folder to share with Remix IDE (Default: CWD)')
+    .option('-s, --shared-folder <path>', 'Folder to share with Remix Web3 (Default: CWD)')
     .option('-i, --install <name>', 'Module name to install locally (Supported: ["slither"])')
     .option('-r, --read-only', 'Treat shared folder as read-only (experimental)')
     .on('--help', function () {
@@ -99,7 +99,7 @@ function errorHandler (error: any, service: string) {
 
   if (options.sharedFolder && existsSync(absolutePath('./', options.sharedFolder))) {
     console.log('\x1b[33m%s\x1b[0m', '[WARN] Any application that runs on your computer can potentially read from and write to all files in the directory.')
-    console.log('\x1b[33m%s\x1b[0m', '[WARN] Symbolic links are not forwarded to Remix IDE\n')
+    console.log('\x1b[33m%s\x1b[0m', '[WARN] Symbolic links are not forwarded to Remix Web3\n')
     try {
       startService('folder', (ws: WS, sharedFolderClient: servicesList.Sharedfolder, error: any) => {
         if (error) {

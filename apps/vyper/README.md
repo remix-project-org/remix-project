@@ -1,5 +1,5 @@
 # vyper-remix
-Vyper Plugin for Remix IDE.
+Vyper Plugin for Remix Web3.
 
 
 ## How to get started

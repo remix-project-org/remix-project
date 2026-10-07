@@ -4,7 +4,7 @@
 
 ## Project Identity
 
-**Remix Project** is a comprehensive smart contract development toolset for Ethereum, including Remix IDE (web and desktop), plugins, and libraries for Solidity development, testing, debugging, and deployment.
+**Remix Project** is a comprehensive smart contract development toolset for Ethereum, including Remix Web3 (web and desktop), plugins, and libraries for Solidity development, testing, debugging, and deployment.
 
 - **Repository**: https://github.com/remix-project-org/remix-project
 - **Architecture**: Nx monorepo with Yarn workspaces

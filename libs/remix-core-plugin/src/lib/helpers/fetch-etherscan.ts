@@ -83,7 +83,7 @@ export const fetchContractFromEtherscan = async (plugin, endpoint: string | Netw
   } else if (data.result[0].SourceCode && typeof data.result[0].SourceCode == 'object') {
     const sources = data.result[0].SourceCode.sources
     for (let [file, source] of Object.entries(sources)) { // eslint-disable-line
-      file = file.replace('browser/', '') // should be fixed in the remix IDE end.
+      file = file.replace('browser/', '') // should be fixed in the Remix Web3 end.
       file = file.replace(/^\//g, '') // remove first slash.
       if (await plugin.call('contentImport', 'isExternalUrl', file)) {
         // nothing to do, the compiler callback will handle those

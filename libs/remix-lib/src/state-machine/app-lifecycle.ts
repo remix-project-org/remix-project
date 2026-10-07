@@ -1,5 +1,5 @@
 /**
- * AppLifecycle — XState v5 machine modelling the Remix IDE boot sequence.
+ * AppLifecycle — XState v5 machine modelling the Remix Web3 boot sequence.
  *
  * The machine tracks which boot phase we're in and maintains a context with
  * the set of activated plugins, fired events, and failure info.

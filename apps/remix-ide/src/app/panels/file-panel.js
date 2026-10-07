@@ -54,7 +54,7 @@ const profile = {
   ],
   events: ['setWorkspace', 'workspaceRenamed', 'workspaceDeleted', 'workspaceCreated', 'fileClickedFromExplorer'],
   icon: 'assets/img/fileManager.webp',
-  description: 'Remix IDE file explorer',
+  description: 'Remix Web3 file explorer',
   kind: 'fileexplorer',
   location: 'sidePanel',
   documentation: 'https://remix-ide.readthedocs.io/en/latest/file_explorer.html',

@@ -6,7 +6,7 @@ import { endpointUrls } from '@remix-endpoints-helper'
 const profile = {
   name: 'notificationCenter',
   displayName: 'Notification Center',
-  description: 'In-app notification center for Remix IDE',
+  description: 'In-app notification center for Remix Web3',
   methods: ['getNotifications', 'getUnreadCount', 'markAsRead', 'dismiss', 'markAllAsRead', 'startPolling', 'stopPolling', 'addLocalNotification', 'removeLocalNotification'],
   events: ['unreadCountChanged', 'notificationsUpdated'],
   version: '0.0.1'
