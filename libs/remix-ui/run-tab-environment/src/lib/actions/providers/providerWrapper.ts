@@ -22,7 +22,9 @@ export class ProviderWrapper {
         if (response.error) {
           reject(response.error)
         } else {
-          resolve((response !== null && response.result !== null && response.result !== undefined) ? response.result : response)
+          // unwrap JSON-RPC envelopes even when the result is null (e.g. a tx the node doesn't know yet), as EIP-1193 expects
+          const isEnvelope = response !== null && typeof response === 'object' && ('result' in response || 'jsonrpc' in response)
+          resolve(isEnvelope ? response.result : response)
         }
       }).catch((err) => {
         reject(err.error ? err.error : err)

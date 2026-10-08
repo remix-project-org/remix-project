@@ -68,8 +68,8 @@ export class TxRunnerWeb3 {
             } catch (e) {
               console.log(`Send transaction failed: ${e.message || e.error} . if you use an injected provider, please check it is properly unlocked. `)
               // in case the receipt is available, we consider that only the execution failed but the transaction went through.
-              const recoveredHash = e.receipt ? e.receipt.hash : e.info?.sendTransactionHash
-              if (recoveredHash) resolve(await this.broadcastTx(tx, recoveredHash, isCreation, false, null))
+              // So we don't consider this to be an error.
+              if (e.receipt) resolve(await this.broadcastTx(tx, e.receipt.hash, isCreation, false, null))
               else reject(e)
             }
           },
@@ -98,8 +98,8 @@ export class TxRunnerWeb3 {
         }
         console.log(`Send transaction failed: ${e.message} . if you use an injected provider, please check it is properly unlocked. `)
         // in case the receipt is available, we consider that only the execution failed but the transaction went through.
-        const recoveredHash = e.receipt ? e.receipt.hash : e.info?.sendTransactionHash
-        if (recoveredHash) return await this.broadcastTx(tx, recoveredHash, isCreation, false, null)
+        // So we don't consider this to be an error.
+        if (e.receipt) return await this.broadcastTx(tx, e.receipt.hash, isCreation, false, null)
         else throw (e)
       }
     }
