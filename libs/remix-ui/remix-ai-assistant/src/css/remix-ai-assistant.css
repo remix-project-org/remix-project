@@ -1983,6 +1983,15 @@ code {
   border-left: 1px solid var(--bs-border-color) !important;
 }
 
+/* Chat header toggles (changes, history) when their panel is open */
+.ai-heading-toggle-active,
+.ai-heading-toggle-active:hover,
+.ai-heading-toggle-active:focus {
+  color: var(--custom-ai-color) !important;
+  background-color: color-mix(in srgb, var(--custom-ai-color) 14%, transparent) !important;
+  border-color: transparent !important;
+}
+
 /* AI mode changes panel: files RemixAI changed or wants to change, with diffs */
 .ai-changes-panel {
   position: relative;

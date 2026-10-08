@@ -3217,14 +3217,14 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
                               onClick={handleApproveAll}
                               data-id="approve-all-changes"
                             >
-                          Approve All
+                          Accept All
                             </button>
                             <button
                               className="btn btn-danger btn-sm"
                               onClick={handleRejectAll}
                               data-id="reject-all-changes"
                             >
-                          Discard All
+                          Reject All
                             </button>
                           </div>
                         </div>
@@ -3334,14 +3334,14 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
                                 onClick={handleApproveAll}
                                 data-id="approve-all-changes"
                               >
-                              Approve All
+                              Accept All
                               </button>
                               <button
                                 className="btn btn-danger btn-sm"
                                 onClick={handleRejectAll}
                                 data-id="reject-all-changes"
                               >
-                              Discard All
+                              Reject All
                               </button>
                             </div>
                           </div>

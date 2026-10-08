@@ -326,7 +326,7 @@ export const AIChangesPanel = React.memo((props: AIChangesPanelProps) => {
                 <FileRow
                   key={approval.requestId}
                   path={approval.filePath}
-                  badge={approval.existingContent ? 'edit' : 'new'}
+                  badge={approval.existingContent ? 'edited' : 'new'}
                   additions={additions}
                   deletions={deletions}
                   dataId="ai-changes-pending-row"

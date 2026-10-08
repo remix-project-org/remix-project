@@ -82,7 +82,7 @@ export default function ChatHistoryHeading({
         {isAiChatMaximized && onToggleChanges && (
           <CustomTooltip tooltipText={showChangesPanel ? 'Hide changes' : 'Show files changed by RemixAI'}>
             <button
-              className={`btn btn-sm text-decoration-none d-inline-flex align-items-center ${showChangesPanel ? 'btn-primary' : 'btn-link'}`}
+              className={`btn btn-sm text-decoration-none d-inline-flex align-items-center ${showChangesPanel ? 'ai-heading-toggle-active' : 'btn-link'}`}
               onClick={onToggleChanges}
               data-id="toggle-changes-btn"
             >
@@ -95,7 +95,7 @@ export default function ChatHistoryHeading({
           tooltipText={showHistorySidebar ? 'Hide chat history' : 'Show chat history'}
         >
           <button
-            className={`btn btn-sm text-decoration-none d-inline-flex align-items-center ${showHistorySidebar ? 'btn-primary' : 'btn-link'}`}
+            className={`btn btn-sm text-decoration-none d-inline-flex align-items-center ${showHistorySidebar ? 'ai-heading-toggle-active' : 'btn-link'}`}
             onClick={onToggleHistory}
             data-id="toggle-history-btn"
           >
