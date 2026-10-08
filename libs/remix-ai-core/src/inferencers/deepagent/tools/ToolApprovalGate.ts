@@ -188,6 +188,19 @@ export class ToolApprovalGate {
       remixAILogger.log('[ToolApprovalGate] approval resolved', toolName, requestId, 'approved=', approved)
 
       if (!approved) {
+        if (FILE_CHANGE_TOOLS.has(toolName)) {
+          const rejected: AIFileChange = {
+            path: filePath || args.to,
+            existed: existingContent !== undefined || toolName === 'file_delete' || toolName === 'file_move',
+            oldContent: existingContent || '',
+            newContent: proposedContent || '',
+            timestamp: Date.now(),
+            status: 'rejected',
+            ...(toolName === 'file_delete' ? { deleted: true } : {}),
+            ...(toolName === 'file_move' ? { movedFrom: args.from } : {})
+          }
+          if (rejected.path) this.eventEmitter.emit('onAIFileChanged', rejected)
+        }
         return JSON.stringify({ cancelled: true, reason: `REJECTED: The user explicitly rejected this ${toolName} operation. Do NOT retry this operation or use alternative tools/methods. Inform the user and move on.` })
       }
 

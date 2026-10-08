@@ -253,6 +253,7 @@ export class RemixFilesystemBackend {
     const result = await this.requestWriteApproval(filePath, batch.originalContent, batch.virtualContent, 'edit_file')
 
     if (!result.approved) {
+      if (!result.timedOut) this.emitRejectedChange(filePath, batch.originalContent, batch.virtualContent, true)
 
       // Revert: the file still has original content (we never wrote during batching)
       return
@@ -435,6 +436,7 @@ export class RemixFilesystemBackend {
       const result = await this.requestWriteApproval(normalizedPath, oldContent, content, 'write_file')
 
       if (!result.approved) {
+        if (!result.timedOut) this.emitRejectedChange(normalizedPath, oldContent, content, exists)
         if (isQuickDappDocsWrite) clearQuickDappDocsContext()
         if (result.timedOut) {
           return { error: `TIMEOUT: No user input within 60 seconds for writing to ${path}. The user did not respond to the approval request. You may decide what to do next — retry, try a different approach, or skip this operation.` }
@@ -493,6 +495,11 @@ export class RemixFilesystemBackend {
     this.eventEmitter?.emit('onAIFileChanged', change)
   }
 
+  private emitRejectedChange(path: string, oldContent: string, proposedContent: string, existed: boolean): void {
+    const change: AIFileChange = { path, existed, oldContent: oldContent || '', newContent: proposedContent, timestamp: Date.now(), status: 'rejected' }
+    this.eventEmitter?.emit('onAIFileChanged', change)
+  }
+
   async edit_file(path: string, edits: EditInstruction[]): Promise<{ success?: boolean, error?: string }> {
     await this.flushAllPendingBatches()
 
@@ -524,6 +531,7 @@ export class RemixFilesystemBackend {
 
       const result = await this.requestWriteApproval(normalizedPath, originalContent, content, 'edit_file')
       if (!result.approved) {
+        if (!result.timedOut) this.emitRejectedChange(normalizedPath, originalContent, content, true)
         if (result.timedOut) {
           return { error: `TIMEOUT: No user input within 60 seconds for editing ${path}. The user did not respond to the approval request. You may decide what to do next — retry, try a different approach, or skip this operation.` }
         }

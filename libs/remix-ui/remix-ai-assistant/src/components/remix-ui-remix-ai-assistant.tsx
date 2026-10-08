@@ -26,7 +26,7 @@ import { CooldownBanner } from './cooldownBanner'
 import { ChatNoticeStrip, type ChatNoticeDisplay, type ChatNoticeActionDisplay } from './chatNoticeStrip'
 import { useModelAccess } from '../hooks/useModelAccess'
 import { ToolApprovalModal } from './ToolApprovalModal'
-import { AIChangesPanel, AIChangesSelection, foldFileChanges, isReviewableApproval, mergeFileChange } from './aiChangesPanel'
+import { AIChangesPanel, AIChangesSelection, changeKey, foldFileChanges, isReviewableApproval } from './aiChangesPanel'
 
 // ─── Generative UI payload validation ────────────────────────────────────────
 // Mirrors the VALID_TYPES set in GenerativeUIHandler.ts. Kept here as a
@@ -114,12 +114,17 @@ const OLLAMA_NOT_AVAILABLE_MESSAGE = [
 
 // Stable empty set so the memoized changes panel does not re-render for nothing
 const NO_STALE_KEYS = new Set<string>()
+// Characters of answer text kept to place a file change in the answer
+const CHANGE_ANCHOR_LENGTH = 40
 
 export const RemixUiRemixAiAssistant = React.forwardRef<
   RemixUiRemixAiAssistantHandle,
   RemixUiRemixAiAssistantProps
 >(function RemixUiRemixAiAssistant(props, ref) {
   const [messages, setMessages] = useState<ChatMessage[]>(props.initialMessages || [])
+  // Latest messages for event handlers registered once
+  const messagesRef = useRef(messages)
+  messagesRef.current = messages
   const [input, setInput] = useState('')
   const [isStreaming, setIsStreaming] = useState(false)
   // sendPrompt is memoized without `messages` / `currentConversationId` in its
@@ -190,8 +195,8 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
   const [reviewingApprovals, setReviewingApprovals] = useState<Set<string>>(new Set())
   const pendingDiffApprovalRef = useRef<{ requestId: string; filePath: string } | null>(null)
 
-  // AI mode changes panel. Changes made while an answer is being written are
-  // kept here, then moved onto that answer's message (and saved with it).
+  // File changes of the answer being written, in order (for the chat and the
+  // AI mode changes panel); moved onto the answer's message when it completes.
   const [liveFileChanges, setLiveFileChanges] = useState<AIFileChangeRecord[]>([])
   const liveFileChangesRef = useRef<AIFileChangeRecord[]>([])
   const updateLiveFileChanges = (records: AIFileChangeRecord[]) => {
@@ -1562,14 +1567,17 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
   // AI mode changes panel
   useEffect(() => {
     const handleFileChanged = async (change: AIFileChange) => {
-      const record: AIFileChangeRecord = { ...change }
+      // Where the change happened in the answer: the streaming bubble and the end of its text
+      const messageId = streamingAssistantIdRef.current || undefined
+      const bubbleText = messageId ? messagesRef.current.find(m => m.id === messageId)?.content || '' : ''
+      const record: AIFileChangeRecord = { ...change, messageId, anchor: bubbleText.slice(-CHANGE_ANCHOR_LENGTH) }
       try {
         record.workspace = (await props.plugin.call('filePanel' as any, 'getCurrentWorkspace'))?.name
       } catch { /* no workspace information */ }
       try {
         record.gitHead = await props.plugin.call('dgitApi' as any, 'resolveref', { ref: 'HEAD' })
       } catch { /* not a git repository */ }
-      updateLiveFileChanges(mergeFileChange(liveFileChangesRef.current, record))
+      updateLiveFileChanges([...liveFileChangesRef.current, record])
     }
     props.plugin.on('remixAI', 'onAIFileChanged', handleFileChanged)
     return () => {
@@ -1577,13 +1585,26 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
     }
   }, [props.plugin])
 
-  // The conversation's changed files: those saved on its messages, then the answer being written.
-  // Rebuilt only when a message's changes change, not on every streamed token.
-  const fileChangesSignature = messages.map(m => m.fileChanges ? `${m.id}:${m.fileChanges.length}` : '').join('|')
-  const changedFiles = useMemo(
-    () => foldFileChanges([...messages.filter(m => m.fileChanges?.length).map(m => m.fileChanges), liveFileChanges]),
-    [fileChangesSignature, liveFileChanges]
-  )
+  // The conversation's file changes: those saved on its messages, then the answer being written.
+  // Rebuilt when messages come and go or their changes change, not on every streamed token.
+  const fileChangesSignature = messages.map(m => m.fileChanges ? `${m.id}:${m.fileChanges.length}` : m.id).join('|')
+  const { changedFiles, fileChangesByMessage } = useMemo(() => {
+    // Each change shows in the bubble that was streaming when it happened while that bubble
+    // is still in the list; after a reload, in the saved answer that carries it.
+    const byMessage: Record<string, AIFileChangeRecord[]> = {}
+    const messageIds = new Set(messages.map(m => m.id))
+    const place = (record: AIFileChangeRecord, ownerId: string | undefined) => {
+      const target = record.messageId && messageIds.has(record.messageId) ? record.messageId : ownerId
+      if (target) (byMessage[target] = byMessage[target] || []).push(record)
+    }
+    messages.forEach(m => m.fileChanges?.forEach(record => place(record, m.id)))
+    const lastAssistantId = [...messages].reverse().find(m => m.role === 'assistant')?.id
+    liveFileChanges.forEach(record => place(record, lastAssistantId))
+    return {
+      changedFiles: foldFileChanges([...messages.filter(m => m.fileChanges?.length).map(m => m.fileChanges), liveFileChanges]),
+      fileChangesByMessage: byMessage
+    }
+  }, [fileChangesSignature, liveFileChanges])
 
   // Flag files that no longer hold what the agent wrote (edited since, branch switched, ...)
   useEffect(() => {
@@ -1669,6 +1690,27 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
     selectNextPendingChange(approval)
     handleRejectToolAction(approval)
   }, [selectNextPendingChange, handleRejectToolAction])
+
+  // A change line in the chat: its file in the changes panel in AI mode, else that edit's diff in the editor
+  const openFileChange = useCallback(async (change: AIFileChangeRecord) => {
+    if (props.isMaximized) {
+      openChangesPanel({ kind: 'file', key: changeKey(change.workspace, change.path) })
+      return
+    }
+    try {
+      await props.plugin.call('fileManager' as any, 'diff', {
+        type: change.deleted ? 'deleted' : change.existed ? 'modified' : 'added',
+        path: change.path.replace(/^\/+/, ''),
+        hashOriginal: 'remixai-before',
+        hashModified: `remixai-${change.timestamp}`,
+        original: change.oldContent,
+        modified: change.newContent,
+        readonly: true
+      })
+    } catch (err) {
+      remixAILogger.warn('[AIChanges] Failed to open the diff', err)
+    }
+  }, [props.isMaximized, props.plugin, openChangesPanel])
 
   const openChangedFileInEditor = useCallback(async (path: string) => {
     try {
@@ -3206,6 +3248,8 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
                       onDappReviewAcceptAll={handleDappReviewAcceptAll}
                       onDappReviewRevertAll={handleDappReviewRevertAll}
                       onDappReviewViewDiff={handleDappReviewViewDiff}
+                      fileChangesByMessage={fileChangesByMessage}
+                      onOpenFileChange={openFileChange}
                     />
                     {pendingApprovals.length > 1 && (
                       <div className="hitl-pending-summary">
@@ -3323,6 +3367,8 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
                         onDappReviewAcceptAll={handleDappReviewAcceptAll}
                         onDappReviewRevertAll={handleDappReviewRevertAll}
                         onDappReviewViewDiff={handleDappReviewViewDiff}
+                        fileChangesByMessage={fileChangesByMessage}
+                        onOpenFileChange={openFileChange}
                       />
                       {pendingApprovals.length > 1 && (
                         <div className="hitl-pending-summary">

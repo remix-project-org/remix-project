@@ -2147,3 +2147,70 @@ body.ai-changes-resizing {
     display: none;
   }
 }
+
+/* File change lines inside an AI answer, where the agent changed files */
+.ai-change-group {
+  gap: 2px;
+}
+
+.ai-change-line {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  min-width: 0;
+  padding: 4px 8px;
+  border: 1px solid var(--bs-border-color);
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--bs-body-color) 4%, transparent);
+  color: var(--bs-body-color);
+  font-size: 0.8rem;
+  text-align: left;
+}
+
+button.ai-change-line:hover {
+  background: color-mix(in srgb, var(--custom-ai-color) 10%, transparent);
+  border-color: color-mix(in srgb, var(--custom-ai-color) 40%, transparent);
+}
+
+.ai-change-line > .fa-pen,
+.ai-change-line > .fa-ban {
+  font-size: 0.7rem;
+  color: var(--custom-ai-color);
+  flex-shrink: 0;
+}
+
+.ai-change-line .text-truncate {
+  flex-grow: 1;
+}
+
+.ai-change-line-nested {
+  margin-left: 18px;
+  width: calc(100% - 18px);
+  border-style: dashed;
+}
+
+.ai-change-line-kind {
+  font-size: 0.7rem;
+  color: var(--bs-secondary-color);
+}
+
+.ai-change-line-stat {
+  font-size: 0.75rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.ai-change-line-open {
+  font-size: 0.65rem;
+  opacity: 0.6;
+}
+
+.ai-change-line-rejected {
+  opacity: 0.6;
+  border-style: dashed;
+  background: transparent;
+}
+
+.ai-change-line-rejected > .fa-ban {
+  color: var(--bs-secondary-color);
+}

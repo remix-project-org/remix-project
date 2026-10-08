@@ -146,3 +146,60 @@ test('deleted and moved files are labelled; a file created then deleted in the c
   await expect(page.locator(sel.diff)).toBeVisible()
   await expect(page.locator('[data-id="ai-changes-open-editor-btn"]')).toHaveCount(0)
 })
+
+test('a saved answer shows its file changes in place, grouped, with rejected edits muted', async ({ page }) => {
+  await loadIdeInAiMode(page)
+
+  // A conversation as saved after an answer that changed files
+  await page.evaluate(async () => {
+    const now = Date.now()
+    const change = (path: string, anchor: string, extra: Record<string, any> = {}) => ({
+      path, anchor, existed: true, oldContent: 'a\nb', newContent: 'a\nB\nc', timestamp: now, workspace: 'default_workspace', ...extra
+    })
+    const answer = "I'll add a guard to withdraw().\n\nNow the tests:\n\nDone, withdraw() is protected."
+    const db: IDBDatabase = await new Promise((resolve, reject) => {
+      const request = indexedDB.open('RemixAIChatHistory')
+      request.onsuccess = () => resolve(request.result)
+      request.onerror = () => reject(request.error)
+    })
+    const tx = db.transaction(['conversations', 'messages'], 'readwrite')
+    tx.objectStore('conversations').put({
+      id: 'e2e-changes-conv', title: 'E2E file changes', createdAt: now, updatedAt: now, lastAccessedAt: now,
+      archived: false, messageCount: 2, preview: 'Fix withdraw'
+    })
+    tx.objectStore('messages').put({ id: 'e2e-user', conversationId: 'e2e-changes-conv', role: 'user', content: 'Fix withdraw', timestamp: now })
+    tx.objectStore('messages').put({
+      id: 'e2e-answer', conversationId: 'e2e-changes-conv', role: 'assistant', content: answer, timestamp: now + 1,
+      fileChanges: [
+        change('contracts/Vault.sol', "I'll add a guard to withdraw()."),
+        change('tests/Vault.test.js', 'Now the tests:', { existed: false, oldContent: '' }),
+        change('contracts/Guard.sol', 'Now the tests:', { existed: false, oldContent: '' }),
+        change('README.md', 'Now the tests:', { status: 'rejected' })
+      ]
+    })
+    await new Promise((resolve, reject) => { tx.oncomplete = resolve; tx.onerror = () => reject(tx.error) })
+    db.close()
+    await (window as any).getRemixAIPlugin.call('remixaiassistant', 'loadConversations')
+  })
+
+  await click(page, sel.historyToggle)
+  await click(page, '[data-id="conversation-item-e2e-changes-conv"]')
+
+  const answer = page.locator('.aiMarkup').filter({ has: page.locator('[data-id="ai-change-group"]') })
+  await expect(answer.locator('[data-id="ai-change-group"]')).toHaveCount(2)
+  // In place: the Vault edit sits between the first and second paragraphs
+  const order = await answer.evaluate((el) => Array.from(el.querySelectorAll('p, [data-id="ai-change-line"], [data-id="ai-change-group-toggle"], [data-id="ai-change-line-rejected"]'))
+    .map((node) => node.getAttribute('data-path') || node.getAttribute('data-id') === 'ai-change-group-toggle' && 'group' || node.textContent.trim()))
+  expect(order).toEqual(["I'll add a guard to withdraw().", 'contracts/Vault.sol', 'Now the tests:', 'group', 'README.md', 'Done, withdraw() is protected.'])
+
+  await expect(answer.locator('[data-id="ai-change-group-toggle"]')).toContainText('Edited 2 files')
+  await expect(answer.locator('[data-id="ai-change-line-rejected"]')).toContainText('Rejected edit to README.md')
+
+  // The panel lists what was written, not the rejected edit; a line opens its file there
+  await click(page, '[data-id="ai-change-line"][data-path="contracts/Vault.sol"]')
+  await expect(page.locator(sel.panel)).toBeVisible()
+  await expect(page.locator(sel.diffPath)).toHaveText('contracts/Vault.sol')
+  await click(page, '[data-id="ai-changes-back-btn"]')
+  await expect(page.locator(sel.fileRow)).toHaveCount(3)
+  await expect(page.locator(`${sel.fileRow}[data-path="README.md"]`)).toHaveCount(0)
+})

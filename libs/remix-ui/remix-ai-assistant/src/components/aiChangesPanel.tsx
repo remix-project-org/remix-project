@@ -41,7 +41,7 @@ export const isReviewableApproval = (approval: ToolApprovalRequest) => !!approva
 
 const normalizePath = (path: string) => path.replace(/^\/+/, '')
 
-const changeKey = (workspace: string | undefined, path: string) => `${workspace || ''}::${path}`
+export const changeKey = (workspace: string | undefined, path: string) => `${workspace || ''}::${normalizePath(path)}`
 
 /**
  * Add a change to a list of changes (newest first), keeping one entry per file:
@@ -68,11 +68,13 @@ export const mergeFileChange = (records: AIFileChangeRecord[], change: AIFileCha
   }, ...others]
 }
 
-/** The changed files of a conversation, from the change lists of its messages (oldest message first) */
+/** The changed files of a conversation, from the changes recorded on its messages (all in chronological order) */
 export const foldFileChanges = (recordLists: AIFileChangeRecord[][]): AIChangedFile[] => {
   let merged: AIFileChangeRecord[] = []
   for (const records of recordLists) {
-    for (const record of [...records].reverse()) merged = mergeFileChange(merged, record)
+    for (const record of records) {
+      if (record.status !== 'rejected') merged = mergeFileChange(merged, record)
+    }
   }
   return merged.map((record) => ({
     key: changeKey(record.workspace, record.path),
