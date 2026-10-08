@@ -4,7 +4,7 @@ import { createPortal } from 'react-dom'
 import { RunTabUI } from '@remix-ui/run-tab'
 import { trackMatomoEvent } from '@remix-api'
 import { ViewPlugin } from '@remixproject/engine-web'
-import { addressToString, PluginViewWrapper } from '@remix-ui/helper'
+import { addressToString, isEezEnabled, PluginViewWrapper } from '@remix-ui/helper'
 import * as packageJson from '../../../../../package.json'
 import { EventManager } from '@remix-project/remix-lib'
 import type { Blockchain } from '../../blockchain/blockchain'
@@ -34,13 +34,16 @@ type UdappTab = 'deploy' | 'contracts' | 'history' | 'eez'
 
 function UdappBody() {
   const [tab, setTab] = useState<UdappTab>(() => {
-    return (localStorage.getItem(UDAPP_TAB_KEY) as UdappTab) || 'deploy'
+    const stored = localStorage.getItem(UDAPP_TAB_KEY) as UdappTab
+    if (stored === 'eez' && !isEezEnabled()) return 'deploy'
+    return stored || 'deploy'
   })
   const [deployedCount, setDeployedCount] = useState(0)
   const [txCount, setTxCount] = useState(0)
   const prevDeployedRef = useRef(0)
 
   const switchTab = (next: UdappTab) => {
+    if (next === 'eez' && !isEezEnabled()) return
     setTab(next)
     localStorage.setItem(UDAPP_TAB_KEY, next)
   }
@@ -88,9 +91,11 @@ function UdappBody() {
             Transactions history
             {txCount > 0 && <span className="udapp-tab-badge">{txCount}</span>}
           </button>
-          <button data-id="udappEezTab" role="tab" aria-selected={tab === 'eez'} className={`udapp-tab${tab === 'eez' ? ' active' : ''}`} onClick={() => switchTab('eez')}>
-            EEZ
-          </button>
+          {isEezEnabled() && (
+            <button data-id="udappEezTab" role="tab" aria-selected={tab === 'eez'} className={`udapp-tab${tab === 'eez' ? ' active' : ''}`} onClick={() => switchTab('eez')}>
+              EEZ
+            </button>
+          )}
         </nav>
       </div>
       <div id="udappScrollableContent" onScroll={(e) => {
@@ -101,7 +106,7 @@ function UdappBody() {
         <div id="udappDeployComponent" style={{ display: tab === 'deploy' ? '' : 'none' }}></div>
         <div id="udappDeployedContractsComponent" style={{ display: tab === 'contracts' ? '' : 'none' }}></div>
         <div id="udappTransactionsComponent" style={{ display: tab === 'history' ? '' : 'none' }}></div>
-        <div id="udappEezComponent" style={{ display: tab === 'eez' ? '' : 'none' }}></div>
+        <div id="udappEezComponent" style={{ display: isEezEnabled() && tab === 'eez' ? '' : 'none' }}></div>
       </div>
     </div>
   )

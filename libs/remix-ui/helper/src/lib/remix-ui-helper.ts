@@ -420,6 +420,9 @@ export const addFrontendPrefix = (
   return filename;
 };
 
+export const isEezEnabled = (): boolean =>
+  typeof window !== 'undefined' && (window.location.origin === 'https://app.remix.live' || ['localhost', '127.0.0.1'].includes(window.location.hostname))
+
 export const EEZ_KNOWN_REVERT_ERRORS_ABI = [
   'error UnauthorizedProxy()',
   'error NotSelf()',
