@@ -464,6 +464,7 @@ export default class TabProxy extends Plugin {
       tabs={state.loadedTabs}
       onSelect={state.onSelect}
       onClose={state.onClose}
+      onReorder={state.onReorder}
       onZoomIn={state.onZoomIn}
       onZoomOut={state.onZoomOut}
       onReady={state.onReady}
@@ -492,6 +493,15 @@ export default class TabProxy extends Plugin {
       }
     }
 
+    const onReorder = (fromIndex, toIndex) => {
+      if (!this.loadedTabs[fromIndex] || toIndex < 0 || toIndex >= this.loadedTabs.length) return
+      const tabs = [...this.loadedTabs]
+      tabs.splice(toIndex, 0, tabs.splice(fromIndex, 1)[0])
+      this.loadedTabs = tabs
+      this.renderComponent()
+      this.emit('tabsReordered', this.loadedTabs.map((tab) => tab.name))
+    }
+
     const onZoomIn = () => this.editor.editorFontSize(1)
     const onZoomOut = () => this.editor.editorFontSize(-1)
 
@@ -504,6 +514,7 @@ export default class TabProxy extends Plugin {
       loadedTabs: this.loadedTabs,
       onSelect,
       onClose,
+      onReorder,
       onZoomIn,
       onZoomOut,
       onReady,
