@@ -12,6 +12,9 @@ interface ChatHistoryHeadingProps {
   chatTitle?: string
   isAiChatMaximized?: boolean
   onExitAIMode?: () => void
+  showChangesPanel?: boolean
+  onToggleChanges?: () => void
+  changesCount?: number
 }
 
 const MAX_TITLE_LENGTH = 50
@@ -26,7 +29,10 @@ export default function ChatHistoryHeading({
   theme,
   chatTitle,
   isAiChatMaximized,
-  onExitAIMode
+  onExitAIMode,
+  showChangesPanel,
+  onToggleChanges,
+  changesCount
 }: ChatHistoryHeadingProps) {
   const truncatedTitle = chatTitle
     ? chatTitle.length > MAX_TITLE_LENGTH
@@ -70,6 +76,18 @@ export default function ChatHistoryHeading({
             >
               <i className="fas fa-plus"></i>
               {isAiChatMaximized ? <span className="ms-1">New Chat</span> : null}
+            </button>
+          </CustomTooltip>
+        )}
+        {isAiChatMaximized && onToggleChanges && (
+          <CustomTooltip tooltipText={showChangesPanel ? 'Hide changes' : 'Show files changed by RemixAI'}>
+            <button
+              className={`btn btn-sm text-decoration-none d-inline-flex align-items-center ${showChangesPanel ? 'btn-primary' : 'btn-link'}`}
+              onClick={onToggleChanges}
+              data-id="toggle-changes-btn"
+            >
+              <i className="fas fa-code-compare"></i>
+              {changesCount > 0 && <span className="badge rounded-pill bg-secondary ms-1 ai-changes-toggle-count" data-id="toggle-changes-count">{changesCount}</span>}
             </button>
           </CustomTooltip>
         )}

@@ -1696,7 +1696,9 @@ code {
 }
 
 .tool-approval-card__btn--reject {
-  background: var(--custom-onsurface-layer-4);
+  /* the onsurface layers it used are dark-theme only: white text vanished in light themes */
+  background: color-mix(in srgb, var(--bs-body-color) 16%, transparent);
+  color: var(--bs-body-color);
 }
 
 .tool-approval-card__btn--reject:hover {
@@ -1713,7 +1715,8 @@ code {
 }
 
 .tool-approval-card__btn--review {
-  background: var(--custom-onsurface-layer-1);
+  background: color-mix(in srgb, var(--bs-body-color) 8%, transparent);
+  color: var(--bs-body-color);
 }
 
 .tool-approval-card__btn--review:hover {
@@ -1978,6 +1981,87 @@ code {
   min-width: 320px;
   max-width: 320px;
   border-left: 1px solid var(--bs-border-color) !important;
+}
+
+/* AI mode changes panel: files RemixAI changed or wants to change, with diffs */
+.ai-changes-panel {
+  position: relative;
+  flex-shrink: 0;
+  min-width: 320px;
+  max-width: 70%;
+  border-left: 1px solid var(--bs-border-color) !important;
+}
+
+.ai-changes-panel .ai-changes-resize-handle {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: -3px;
+  width: 6px;
+  cursor: col-resize;
+  z-index: 5;
+}
+
+.ai-changes-panel .ai-changes-resize-handle:hover,
+body.ai-changes-resizing .ai-changes-panel .ai-changes-resize-handle {
+  background-color: var(--custom-ai-color);
+  opacity: 0.6;
+}
+
+body.ai-changes-resizing {
+  cursor: col-resize;
+  user-select: none;
+}
+
+/* Secondary actions: readable in both themes (the approval card's reject colour is dark-theme only) */
+.ai-changes-panel .ai-changes-btn-secondary {
+  background: color-mix(in srgb, var(--bs-body-color) 12%, transparent);
+  color: var(--bs-body-color);
+}
+
+.ai-changes-panel .ai-changes-btn-secondary:hover {
+  opacity: 0.85;
+}
+
+.ai-changes-panel .ai-changes-section-title {
+  font-size: 0.7rem;
+  letter-spacing: 0.04em;
+}
+
+.ai-changes-panel .ai-changes-row {
+  font-size: 0.8rem;
+  border-radius: 6px;
+  color: var(--bs-body-color);
+}
+
+.ai-changes-panel .ai-changes-row:hover {
+  background-color: var(--custom-onsurface-layer-1, var(--bs-secondary-bg));
+}
+
+.ai-changes-panel .ai-changes-badge {
+  font-weight: 500;
+  color: var(--bs-body-color);
+  background-color: color-mix(in srgb, var(--bs-body-color) 14%, transparent);
+}
+
+.ai-changes-panel .ai-changes-badge-warning {
+  color: var(--bs-warning);
+  background-color: color-mix(in srgb, var(--bs-warning) 14%, transparent);
+}
+
+.ai-changes-panel .ai-changes-notice {
+  color: var(--bs-warning);
+  background-color: color-mix(in srgb, var(--bs-warning) 8%, transparent);
+}
+
+.ai-changes-panel .ai-changes-stat {
+  font-size: 0.75rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.ai-changes-toggle-count {
+  font-size: 0.65rem;
+  padding: 0.15em 0.4em;
 }
 
 /* History header actions (both modes): compact, one line */
