@@ -172,15 +172,15 @@ module.exports = {
 
   'Double-clicking the left dragbar resets the side panel to its default width #group1': function (browser: NightwatchBrowser) {
     dragBy(browser, leftDragbar, 200)
-    assertPanelWidth(browser, '#side-panel', 460, 'The side panel is wider after dragging')
+    assertPanelWidth(browser, '#side-panel', 520, 'The side panel is wider after dragging')
     browser.doubleClick(leftDragbar).pause(1000)
-    assertPanelWidth(browser, '#side-panel', 260, 'Double-click resets the side panel to 260px')
+    assertPanelWidth(browser, '#side-panel', 320, 'Double-click resets the side panel to 320px')
     assertLeftDragbarAligned(browser, 'Left dragbar should align after the reset')
   },
 
   'Dragging the left dragbar a little below the minimum stops at the minimum #group1': function (browser: NightwatchBrowser) {
-    // 260px - 100px = 160px: below the 220px minimum, but not far enough to close
-    dragBy(browser, leftDragbar, -100)
+    // 320px - 130px = 190px: below the 220px minimum, but not far enough to close
+    dragBy(browser, leftDragbar, -130)
     browser.waitForElementVisible('#side-panel', 5000)
     assertPanelWidth(browser, '#side-panel', 220, 'The file explorer can be narrowed to the 220px minimum')
   },
@@ -199,7 +199,7 @@ module.exports = {
     browser.waitForElementNotVisible('#side-panel', 5000)
     browser.doubleClick(leftDragbar).pause(1000)
       .waitForElementVisible('#side-panel', 5000)
-    assertPanelWidth(browser, '#side-panel', 260, 'Double-click reopens the side panel at 260px')
+    assertPanelWidth(browser, '#side-panel', 320, 'Double-click reopens the side panel at 320px')
   },
 
   'Right dragbar should align with the pinned panel edge #group1': function (browser: NightwatchBrowser) {

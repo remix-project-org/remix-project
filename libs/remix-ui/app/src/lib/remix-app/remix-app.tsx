@@ -398,7 +398,7 @@ const RemixApp = (props: IRemixAppUi) => {
                     resetTrigger={resetLeftTrigger}
                     maximiseTrigger={maximiseLeftTrigger}
                     minWidth={220}
-                    defaultWidth={260}
+                    defaultWidth={320}
                     refObject={sidePanelRef}
                     hidden={hideSidePanel}
                     setHideStatus={setHideSidePanel}
