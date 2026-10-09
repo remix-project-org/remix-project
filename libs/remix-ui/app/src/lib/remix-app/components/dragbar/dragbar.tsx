@@ -14,6 +14,8 @@ interface IRemixDragBarUi {
   resetTrigger: number
   layoutPosition: 'left' | 'right',
   coeff?: number
+  /** Fixed width for enhanceTrigger, used instead of coeff */
+  enhanceWidth?: number
 }
 
 // How far below its minimum width the left panel must be dragged to close
@@ -141,6 +143,10 @@ const DragBar = (props: IRemixDragBarUi) => {
   }, [props.maximiseTrigger])
 
   useEffect(() => {
+    if (props.enhanceTrigger > 0 && props.enhanceWidth) {
+      applyPanelWidth(props.enhanceWidth)
+      return
+    }
     triggerWidth(props.enhanceTrigger, props.coeff || 0.25)
   }, [props.enhanceTrigger])
 
