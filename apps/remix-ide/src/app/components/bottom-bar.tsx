@@ -402,7 +402,7 @@ For Inline mode, preserve the existing /frontend overwrite confirmation flow.`
     }
     try {
       await openAIAssistant()
-      appStateDispatch({ type: appActionTypes.showChecklistModal, payload: true })
+      appStateDispatch({ type: appActionTypes.showChecklistModal, payload: 'audit' })
     } catch (err) {
       console.error('Security audit failed:', err)
     }
