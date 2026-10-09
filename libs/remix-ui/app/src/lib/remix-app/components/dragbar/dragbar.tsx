@@ -16,6 +16,9 @@ interface IRemixDragBarUi {
   coeff?: number
 }
 
+// How far below its minimum width the left panel must be dragged to close
+const CLOSE_DRAG_DISTANCE = 150
+
 const DragBar = (props: IRemixDragBarUi) => {
   const handleSize = 6
   const halfHandleSize = handleSize / 2
@@ -211,11 +214,13 @@ const DragBar = (props: IRemixDragBarUi) => {
     const edgeX = data.x + halfHandleSize
     if (props.layoutPosition === 'left') {
       const startEdge = panelStartEdgeRef.current
-      const nextWidth = edgeX - startEdge
+      const draggedWidth = edgeX - startEdge
 
-      if (nextWidth < props.minWidth) {
+      // Below the minimum the panel stops there; only a long drag past it closes the panel
+      if (draggedWidth < props.minWidth - CLOSE_DRAG_DISTANCE) {
         props.setHideStatus(true)
       } else {
+        const nextWidth = Math.max(draggedWidth, props.minWidth)
         restoreWidthRef.current = nextWidth
         panelElement.style.width = `${nextWidth}px`
         props.setHideStatus(false)

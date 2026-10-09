@@ -178,6 +178,22 @@ module.exports = {
     assertLeftDragbarAligned(browser, 'Left dragbar should align after the reset')
   },
 
+  'Dragging the left dragbar a little below the minimum stops at the minimum #group1': function (browser: NightwatchBrowser) {
+    // 320px - 100px = 220px: below the 305px minimum, but not far enough to close
+    dragBy(browser, leftDragbar, -100)
+    browser.waitForElementVisible('#side-panel', 5000)
+    assertPanelWidth(browser, '#side-panel', 305, 'The side panel stops at its 305px minimum')
+  },
+
+  'Dragging the left dragbar far below the minimum closes the side panel #group1': function (browser: NightwatchBrowser) {
+    // 305px - 250px = 55px: more than 150px past the minimum
+    dragBy(browser, leftDragbar, -250)
+    browser.waitForElementNotVisible('#side-panel', 5000)
+    browser.doubleClick(leftDragbar).pause(1000)
+      .waitForElementVisible('#side-panel', 5000)
+    assertPanelWidth(browser, '#side-panel', 320, 'Double-click reopens the side panel at 320px')
+  },
+
   'Right dragbar should align with the pinned panel edge #group1': function (browser: NightwatchBrowser) {
     browser
       .clickLaunchIcon('solidity')
