@@ -5,5 +5,5 @@ export const EEZ_COMPOSER_RPC_URLS: Record<string, string> = {
   // EEZ L1
   '10200': 'https://eez.dev/composer/l1',
   // EEZ L2
-  '696990': 'https://eez.dev/composer/l2'
+  '699069': 'https://eez.dev/composer/l2'
 }
