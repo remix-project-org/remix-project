@@ -4,6 +4,7 @@ import { NightwatchBrowser } from 'nightwatch'
 import init from '../helpers/init'
 
 const tabSelector = (fileName: string) => `.remix-ui-tabs div.tab[data-path$="${fileName}"]`
+const activeTabSelector = (fileName: string) => `.remix-ui-tabs [data-id="tab-active"][data-path$="${fileName}"]`
 
 // WebDriver's drag and drop doesn't fire HTML5 drag events, so dispatch them from the page
 const dragTab = (browser: NightwatchBrowser, fromFile: string, toFile: string, side: 'before' | 'after') => {
@@ -56,22 +57,22 @@ module.exports = {
     dragTab(browser, '3_Ballot.sol', '1_Storage.sol', 'before')
     expectSolTabsOrder(browser, ['3_Ballot.sol', '1_Storage.sol', '2_Owner.sol'])
     // the active tab is still the one being edited
-    browser.waitForElementVisible(`//*[@data-id='tab-active' and contains(@data-path, "3_Ballot.sol")]`, 5000)
+    browser.waitForElementVisible(activeTabSelector('3_Ballot.sol'), 5000)
   },
 
   'Should move a tab after another one by dragging it #group1': function (browser: NightwatchBrowser) {
     dragTab(browser, '1_Storage.sol', '2_Owner.sol', 'after')
     expectSolTabsOrder(browser, ['3_Ballot.sol', '2_Owner.sol', '1_Storage.sol'])
-    browser.waitForElementVisible(`//*[@data-id='tab-active' and contains(@data-path, "3_Ballot.sol")]`, 5000)
+    browser.waitForElementVisible(activeTabSelector('3_Ballot.sol'), 5000)
   },
 
   'Should close the active tab and activate its left neighbour after reordering #group1': function (browser: NightwatchBrowser) {
     browser
       .click(tabSelector('2_Owner.sol'))
-      .waitForElementVisible(`//*[@data-id='tab-active' and contains(@data-path, "2_Owner.sol")]`, 5000)
+      .waitForElementVisible(activeTabSelector('2_Owner.sol'), 5000)
       .click(`${tabSelector('2_Owner.sol')} .close-tabs`)
       .waitForElementNotPresent(tabSelector('2_Owner.sol'))
-      .waitForElementVisible(`//*[@data-id='tab-active' and contains(@data-path, "3_Ballot.sol")]`, 5000)
+      .waitForElementVisible(activeTabSelector('3_Ballot.sol'), 5000)
       .end()
   }
 }
