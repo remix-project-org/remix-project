@@ -48,9 +48,9 @@ export interface ResolvedProxyInfo {
   originNetworkLabel: string | null
 }
 
-export interface TraceAddressInfo {
+export interface TraceProxyInfo {
   address: string
-  proxyInfo: ResolvedProxyInfo | null
+  hops: ResolvedProxyInfo[]
 }
 
 export interface TransactionTraceResult {
@@ -58,8 +58,8 @@ export interface TransactionTraceResult {
   success: boolean
   error: string | null
   decodedError: string | null
-  addresses: TraceAddressInfo[]
-  currentNetworkLabel: string
+  proxies: TraceProxyInfo[]
+  proxyCount: number
 }
 
 export interface EezWidgetState {

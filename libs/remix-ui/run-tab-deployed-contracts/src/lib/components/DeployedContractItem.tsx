@@ -8,7 +8,7 @@ import { parseUnits } from 'ethers'
 import { FuncABI } from '@remix-project/core-plugin'
 import { DeployedContractsAppContext } from '../contexts'
 import { DeployedContract } from '../types'
-import { runTransactions, checkCrossChainProxy, traceCrossChainCall, CrossChainProxyInfo, CrossChainTraceResult, TraceAddressInfo } from '../actions'
+import { runTransactions, checkCrossChainProxy, traceCrossChainCall, CrossChainProxyInfo, CrossChainTraceResult } from '../actions'
 import { ContractKebabMenu } from './ContractKebabMenu'
 import { EnsNaming } from './EnsNaming'
 import { QuickDappContractSelector, QuickDappFigmaPreparationResult, QuickDappSetupOptions } from '@remix-ui/quick-dapp-v2'
@@ -370,98 +370,32 @@ export function DeployedContractItem({ contract, index, collapseSignal, register
             </div>
           </>
         )}
-        {tracePreview.result && (() => {
-          const traceResult = tracePreview.result
-          const proxiesTouched = traceResult.addresses.filter(
-            (a): a is TraceAddressInfo & { proxyInfo: CrossChainProxyInfo } => a.proxyInfo !== null
-          )
-          return (
-            <>
-              {proxiesTouched.length > 0 && (
-                <div className="small mb-2 p-2 rounded" style={{ backgroundColor: '#a56eff14', color: themeQuality === 'dark' ? 'white' : 'black' }}>
-                  <div style={{ fontWeight: 700 }}>
-                    This transaction is cross-chain — {proxiesTouched.length} {proxiesTouched.length === 1 ? 'proxy' : 'proxies'} touched:
-                  </div>
+        {tracePreview.result && (
+          <>
+            {tracePreview.result.proxies.length > 0 ? (
+              <div className="small mb-2 p-2 rounded" style={{ backgroundColor: '#a56eff14', color: themeQuality === 'dark' ? 'white' : 'black' }}>
+                <div style={{ fontWeight: 700 }}>
+                  This transaction is cross-chain — {tracePreview.result.proxyCount} {tracePreview.result.proxyCount === 1 ? 'proxy' : 'proxies'} touched:
                 </div>
-              )}
-              {traceResult.addresses.length > 0 && (
-                <div>
-                  <div className="text-secondary" style={{ fontSize: '10px', textTransform: 'uppercase' }}>Addresses touched</div>
-                  <div className="d-flex flex-column gap-1 mt-1">
-                    {traceResult.addresses.map((a) => {
-                      const proxyInfo = a.proxyInfo
-                      return (
-                        <div
-                          key={a.address}
-                          className="d-flex align-items-center flex-wrap p-2 rounded"
-                          style={{ backgroundColor: 'var(--custom-onsurface-layer-3)', gap: '6px' }}
-                        >
-                          <div className="d-flex align-items-center flex-wrap" style={{ gap: '6px' }}>
-                            <span style={{ fontSize: '10px', fontFamily: 'Monaco, monospace' }}>{shortenAddress(a.address)}</span>
-                            <CopyToClipboard tip={intl.formatMessage({ id: 'udapp.copyAddressTooltip' })} icon="fa-copy" direction="top" getContent={() => a.address}>
-                              <i className="fa-solid fa-copy small" style={{ cursor: 'pointer' }}></i>
-                            </CopyToClipboard>
-                            <CustomTooltip
-                              placement="top"
-                              tooltipId={`traceChainTooltip-${a.address}`}
-                              tooltipText={`Lives on ${traceResult.currentNetworkLabel}`}
-                            >
-                              <span className="badge" style={{ backgroundColor: '#64C4FF14', color: '#64c4ff', fontSize: '9px', fontWeight: 700 }}>
-                                {traceResult.currentNetworkLabel}
-                              </span>
-                            </CustomTooltip>
-                            {proxyInfo && (
-                              <CustomTooltip
-                                placement="top"
-                                tooltipId={`traceProxyTooltip-${a.address}`}
-                                tooltipText="Proxy"
-                              >
-                                <span className="badge" style={{ backgroundColor: '#a56eff14', color: '#a56eff', fontSize: '9px', fontWeight: 700 }}>
-                                  Proxy
-                                </span>
-                              </CustomTooltip>
-                            )}
-                          </div>
-                          {proxyInfo && (
-                            <div className="text-secondary text-center" style={{ flex: '1 1 auto', fontSize: '10px' }}>→</div>
-                          )}
-                          {proxyInfo && (
-                            <div className="d-flex align-items-center flex-wrap" style={{ gap: '6px' }}>
-                              <span style={{ fontSize: '10px', fontFamily: 'Monaco, monospace' }}>{shortenAddress(proxyInfo.originalAddress)}</span>
-                              <CopyToClipboard tip={intl.formatMessage({ id: 'udapp.copyAddressTooltip' })} icon="fa-copy" direction="top" getContent={() => proxyInfo.originalAddress}>
-                                <i className="fa-solid fa-copy small" style={{ cursor: 'pointer' }}></i>
-                              </CopyToClipboard>
-                              <CustomTooltip
-                                placement="top"
-                                tooltipId={`traceOriginChainTooltip-${a.address}`}
-                                tooltipText={`Original account on ${proxyInfo.originNetworkLabel || `network ${proxyInfo.originalRollupId}`}`}
-                              >
-                                <span className="badge" style={{ backgroundColor: '#64C4FF14', color: '#64c4ff', fontSize: '9px', fontWeight: 700 }}>
-                                  {proxyInfo.originNetworkLabel || `network ${proxyInfo.originalRollupId}`}
-                                </span>
-                              </CustomTooltip>
-                            </div>
-                          )}
-                        </div>
-                      )
-                    })}
+                {tracePreview.result.proxies.map((p) => (
+                  <div key={p.address} className="mt-1">
+                    {p.hops.map((hop, hopIndex) => (
+                      <div key={hopIndex} className="text-break" style={{ fontSize: '11px', fontFamily: 'Monaco, monospace' }}>
+                        {shortenAddress(hopIndex === 0 ? p.address : p.hops[hopIndex - 1].originalAddress)} → acts for {shortenAddress(hop.originalAddress)} on {hop.originNetworkLabel || `network ${hop.originalRollupId}`}
+                      </div>
+                    ))}
                   </div>
-                </div>
-              )}
-              <div className="small my-2 p-2 rounded" style={{ backgroundColor: traceResult.willSucceed ? `rgba(var(--bs-success-rgb), 0.08)` : `rgba(var(--bs-danger-rgb), 0.08)`, color: themeQuality === 'dark' ? 'white' : 'black' }}>
-                {traceResult.willSucceed
-                  ? '✓ This call is expected to succeed.'
-                  : `✗ This call is expected to revert${traceResult.decodedError ? `: ${traceResult.decodedError}` : traceResult.error ? `: ${traceResult.error}` : '.'}`}
+                ))}
               </div>
-              <div className="d-flex gap-2 my-2">
-                <button className="btn btn-sm btn-secondary flex-fill" data-id="cancelTracePreviewBtn" onClick={cancelTracePreview}>Cancel</button>
-                <button className="btn btn-sm btn-primary flex-fill" data-id="confirmTracePreviewBtn" onClick={confirmTracePreview}>
-                  {traceResult.willSucceed ? 'Send Transaction' : 'Send anyway'}
-                </button>
-              </div>
-            </>
-          )
-        })()}
+            ) : (
+              <div className="small mb-2 text-secondary">No cross-chain proxies are touched by this transaction.</div>
+            )}
+            <div className="d-flex gap-2 my-2">
+              <button className="btn btn-sm btn-secondary flex-fill" data-id="cancelTracePreviewBtn" onClick={cancelTracePreview}>Cancel</button>
+              <button className="btn btn-sm btn-primary flex-fill" data-id="confirmTracePreviewBtn" onClick={confirmTracePreview}>Transact</button>
+            </div>
+          </>
+        )}
       </div>
     )
   }

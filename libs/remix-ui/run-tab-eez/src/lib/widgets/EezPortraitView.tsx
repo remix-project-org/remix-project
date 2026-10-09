@@ -2,7 +2,6 @@ import React, { useContext } from 'react'
 import { Dropdown } from 'react-bootstrap'
 import { EezAppContext } from '../contexts'
 import { resolveProxyAddresses, previewProxyCreation, createProxy, traceTransactionByHash } from '../actions'
-import { TraceAddressInfo, ResolvedProxyInfo } from '../types'
 import { FormattedMessage } from 'react-intl'
 import { CopyToClipboard } from '@remix-ui/clipboard'
 import { CustomMenu, CustomToggle, getTimeAgo } from '@remix-ui/helper'
@@ -313,7 +312,7 @@ function EezPortraitView() {
           Trace Cross-Chain Transaction
         </p>
         <p style={{ color: 'var(--bs-tertiary)', fontSize: '0.7rem' }} className="mb-2 fw-light">
-          Enter the hash of a mined transaction on the currently connected network to see every address its execution touched.
+          Enter the hash of a mined transaction on the currently connected network to see the cross-chain proxies its execution touched.
         </p>
         <div className="d-flex align-items-center mb-2">
           <label className="mb-0 me-2" style={{ color: 'var(--bs-tertiary)' }}>
@@ -341,80 +340,36 @@ function EezPortraitView() {
           </button>
         </div>
         {traceError && <div className="text-danger small mb-2">{traceError}</div>}
-        {traceResult && (() => {
-          const proxiesTouched = traceResult.addresses.filter(
-            (a): a is TraceAddressInfo & { proxyInfo: ResolvedProxyInfo } => a.proxyInfo !== null
-          )
-          return (
-            <div className="mt-2">
-              <div
-                className="small mb-2 p-2 rounded"
-                style={{ backgroundColor: traceResult.success ? 'rgba(var(--bs-success-rgb), 0.08)' : 'rgba(var(--bs-danger-rgb), 0.08)', color: themeQuality === 'dark' ? 'white' : 'black' }}
-              >
-                {traceResult.success
-                  ? '✓ This transaction succeeded.'
-                  : `✗ This transaction reverted${traceResult.decodedError ? `: ${traceResult.decodedError}` : traceResult.error ? `: ${traceResult.error}` : '.'}`}
-              </div>
-              {proxiesTouched.length > 0 && (
-                <div className="small mb-2 p-2 rounded" style={{ backgroundColor: '#a56eff14', color: themeQuality === 'dark' ? 'white' : 'black' }}>
-                  <div style={{ fontWeight: 700 }}>
-                    This transaction is cross-chain — {proxiesTouched.length} {proxiesTouched.length === 1 ? 'proxy' : 'proxies'} touched:
-                  </div>
-                  <div className="mt-1 d-flex flex-column gap-1">
-                    {proxiesTouched.map((a) => (
-                      <div key={a.address} style={{ fontFamily: 'Monaco, monospace', fontSize: '10px' }}>
-                        {shorten(a.address)} → acts for {shorten(a.proxyInfo.originalAddress)} on {a.proxyInfo.originNetworkLabel || `network ${a.proxyInfo.originalRollupId}`}
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-              {traceResult.addresses.length > 0 && (
-                <div>
-                  <div className="text-secondary" style={{ fontSize: '10px', textTransform: 'uppercase' }}>Addresses touched</div>
-                  <div className="d-flex flex-column gap-1 mt-1">
-                    {traceResult.addresses.map((a) => (
-                      <div
-                        key={a.address}
-                        className="d-flex align-items-center flex-wrap p-2 rounded"
-                        style={{ backgroundColor: 'var(--custom-onsurface-layer-3)', gap: '6px' }}
-                      >
-                        <div className="d-flex align-items-center flex-wrap" style={{ gap: '6px' }}>
-                          <span style={{ fontSize: '10px', fontFamily: 'Monaco, monospace' }}>{shorten(a.address)}</span>
-                          <CopyToClipboard tip="Copy address" icon="fa-copy" direction="top" getContent={() => a.address}>
-                            <i className="fa-solid fa-copy small" style={{ cursor: 'pointer' }}></i>
-                          </CopyToClipboard>
-                          <span className="badge" style={{ backgroundColor: '#64C4FF14', color: '#64c4ff', fontSize: '9px', fontWeight: 700 }}>
-                            {traceResult.currentNetworkLabel}
-                          </span>
-                          {a.proxyInfo && (
-                            <span className="badge" style={{ backgroundColor: '#a56eff14', color: '#a56eff', fontSize: '9px', fontWeight: 700 }}>
-                              Proxy
-                            </span>
-                          )}
-                        </div>
-                        {a.proxyInfo && (
-                          <div className="text-secondary text-center" style={{ flex: '1 1 auto', fontSize: '10px' }}>→</div>
-                        )}
-                        {a.proxyInfo && (
-                          <div className="d-flex align-items-center flex-wrap" style={{ gap: '6px' }}>
-                            <span style={{ fontSize: '10px', fontFamily: 'Monaco, monospace' }}>{shorten(a.proxyInfo.originalAddress)}</span>
-                            <CopyToClipboard tip="Copy address" icon="fa-copy" direction="top" getContent={() => a.proxyInfo.originalAddress}>
-                              <i className="fa-solid fa-copy small" style={{ cursor: 'pointer' }}></i>
-                            </CopyToClipboard>
-                            <span className="badge" style={{ backgroundColor: '#64C4FF14', color: '#64c4ff', fontSize: '9px', fontWeight: 700 }}>
-                              {a.proxyInfo.originNetworkLabel || `network ${a.proxyInfo.originalRollupId}`}
-                            </span>
-                          </div>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
+        {traceResult && (
+          <div className="mt-2">
+            <div
+              className="small mb-2 p-2 rounded"
+              style={{ backgroundColor: traceResult.success ? 'rgba(var(--bs-success-rgb), 0.08)' : 'rgba(var(--bs-danger-rgb), 0.08)', color: themeQuality === 'dark' ? 'white' : 'black' }}
+            >
+              {traceResult.success
+                ? '✓ This transaction succeeded.'
+                : `✗ This transaction reverted${traceResult.decodedError ? `: ${traceResult.decodedError}` : traceResult.error ? `: ${traceResult.error}` : '.'}`}
             </div>
-          )
-        })()}
+            {traceResult.proxies.length > 0 ? (
+              <div className="small mb-2 p-2 rounded" style={{ backgroundColor: '#a56eff14', color: themeQuality === 'dark' ? 'white' : 'black' }}>
+                <div style={{ fontWeight: 700 }}>
+                  This transaction is cross-chain — {traceResult.proxyCount} {traceResult.proxyCount === 1 ? 'proxy' : 'proxies'} touched:
+                </div>
+                {traceResult.proxies.map((p) => (
+                  <div key={p.address} className="mt-1">
+                    {p.hops.map((hop, hopIndex) => (
+                      <div key={hopIndex} className="text-break" style={{ fontSize: '11px', fontFamily: 'Monaco, monospace' }}>
+                        {shorten(hopIndex === 0 ? p.address : p.hops[hopIndex - 1].originalAddress)} → acts for {shorten(hop.originalAddress)} on {hop.originNetworkLabel || `network ${hop.originalRollupId}`}
+                      </div>
+                    ))}
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="small mb-2 text-secondary">No cross-chain proxies were touched by this transaction.</div>
+            )}
+          </div>
+        )}
       </div>
 
       {createdProxies.length > 0 && (

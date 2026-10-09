@@ -5,7 +5,7 @@ import { decodeEezRevertData } from '@remix-ui/helper'
 import type { EezPlugin } from 'apps/remix-ide/src/app/udapp/udappEez'
 import { EEZ_ABI, EEZ_ROLLUP_ID_ABI } from '../abi'
 import { EEZ_COMPOSER_RPC_URLS } from '../constants'
-import { Actions, EezComposerInfo, EezComposerNetwork, EezNetworkEntry, ResolutionRow, ResolvedProxyInfo, TraceAddressInfo, TransactionTraceResult } from '../types'
+import { Actions, EezComposerInfo, EezComposerNetwork, EezNetworkEntry, ResolutionRow, ResolvedProxyInfo, TraceProxyInfo, TransactionTraceResult } from '../types'
 
 const NOT_EEZ_NETWORK = 'The currently connected network is not part of an EEZ network.'
 export const EEZ_SETTINGS_KEY = 'eez-networks'
@@ -369,8 +369,40 @@ export async function traceTransactionByHash(
     return
   }
 
-  const { provider, contract } = contractFor(currentNetwork)
+  const providers = new Map<string, JsonRpcProvider>()
+  const providerOf = (network: EezNetworkEntry) => {
+    if (!providers.has(network.id)) providers.set(network.id, contractFor(network).provider)
+    return providers.get(network.id)
+  }
+  const managerFor = (network: EezNetworkEntry) => new Contract(network.eezContractAddress, EEZ_ABI, providerOf(network))
+  const lookupProxy = async (network: EezNetworkEntry, address: string): Promise<ResolvedProxyInfo | null> => {
+    try {
+      return resolveProxyInfo(networks, await managerFor(network).authorizedProxies(address))
+    } catch (e) {
+      return null
+    }
+  }
+
+  const resolveHops = async (first: ResolvedProxyInfo, address: string): Promise<ResolvedProxyInfo[]> => {
+    const hops = [first]
+    const seen = new Set([`${currentNetwork.rollupId}:${address}`.toLowerCase()])
+    let hop = first
+    while (true) {
+      const key = `${hop.originalRollupId}:${hop.originalAddress}`.toLowerCase()
+      if (seen.has(key)) break
+      seen.add(key)
+      const network = networks.find((n) => String(n.rollupId) === hop.originalRollupId)
+      if (!network?.rpcUrl || !network.eezContractAddress) break
+      const next = await lookupProxy(network, hop.originalAddress)
+      if (!next) break
+      hops.push(next)
+      hop = next
+    }
+    return hops
+  }
+
   try {
+    const provider = providerOf(currentNetwork)
     const receipt = await provider.getTransactionReceipt(txHash)
     if (!receipt) {
       dispatch({ type: 'TRACE_ERROR', payload: 'Transaction not found on the currently connected network.' })
@@ -381,16 +413,18 @@ export async function traceTransactionByHash(
     const addressSet = new Set<string>()
     collectCallAddresses(trace, addressSet)
 
-    const addresses: TraceAddressInfo[] = await Promise.all(
-      Array.from(addressSet).map(async (addr): Promise<TraceAddressInfo> => {
-        try {
-          const result = await contract.authorizedProxies(addr)
-          return { address: addr, proxyInfo: resolveProxyInfo(networks, result) }
-        } catch (e) {
-          return { address: addr, proxyInfo: null }
-        }
+    const touched = (await Promise.all(
+      Array.from(addressSet).map(async (addr): Promise<TraceProxyInfo | null> => {
+        const proxyInfo = await lookupProxy(currentNetwork, addr)
+        return proxyInfo ? { address: addr, hops: await resolveHops(proxyInfo, addr) } : null
       })
-    )
+    )).filter((p): p is TraceProxyInfo => p !== null)
+
+    const proxyKeys = new Set<string>()
+    for (const p of touched) {
+      proxyKeys.add(`${currentNetwork.rollupId}:${p.address}`.toLowerCase())
+      p.hops.slice(0, -1).forEach((hop) => proxyKeys.add(`${hop.originalRollupId}:${hop.originalAddress}`.toLowerCase()))
+    }
 
     const decodedError = trace.error ? (trace.revertReason || decodeEezRevertData(trace.output)) : null
 
@@ -399,13 +433,13 @@ export async function traceTransactionByHash(
       success: !trace.error,
       error: trace.error || null,
       decodedError,
-      addresses,
-      currentNetworkLabel: currentNetwork.label
+      proxies: touched,
+      proxyCount: proxyKeys.size
     }
     dispatch({ type: 'TRACE_SUCCESS', payload: result })
   } catch (e: any) {
     dispatch({ type: 'TRACE_ERROR', payload: e?.message || 'Failed to trace this transaction.' })
   } finally {
-    provider.destroy()
+    providers.forEach((provider) => provider.destroy())
   }
 }

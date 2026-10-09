@@ -3,7 +3,6 @@ import { trackMatomoEvent } from '@remix-api'
 import * as remixLib from '@remix-project/remix-lib'
 import { FuncABI } from '@remix-project/core-plugin'
 import { JsonRpcProvider, Contract } from 'ethers'
-import { decodeEezRevertData } from '@remix-ui/helper'
 // eslint-disable-next-line @nrwl/nx/enforce-module-boundaries
 import { DeployedContractsPlugin } from 'apps/remix-ide/src/app/udapp/udappDeployedContracts'
 import { Actions, DeployedContract } from '../types'
@@ -76,17 +75,14 @@ export async function checkCrossChainProxy(plugin: DeployedContractsPlugin, addr
   }
 }
 
-export interface TraceAddressInfo {
+export interface TraceProxyInfo {
   address: string
-  proxyInfo: CrossChainProxyInfo | null
+  hops: CrossChainProxyInfo[]
 }
 
 export interface CrossChainTraceResult {
-  willSucceed: boolean
-  error: string | null
-  decodedError: string | null
-  addresses: TraceAddressInfo[]
-  currentNetworkLabel: string
+  proxies: TraceProxyInfo[]
+  proxyCount: number
 }
 
 function collectCallAddresses(frame: any, into: Set<string>) {
@@ -108,31 +104,60 @@ export async function traceCrossChainCall(
   if (!ctx) throw new Error('The current network is not part of an EEZ network.')
   const { networks, currentNetwork } = ctx
 
-  const provider = providerFor(currentNetwork)
+  const providers = new Map<string, JsonRpcProvider>()
+  const providerOf = (network: EezNetworkEntry) => {
+    if (!providers.has(network.id)) providers.set(network.id, providerFor(network))
+    return providers.get(network.id)
+  }
+  const managerFor = (network: EezNetworkEntry) => new Contract(network.eezContractAddress, AUTHORIZED_PROXIES_ABI, providerOf(network))
+  const lookupProxy = async (network: EezNetworkEntry, address: string): Promise<CrossChainProxyInfo | null> => {
+    try {
+      return resolveProxyInfo(networks, await managerFor(network).authorizedProxies(address))
+    } catch (e) {
+      return null
+    }
+  }
+
+  const resolveHops = async (first: CrossChainProxyInfo, address: string): Promise<CrossChainProxyInfo[]> => {
+    const hops = [first]
+    const seen = new Set([`${currentNetwork.rollupId}:${address}`.toLowerCase()])
+    let hop = first
+    while (true) {
+      const key = `${hop.originalRollupId}:${hop.originalAddress}`.toLowerCase()
+      if (seen.has(key)) break
+      seen.add(key)
+      const network = networks.find((n) => String(n.rollupId) === hop.originalRollupId)
+      if (!network?.rpcUrl || !network.eezContractAddress) break
+      const next = await lookupProxy(network, hop.originalAddress)
+      if (!next) break
+      hops.push(next)
+      hop = next
+    }
+    return hops
+  }
+
   try {
     const traceParams = [{ from, to, data, value }, 'latest', { tracer: 'callTracer' }]
-    const trace = await provider.send('debug_traceCall', traceParams)
-
+    const trace = await providerOf(currentNetwork).send('debug_traceCall', traceParams)
     const addressSet = new Set<string>()
     collectCallAddresses(trace, addressSet)
-
-    const manager = new Contract(currentNetwork.eezContractAddress, AUTHORIZED_PROXIES_ABI, provider)
-    const addresses: TraceAddressInfo[] = await Promise.all(
-      Array.from(addressSet).map(async (addr): Promise<TraceAddressInfo> => {
-        try {
-          const result = await manager.authorizedProxies(addr)
-          return { address: addr, proxyInfo: resolveProxyInfo(networks, result) }
-        } catch (e) {
-          return { address: addr, proxyInfo: null }
-        }
+    const proxies = await Promise.all(
+      Array.from(addressSet).map(async (addr): Promise<TraceProxyInfo | null> => {
+        const proxyInfo = await lookupProxy(currentNetwork, addr)
+        return proxyInfo ? { address: addr, hops: await resolveHops(proxyInfo, addr) } : null
       })
     )
 
-    const decodedError = trace.error ? (trace.revertReason || decodeEezRevertData(trace.output)) : null
+    const touched = proxies.filter((p): p is TraceProxyInfo => p !== null)
+    const proxyKeys = new Set<string>()
+    for (const p of touched) {
+      proxyKeys.add(`${currentNetwork.rollupId}:${p.address}`.toLowerCase())
+      p.hops.slice(0, -1).forEach((hop) => proxyKeys.add(`${hop.originalRollupId}:${hop.originalAddress}`.toLowerCase()))
+    }
 
-    return { willSucceed: !trace.error, error: trace.error || null, decodedError, addresses, currentNetworkLabel: currentNetwork.label }
+    return { proxies: touched, proxyCount: proxyKeys.size }
   } finally {
-    provider.destroy()
+    providers.forEach((provider) => provider.destroy())
   }
 }
 
