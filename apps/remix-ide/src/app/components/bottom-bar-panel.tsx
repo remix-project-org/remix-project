@@ -7,7 +7,7 @@ import BottomBar from './bottom-bar'
 const profile = {
   displayName: 'Bottom Bar',
   name: 'bottomBar',
-  methods: [],
+  methods: ['startCreateDapp'],
   events: [],
   description: 'Editor bottom bar (renders above dragbar-terminal)',
   version: packageJson.version,
@@ -43,5 +43,11 @@ export default class BottomBarPanel extends Plugin {
 
   renderComponent() {
     this.dispatch && this.dispatch({})
+  }
+
+  async startCreateDapp() {
+    if ((this as any).__startCreateDapp) {
+      await (this as any).__startCreateDapp()
+    }
   }
 }

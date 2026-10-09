@@ -7,7 +7,7 @@ import { EventEmitter } from 'events'
 import { trackMatomoEvent, ChatPromptMetadata } from '@remix-api'
 import { ChatHistory, ChatHistoryStorageManager, IndexedDBChatHistoryBackend, remixAILogger,
   titleFromPrompt, clampTitleWords, needsDerivedTitle, MAX_TITLE_WORDS, UNTITLED_CONVERSATION } from '@remix/remix-ai-core'
-import { appActionTypes, AppAction } from '@remix-ui/app'
+import { appActionTypes, AppAction, ChecklistModalState } from '@remix-ui/app'
 
 const profile = {
   name: 'remixaiassistant',
@@ -706,7 +706,7 @@ export class RemixAIAssistant extends ViewPlugin {
         ref={this.chatRef}
         plugin={this}
         onOpenSkillsModal={() => this.appStateDispatch({ type: appActionTypes.showSkillsModal, payload: true })}
-        onOpenChecklistModal={() => this.appStateDispatch({ type: appActionTypes.showChecklistModal, payload: true })}
+        onOpenChecklistModal={(mode: ChecklistModalState = 'checklist') => this.appStateDispatch({ type: appActionTypes.showChecklistModal, payload: mode })}
         isInitializing={state.isInitializing}
         initialMessages={this.history}
         onMessagesChange={(msgs) => { this.history = msgs }}

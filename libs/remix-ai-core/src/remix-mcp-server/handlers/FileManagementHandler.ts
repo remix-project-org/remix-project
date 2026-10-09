@@ -241,85 +241,85 @@ export class FileReplacerHandler extends BaseToolHandler {
 /**
  * File Create Tool Handler
  */
-export class FileCreateHandler extends BaseToolHandler {
-  name = 'file_create';
-  description = 'Create a new file or directory';
-  inputSchema = {
-    type: 'object',
-    properties: {
-      path: {
-        type: 'string',
-        description: 'Path for the new file or directory'
-      },
-      content: {
-        type: 'string',
-        description: 'Initial content for the file (optional)',
-        default: ''
-      },
-      type: {
-        type: 'string',
-        enum: ['file', 'directory'],
-        description: 'Type of item to create',
-        default: 'file'
-      }
-    },
-    required: ['path']
-  };
+// export class FileCreateHandler extends BaseToolHandler {
+//   name = 'file_create';
+//   description = 'Create a new file or directory';
+//   inputSchema = {
+//     type: 'object',
+//     properties: {
+//       path: {
+//         type: 'string',
+//         description: 'Path for the new file or directory'
+//       },
+//       content: {
+//         type: 'string',
+//         description: 'Initial content for the file (optional)',
+//         default: ''
+//       },
+//       type: {
+//         type: 'string',
+//         enum: ['file', 'directory'],
+//         description: 'Type of item to create',
+//         default: 'file'
+//       }
+//     },
+//     required: ['path']
+//   };
 
-  getPermissions(): string[] {
-    return ['file:create'];
-  }
+//   getPermissions(): string[] {
+//     return ['file:create'];
+//   }
 
-  validate(args: FileCreateArgs): boolean | string {
-    const required = this.validateRequired(args, ['path']);
-    if (required !== true) return required;
+//   validate(args: FileCreateArgs): boolean | string {
+//     const required = this.validateRequired(args, ['path']);
+//     if (required !== true) return required;
 
-    const types = this.validateTypes(args, {
-      path: 'string',
-      content: 'string',
-      type: 'string'
-    });
-    if (types !== true) return types;
+//     const types = this.validateTypes(args, {
+//       path: 'string',
+//       content: 'string',
+//       type: 'string'
+//     });
+//     if (types !== true) return types;
 
-    if (args.type && !['file', 'directory'].includes(args.type)) {
-      return 'Invalid type: must be "file" or "directory"';
-    }
+//     if (args.type && !['file', 'directory'].includes(args.type)) {
+//       return 'Invalid type: must be "file" or "directory"';
+//     }
 
-    return true;
-  }
+//     return true;
+//   }
 
-  async execute(args: FileCreateArgs, plugin: Plugin): Promise<IMCPToolResult> {
-    try {
-      const exists = await plugin.call('fileManager', 'exists', args.path)
-      if (exists) {
-        return this.createErrorResult(`Path already exists: ${args.path}`);
-      }
+//   async execute(args: FileCreateArgs, plugin: Plugin): Promise<IMCPToolResult> {
+//     try {
+//       const exists = await plugin.call('fileManager', 'exists', args.path)
+//       if (exists) {
+//         return this.createErrorResult(`Path already exists: ${args.path}`);
+//       }
 
-      if (args.type === 'directory') {
-        await plugin.call('fileManager', 'mkdir', args.path);
-      } else {
-        await plugin.call('fileManager', 'writeFile', args.path, '');
-        await plugin.call('fileManager', 'open', args.path)
-        await new Promise(resolve => setTimeout(resolve, 300))
+//       if (args.type === 'directory') {
+//         await plugin.call('fileManager', 'mkdir', args.path);
+//       } else {
+//         await plugin.call('fileManager', 'writeFile', args.path, '');
+//         await plugin.call('fileManager', 'open', args.path)
+//         await new Promise(resolve => setTimeout(resolve, 300))
 
-        const cleanContent = typeof args.content === 'string' ? args.content : String(args.content || '')
-        // await plugin.call('editor', 'showCustomDiff', args.path, cleanContent)
-        await plugin.call('fileManager', 'writeFile', args.path, cleanContent)
-      }
+//         const cleanContent = typeof args.content === 'string' ? args.content : String(args.content || '')
+//         // await plugin.call('editor', 'showCustomDiff', args.path, cleanContent)
+//         await plugin.call('fileManager', 'writeFile', args.path, cleanContent)
+//       }
 
-      const result: FileOperationResult = {
-        success: true,
-        path: args.path,
-        message: `${args.type === 'directory' ? 'Directory' : 'File'} created successfully`,
-        lastModified: new Date().toISOString()
-      };
+//       const result: FileOperationResult = {
+//         success: true,
+//         path: args.path,
+//         message: `${args.type === 'directory' ? 'Directory' : 'File'} created successfully`,
+//         lastModified: new Date().toISOString()
+//       };
 
-      return this.createSuccessResult(result);
-    } catch (error) {
-      return this.createErrorResult(`Failed to create ${args.type || 'file'}: ${error.message}`);
-    }
-  }
-}
+//       return this.createSuccessResult(result);
+//     } catch (error) {
+//       return this.createErrorResult(`Failed to create ${args.type || 'file'}: ${error.message}`);
+//     }
+//   }
+// }
 
 /**
  * File Delete Tool Handler
@@ -909,7 +909,7 @@ export class FileExistsHandler extends BaseToolHandler {
 export function createFileManagementTools(): RemixToolDefinition[] {
   const fileReadHandler = new FileReadHandler();
   // const fileWriteHandler = new FileWriteHandler();
-  const fileCreateHandler = new FileCreateHandler();
+  // const fileCreateHandler = new FileCreateHandler();
   const fileDeleteHandler = new FileDeleteHandler();
   const fileMoveHandler = new FileMoveHandler();
   const fileCopyHandler = new FileCopyHandler();
@@ -936,14 +936,14 @@ export function createFileManagementTools(): RemixToolDefinition[] {
     //   permissions: fileWriteHandler.getPermissions(),
     //   handler: fileWriteHandler
     // },
-    {
-      name: fileCreateHandler.name,
-      description: fileCreateHandler.description,
-      inputSchema: fileCreateHandler.inputSchema,
-      category: ToolCategory.FILE_MANAGEMENT,
-      permissions: fileCreateHandler.getPermissions(),
-      handler: fileCreateHandler
-    },
+    // {
+    //   name: fileCreateHandler.name,
+    //   description: fileCreateHandler.description,
+    //   inputSchema: fileCreateHandler.inputSchema,
+    //   category: ToolCategory.FILE_MANAGEMENT,
+    //   permissions: fileCreateHandler.getPermissions(),
+    //   handler: fileCreateHandler
+    // },
     {
       name: fileDeleteHandler.name,
       description: fileDeleteHandler.description,

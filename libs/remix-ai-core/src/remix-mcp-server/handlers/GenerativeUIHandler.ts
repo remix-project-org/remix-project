@@ -146,7 +146,7 @@ const UI_NODE_SCHEMA = {
     // card
     title:       { type: 'string' },
     // button / form
-    label:       { type: 'string' },
+    label:       { type: 'string', description: 'Visible text. Required for: button (button text), checkbox (text shown beside the box), input (field label), select (dropdown label), radio_group (group heading).' },
     action:      { type: 'string' },
     style:       { type: 'string', enum: ['primary', 'secondary', 'danger']},
     disabled:    { type: 'boolean' },
@@ -178,7 +178,11 @@ export class RenderUIHandler extends BaseToolHandler {
     'Build the UI as a recursive tree of UINode primitives (text, stack, card, button, input, ' +
     'select, radio_group, checkbox, form, badge, divider). ' +
     'When the user interacts (button click or form submit) the action identifier and any ' +
-    'collected form data are sent back to you as a follow-up message.'
+    'collected form data are sent back to you as a follow-up message. ' +
+    'ALWAYS give the user a way to send their answer: any tree containing an input, select, ' +
+    'radio_group or checkbox MUST also contain a button, or wrap those inputs in a form node ' +
+    '(with submitLabel and action). Options on their own only fire onChange — nothing reaches ' +
+    'you and the conversation stalls. Trees that collect input with no submit path are rejected.'
 
   inputSchema = {
     type: 'object' as const,
@@ -204,7 +208,33 @@ export class RenderUIHandler extends BaseToolHandler {
       return 'tree must be an object'
     }
 
-    return this.validateNode(args.tree, 0)
+    const nodeResult = this.validateNode(args.tree, 0)
+    if (nodeResult !== true) return nodeResult
+
+    // A tree that asks for input but offers no button or form renders fine and
+    // then dead-ends: the inputs only fire onChange, so nothing is ever sent
+    // back and the conversation stalls waiting on the user. Reject it here so
+    // the model re-emits with a confirm button.
+    if (this.collectsInput(args.tree) && !this.canSubmit(args.tree)) {
+      return 'this tree collects input (input/select/radio_group/checkbox) but has no way to submit it — add a button node, or wrap the inputs in a form node with submitLabel and action'
+    }
+
+    return true
+  }
+
+  /** Depth-first search over whatever children a node carries. */
+  private treeSome(node: any, predicate: (n: any) => boolean): boolean {
+    if (!node || typeof node.type !== 'string') return false
+    if (predicate(node)) return true
+    return Array.isArray(node.children) && node.children.some((child: any) => this.treeSome(child, predicate))
+  }
+
+  private collectsInput(node: any): boolean {
+    return this.treeSome(node, n => ['input', 'select', 'radio_group', 'checkbox'].includes(n.type))
+  }
+
+  private canSubmit(node: any): boolean {
+    return this.treeSome(node, n => n.type === 'button' || n.type === 'form')
   }
 
   private validateNode(node: any, depth: number): true | string {

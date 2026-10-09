@@ -24,7 +24,7 @@ import { ToolRegistry } from '../../remix-mcp-server/types/mcpTools'
 import { classifyApiError, getErrorMessage } from './ApiErrorHandler'
 import { aiErrorFromException } from '../../state/ai-error'
 import { HumanMessage, AIMessage, SystemMessage, BaseMessage } from '@langchain/core/messages'
-import type { DynamicStructuredTool } from '@langchain/core/tools'
+import { tool, type DynamicStructuredTool } from '@langchain/core/tools'
 import { BaseChatModel } from '@langchain/core/language_models/chat_models'
 import { IndexedDBCheckpointSaver } from '../../storage/IndexedDBCheckpointSaver'
 import type { DeepAgent } from 'deepagents'
@@ -33,7 +33,7 @@ import { RemixDeepAgentMiddleware } from './deepAgentMiddleWare'
 import './AsyncLocalStorageInit'
 import { createModelInstance } from './ModelFactory'
 import { syncModelCatalog } from './helpers/modelCatalog'
-import type { z } from 'zod'
+import { z } from 'zod'
 import { generateStructured, StructuredOutputOptions } from '../../helpers/structuredOutput'
 import { SecurityCheckSchema, GeneratedProjectSchema, WorkspaceEditSchema } from '../../types/schemas'
 import { getLangfuseCallbackHandler, flushLangfuse } from '../../helpers/langfuse'
@@ -46,8 +46,8 @@ import { InactivityTimeoutManager } from './InactivityTimeoutManager'
 import { CONVERSATION_THREAD_PREFIX, DAPP_MAX_TOKENS } from '@remix/remix-ai-core'
 import { Features } from '@remix-api'
 import { flattenJSON, renderTree, toAbsolutePath } from './helpers/project'
-import { clearAllQuickDappWorkspaceLocks } from '@remix-ui/helper'
-import { clearAllQuickDappGenerationContexts } from '../../helpers/quickDappGenerationContext'
+import { finishQuickDappWorkspaceLock, onQuickDappWorkspaceLockCreated, QuickDappWorkspaceLock } from '@remix-ui/helper'
+import { clearQuickDappGenerationContext } from '../../helpers/quickDappGenerationContext'
 import { clearQuickDappDocsContext } from '../../helpers/quickDappDocsContext'
 
 /**
@@ -69,6 +69,7 @@ export class DeepAgentInferencer implements ICompletions, IGeneration {
   private tools: DynamicStructuredTool[] = []
   private approvalGate: ToolApprovalGate | undefined
   private currentAbortController: AbortController | null = null
+  private quickDappLock: QuickDappWorkspaceLock | undefined
   /** Model-independent agent pieces, built once and reused across model swaps. */
   private checkpointer: IndexedDBCheckpointSaver | null = null
   private hasSkillsPermission: boolean | null = null
@@ -670,6 +671,15 @@ export class DeepAgentInferencer implements ICompletions, IGeneration {
     const localAbortController = new AbortController()
     thisRunControllers.add(localAbortController)
     this.currentAbortController = localAbortController
+    this.quickDappLock = undefined
+    let runLock: QuickDappWorkspaceLock | undefined
+    const stopTrackingLock = onQuickDappWorkspaceLockCreated(lock => {
+      // Reinitialized/closed inferencers must not claim a new instance's work.
+      if (!this.__closed && this.currentAbortController && thisRunControllers.has(this.currentAbortController) && lock.operation !== 'publish') {
+        runLock = lock
+        this.quickDappLock = lock
+      }
+    })
     let fullResponse = ''
 
     const runTimeoutMs = this.config.timeout
@@ -942,6 +952,7 @@ export class DeepAgentInferencer implements ICompletions, IGeneration {
 
       throw error
     } finally {
+      stopTrackingLock()
       stallTimeout.clear()
       clearQuickDappDocsContext()
       // Best-effort trace delivery: the SDK drains only a slice of its queue
@@ -951,6 +962,18 @@ export class DeepAgentInferencer implements ICompletions, IGeneration {
       // Only null out if still one of this run's controllers (a new request might have started)
       if (this.currentAbortController && thisRunControllers.has(this.currentAbortController)) {
         this.currentAbortController = null
+      }
+      if (runLock) {
+        const lock = runLock
+        finishQuickDappWorkspaceLock(lock, () => {
+          clearQuickDappGenerationContext(lock.workspaceName)
+          this.plugin.emit('dappGenerationError', {
+            workspaceName: lock.workspaceName,
+            slug: lock.slug,
+            isUpdate: lock.operation === 'update',
+            error: 'AI stopped before the DApp was finalized. Your files have been kept; you can retry from RemixAI.'
+          })
+        })
       }
       this.event.emit('onToolCall', { toolName: '', toolInput: '', toolUIString: '', status: 'end', threadId: this.sessionThreadId })
     }
@@ -1022,6 +1045,27 @@ export class DeepAgentInferencer implements ICompletions, IGeneration {
     }
   }
 
+  private createMkdirTool(): DynamicStructuredTool {
+    const backend = this.filesystemBackend
+    return tool(
+      async ({ path }: { path: string }) => {
+        try {
+          await backend.mkdir(path)
+          return `Created directory: ${path}`
+        } catch (error) {
+          return `Failed to create directory ${path}: ${(error as any)?.message ?? error}`
+        }
+      },
+      {
+        name: 'mkdir',
+        description: 'Create a directory in the current workspace. Parent directories are created as needed. Succeeds silently when the directory already exists.',
+        schema: z.object({
+          path: z.string().describe('Path of the directory to create, e.g. "contracts/tokens"')
+        })
+      }
+    ) as unknown as DynamicStructuredTool
+  }
+
   private async createAgentWithTools(selectedTools: DynamicStructuredTool[]): Promise<void> {
     try {
       if (!this.model) {
@@ -1050,9 +1094,13 @@ export class DeepAgentInferencer implements ICompletions, IGeneration {
 
       // Create agent configuration with selected tools
       // Cast tools and model to any to handle @langchain/core version mismatch between root and deepagents
-      const mainAgentTool = this.tools.filter(tool =>
-        ['render_ui'].includes(tool.name)
+      const mainAgentTool = this.tools.filter(t =>
+        ['render_ui', 'list_models', 'switch_model'].includes(t.name)
       )
+      // deepagents' built-in filesystem toolset (ls/read_file/write_file/
+      // edit_file/delete/glob/grep) has no directory creation, so the backend's
+      // mkdir is surfaced here as a tool of its own.
+      mainAgentTool.push(this.createMkdirTool())
       const agentConfig: CreateDeepAgentParams = {
         backend: this.filesystemBackend as any,
         tools: mainAgentTool,
@@ -1211,11 +1259,15 @@ export class DeepAgentInferencer implements ICompletions, IGeneration {
     this.event.emit('onInferenceDone')
 
     try {
-      clearAllQuickDappWorkspaceLocks()
-      clearAllQuickDappGenerationContexts()
+      const lock = this.quickDappLock
+      if (lock) {
+        finishQuickDappWorkspaceLock(lock, () => {
+          clearQuickDappGenerationContext(lock.workspaceName)
+          this.plugin.emit('generationProgress', null)
+        })
+      }
       clearQuickDappDocsContext()
-      remixAILogger.log('[QuickDapp][WorkspaceLock] cleared on AI cancel')
-      this.plugin.emit('generationProgress', null)
+      remixAILogger.log('[QuickDapp][WorkspaceLock] cleanup requested on AI cancel')
     } catch (_) { /* best-effort cleanup */ }
   }
 

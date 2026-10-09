@@ -118,7 +118,9 @@ contract HelloWorld {
 
   const openAuditsSelection = async () => {
     if (!hasAuditorPermission) { plugin.call('planManager', 'open', { reason: 'feature-required', requiredFeature: Features.AI_AUDITOR }) } else {
-      appContext.appStateDispatch({ type: appActionTypes.showChecklistModal, payload: true })
+      // "Explore Audits" mirrors "Explore Skills": browse and save checklists,
+      // without starting an audit run.
+      appContext.appStateDispatch({ type: appActionTypes.showChecklistModal, payload: 'checklist' })
       trackMatomoEvent({ category: 'hometab', action: 'header', name: 'Explore Audits', isClick: true })
     }
   }

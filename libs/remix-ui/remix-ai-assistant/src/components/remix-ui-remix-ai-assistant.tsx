@@ -6,6 +6,7 @@ import '../css/remix-ai-assistant.css'
 
 import { ChatCommandParser, GenerationParams, ChatHistory, HandleStreamResponse, AIModel, ANONYMOUS_FALLBACK_MODELS, remixAILogger, modelKey, parseModelKey, findModel, applyByokKeyPolicy, BYOK_API_KEY_SETTINGS, modelTransportProvider, onApiKeysChange, isAutoModelId, isCheapModel, type ModelTransport } from '@remix/remix-ai-core'
 import { ToolApprovalRequest, ApiKeyErrorEvent, AIFileChange, AIFileChangeRecord } from '@remix/remix-ai-core'
+import { isFrontierModelId } from '@remix/remix-ai-core/model-tiers'
 import { HandleOpenAICompatibleResponse, HandleOllamaResponse } from '@remix/remix-ai-core'
 //@ts-ignore
 import '../css/color.css'
@@ -65,7 +66,7 @@ export interface RemixUiRemixAiAssistantProps {
   onToggleHistorySidebar?: () => void
   onSearch?: (query: string) => Promise<ConversationMetadata[]>
   onOpenSkillsModal?: () => void
-  onOpenChecklistModal?: () => void
+  onOpenChecklistModal?: (mode?: 'audit' | 'checklist') => void
 }
 export interface RemixUiRemixAiAssistantHandle {
   /** Programmatically send a prompt to the chat (returns after processing starts) */
@@ -90,6 +91,10 @@ function getSystemThemeFallback(): string {
 const isQuickDappAgentName = (name?: string): boolean =>
   !!name && name.toLowerCase().replace(/[_\s-]/g, '').includes('quickdapp')
 
+/** `Comprehensive_Auditor`, however the harness spells it. */
+const isAuditorAgentName = (name?: string): boolean =>
+  !!name && name.toLowerCase().replace(/[_\s-]/g, '').includes('comprehensiveauditor')
+
 /** Anthropic, direct or routed through OpenRouter (`anthropic/...`). */
 const isAnthropicModelId = (id: string): boolean => {
   const normalized = id.toLowerCase()
@@ -112,6 +117,8 @@ const OLLAMA_NOT_AVAILABLE_MESSAGE = [
   '*Switching back to default model for now.*'
 ].join('\n')
 
+/** Minimum time the thinking indicator stays up once raised. */
+const THINKING_MIN_VISIBLE_MS = 2000
 // Stable empty set so the memoized changes panel does not re-render for nothing
 const NO_STALE_KEYS = new Set<string>()
 // Characters of answer text kept to place a file change in the answer
@@ -141,6 +148,15 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
     firstPromptStateRef.current = { count: messages.length, conversationId: props.currentConversationId }
   }, [messages, props.currentConversationId])
   const [isThinking, setIsThinking] = useState(false)
+  /**
+   * `isThinking` held on screen for a minimum dwell so it cannot flicker.
+   *
+   * The model flips the flag many times in a turn — between tool calls it can
+   * be true for a few hundred ms — which read as a strobe. Every raise restarts
+   * the dwell, so a burst of rapid toggles shows as one steady indicator.
+   */
+  const [thinkingVisible, setThinkingVisible] = useState(false)
+  const thinkingHoldUntilRef = useRef(0)
   const [runModel, setRunModel] = useState<string | null>(null)
   // Read from event handlers, which are memoized without `runModel`.
   const runModelRef = useRef<string | null>(null)
@@ -148,6 +164,10 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
   const quickDappHintShownRef = useRef(false)
   // QuickDapp is running this request — the model often lands after it starts.
   const quickDappRunningRef = useRef(false)
+  // Same pair for the auditor: one hint per request, and the flag that says the
+  // audit is the thing running when the resolved model finally arrives.
+  const auditHintShownRef = useRef(false)
+  const auditRunningRef = useRef(false)
   const [showModelSelector, setShowModelSelector] = useState(false)
   // OpenRouter is the router every hosted model arrives on, so it is the only
   // sensible value before a selection resolves from /permissions.
@@ -248,6 +268,14 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
   // low-cost model has actually been applied (the catalogue is refreshed
   // asynchronously after the purchase, so the switch can't happen inline).
   const [pendingCheapSwitch, setPendingCheapSwitch] = useState(false)
+  /**
+   * A switch_model request waiting for the current turn to end.
+   *
+   * The tool cannot apply the switch itself: ModelManager.setModel rebuilds the
+   * DeepAgent, which closes the very inferencer running the tool call. So the
+   * tool emits and we drain it here once the stream is done.
+   */
+  const [pendingModelSwitch, setPendingModelSwitch] = useState<{ modelId: string; provider?: string; displayName?: string; reason?: string } | null>(null)
   // Composer toggle: narrows the model menu to the `ai:cheapModels` tier.
   const [cheapModelsOnly, setCheapModelsOnly] = useState(false)
   // The armed-switch effect re-runs on every catalogue refresh; this keeps the
@@ -429,6 +457,28 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
       code: 'QUICKDAPP_MODEL_HINT',
       title: 'Better on Anthropic',
       message: `Auto picked ${model}. QuickDapp works best with a Sonnet-class model.`,
+      actionable: false
+    })
+  }, [])
+
+  /**
+   * Mirrors hintQuickDappModel for audits.
+   *
+   * `runModelRef` is only populated while the user is on Auto (handleModelUsed
+   * bails otherwise), so reaching here already means Auto picked the route —
+   * we only speak up when what it picked is below frontier class.
+   */
+  const hintAuditModel = useCallback(() => {
+    const model = runModelRef.current
+    if (!auditRunningRef.current || auditHintShownRef.current) return
+    if (!model || isFrontierModelId(model)) return
+
+    auditHintShownRef.current = true
+    setChatNotice({
+      severity: 'info',
+      code: 'AUDIT_MODEL_HINT',
+      title: 'Better on a frontier model',
+      message: `Auto picked ${model}. Audits reason over a whole contract against every checklist item — a frontier model (Claude Opus/Sonnet, GPT-5, GLM 5) catches noticeably more.`,
       actionable: false
     })
   }, [])
@@ -912,6 +962,10 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
         quickDappRunningRef.current = true
         hintQuickDappModel()
       }
+      if (isAuditorAgentName(data.name)) {
+        auditRunningRef.current = true
+        hintAuditModel()
+      }
       if (streamingAssistantIdRef.current) {
         setMessages(prev =>
           prev.map(m =>
@@ -969,6 +1023,7 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
       // that started first sees the model immediately.
       runModelRef.current = data?.model || null
       hintQuickDappModel()
+      hintAuditModel()
     }
 
     // Handle thinking events from Ollama (DeepAgent path)
@@ -1338,6 +1393,12 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
     }
     props.plugin.on('remixAI', 'renderUI', handleRenderUI)
 
+    const handleModelSwitchRequested = (data: { modelId: string; provider?: string; displayName?: string; reason?: string }) => {
+      if (!data?.modelId) return
+      setPendingModelSwitch(data)
+    }
+    props.plugin.on('remixAI', 'modelSwitchRequested', handleModelSwitchRequested)
+
     return () => {
       props.plugin.off('remixAI', 'onStreamResult')
       props.plugin.off('remixAI', 'onStreamComplete')
@@ -1355,6 +1416,7 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
       props.plugin.off('remixAI', 'onToolApprovalRequired')
       props.plugin.off('remixAI', 'onDappUpdateCompleted')
       props.plugin.off('remixAI', 'renderUI')
+      props.plugin.off('remixAI', 'modelSwitchRequested')
       try { props.plugin.off('assistantState' as any, 'stateChanged') } catch { /* noop */ }
     }
   }, [props.plugin])
@@ -2043,6 +2105,8 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
       setRunModel(null)
       quickDappHintShownRef.current = false
       quickDappRunningRef.current = false
+      auditHintShownRef.current = false
+      auditRunningRef.current = false
       // Reset the per-turn "stream consumed" flag — it gates the
       // post-await duplicate-bubble guard further down.
       streamConsumedThisTurnRef.current = false
@@ -2613,6 +2677,31 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
     }
   }, [props.plugin])
 
+  /**
+   * Drain a queued switch_model request once the turn is over.
+   *
+   */
+  useEffect(() => {
+    if (!pendingModelSwitch || isStreaming) return
+    const request = pendingModelSwitch
+    setPendingModelSwitch(null)
+
+    const model = findModel(availableModels, request.modelId, request.provider)
+    if (!model) return
+
+    void handleModelSelection(modelKey(model)).then(() => {
+      setChatNotice({
+        severity: 'info',
+        code: 'MODEL_SWITCHED_BY_AGENT',
+        title: `Switched to ${model.displayName}`,
+        message: request.reason
+          ? `${request.reason} Pick any other model from the selector whenever you want.`
+          : `The assistant switched models for the next message. Pick any other model from the selector whenever you want.`,
+        actionable: false
+      })
+    })
+  }, [pendingModelSwitch, isStreaming, availableModels, handleModelSelection])
+
   // Apply the armed switch as soon as the refreshed catalogue actually offers a
   // low-cost model, then tell the user what changed and why.
   useEffect(() => {
@@ -2768,8 +2857,10 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
     props.plugin.call('settings', 'showSection', 'ai')
   }, [props.plugin])
 
-  const handleLoadAuditChecklist = useCallback(() => {
-    if (props.onOpenChecklistModal) props.onOpenChecklistModal()
+  // `/audit` and `/load-audit-checklist` open the same modal; the mode is what
+  // tells it whether to finish by running the audit or just saving checklists.
+  const handleLoadAuditChecklist = useCallback((mode: 'audit' | 'checklist' = 'checklist') => {
+    if (props.onOpenChecklistModal) props.onOpenChecklistModal(mode)
   }, [props.onOpenChecklistModal])
 
   const handleGasOptimisationAudit = useCallback(async () => {
@@ -2981,6 +3072,31 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
       if (frame) cancelAnimationFrame(frame)
     }
   }, [showOllamaModelSelector, recalcOllamaModelOpt])
+
+  // Minimum dwell for the thinking indicator. Each raise pushes the deadline
+  // out, so rapid true/false bursts between tool calls read as one indicator
+  // instead of a strobe; it clears only once the model has stopped AND the
+  // dwell has elapsed.
+  useEffect(() => {
+    if (isThinking) {
+      thinkingHoldUntilRef.current = Date.now() + THINKING_MIN_VISIBLE_MS
+      setThinkingVisible(true)
+      return
+    }
+    if (!thinkingVisible) return
+    const remaining = Math.max(0, thinkingHoldUntilRef.current - Date.now())
+    const timer = setTimeout(() => setThinkingVisible(false), remaining)
+    return () => clearTimeout(timer)
+  }, [isThinking, thinkingVisible])
+
+  // Sits directly above the auto-accept banner in every layout, so the user
+  // always finds it in the same place instead of chasing it down the transcript.
+  const thinkingBannerEl = thinkingVisible && (
+    <div className="ai-thinking-banner" data-id="remix-ai-thinking">
+      <i className="fa fa-spinner fa-spin ai-thinking-banner__icon" aria-hidden="true"></i>
+      <span className="ai-thinking-banner__text">Thinking</span>
+    </div>
+  )
 
   const autoAcceptBannerEl = hitlAutoAccept && pendingApprovals.length === 0 && (
     <div
@@ -3242,7 +3358,6 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
                     <ChatHistoryComponent
                       messages={messages}
                       isStreaming={isStreaming}
-                      isThinking={isThinking}
                       sendPrompt={sendPrompt}
                       recordFeedback={recordFeedback}
                       historyRef={historyRef}
@@ -3292,6 +3407,7 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
                       </div>
                     ))}
                   </section>
+                  {thinkingBannerEl}
                   {autoAcceptBannerEl}
                 </div>
               ) : (
@@ -3334,6 +3450,7 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
                         theme={themeTracker?.name}
                       />
                     </div>
+                    {thinkingBannerEl}
                     {autoAcceptBannerEl}
                   </div>
                 ) : (
@@ -3361,7 +3478,6 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
                       <ChatHistoryComponent
                         messages={messages}
                         isStreaming={isStreaming}
-                        isThinking={isThinking}
                         sendPrompt={sendPrompt}
                         recordFeedback={recordFeedback}
                         historyRef={historyRef}
@@ -3411,6 +3527,7 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
                         </div>
                       ))}
                     </section>
+                    {thinkingBannerEl}
                     {autoAcceptBannerEl}
                   </div>
                 )

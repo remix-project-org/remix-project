@@ -123,7 +123,7 @@ export interface PromptAreaProps {
   onSignIn?: () => void
   isNewChat?: boolean
   handleOpenSettings?: () => void
-  handleLoadAuditChecklist?: () => void
+  handleLoadAuditChecklist?: (mode?: 'audit' | 'checklist') => void
   handleGasOptimisationAudit?: () => void
   hasAuditorPermission?: boolean
   hasSkillsPermission?: boolean
@@ -293,8 +293,7 @@ export const PromptArea: React.FC<PromptAreaProps> = ({
         requiredFeatures: [Features.AI_AUDITOR],
         category: 'Audit',
         action: () => {
-          handleLoadAuditChecklist()
-          setInput('Audit a contract. Ask which contract file to audit if none provided.')
+          handleLoadAuditChecklist('audit')
         },
         disabled: !hasAuditorPermission
       })
@@ -302,7 +301,8 @@ export const PromptArea: React.FC<PromptAreaProps> = ({
         name: 'load-audit-checklist',
         description: 'Load audit checklist',
         category: 'Audit',
-        action: handleLoadAuditChecklist,
+        // Checklist mode: write the files and stop, no audit run.
+        action: () => handleLoadAuditChecklist('checklist'),
         requiredFeatures: [Features.AI_AUDITOR],
         disabled: !hasAuditorPermission
       })

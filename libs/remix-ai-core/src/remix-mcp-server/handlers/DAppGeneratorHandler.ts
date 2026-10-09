@@ -16,6 +16,8 @@ import {
   buildQuickDappContractConfigFields,
   classifyQuickDappEnvironment,
   clearQuickDappWorkspaceLock,
+  getQuickDappWorkspaceLock,
+  retainQuickDappWorkspaceLock,
   createQuickDappContractSelection,
   DappOperations,
   extractNameFromKey,
@@ -1143,6 +1145,7 @@ export class GenerateDAppHandler extends BaseToolHandler {
     let progressSlug: string | undefined
     let figmaDesign: FigmaDesignSuccess | undefined
     let contractSelection: QuickDappContractSelection | undefined
+    let release = () => {}
     try {
       remixAILogger.log('[GenerateDApp] Received args:', getGenerateDAppArgsTrace(args))
       const isDesktop = isElectron()
@@ -1441,12 +1444,12 @@ export class GenerateDAppHandler extends BaseToolHandler {
         }
       }
 
-      setQuickDappWorkspaceLock({
+      release = retainQuickDappWorkspaceLock(setQuickDappWorkspaceLock({
         workspaceName: dappOps.getWorkspaceName(),
         slug: progressSlug || dappOps.getSlug(),
         operation: 'generate',
         reason: 'generate_dapp'
-      })
+      }))
       remixAILogger.log('[QuickDapp][WorkspaceLock] locked workspace for generation', {
         workspaceName: dappOps.getWorkspaceName(),
         slug: progressSlug || dappOps.getSlug(),
@@ -1687,6 +1690,8 @@ export class GenerateDAppHandler extends BaseToolHandler {
         `DApp generation failed: ${error.message}\n\n` +
         `Tell the user the error and suggest they try again.`
       )
+    } finally {
+      release()
     }
   }
 }
@@ -2003,6 +2008,7 @@ export class UpdateDAppHandler extends BaseToolHandler {
 
   async execute(args: UpdateDAppArgs, plugin: Plugin): Promise<IMCPToolResult> {
     let dappOps: DappOperations | undefined
+    let release = () => {}
     try {
       remixAILogger.log('[QuickDapp] UpdateDAppHandler.execute() START', {
         address: args.contractAddress,
@@ -2111,6 +2117,7 @@ export class UpdateDAppHandler extends BaseToolHandler {
         })
         return this.createErrorResult('Another QuickDapp operation is already in progress. Wait for it to finish before updating this DApp.')
       }
+      release = retainQuickDappWorkspaceLock(updateLock)
       remixAILogger.log('[QuickDapp][WorkspaceLock] locked workspace for update', {
         workspaceName: dappOps.getWorkspaceName()
       })
@@ -2141,12 +2148,7 @@ export class UpdateDAppHandler extends BaseToolHandler {
         }
       }
       const slugToUse = configSlug || dappOps.getSlug()
-      setQuickDappWorkspaceLock({
-        workspaceName: dappOps.getWorkspaceName(),
-        slug: slugToUse,
-        operation: 'update',
-        reason: 'update_dapp'
-      })
+      updateLock.slug = slugToUse
 
       // Get workspace file list (names only — subagent reads content in its own context)
       let fileNames: string[] = []
@@ -2325,6 +2327,8 @@ export class UpdateDAppHandler extends BaseToolHandler {
         error: error.message
       })
       return this.createErrorResult(`DApp update failed: ${error.message}`)
+    } finally {
+      release()
     }
   }
 
@@ -2377,6 +2381,13 @@ export class FinalizeDAppGenerationHandler extends BaseToolHandler {
     const { workspaceName, contractAddress, isUpdate, bindingChange } = args
     let dappOps: DappOperations | undefined
     let configSlug: string | undefined
+    const lock = getQuickDappWorkspaceLock() || setQuickDappWorkspaceLock({
+      workspaceName, operation: isUpdate ? 'update' : 'generate', reason: 'finalize_dapp_generation'
+    })
+    if (lock && (lock.workspaceName !== workspaceName || lock.operation === 'publish')) {
+      return this.createErrorResult('Another QuickDapp operation is in progress. Wait for it to finish before finalizing this DApp.')
+    }
+    const release = retainQuickDappWorkspaceLock(lock)
 
     try {
       remixAILogger.log(`[QuickDapp] FinalizeDAppGeneration: workspaceName=${workspaceName}, isUpdate=${!!isUpdate}`)
@@ -2476,12 +2487,15 @@ export class FinalizeDAppGenerationHandler extends BaseToolHandler {
           })
         }
       } catch (configErr) {
-        if (isUpdate) throw configErr
-        remixAILogger.warn('[QuickDapp] Config update failed (non-critical):', configErr)
+        // Persist completion before notifying the UI, for both creates and updates.
+        remixAILogger.error('[QuickDapp] Failed to persist finalized DApp:', configErr)
+        throw configErr
       }
       const slugToUse = configSlug || dappOps.getSlug()
       remixAILogger.log(`[QuickDapp][FINALIZE] Using slug for event: ${slugToUse}`)
+      clearQuickDappGenerationContext(dappOps.getWorkspaceName())
       clearQuickDappWorkspaceLock(dappOps.getWorkspaceName())
+      release()
       remixAILogger.log('[QuickDapp][WorkspaceLock] cleared before dappGenerated', {
         workspaceName: dappOps.getWorkspaceName(),
         slug: slugToUse
@@ -2510,8 +2524,6 @@ export class FinalizeDAppGenerationHandler extends BaseToolHandler {
       } catch (e: any) {
         remixAILogger.warn('[QuickDapp] Auto-open failed (non-critical):', e?.message)
       }
-      clearQuickDappGenerationContext(dappOps.getWorkspaceName())
-
       return this.createSuccessResult({
         success: true,
         workspaceName: dappOps.getWorkspaceName(),
@@ -2531,6 +2543,8 @@ export class FinalizeDAppGenerationHandler extends BaseToolHandler {
         clearQuickDappGenerationContext(dappOps.getWorkspaceName())
       }
       return this.createErrorResult(`Failed to finalize DApp: ${error.message}`)
+    } finally {
+      release()
     }
   }
 }
@@ -2645,6 +2659,7 @@ export class GenerateGraphDAppHandler extends BaseToolHandler {
   async execute(args: GenerateGraphDAppArgs, plugin: Plugin): Promise<IMCPToolResult> {
     let dappOps: DappOperations | undefined
 
+    let release = () => {}
     try {
       this.normalizeGraphContext(args)
       const isDesktop = isElectron()
@@ -2818,12 +2833,12 @@ export class GenerateGraphDAppHandler extends BaseToolHandler {
         }
       }
 
-      setQuickDappWorkspaceLock({
+      release = retainQuickDappWorkspaceLock(setQuickDappWorkspaceLock({
         workspaceName: dappOps.getWorkspaceName(),
         slug: targetSlug,
         operation: 'generate',
         reason: 'generate_graph_dapp'
-      })
+      }))
       markQuickDappGenerationContext({
         workspaceName: dappOps.getWorkspaceName(),
         isInlineMode: dappOps.isInline(),
@@ -2889,6 +2904,8 @@ export class GenerateGraphDAppHandler extends BaseToolHandler {
         error: error.message
       })
       return this.createErrorResult(`Failed to create Graph-only DApp: ${error.message}`)
+    } finally {
+      release()
     }
   }
 }
@@ -3359,6 +3376,7 @@ export class GenerateZkDAppHandler extends BaseToolHandler {
     let dappOps: DappOperations | null = null
     let progressSlug: string = ''
 
+    let release = () => {}
     try {
       // If setup options not confirmed, ask user first
       if (!args.setupOptionsConfirmed) {
@@ -3487,12 +3505,12 @@ export class GenerateZkDAppHandler extends BaseToolHandler {
       }
 
       // Set workspace lock
-      setQuickDappWorkspaceLock({
+      release = retainQuickDappWorkspaceLock(setQuickDappWorkspaceLock({
         workspaceName: dappOps.getWorkspaceName(),
         slug: progressSlug || dappOps.getSlug(),
         operation: 'generate',
         reason: 'generate_zk_dapp'
-      })
+      }))
       remixAILogger.log('[ZkDAppGenerator][WorkspaceLock] locked workspace for generation', {
         workspaceName: dappOps.getWorkspaceName(),
         slug: progressSlug || dappOps.getSlug(),
@@ -3654,6 +3672,8 @@ export class GenerateZkDAppHandler extends BaseToolHandler {
       })
       remixAILogger.error('[ZkDAppGenerator] execute failed', error)
       return this.createErrorResult(`Failed to generate ZK DApp: ${error.message || error}`)
+    } finally {
+      release()
     }
   }
 
@@ -3875,6 +3895,7 @@ export class GenerateNoirZkDAppHandler extends BaseToolHandler {
     let dappOps: DappOperations | null = null
     let progressSlug: string = ''
 
+    let release = () => {}
     try {
       if (!args.setupOptionsConfirmed) {
         const locationLine = isDesktop
@@ -3972,12 +3993,12 @@ export class GenerateNoirZkDAppHandler extends BaseToolHandler {
         }
       }
 
-      setQuickDappWorkspaceLock({
+      release = retainQuickDappWorkspaceLock(setQuickDappWorkspaceLock({
         workspaceName: dappOps.getWorkspaceName(),
         slug: progressSlug || dappOps.getSlug(),
         operation: 'generate',
         reason: 'generate_noir_zk_dapp'
-      })
+      }))
 
       try {
         await plugin.call('manager' as any, 'activatePlugin', 'quick-dapp-v2')
@@ -4100,6 +4121,8 @@ export class GenerateNoirZkDAppHandler extends BaseToolHandler {
       })
       remixAILogger.error('[NoirZkDAppGenerator] execute failed', error)
       return this.createErrorResult(`Failed to generate Noir ZK DApp: ${error.message || error}`)
+    } finally {
+      release()
     }
   }
 

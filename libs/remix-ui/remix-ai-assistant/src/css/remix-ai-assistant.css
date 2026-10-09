@@ -1460,6 +1460,29 @@ body.light .message-copy-btn:hover {
    Fixed above the prompt area, never scrolls with chat.
    -------------------------------------------------------- */
 
+.ai-thinking-banner {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  margin: 0 8px 4px;
+  border-radius: 6px;
+  font-size: 12px;
+  flex-shrink: 0;
+  color: var(--bs-body-color);
+  background: color-mix(in srgb, var(--custom-ai-color) 10%, var(--bs-body-bg));
+  border: 1px solid color-mix(in srgb, var(--custom-ai-color) 25%, var(--bs-body-bg));
+}
+
+.ai-thinking-banner__icon {
+  color: var(--custom-ai-color);
+}
+
+.ai-thinking-banner__text {
+  font-weight: 600;
+  opacity: 0.85;
+}
+
 .hitl-auto-accept-banner {
   display: flex;
   align-items: center;

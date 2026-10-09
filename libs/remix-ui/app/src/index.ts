@@ -4,6 +4,6 @@ export { ModalProvider, useDialogDispatchers } from './lib/remix-app/context/pro
 export { AppModal } from './lib/remix-app/interface/index'
 export { AlertModal, AppState, ActionNotification, ActionNotificationAction } from './lib/remix-app/interface/index'
 export { ModalTypes, AppModalCancelTypes } from './lib/remix-app/types/index'
-export { AppAction, appActionTypes } from './lib/remix-app/actions/app'
+export { AppAction, appActionTypes, ChecklistModalState } from './lib/remix-app/actions/app'
 export { AuthProvider, useAuth, Credits, AuthState } from './lib/remix-app/context/auth-context'
 export { AuthUser, AuthProvider as AuthProviderType, FeatureGroup } from '@remix-api'

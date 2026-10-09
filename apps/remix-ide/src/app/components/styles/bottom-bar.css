@@ -14,6 +14,12 @@
     width: 12px;
     height: 12px;
 }
+
+.bottom-bar .bottom-bar-ai-actions {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+}
   
 .bottom-bar .copilot-toggle {
     margin-left: auto;

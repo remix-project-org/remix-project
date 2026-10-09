@@ -74,15 +74,15 @@ export class ChecklistExplorerModalPlugin extends Plugin {
     this.dispatch({ ...this, isOpen: true })
   }
 
-  updateComponent(state: any) {
-    // isOpen defaults to true on first render (when triggered by button),
-    // becomes false when closeModal() dispatches { isOpen: false }
+  updateComponent(state: any, appState?: any) {
     const isOpen = state.isOpen !== false
+    const mode = appState?.showChecklistModal === 'audit' ? 'audit' : 'checklist'
     return (
       <RemixUiChecklistExplorerModal
         isOpen={isOpen}
         onClose={() => this.closeModal()}
         plugin={this}
+        mode={mode}
       />
     )
   }

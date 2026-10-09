@@ -110,6 +110,8 @@ const SAFE_TOOLS = new Set([
   'generate_dapp',
   'update_dapp',
   'fetch_figma_design',
+  // Read-only view of the model catalogue.
+  'list_models',
 ])
 
 /**
@@ -140,6 +142,9 @@ const TOOL_METADATA: Record<string, { category: ToolCategory; risk: ToolRisk }> 
   // Actual MCP tool names used by DAppGeneratorHandler
   generate_dapp:    { category: 'dapp', risk: 'low' },
   update_dapp:      { category: 'dapp', risk: 'medium' },
+  // Changes a setting the user chose and can change what their usage costs, so
+  // the approval modal is the confirmation step on the agent-driven path.
+  switch_model:     { category: 'other', risk: 'medium' },
 }
 
 export function isSafeTool(toolName: string): boolean {

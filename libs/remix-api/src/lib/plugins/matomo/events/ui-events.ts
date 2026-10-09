@@ -81,6 +81,16 @@ export interface StatusBarEvent extends MatomoEventBase {
     | 'initNewRepo';
 }
 
+export interface BottomBarEvent extends MatomoEventBase {
+  category: 'bottomBar';
+  action:
+    | 'editWithAI'
+    | 'explain'
+    | 'createDapp'
+    | 'securityAudit'
+    | 'gasAudit';
+}
+
 
 
 

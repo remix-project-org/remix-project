@@ -14,6 +14,46 @@ export function sanitizeToolName(name: string | undefined): string | null {
 }
 
 /**
+ * Convert a single JSON-Schema node to a Zod type.
+ */
+function jsonSchemaNodeToZod(prop: any): z.ZodTypeAny {
+  if (!prop || typeof prop !== 'object') return z.any()
+
+  let zodType: z.ZodTypeAny
+
+  // enum can appear on any type; string-enum is the common case.
+  if (Array.isArray(prop.enum) && prop.enum.length > 0) {
+    zodType = z.enum(prop.enum as [string, ...string[]])
+  } else {
+    switch (prop.type) {
+    case 'string':
+      zodType = z.string()
+      break
+    case 'number':
+    case 'integer':
+      zodType = z.number()
+      break
+    case 'boolean':
+      zodType = z.boolean()
+      break
+    case 'array':
+      // Preserve item type instead of collapsing to z.any().
+      zodType = z.array(prop.items ? jsonSchemaNodeToZod(prop.items) : z.any())
+      break
+    case 'object':
+      // Preserve nested shape when properties are declared.
+      zodType = prop.properties ? jsonSchemaToZod(prop) : z.record(z.string(), z.any())
+      break
+    default:
+      zodType = z.any()
+    }
+  }
+
+  if (prop.description) zodType = zodType.describe(prop.description)
+  return zodType
+}
+
+/**
  * Convert JSON Schema to Zod schema
  * @param schema - JSON Schema object
  * @returns Zod object schema
@@ -110,13 +150,15 @@ export function jsonSchemaToZod(schema: any): z.ZodObject<any> {
   return z.object(shape)
 }
 
+export const MAX_TOOL_RESULT_CHARS = 24000
+
 export function mcpResultToString(result: IMCPToolResult): string {
   if (result.isError) {
     const errorText = result.content.find(c => c.type === 'text')?.text || 'Unknown error'
     return `Error: ${errorText}`
   }
 
-  return result.content
+  const text = result.content
     .map(c => {
       if (c.type === 'text') return c.text
       if (c.type === 'image') return `[Image: ${c.mimeType}]`
@@ -125,4 +167,10 @@ export function mcpResultToString(result: IMCPToolResult): string {
     })
     .filter(Boolean)
     .join('\n')
+
+  if (text.length > MAX_TOOL_RESULT_CHARS) {
+    const omitted = text.length - MAX_TOOL_RESULT_CHARS
+    return `${text.slice(0, MAX_TOOL_RESULT_CHARS)}\n\n…[truncated ${omitted} characters of tool output]`
+  }
+  return text
 }

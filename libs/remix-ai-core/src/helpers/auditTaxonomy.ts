@@ -258,3 +258,115 @@ export function filterAuditMatches(
 
   return { matches, discarded }
 }
+
+/* -------------------------------------------------------------------------- */
+/* Per-contract checklist storage                                             */
+/*                                                                            */
+/* Selected checklists are saved one file per category under                  */
+/* `audits/<Contract>/<token>.md`. The naming lives here, next to the paths it */
+/* derives from, so the filenames and the selectable paths cannot drift apart. */
+/* -------------------------------------------------------------------------- */
+
+/** Anything that has to become a single safe path segment goes through this. */
+const sanitizeSegment = (raw: string): string => {
+  return raw
+    .replace(/[^a-zA-Z0-9_-]/g, '_')
+    .replace(/_+/g, '_')
+    .replace(/^_|_$/g, '')
+}
+
+/**
+ * Filename stem for one selected category. `Main::Sub` becomes `Main-Sub` so the
+ * two halves stay readable in the file explorer.
+ */
+export function categoryFileToken(categoryPath: string): string {
+  const raw = categoryPath.includes('::') ? categoryPath.split('::').join('-') : categoryPath
+  return sanitizeSegment(raw)
+}
+
+/**
+ * Folder name for the contract the checklists are saved against.
+ *
+ * The compiled contract name is preferred over the filename: `contracts/Token.sol`
+ * declaring `MyToken` reads better as `audits/MyToken/`. Falls back to the file
+ * stem when the file has not been compiled, and to `contract` when even that
+ * sanitizes away (a file named `__.sol`). The result is always a single path
+ * segment — it is interpolated straight into a write path.
+ */
+export function deriveContractName(target: string, namesByFile: Record<string, string[]> = {}): string {
+  if (!target) return ''
+  const compiled = namesByFile[target]?.[0]
+  if (compiled) {
+    const fromCompiled = sanitizeSegment(compiled)
+    if (fromCompiled) return fromCompiled
+  }
+  const stem = (target.split('/').pop() ?? target).replace(/\.sol$/i, '')
+  return sanitizeSegment(stem) || 'contract'
+}
+
+/**
+ * Which categories already have a checklist file saved for the selected contract.
+ *
+ * `files` is the listing of `audits/<Contract>/`, where each checklist owns one
+ * `<token>.md`. Matching is exact on that stem — a substring test over the whole
+ * listing would let `Access_Control` light up `Token-Access_Control` too.
+ */
+export function computeLoadedCategories(data: AuditChecklistNode[] | undefined, files: string[]): Set<string> {
+  const stems = new Set(
+    files
+      .map(file => (file.split('/').pop() ?? file))
+      .filter(name => name.toLowerCase().endsWith('.md'))
+      .map(name => name.slice(0, -3))
+  )
+  const loaded = new Set<string>()
+  enumerateSelectableChecklistPaths(data).forEach(path => {
+    const token = categoryFileToken(path)
+    if (token && stems.has(token)) loaded.add(path)
+  })
+  return loaded
+}
+
+/* -------------------------------------------------------------------------- */
+/* Audience variants for a finished audit report                              */
+/* -------------------------------------------------------------------------- */
+
+export interface AuditReportAudience {
+  label: string
+  /** What changes for this reader — keeps a rewrite from being a retitle. */
+  focus: string
+  /** Filename stem, so the model is never left to invent one. */
+  slug: string
+}
+
+/**
+ * Audiences offered once an audit run has produced its report.
+ *
+ * One technical report rarely serves everyone who must act on it: the person
+ * approving the budget, the one scheduling the work and the one writing the fix
+ * need the same findings at different depths. Shared by the modal's audit
+ * instruction and the auditor subagent prompt so the two can never drift.
+ */
+export const AUDIT_REPORT_AUDIENCES: AuditReportAudience[] = [
+  { label: 'Beginners', slug: 'beginners', focus: 'plain language, every term explained, why each issue matters' },
+  { label: 'Decision makers', slug: 'decision_makers', focus: 'risk posture, business impact, cost of fixing vs not, clear go/no-go' },
+  { label: 'Project managers', slug: 'project_managers', focus: 'work breakdown, effort estimates, dependencies and suggested sequencing' },
+  { label: 'Developers', slug: 'developers', focus: 'exact files and lines, concrete patches, tests to add' },
+  { label: 'Investors / due diligence', slug: 'investors', focus: 'overall risk rating, red flags, comparison against common standards' },
+  { label: 'End users / community', slug: 'end_users', focus: 'short public-facing note on what was checked and what it means for funds' },
+  { label: 'Compliance / risk officers', slug: 'compliance', focus: 'controls coverage, residual risk, evidence trail and sign-off checklist' }
+]
+
+/** `"Beginners, Decision makers, …"` — labels only, where focus would bloat. */
+export function renderAudienceLabels(audiences: AuditReportAudience[] = AUDIT_REPORT_AUDIENCES): string {
+  return audiences.map(a => a.label).join(', ')
+}
+
+/**
+ * `"Project managers -> summary_project_managers.md (work breakdown, …)"`.
+ *
+ * Pairs each choice with the exact filename and what to emphasise, so the model
+ * has nothing left to invent and cannot answer "the existing summary covers it".
+ */
+export function renderAudienceTargets(audiences: AuditReportAudience[] = AUDIT_REPORT_AUDIENCES): string {
+  return audiences.map(a => `${a.label} -> summary_${a.slug}.md (${a.focus})`).join('; ')
+}

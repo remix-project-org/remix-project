@@ -227,7 +227,7 @@ function RenderNode({
           defaultChecked={node.defaultChecked}
           onChange={e => onChange?.(node.name, e.target.checked)}
         />
-        <label htmlFor={`chk-${node.name}`} className="form-check-label small">{node.label}</label>
+        <label htmlFor={`chk-${node.name}`} className="form-check-label small">{node.label || node.name}</label>
       </div>
     )
   }
@@ -250,6 +250,50 @@ function RenderNode({
   }
 }
 
+// ─── Tree inspection ──────────────────────────────────────────────────────────
+
+/** Depth-first search over whatever children a node happens to carry. */
+function treeSome(node: UINode | undefined, predicate: (n: UINode) => boolean): boolean {
+  if (!node || typeof node.type !== 'string') return false
+  if (predicate(node)) return true
+  const children = (node as any).children as UINode[] | undefined
+  return Array.isArray(children) && children.some(child => treeSome(child, predicate))
+}
+
+const INPUT_TYPES = ['input', 'select', 'radio_group', 'checkbox']
+
+/** Can the user actually send anything back from this tree? */
+const hasSubmitPath = (node: UINode): boolean => treeSome(node, n => n.type === 'button' || n.type === 'form')
+/** Does it ask for input at all? */
+const hasInputs = (node: UINode): boolean => treeSome(node, n => INPUT_TYPES.includes(n.type))
+
+/**
+ * Collects values and submits a tree the model left with no way out.
+ *
+ * A bare radio_group renders fine but only calls onChange — with no button and
+ * no form there is nothing to fire onAction, so the user picks an option and
+ * the conversation simply stops. Rather than drop those payloads we supply the
+ * missing confirm button here.
+ */
+function FallbackSubmit({ node, onAction }: { node: UINode; onAction: (action: string, data?: Record<string, any>) => void }) {
+  const [values, setValues] = useState<Record<string, any>>({})
+  const handleChange = (name: string, value: any) => setValues(prev => ({ ...prev, [name]: value }))
+  const empty = Object.keys(values).length === 0
+  return (
+    <form
+      onSubmit={e => { e.preventDefault(); onAction('submit', values) }}
+      className="d-flex flex-column gap-2"
+    >
+      <RenderNode node={node} onAction={onAction} onChange={handleChange} depth={0} />
+      <div>
+        <button type="submit" className="btn btn-primary btn-sm mt-1" disabled={empty}>
+          Confirm
+        </button>
+      </div>
+    </form>
+  )
+}
+
 // ─── Public component ─────────────────────────────────────────────────────────
 
 interface GenerativeUIRendererProps {
@@ -270,7 +314,9 @@ export const GenerativeUIRenderer: React.FC<GenerativeUIRendererProps> = ({ payl
         {payload.title && (
           <div className="fw-semibold small mb-2 text-ai">{payload.title}</div>
         )}
-        <RenderNode node={node} onAction={onAction} depth={0} />
+        {hasSubmitPath(node) || !hasInputs(node)
+          ? <RenderNode node={node} onAction={onAction} depth={0} />
+          : <FallbackSubmit node={node} onAction={onAction} />}
       </div>
     </GenerativeUIErrorBoundary>
   )

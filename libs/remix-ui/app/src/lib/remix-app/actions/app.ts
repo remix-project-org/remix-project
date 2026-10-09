@@ -29,6 +29,8 @@ export const enum appActionTypes {
   showChecklistModal = 'SHOW_CHECKLIST_MODAL'
 }
 
+export type ChecklistModalState = false | 'audit' | 'checklist'
+
 type AppPayload = {
   [appActionTypes.setGitHubUser]: GitHubUser,
   [appActionTypes.setCurrentBranch]: branch,
@@ -44,7 +46,7 @@ type AppPayload = {
   [appActionTypes.toggleIsAiChatMaximized]: boolean,
   [appActionTypes.closeAiChatHistorySidebar]: boolean,
   [appActionTypes.showSkillsModal]: boolean,
-  [appActionTypes.showChecklistModal]: boolean
+  [appActionTypes.showChecklistModal]: ChecklistModalState
 }
 
 export type AppAction = ActionMap<AppPayload>[keyof ActionMap<

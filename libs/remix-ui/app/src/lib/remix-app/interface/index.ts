@@ -1,6 +1,7 @@
 /* eslint-disable @nrwl/nx/enforce-module-boundaries */
 import { branch, desktopConnection, GitHubUser } from '@remix-api'
 import { AppModalCancelTypes, ModalTypes } from '../types'
+import { ChecklistModalState } from '../actions/app'
 import { Template, TemplateGroup, TemplateOption } from 'libs/remix-ui/workspace/src/lib/utils/constants'
 
 export type ValidationResult = {
@@ -132,6 +133,6 @@ export interface AppState {
     genericModalState?: GenericModal,
     aiChatHistoryState?: { showAiChatHistory: boolean, closeAiChatHistory: boolean, toggleIsAiChatMaximized: boolean },
     showSkillsModal?: boolean,
-    showChecklistModal?: boolean
+    showChecklistModal?: ChecklistModalState
 }
 

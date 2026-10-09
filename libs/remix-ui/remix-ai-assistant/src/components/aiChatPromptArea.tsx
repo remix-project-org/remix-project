@@ -55,7 +55,7 @@ interface AiChatPromptAreaProps {
     messages: ChatMessage[]
     handleLoadSkills?: () => void
     handleOpenSettings?: () => void
-    handleLoadAuditChecklist?: () => void
+    handleLoadAuditChecklist?: (mode?: 'audit' | 'checklist') => void
     handleGasOptimisationAudit?: () => void
     usingOwnApiKey?: boolean
     aiRoute?: 'initializing' | 'agent' | 'tools' | 'chat'

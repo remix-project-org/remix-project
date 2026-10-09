@@ -1102,7 +1102,7 @@ export class Blockchain extends Plugin {
             Then mention, briefly and only once:
             - /load-skills lets RemixAI load specialized skills to analyze this contract further
             - /gas-audit runs a gas optimization pass
-            - /load-audit-checklist runs a security checklist pass
+            - /load-audit-checklist saves security checklists for a contract under audits/<Contract>/, which /audit then works through
             - Automatic feedback can be disabled under Settings → RemixAI Assistant → AI Feedback
 
             Keep the whole response tight — a wall of text defeats the purpose.`
