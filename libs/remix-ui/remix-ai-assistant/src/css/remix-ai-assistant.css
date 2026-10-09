@@ -960,24 +960,6 @@ body.dark .chat-history-sidebar .btn-outline-secondary:hover {
   color: #e0e0e0 !important;
 }
 
-[data-theme="dark"] .chat-history-sidebar .conversation-item,
-body.dark .chat-history-sidebar .conversation-item {
-  background-color: #262637 !important;
-  /* border: 1px solid #3a3a4a; */
-  color: #e0e0e0 !important;
-}
-
-[data-theme="dark"] .chat-history-sidebar .conversation-item:hover,
-body.dark .chat-history-sidebar .conversation-item:hover {
-  background-color: #2e2e3e !important;
-}
-
-[data-theme="dark"] .chat-history-sidebar .conversation-item.active,
-body.dark .chat-history-sidebar .conversation-item.active {
-  background-color: #4a9eff !important;
-  color: #ffffff !important;
-}
-
 [data-theme="dark"] .chat-history-sidebar .conversation-item .text-muted,
 body.dark .chat-history-sidebar .conversation-item .text-muted {
   color: #a0a0b0 !important;
@@ -1175,110 +1157,83 @@ body.dark .btn-archive-toggle.active {
   color: #ffffff !important;
 }
 
-/* Conversation items */
+/* Conversation items: one look for both themes, from the theme's own colours */
 .conversation-item {
+  padding: 0.5rem 0.625rem 0.5rem 0.75rem;
+  border-radius: 8px;
   background-color: transparent;
-  border: none;
-  transition: background-color 0.2s ease;
+  color: var(--bs-body-color);
+  transition: background-color 0.15s ease;
 }
 
-.conversation-item:hover {
-  background-color: var(--bs-tertiary-bg);
+.conversation-item:hover,
+.conversation-item-menu-open {
+  background-color: color-mix(in srgb, var(--bs-body-color) 8%, transparent);
 }
 
-[data-theme="dark"] .conversation-item,
-body.dark .conversation-item {
-  background-color: transparent !important;
-  border: none !important;
-}
-
-[data-theme="light"] .conversation-item,
-body.dark .conversation-item {
-  background-color: transparent !important;
-  border: none !important;
-  color: var(--bs-body-color) !important;
-}
-
-[data-theme="dark"] .conversation-item:hover,
-body.dark .conversation-item:hover {
-  background-color: #2e2e3e !important;
-}
-
-.conversation-item-active {
-  background-color: transparent !important;
-}
-
+/* The open conversation: AI-tinted, with a bar on its left edge */
+.conversation-item-active,
 .conversation-item-active:hover {
-  background-color: transparent !important;
-  border: 1px solid !important;
-  border-color: var(--bs-border-color);
+  background-color: color-mix(in srgb, var(--custom-ai-color) 14%, transparent);
+}
+
+.conversation-item-active::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 8px;
+  bottom: 8px;
+  width: 3px;
+  border-radius: 2px;
+  background-color: var(--custom-ai-color);
 }
 
 .conversation-title {
-  font-size: 0.95rem;
+  font-size: 0.875rem;
   font-weight: 500;
-  color: var(--bs-body-color);
-}
-
-[data-theme="dark"] .conversation-title,
-body.dark .conversation-title {
-  color: #e0e0e0 !important;
+  line-height: 1.3;
+  /* Stronger than body text, which is muted in the Remix themes */
+  color: color-mix(in srgb, var(--bs-emphasis-color) 85%, transparent);
 }
 
 .conversation-item-active .conversation-title {
-  color: #ffffff !important;
+  font-weight: 600;
 }
 
 .conversation-meta {
-  font-size: 0.8rem;
-  color: var(--bs-secondary);
+  font-size: 0.75rem;
+  line-height: 1.3;
+  color: var(--bs-secondary-color);
 }
 
-[data-theme="dark"] .conversation-meta,
-body.dark .conversation-meta {
-  color: #a0a0b0 !important;
-}
-
-.conversation-item-active .conversation-meta {
-  color: rgba(255, 255, 255, 0.8) !important;
-}
-
-/* Conversation menu button */
+/* Conversation menu button: shown on hover, on keyboard focus, on the open conversation and while its menu is open */
 .conversation-menu-btn {
-  background: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
   border: none;
-  color: var(--bs-secondary);
-  padding: 0.25rem 0.5rem;
+  border-radius: 4px;
+  background: none;
+  color: var(--bs-secondary-color);
   cursor: pointer;
   opacity: 0;
-  transition: opacity 0.2s ease, color 0.2s ease;
+  transition: opacity 0.15s ease, color 0.15s ease, background-color 0.15s ease;
 }
 
-.conversation-item:hover .conversation-menu-btn {
+.conversation-item:hover .conversation-menu-btn,
+.conversation-item-active .conversation-menu-btn,
+.conversation-item-menu-open .conversation-menu-btn,
+.conversation-menu-btn:focus-visible,
+.chat-history-menu-btn {
   opacity: 1;
 }
 
-.conversation-menu-btn:hover {
+.conversation-menu-btn:hover,
+.conversation-menu-btn[aria-expanded="true"] {
   color: var(--bs-body-color);
-}
-
-[data-theme="dark"] .conversation-menu-btn,
-body.dark .conversation-menu-btn {
-  color: #a0a0b0 !important;
-}
-
-[data-theme="dark"] .conversation-menu-btn:hover,
-body.dark .conversation-menu-btn:hover {
-  color: #e0e0e0 !important;
-}
-
-.conversation-item-active .conversation-menu-btn {
-  color: rgba(255, 255, 255, 0.8) !important;
-  opacity: 1;
-}
-
-.conversation-item-active .conversation-menu-btn:hover {
-  color: #ffffff !important;
+  background-color: color-mix(in srgb, var(--bs-body-color) 12%, transparent);
 }
 
 /* Conversation dropdown menu */
@@ -1719,7 +1674,9 @@ code {
 }
 
 .tool-approval-card__btn--reject {
-  background: var(--custom-onsurface-layer-4);
+  /* the onsurface layers it used are dark-theme only: white text vanished in light themes */
+  background: color-mix(in srgb, var(--bs-body-color) 16%, transparent);
+  color: var(--bs-body-color);
 }
 
 .tool-approval-card__btn--reject:hover {
@@ -1736,7 +1693,8 @@ code {
 }
 
 .tool-approval-card__btn--review {
-  background: var(--custom-onsurface-layer-1);
+  background: color-mix(in srgb, var(--bs-body-color) 8%, transparent);
+  color: var(--bs-body-color);
 }
 
 .tool-approval-card__btn--review:hover {
@@ -2003,6 +1961,96 @@ code {
   border-left: 1px solid var(--bs-border-color) !important;
 }
 
+/* Chat header toggles (changes, history) when their panel is open */
+.ai-heading-toggle-active,
+.ai-heading-toggle-active:hover,
+.ai-heading-toggle-active:focus {
+  color: var(--custom-ai-color) !important;
+  background-color: color-mix(in srgb, var(--custom-ai-color) 14%, transparent) !important;
+  border-color: transparent !important;
+}
+
+/* AI mode changes panel: files RemixAI changed or wants to change, with diffs */
+.ai-changes-panel {
+  position: relative;
+  flex-shrink: 0;
+  min-width: 320px;
+  max-width: 70%;
+  border-left: 1px solid var(--bs-border-color) !important;
+}
+
+.ai-changes-panel .ai-changes-resize-handle {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: -3px;
+  width: 6px;
+  cursor: col-resize;
+  z-index: 5;
+}
+
+.ai-changes-panel .ai-changes-resize-handle:hover,
+body.ai-changes-resizing .ai-changes-panel .ai-changes-resize-handle {
+  background-color: var(--custom-ai-color);
+  opacity: 0.6;
+}
+
+body.ai-changes-resizing {
+  cursor: col-resize;
+  user-select: none;
+}
+
+/* Secondary actions: readable in both themes (the approval card's reject colour is dark-theme only) */
+.ai-changes-panel .ai-changes-btn-secondary {
+  background: color-mix(in srgb, var(--bs-body-color) 12%, transparent);
+  color: var(--bs-body-color);
+}
+
+.ai-changes-panel .ai-changes-btn-secondary:hover {
+  opacity: 0.85;
+}
+
+.ai-changes-panel .ai-changes-section-title {
+  font-size: 0.7rem;
+  letter-spacing: 0.04em;
+}
+
+.ai-changes-panel .ai-changes-row {
+  font-size: 0.8rem;
+  border-radius: 6px;
+  color: var(--bs-body-color);
+}
+
+.ai-changes-panel .ai-changes-row:hover {
+  background-color: var(--custom-onsurface-layer-1, var(--bs-secondary-bg));
+}
+
+.ai-changes-panel .ai-changes-badge {
+  font-weight: 500;
+  color: var(--bs-body-color);
+  background-color: color-mix(in srgb, var(--bs-body-color) 14%, transparent);
+}
+
+.ai-changes-panel .ai-changes-badge-warning {
+  color: var(--bs-warning);
+  background-color: color-mix(in srgb, var(--bs-warning) 14%, transparent);
+}
+
+.ai-changes-panel .ai-changes-notice {
+  color: var(--bs-warning);
+  background-color: color-mix(in srgb, var(--bs-warning) 8%, transparent);
+}
+
+.ai-changes-panel .ai-changes-stat {
+  font-size: 0.75rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.ai-changes-toggle-count {
+  font-size: 0.65rem;
+  padding: 0.15em 0.4em;
+}
+
 /* History header actions (both modes): compact, one line */
 .chat-history-sidebar .chat-history-action {
   font-size: 0.8rem;
@@ -2076,4 +2124,94 @@ code {
   .prompt-area.ai-input-spotlight::before {
     display: none;
   }
+}
+
+/* File change lines inside an AI answer, where the agent changed files */
+.ai-change-group {
+  gap: 2px;
+}
+
+.ai-change-line {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  min-width: 0;
+  padding: 4px 8px;
+  border: 1px solid var(--bs-border-color);
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--bs-body-color) 4%, transparent);
+  color: var(--bs-body-color);
+  font-size: 0.8rem;
+  text-align: left;
+}
+
+button.ai-change-line:hover {
+  background: color-mix(in srgb, var(--custom-ai-color) 10%, transparent);
+  border-color: color-mix(in srgb, var(--custom-ai-color) 40%, transparent);
+}
+
+.ai-change-line > .fa-pen,
+.ai-change-line > .fa-ban {
+  font-size: 0.7rem;
+  color: var(--custom-ai-color);
+  flex-shrink: 0;
+}
+
+.ai-change-line .text-truncate {
+  flex-grow: 1;
+}
+
+.ai-change-line-nested {
+  margin-left: 18px;
+  width: calc(100% - 18px);
+  border-style: dashed;
+}
+
+.ai-change-line-kind {
+  font-size: 0.7rem;
+  color: var(--bs-secondary-color);
+}
+
+.ai-change-line-stat {
+  font-size: 0.75rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.ai-change-line-open {
+  font-size: 0.65rem;
+  opacity: 0.6;
+}
+
+.ai-change-line-rejected {
+  opacity: 0.6;
+  border-style: dashed;
+  background: transparent;
+}
+
+.ai-change-line-rejected > .fa-ban {
+  color: var(--bs-secondary-color);
+}
+
+/* Shortcut pills above the prompt: one line that scrolls sideways when the panel is narrow */
+.ai-shortcut-pills {
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.ai-shortcut-pills::-webkit-scrollbar {
+  display: none;
+}
+
+.ai-shortcut-pills-fade-end {
+  mask-image: linear-gradient(to right, #000 calc(100% - 24px), transparent);
+}
+
+.ai-shortcut-pills-fade-start {
+  mask-image: linear-gradient(to right, transparent, #000 24px);
+}
+
+.ai-shortcut-pills-fade-start.ai-shortcut-pills-fade-end {
+  mask-image: linear-gradient(to right, transparent, #000 24px, #000 calc(100% - 24px), transparent);
 }

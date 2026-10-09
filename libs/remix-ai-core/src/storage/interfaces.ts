@@ -3,6 +3,8 @@
  * Supports pluggable backends (IndexedDB, S3, etc.)
  */
 
+import type { AIFileChangeRecord } from '../types/humanInTheLoop'
+
 /**
  * Chat message structure
  */
@@ -47,6 +49,8 @@ export interface ChatMessage {
   dappUpdateReview?: DAppUpdateReview
   /** Generative UI component tree rendered inline by the render_ui MCP tool */
   uiComponent?: GenerativeUIPayload
+  /** Files the agent changed while writing this answer (AI mode changes panel) */
+  fileChanges?: AIFileChangeRecord[]
 }
 
 /**

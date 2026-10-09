@@ -118,7 +118,7 @@ export const ToolApprovalModal: React.FC<ToolApprovalModalProps> = ({ request, o
           className="tool-approval-card__btn tool-approval-card__btn--approve"
           data-id="tool-approval-approve-button"
         >
-          Approve
+          Accept
         </button>
       </div>
     </div>

@@ -1,7 +1,7 @@
 import { remixAILogger } from '../../helpers/logger'
 import { Plugin } from '@remixproject/engine'
 import EventEmitter from 'events'
-import { ToolApprovalRequest, ToolApprovalResponse } from '../../types/humanInTheLoop'
+import { AIFileChange, ToolApprovalRequest, ToolApprovalResponse } from '../../types/humanInTheLoop'
 import {
   getActiveQuickDappGenerationContext,
   getQuickDappGenerationContext
@@ -253,6 +253,7 @@ export class RemixFilesystemBackend {
     const result = await this.requestWriteApproval(filePath, batch.originalContent, batch.virtualContent, 'edit_file')
 
     if (!result.approved) {
+      if (!result.timedOut) this.emitRejectedChange(filePath, batch.originalContent, batch.virtualContent, true)
 
       // Revert: the file still has original content (we never wrote during batching)
       return
@@ -264,7 +265,7 @@ export class RemixFilesystemBackend {
       return
     }
 
-    await this.writeFileInternal(filePath, finalContent)
+    await this.writeFileInternal(filePath, finalContent, batch.originalContent, true)
   }
 
   /**
@@ -435,6 +436,7 @@ export class RemixFilesystemBackend {
       const result = await this.requestWriteApproval(normalizedPath, oldContent, content, 'write_file')
 
       if (!result.approved) {
+        if (!result.timedOut) this.emitRejectedChange(normalizedPath, oldContent, content, exists)
         if (isQuickDappDocsWrite) clearQuickDappDocsContext()
         if (result.timedOut) {
           return { error: `TIMEOUT: No user input within 60 seconds for writing to ${path}. The user did not respond to the approval request. You may decide what to do next — retry, try a different approach, or skip this operation.` }
@@ -461,7 +463,7 @@ export class RemixFilesystemBackend {
         }
       }
 
-      await this.writeFileInternal(normalizedPath, finalContent)
+      await this.writeFileInternal(normalizedPath, finalContent, oldContent, exists)
       if (isQuickDappDocsWrite) {
         clearQuickDappDocsContext()
         if (docsContext) {
@@ -486,9 +488,16 @@ export class RemixFilesystemBackend {
     return await this.write_file(file_path, content)
   }
 
-  private async writeFileInternal(path: string, content: string): Promise<void> {
+  private async writeFileInternal(path: string, content: string, oldContent: string, existed: boolean): Promise<void> {
 
     await this.plugin.call('fileManager', 'writeFile', path, content)
+    const change: AIFileChange = { path, existed, oldContent: oldContent || '', newContent: content, timestamp: Date.now() }
+    this.eventEmitter?.emit('onAIFileChanged', change)
+  }
+
+  private emitRejectedChange(path: string, oldContent: string, proposedContent: string, existed: boolean): void {
+    const change: AIFileChange = { path, existed, oldContent: oldContent || '', newContent: proposedContent, timestamp: Date.now(), status: 'rejected' }
+    this.eventEmitter?.emit('onAIFileChanged', change)
   }
 
   async edit_file(path: string, edits: EditInstruction[]): Promise<{ success?: boolean, error?: string }> {
@@ -522,6 +531,7 @@ export class RemixFilesystemBackend {
 
       const result = await this.requestWriteApproval(normalizedPath, originalContent, content, 'edit_file')
       if (!result.approved) {
+        if (!result.timedOut) this.emitRejectedChange(normalizedPath, originalContent, content, true)
         if (result.timedOut) {
           return { error: `TIMEOUT: No user input within 60 seconds for editing ${path}. The user did not respond to the approval request. You may decide what to do next — retry, try a different approach, or skip this operation.` }
         }
@@ -532,7 +542,7 @@ export class RemixFilesystemBackend {
       const graphGatewayWrite = this.getQuickDappGraphGatewayWriteError(normalizedPath, finalContent)
       if (graphGatewayWrite) return graphGatewayWrite
 
-      await this.writeFileInternal(normalizedPath, finalContent)
+      await this.writeFileInternal(normalizedPath, finalContent, originalContent, true)
 
       return { success: true }
     } catch (error) {

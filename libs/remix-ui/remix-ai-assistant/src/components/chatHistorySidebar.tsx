@@ -1,5 +1,5 @@
 /* eslint-disable @nrwl/nx/enforce-module-boundaries */
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import { ConversationMetadata } from '../lib/types'
 import { CustomTooltip } from '@remix-ui/helper'
 import { ConversationItem } from './conversationItem'
@@ -40,6 +40,25 @@ export const ChatHistorySidebar: React.FC<ChatHistorySidebarProps> = ({
   const [searchQuery, setSearchQuery] = useState('')
   const [filteredConversations, setFilteredConversations] = useState<ConversationMetadata[]>([])
   const [isSearching, setIsSearching] = useState(false)
+  // List actions (Delete all) menu in the header
+  const [showListMenu, setShowListMenu] = useState(false)
+  const listMenuRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    if (!showListMenu) return
+    const handleClickOutside = (event: MouseEvent) => {
+      if (listMenuRef.current && !listMenuRef.current.contains(event.target as Node)) setShowListMenu(false)
+    }
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setShowListMenu(false)
+    }
+    document.addEventListener('mousedown', handleClickOutside, true)
+    document.addEventListener('keydown', handleEscape)
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside, true)
+      document.removeEventListener('keydown', handleEscape)
+    }
+  }, [showListMenu])
 
   useEffect(() => {
     let cancelled = false
@@ -89,17 +108,54 @@ export const ChatHistorySidebar: React.FC<ChatHistorySidebarProps> = ({
           <h6 className="mb-0 fw-semibold sidebar-title text-truncate" data-id="chat-history-sidebar-title">
             {'Chat History'} <span className="ms-1 fw-normal text-muted">{filteredConversations.length}</span>
           </h6>
-          {isMaximized && (
-            <CustomTooltip tooltipText="Close chat history">
-              <button
-                className="btn btn-sm p-0 sidebar-close-btn d-inline-flex align-items-center"
-                onClick={onClose}
-                data-id="close-sidebar-btn"
-              >
-                <i className="fas fa-times"></i>
-              </button>
-            </CustomTooltip>
-          )}
+          <div className="d-flex align-items-center gap-1">
+            {onDeleteAllConversations && filteredConversations.length > 0 && (
+              <div className="position-relative" ref={listMenuRef}>
+                <CustomTooltip tooltipText="More actions">
+                  <button
+                    className="btn btn-sm p-0 conversation-menu-btn chat-history-menu-btn"
+                    onClick={() => setShowListMenu(!showListMenu)}
+                    aria-label="More actions"
+                    aria-expanded={showListMenu}
+                    data-id="chat-history-menu-btn"
+                  >
+                    <i className="fas fa-ellipsis-v"></i>
+                  </button>
+                </CustomTooltip>
+                {showListMenu && (
+                  <div className="conversation-menu position-absolute end-0 mt-1 shadow-sm" style={{ zIndex: 1100 }} data-id="chat-history-menu">
+                    <button
+                      className="conversation-menu-item conversation-menu-item-danger w-100 text-start text-nowrap"
+                      onClick={() => {
+                        setShowListMenu(false)
+                        const confirmMsg = showArchived
+                          ? `Delete all ${filteredConversations.length} archived conversations? This action cannot be undone.`
+                          : `Delete all ${filteredConversations.length} conversations? This action cannot be undone.`
+                        if (confirm(confirmMsg)) {
+                          onDeleteAllConversations()
+                        }
+                      }}
+                      data-id="delete-all-conversations-btn"
+                    >
+                      <i className="fas fa-trash me-2"></i>
+                      {showArchived ? 'Delete all archived' : 'Delete all conversations'}
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
+            {isMaximized && (
+              <CustomTooltip tooltipText="Close chat history">
+                <button
+                  className="btn btn-sm p-0 sidebar-close-btn d-inline-flex align-items-center"
+                  onClick={onClose}
+                  data-id="close-sidebar-btn"
+                >
+                  <i className="fas fa-times"></i>
+                </button>
+              </CustomTooltip>
+            )}
+          </div>
         </div>
 
         {/* Search Bar */}
@@ -116,7 +172,7 @@ export const ChatHistorySidebar: React.FC<ChatHistorySidebarProps> = ({
           />
         </div>
 
-        <div className="d-flex justify-content-between align-items-center gap-2 flex-wrap">
+        <div className="d-flex align-items-center">
           <button
             className={`btn btn-sm btn-archive-toggle chat-history-action ${showArchived ? 'active' : ''}`}
             onClick={onToggleArchived}
@@ -125,25 +181,6 @@ export const ChatHistorySidebar: React.FC<ChatHistorySidebarProps> = ({
             <i className={`fas ${showArchived ? 'fa-arrow-left' : 'fa-archive'} me-1`}></i>
             {showArchived ? 'Show Active' : `Archived (${archivedCount})`}
           </button>
-          {onDeleteAllConversations && filteredConversations.length > 0 && (
-            <CustomTooltip tooltipText="Delete all conversations">
-              <button
-                className="btn btn-sm btn-link text-danger text-decoration-none chat-history-action"
-                onClick={() => {
-                  const confirmMsg = showArchived
-                    ? `Delete all ${filteredConversations.length} archived conversations? This action cannot be undone.`
-                    : `Delete all ${filteredConversations.length} conversations? This action cannot be undone.`
-                  if (confirm(confirmMsg)) {
-                    onDeleteAllConversations()
-                  }
-                }}
-                data-id="delete-all-conversations-btn"
-              >
-                <i className="fas fa-trash-alt me-1"></i>
-                Delete All
-              </button>
-            </CustomTooltip>
-          )}
         </div>
       </div>
 

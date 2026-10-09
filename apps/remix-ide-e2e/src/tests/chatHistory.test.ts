@@ -6,7 +6,6 @@ import { releaseAccount } from '../helpers/pool'
 const regExp = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 const poolApiKey = process.env.E2E_POOL_API_KEY || ''
 
-
 const test = {
   '@disabled': true,
   before: function (browser: NightwatchBrowser, done: VoidFunction) {
@@ -73,7 +72,6 @@ const test = {
       // Wait for the login to complete (modal closes, tokens get stored)
       .pause(5000)
   },
-
 
   // ==================== GROUP 1: Basic Conversation Operations ====================
 
@@ -637,6 +635,7 @@ const test = {
         browser.assert.ok(count >= 2, `Should have at least 2 archived conversations, found ${count}`)
       })
       // Delete all archived conversations
+      .click('*[data-id="chat-history-menu-btn"]')
       .waitForElementVisible('*[data-id="delete-all-conversations-btn"]', 5000)
       .click('*[data-id="delete-all-conversations-btn"]')
       .pause(500)
@@ -970,6 +969,5 @@ const test = {
       })
   }
 }
-
 
 module.exports = {}

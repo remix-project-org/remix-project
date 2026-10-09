@@ -27,6 +27,7 @@ export interface TabsUIProps {
   plugin: TabProxy
   onSelect: (index: number) => void
   onClose: (index: number) => void
+  onReorder?: (fromIndex: number, toIndex: number) => void
   onZoomOut: () => void
   onZoomIn: () => void
   onReady: (api: any) => void
@@ -126,6 +127,8 @@ export const TabsUI = (props: TabsUIProps) => {
   const [bannerVisible, setBannerVisible] = useState<boolean>(true)
   const [quickDappStartSetup, setQuickDappStartSetup] = useState<QuickDappStartSetup | null>(null)
   const [quickDappNoContractsNotice, setQuickDappNoContractsNotice] = useState<QuickDappNoContractsNotice | null>(null)
+  const draggedIndexRef = useRef<number>(-1)
+  const [dropTarget, setDropTarget] = useState<{ index: number, side: 'before' | 'after' } | null>(null)
   const tabs = useRef(props.tabs)
   tabs.current = props.tabs // we do this to pass the tabs list to the onReady callbacks
   const appContext = useContext(AppContext)
@@ -188,6 +191,51 @@ export const TabsUI = (props: TabsUIProps) => {
     return <FileDecorationIcons file={{ path: tab.name }} fileDecorations={tabsState.fileDecorations} />
   }
 
+  const resetTabDrag = () => {
+    draggedIndexRef.current = -1
+    setDropTarget(null)
+  }
+
+  const handleTabDragStart = (event: React.DragEvent, index: number) => {
+    draggedIndexRef.current = index
+    event.dataTransfer.effectAllowed = 'move'
+    event.dataTransfer.setData('text/plain', props.tabs[index].name) // required by Firefox to start the drag
+  }
+
+  const getDropSide = (event: React.DragEvent): 'before' | 'after' => {
+    const rect = event.currentTarget.getBoundingClientRect()
+    return event.clientX < rect.left + rect.width / 2 ? 'before' : 'after'
+  }
+
+  const handleTabDragOver = (event: React.DragEvent, index: number) => {
+    if (draggedIndexRef.current < 0) return // not a tab being dragged (e.g. a file from the OS)
+    event.preventDefault()
+    event.dataTransfer.dropEffect = 'move'
+    const side = getDropSide(event)
+    setDropTarget((current) => current && current.index === index && current.side === side ? current : { index, side })
+  }
+
+  const handleTabDrop = (event: React.DragEvent, index: number) => {
+    const from = draggedIndexRef.current
+    if (from < 0) return
+    event.preventDefault()
+    let to = getDropSide(event) === 'after' ? index + 1 : index
+    if (from < to) to -= 1
+    resetTabDrag()
+    if (to === from) return
+
+    // selection is index based: keep the active tab highlighted at its new position
+    const activeName = active()
+    const reordered = [...props.tabs]
+    reordered.splice(to, 0, reordered.splice(from, 1)[0])
+    const newActiveIndex = reordered.findIndex((tab) => tab.name === activeName)
+    if (newActiveIndex > -1) {
+      currentIndexRef.current = newActiveIndex
+      dispatch({ type: 'SELECT_INDEX', payload: newActiveIndex, ext: getExt(activeName), name: activeName })
+    }
+    props.onReorder(from, to)
+  }
+
   const renderTab = (tab: Tab, index) => {
     const classNameImg = 'my-1 me-1 text-dark ' + tab.iconClass
     const classNameTab = 'nav-item nav-link d-flex justify-content-center align-items-center px-2 py-1 tab' + (index === currentIndexRef.current ? ' active' : '')
@@ -201,15 +249,23 @@ export const TabsUI = (props: TabsUIProps) => {
       }
     }
 
+    const dropClass = dropTarget && dropTarget.index === index ? ` tab-drop-${dropTarget.side}` : ''
+    const draggingClass = draggedIndexRef.current === index ? ' tab-dragging' : ''
+
     return (
       <CustomTooltip tooltipId="tabsActive" tooltipText={tab.tooltip} placement="bottom-start">
         <div
           ref={(el) => {
             tabsRef.current[index] = el
           }}
-          className={classNameTab}
+          className={classNameTab + dropClass + draggingClass}
           data-id={index === currentIndexRef.current ? 'tab-active' : ''}
           data-path={tab.name}
+          draggable={!!props.onReorder}
+          onDragStart={(event) => handleTabDragStart(event, index)}
+          onDragOver={(event) => handleTabDragOver(event, index)}
+          onDrop={(event) => handleTabDrop(event, index)}
+          onDragEnd={resetTabDrag}
           onMouseDown={(event) => handleTabMouseDown(event, index)}
         >
           {tab.icon ? <img className="my-1 me-1 iconImage" src={tab.icon} /> : <i className={classNameImg}></i>}

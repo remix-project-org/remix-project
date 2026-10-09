@@ -2,6 +2,7 @@ import { remixAILogger } from '../../../helpers/logger'
 import { Plugin } from '@remixproject/engine'
 import EventEmitter from 'events'
 import {
+  AIFileChange,
   ToolApprovalRequest,
   ToolApprovalResponse,
   ToolApprovalPolicy,
@@ -10,6 +11,9 @@ import {
   isSafeTool,
   DIRECT_WRITE_TOOLS
 } from '../../../types/humanInTheLoop'
+
+// MCP tools whose effect on files is reported as 'onAIFileChanged' (for the AI mode changes panel)
+const FILE_CHANGE_TOOLS = new Set(['file_create', 'file_write', 'file_replace', 'file_delete', 'file_move', 'file_copy'])
 
 export class ToolApprovalGate {
   private eventEmitter: EventEmitter
@@ -54,6 +58,62 @@ export class ToolApprovalGate {
    * @returns Wrapped function with approval gate
    */
   wrap(toolName: string, originalFunc: (args: Record<string, any>) => Promise<string>): (args: Record<string, any>) => Promise<string> {
+    const gated = this.gate(toolName, originalFunc)
+    if (!FILE_CHANGE_TOOLS.has(toolName)) return gated
+
+    // Compare the files before and after the tool ran, whether it needed approval or not
+    return async (args: Record<string, any>): Promise<string> => {
+      const paths = this.fileChangePaths(toolName, args)
+      const before = await Promise.all(paths.map((path) => this.readFileSnapshot(path)))
+      const result = await gated(args)
+      await this.reportFileChange(toolName, paths, before)
+      return result
+    }
+  }
+
+  private fileChangePaths(toolName: string, args: Record<string, any>): string[] {
+    if (toolName === 'file_move' || toolName === 'file_copy') return [args.from, args.to]
+    return [args.path || args.filePath]
+  }
+
+  /** File content, or null when there is no such file (directories included) */
+  private async readFileSnapshot(path: string): Promise<string | null> {
+    if (!path) return null
+    try {
+      if (!await this.plugin.call('fileManager', 'exists', path)) return null
+      if (await this.plugin.call('fileManager', 'isDirectory', path)) return null
+      return await this.plugin.call('fileManager', 'readFile', path)
+    } catch {
+      return null
+    }
+  }
+
+  private async reportFileChange(toolName: string, paths: string[], before: (string | null)[]): Promise<void> {
+    try {
+      const after = await Promise.all(paths.map((path) => this.readFileSnapshot(path)))
+      const timestamp = Date.now()
+      let change: AIFileChange | null = null
+      if (toolName === 'file_move') {
+        const [fromBefore] = before
+        const [fromAfter, toAfter] = after
+        if (fromBefore !== null && fromAfter === null && toAfter !== null) {
+          change = { path: paths[1], movedFrom: paths[0], existed: true, oldContent: fromBefore, newContent: toAfter, timestamp }
+        }
+      } else {
+        const index = toolName === 'file_copy' ? 1 : 0
+        const [path, oldContent, newContent] = [paths[index], before[index], after[index]]
+        if (oldContent === newContent) return // rejected, failed or no-op
+        change = newContent === null
+          ? { path, existed: true, deleted: true, oldContent, newContent: '', timestamp }
+          : { path, existed: oldContent !== null, oldContent: oldContent || '', newContent, timestamp }
+      }
+      if (change) this.eventEmitter.emit('onAIFileChanged', change)
+    } catch (e) {
+      remixAILogger.warn('[ToolApprovalGate] could not report file change', toolName, e)
+    }
+  }
+
+  private gate(toolName: string, originalFunc: (args: Record<string, any>) => Promise<string>): (args: Record<string, any>) => Promise<string> {
     if (isSafeTool(toolName)) {
 
       return originalFunc
@@ -128,6 +188,19 @@ export class ToolApprovalGate {
       remixAILogger.log('[ToolApprovalGate] approval resolved', toolName, requestId, 'approved=', approved)
 
       if (!approved) {
+        if (FILE_CHANGE_TOOLS.has(toolName)) {
+          const rejected: AIFileChange = {
+            path: filePath || args.to,
+            existed: existingContent !== undefined || toolName === 'file_delete' || toolName === 'file_move',
+            oldContent: existingContent || '',
+            newContent: proposedContent || '',
+            timestamp: Date.now(),
+            status: 'rejected',
+            ...(toolName === 'file_delete' ? { deleted: true } : {}),
+            ...(toolName === 'file_move' ? { movedFrom: args.from } : {})
+          }
+          if (rejected.path) this.eventEmitter.emit('onAIFileChanged', rejected)
+        }
         return JSON.stringify({ cancelled: true, reason: `REJECTED: The user explicitly rejected this ${toolName} operation. Do NOT retry this operation or use alternative tools/methods. Inform the user and move on.` })
       }
 

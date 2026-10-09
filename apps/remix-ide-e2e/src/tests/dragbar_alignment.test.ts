@@ -103,6 +103,37 @@ function assertTerminalDragbarAligned(browser: NightwatchBrowser, message: strin
   })
 }
 
+const leftDragbar = '[data-id="sidepanel-dragbar-draggable"]'
+const rightDragbar = '*[data-right-sidepanel="rightSidepanel-dragbar-draggable"]'
+
+function assertPanelWidth(browser: NightwatchBrowser, panelSelector: string, expected: number, message: string) {
+  return browser.execute(function (selector) {
+    const panel = document.querySelector(selector) as HTMLElement | null
+    return panel ? panel.getBoundingClientRect().width : -1
+  }, [panelSelector], function (result: any) {
+    browser.assert.ok(Math.abs(result.value - expected) <= alignmentTolerance, `${message}. width=${result.value}, expected=${expected}`)
+  })
+}
+
+// Drags a dragbar horizontally by `offset` pixels with real pointer events
+function dragBy(browser: NightwatchBrowser, dragbarSelector: string, offset: number) {
+  return browser.execute(function (selector) {
+    const rect = (document.querySelector(selector) as HTMLElement).getBoundingClientRect()
+    return { x: Math.round(rect.left + rect.width / 2), y: Math.round(rect.top + rect.height / 2) }
+  }, [dragbarSelector], function (result: any) {
+    const { x, y } = result.value
+    browser.perform(function () {
+      const actions = this.actions({ async: true })
+      return actions
+        .move({ origin: 'viewport', x, y })
+        .press()
+        .move({ origin: 'viewport', x: x + Math.round(offset / 2), y })
+        .move({ origin: 'viewport', x: x + offset, y })
+        .release()
+    }).pause(1000)
+  })
+}
+
 module.exports = {
   '@disabled': false,
   before: function (browser: NightwatchBrowser, done: VoidFunction) {
@@ -139,6 +170,38 @@ module.exports = {
     assertLeftDragbarAligned(browser, 'Left dragbar should realign after resetting back to the file panel')
   },
 
+  'Double-clicking the left dragbar resets the side panel to its default width #group1': function (browser: NightwatchBrowser) {
+    dragBy(browser, leftDragbar, 200)
+    assertPanelWidth(browser, '#side-panel', 520, 'The side panel is wider after dragging')
+    browser.doubleClick(leftDragbar).pause(1000)
+    assertPanelWidth(browser, '#side-panel', 320, 'Double-click resets the side panel to 320px')
+    assertLeftDragbarAligned(browser, 'Left dragbar should align after the reset')
+  },
+
+  'Dragging the left dragbar a little below the minimum stops at the minimum #group1': function (browser: NightwatchBrowser) {
+    // 320px - 130px = 190px: below the 220px minimum, but not far enough to close
+    dragBy(browser, leftDragbar, -130)
+    browser.waitForElementVisible('#side-panel', 5000)
+    assertPanelWidth(browser, '#side-panel', 220, 'The file explorer can be narrowed to the 220px minimum')
+  },
+
+  'Plugins that need more room open the side panel wider, then it goes back to the chosen width #group1': function (browser: NightwatchBrowser) {
+    browser.clickLaunchIcon('solidity').pause(1000)
+    assertPanelWidth(browser, '#side-panel', 320, 'The compiler opens the side panel at 320px')
+    browser.clickLaunchIcon('filePanel').pause(1000)
+    assertPanelWidth(browser, '#side-panel', 220, 'The file explorer is back at the width chosen before')
+    assertLeftDragbarAligned(browser, 'Left dragbar should align after switching plugins')
+  },
+
+  'Dragging the left dragbar far below the minimum closes the side panel #group1': function (browser: NightwatchBrowser) {
+    // 220px - 200px = 20px: more than 150px past the minimum
+    dragBy(browser, leftDragbar, -200)
+    browser.waitForElementNotVisible('#side-panel', 5000)
+    browser.doubleClick(leftDragbar).pause(1000)
+      .waitForElementVisible('#side-panel', 5000)
+    assertPanelWidth(browser, '#side-panel', 320, 'Double-click reopens the side panel at 320px')
+  },
+
   'Right dragbar should align with the pinned panel edge #group1': function (browser: NightwatchBrowser) {
     browser
       .clickLaunchIcon('solidity')
@@ -150,6 +213,14 @@ module.exports = {
       .pause(2000)
 
     assertRightDragbarAligned(browser, 'Right dragbar should align with the pinned panel edge')
+  },
+
+  'Double-clicking the right dragbar resets the pinned panel to its default width #group1': function (browser: NightwatchBrowser) {
+    dragBy(browser, rightDragbar, -150)
+    browser.doubleClick(rightDragbar).pause(1000)
+    // The default 320px is below the pinned panel's 331px minimum
+    assertPanelWidth(browser, '#right-side-panel', 331, 'Double-click resets the pinned panel to its 331px minimum')
+    assertRightDragbarAligned(browser, 'Right dragbar should align after the reset')
   },
 
   'Terminal dragbar should align with the terminal edge when shown #group1': function (browser: NightwatchBrowser) {

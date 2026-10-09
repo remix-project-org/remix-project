@@ -103,8 +103,7 @@ async function approvePendingHitl (browser: NightwatchBrowser, enableAutoAccept:
       checkbox.click()
     }
 
-    const approveButton = Array.from(card.querySelectorAll('button'))
-      .find((button) => button.textContent?.trim() === 'Approve') as HTMLButtonElement | undefined
+    const approveButton = card.querySelector('[data-id="tool-approval-approve-button"]') as HTMLButtonElement | null
     if (!approveButton) return 'none'
 
     approveButton.click()

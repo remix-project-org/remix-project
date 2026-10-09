@@ -7,12 +7,19 @@ interface IRemixDragBarUi {
   setHideStatus: (hide: boolean) => void
   hidden: boolean
   minWidth: number
+  /** Width a double-click on the bar resets the panel to */
+  defaultWidth: number
   maximiseTrigger: number
   enhanceTrigger: number
   resetTrigger: number
   layoutPosition: 'left' | 'right',
   coeff?: number
+  /** Fixed width for enhanceTrigger, used instead of coeff */
+  enhanceWidth?: number
 }
+
+// How far below its minimum width the left panel must be dragged to close
+const CLOSE_DRAG_DISTANCE = 150
 
 const DragBar = (props: IRemixDragBarUi) => {
   const handleSize = 6
@@ -136,6 +143,10 @@ const DragBar = (props: IRemixDragBarUi) => {
   }, [props.maximiseTrigger])
 
   useEffect(() => {
+    if (props.enhanceTrigger > 0 && props.enhanceWidth) {
+      applyPanelWidth(props.enhanceWidth)
+      return
+    }
     triggerWidth(props.enhanceTrigger, props.coeff || 0.25)
   }, [props.enhanceTrigger])
 
@@ -209,11 +220,13 @@ const DragBar = (props: IRemixDragBarUi) => {
     const edgeX = data.x + halfHandleSize
     if (props.layoutPosition === 'left') {
       const startEdge = panelStartEdgeRef.current
-      const nextWidth = edgeX - startEdge
+      const draggedWidth = edgeX - startEdge
 
-      if (nextWidth < props.minWidth) {
+      // Below the minimum the panel stops there; only a long drag past it closes the panel
+      if (draggedWidth < props.minWidth - CLOSE_DRAG_DISTANCE) {
         props.setHideStatus(true)
       } else {
+        const nextWidth = Math.max(draggedWidth, props.minWidth)
         restoreWidthRef.current = nextWidth
         panelElement.style.width = `${nextWidth}px`
         props.setHideStatus(false)
@@ -250,11 +263,18 @@ const DragBar = (props: IRemixDragBarUi) => {
     setDragState(true)
   }
 
+  function resetToDefaultWidth() {
+    const width = Math.max(props.defaultWidth, props.minWidth)
+    restoreWidthRef.current = width
+    props.setHideStatus(false)
+    applyPanelWidth(width)
+  }
+
   return (
     <>
       <div className={`overlay ${dragState ? '' : 'd-none'}`} data-id="sidepanel-dragbar-overlay" id="sidepanel-dragbar-overlay"></div>
       <Draggable nodeRef={nodeRef} position={{ x: dragBarPosX, y: 0 }} onStart={startDrag} onStop={stopDrag} axis="x">
-        <div ref={nodeRef} className={`dragbar ${dragState ? 'ondrag' : ''}`} data-id="sidepanel-dragbar-draggable" id="sidepanel-dragbar-draggable" data-right-sidepanel={props.layoutPosition === 'right' ? 'rightSidepanel-dragbar-draggable' : null}></div>
+        <div ref={nodeRef} className={`dragbar ${dragState ? 'ondrag' : ''}`} onDoubleClick={resetToDefaultWidth} title="Drag to resize, double-click to reset" data-id="sidepanel-dragbar-draggable" id="sidepanel-dragbar-draggable" data-right-sidepanel={props.layoutPosition === 'right' ? 'rightSidepanel-dragbar-draggable' : null}></div>
       </Draggable>
     </>
   )
