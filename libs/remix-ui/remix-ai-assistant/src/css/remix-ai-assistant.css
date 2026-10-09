@@ -2214,3 +2214,26 @@ button.ai-change-line:hover {
 .ai-change-line-rejected > .fa-ban {
   color: var(--bs-secondary-color);
 }
+
+/* Shortcut pills above the prompt: one line that scrolls sideways when the panel is narrow */
+.ai-shortcut-pills {
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.ai-shortcut-pills::-webkit-scrollbar {
+  display: none;
+}
+
+.ai-shortcut-pills-fade-end {
+  mask-image: linear-gradient(to right, #000 calc(100% - 24px), transparent);
+}
+
+.ai-shortcut-pills-fade-start {
+  mask-image: linear-gradient(to right, transparent, #000 24px);
+}
+
+.ai-shortcut-pills-fade-start.ai-shortcut-pills-fade-end {
+  mask-image: linear-gradient(to right, transparent, #000 24px, #000 calc(100% - 24px), transparent);
+}
