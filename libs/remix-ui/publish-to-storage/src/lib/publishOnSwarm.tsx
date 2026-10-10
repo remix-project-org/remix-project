@@ -69,7 +69,7 @@ export const publishToSwarm = async (contract, api) => {
   const beeNodes = [publicBeeNode]
 
   // add custom private Bee node to the list
-  const postageStampId = api.config.get('settings/swarm-postage-stamp-id') || NULL_STAMP
+  const postageStampId = api.config.get('settings/swarm-postage-stamp-id') || NULL_STAMP.toString()
   const privateBeeAddress = api.config.get('settings/swarm-private-bee-address')
   if (privateBeeAddress) {
     const privateBee = new Bee(privateBeeAddress)
@@ -146,7 +146,7 @@ const swarmVerifiedPublish = async (beeNodes: Bee[], postageStampId: string, con
 const hashFromResults = (results: UploadResult[]) => {
   for (const result of results) {
     if (result != null) {
-      return result.reference
+      return result.reference.toHex()
     }
   }
   throw new Error('no result')
@@ -155,9 +155,9 @@ const hashFromResults = (results: UploadResult[]) => {
 const uploadToBee = async (bee: Bee, postageStampId: string, content) => {
   try {
     if (bee.url === publicBeeNode.url) {
-      postageStampId = NULL_STAMP
+      postageStampId = NULL_STAMP.toString()
     }
-    return await bee.uploadData(postageStampId, content)
+    return await bee.data.upload(postageStampId, content)
   } catch {
     // ignore errors for now
     return null

@@ -36,6 +36,7 @@ import { GenerationParams } from '@remix/remix-ai-core';
 import { RemixInLineCompletionProvider } from './providers/inlineCompletionProvider'
 import { RemixTSCompletionProvider } from './providers/tsCompletionProvider'
 import { TooltipPopOver, openContextualTooltip } from './tooltipPopOver'
+import { SwarmCollab } from './swarm-collab/SwarmCollab'
 import { FloatingActionButton } from './FloatingActionButton'
 import { QuickDappContractSelector, QuickDappSetupOptions, QuickDappFigmaPreparationResult } from '@remix-ui/quick-dapp-v2'
 import { DeployedContract } from '@remix-ui/run-tab-deployed-contracts'
@@ -2404,6 +2405,8 @@ For Inline mode, preserve the existing /frontend overwrite confirmation flow.`
           />
         </span>
       )}
+
+      <SwarmCollab plugin={props.plugin} editorRef={editorRef} monacoRef={monacoRef} currentFile={props.currentFile} hidden={props.isDiff} />
 
       {/* Web3 Keyword Tooltip */}
       {tooltipData && hasContextualEditorFeature && (
