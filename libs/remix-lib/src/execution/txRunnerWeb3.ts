@@ -87,6 +87,7 @@ export class TxRunnerWeb3 {
         } else {
           const web3 = tx.web3 || await this._api.call('blockchain', 'getWeb3')
           const signer = await web3.getSigner(tx.from)
+          console.log('txRunnerWeb3 _executeTx', tx, signer)
           const res = await signer.sendTransaction(tx)
 
           return await this.broadcastTx(tx, res.hash, isCreation, false, null)
@@ -149,6 +150,7 @@ export class TxRunnerWeb3 {
   }
 
   async runInNode (args: InternalTransaction) {
+    console.log('runInNode', args)
     const tx = { from: args.from, fromSmartAccount: args.fromSmartAccount, deployedBytecode: args.deployedBytecode, to: args.to, data: args.data, value: args.value, web3: args.web3, provider: args.provider, isVM: args.isVM }
     if (!args.from) throw new Error('the value of "from" is not defined. Please make sure an account is selected.')
     if (args.useCall) {
@@ -210,7 +212,7 @@ export class TxRunnerWeb3 {
       return await this.confirmTransaction(tx, network, tx['gasLimit'], args.determineGasPrice)
     } catch (err) {
       console.error(err)
-      if (err && err.error && err.error.indexOf('Invalid JSON RPC response') !== -1) {
+      if (err && err.error && err.error.indexOf && err.error.indexOf('Invalid JSON RPC response') !== -1) {
         // // @todo(#378) this should be removed when https://github.com/WalletConnect/walletconnect-monorepo/issues/334 is fixed
         // Should log in terminal
         throw new Error('Gas estimation failed because of an unknown internal error. This may indicated that the transaction will fail.')

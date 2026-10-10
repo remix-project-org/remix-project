@@ -43,7 +43,7 @@ import { Layout } from './app/panels/layout'
 import { NotificationPlugin } from './app/plugins/notification'
 import { Blockchain } from './blockchain/blockchain'
 import { MergeVMProvider, LondonVMProvider, BerlinVMProvider, ShanghaiVMProvider, CancunVMProvider, PectraVMProvider, FusakaVMProvider } from '@remix-ui/run-tab-environment'
-import { MainnetForkVMProvider, SepoliaForkVMProvider, CustomForkVMProvider, HardhatProvider, GanacheProvider, FoundryProvider, ExternalHttpProvider, BaseProvider } from '@remix-ui/run-tab-environment'
+import { MainnetForkVMProvider, SepoliaForkVMProvider, CustomForkVMProvider, HardhatProvider, GanacheProvider, FoundryProvider, ExternalHttpProvider, BaseProvider, KMSProvider } from '@remix-ui/run-tab-environment'
 import { EnvironmentExplorer } from './app/providers/environment-explorer'
 import { FileDecorator } from './app/plugins/file-decorator'
 import { TransactionSimulator } from './app/plugins/transaction-simulator'
@@ -465,6 +465,7 @@ class AppComponent {
     const hardhatProvider = new HardhatProvider(blockchain)
     const ganacheProvider = new GanacheProvider(blockchain)
     const foundryProvider = new FoundryProvider(blockchain)
+    const kmsProvider = new KMSProvider(blockchain)
     const externalHttpProvider = new ExternalHttpProvider(blockchain)
     const baseSepoliaChainId = 84532
     const baseMainnetChainId = 8453
@@ -569,6 +570,7 @@ class AppComponent {
       hardhatProvider,
       ganacheProvider,
       foundryProvider,
+      kmsProvider,
       externalHttpProvider,
       baseProvider,
       baseProviderSepolia,

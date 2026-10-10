@@ -6,6 +6,13 @@
     "implicitDependencies": [
     ],
     "targets": {
+      "test": {
+        "executor": "@nrwl/workspace:run-commands",
+        "options": {
+          "command": "TS_NODE_PROJECT=libs/remix-ui/run-tab-environment/tsconfig.spec.json mocha -r ts-node/register \"libs/remix-ui/run-tab-environment/test/**/*.spec.ts\"",
+          "cwd": "."
+        }
+      },
       "lint": {
         "executor": "@nrwl/linter:eslint",
         "outputs": ["{options.outputFile}"],
