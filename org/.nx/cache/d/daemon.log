@@ -1,0 +1,92 @@
+[NX Daemon Server] - 2024-07-31T12:56:00.706Z - Started listening on: \\.\pipe\nx\C:\Users\Legion\AppData\Local\Temp\d1be0178adb06bc1af14\d.sock
+[NX Daemon Server] - 2024-07-31T12:56:00.716Z - [WATCHER]: Subscribed to changes within: C:\Users\Legion\GitHub\ethereumjs\org\remix-project\org (native)
+[NX Daemon Server] - 2024-07-31T12:56:00.721Z - Established a connection. Number of open connections: 1
+[NX Daemon Server] - 2024-07-31T12:56:00.724Z - Established a connection. Number of open connections: 2
+[NX Daemon Server] - 2024-07-31T12:56:00.730Z - Closed a connection. Number of open connections: 1
+[NX Daemon Server] - 2024-07-31T12:56:00.733Z - [REQUEST]: Client Request for Project Graph Received
+[NX Daemon Server] - 2024-07-31T12:56:04.616Z - [REQUEST]: Updated workspace context based on watched changes, recomputing project graph...
+[NX Daemon Server] - 2024-07-31T12:56:04.616Z - [REQUEST]: 
+[NX Daemon Server] - 2024-07-31T12:56:04.616Z - [REQUEST]: 
+[NX Daemon Server] - 2024-07-31T12:56:50.046Z - Time taken for 'Load Nx Plugin: C:\Users\Legion\GitHub\ethereumjs\org\remix-project\org\node_modules\nx\src\plugins\project-json\build-nodes\package-json-next-to-project-json' 3877.537600003183ms
+[33mThe CJS build of Vite's Node API is deprecated. See https://vitejs.dev/guide/troubleshooting.html#vite-cjs-node-api-deprecated for more details.[39m
+[NX Daemon Server] - 2024-07-31T12:56:55.625Z - [REQUEST]: Responding to the client. project-graph
+[NX Daemon Server] - 2024-07-31T12:56:55.627Z - Time taken for 'total for creating and serializing project graph' 54891.67019999772ms
+[NX Daemon Server] - 2024-07-31T12:56:55.631Z - Done responding to the client project-graph
+[NX Daemon Server] - 2024-07-31T12:56:55.631Z - Handled REQUEST_PROJECT_GRAPH. Handling time: 54892. Response time: 6.
+[NX Daemon Server] - 2024-07-31T12:56:55.739Z - [REQUEST]: Responding to the client. handleHashTasks
+[NX Daemon Server] - 2024-07-31T12:56:55.739Z - Time taken for 'Load Nx Plugin: C:\Users\Legion\GitHub\ethereumjs\org\remix-project\org\node_modules\nx\src\plugins\project-json\build-nodes\package-json-next-to-project-json' 15.541200000792742ms
+[NX Daemon Server] - 2024-07-31T12:56:55.739Z - Done responding to the client handleHashTasks
+[NX Daemon Server] - 2024-07-31T12:56:55.740Z - Handled HASH_TASKS. Handling time: 33. Response time: 1.
+[NX Daemon Server] - 2024-07-31T12:57:42.901Z - [WATCHER]: Processing file changes in outputs
+[NX Daemon Server] - 2024-07-31T12:57:53.950Z - [WATCHER]: Processing file changes in outputs
+[NX Daemon Server] - 2024-07-31T12:57:56.428Z - [WATCHER]: Processing file changes in outputs
+[NX Daemon Server] - 2024-07-31T12:58:06.057Z - [WATCHER]: Processing file changes in outputs
+[NX Daemon Server] - 2024-07-31T12:58:08.613Z - [WATCHER]: Processing file changes in outputs
+[NX Daemon Server] - 2024-07-31T12:58:08.876Z - [WATCHER]: Processing file changes in outputs
+[NX Daemon Server] - 2024-07-31T12:58:09.434Z - [WATCHER]: Processing file changes in outputs
+[NX Daemon Server] - 2024-07-31T12:58:09.746Z - [WATCHER]: Processing file changes in outputs
+[NX Daemon Server] - 2024-07-31T12:58:09.869Z - [WATCHER]: Processing file changes in outputs
+[NX Daemon Server] - 2024-07-31T12:58:10.849Z - [WATCHER]: Processing file changes in outputs
+[NX Daemon Server] - 2024-07-31T12:58:10.911Z - [WATCHER]: Processing file changes in outputs
+[NX Daemon Server] - 2024-07-31T12:58:16.073Z - [WATCHER]: Processing file changes in outputs
+[NX Daemon Server] - 2024-07-31T12:58:16.852Z - [WATCHER]: Processing file changes in outputs
+[NX Daemon Server] - 2024-07-31T12:58:17.149Z - [WATCHER]: Processing file changes in outputs
+[NX Daemon Server] - 2024-07-31T12:58:17.259Z - [WATCHER]: Processing file changes in outputs
+[NX Daemon Server] - 2024-07-31T13:00:19.619Z - [WATCHER]: Processing file changes in outputs
+[NX Daemon Server] - 2024-07-31T13:00:19.624Z - [WATCHER]: apps/org/nuxt.config.ts was modified
+[NX Daemon Server] - 2024-07-31T13:00:19.907Z - [REQUEST]: Updated workspace context based on watched changes, recomputing project graph...
+[NX Daemon Server] - 2024-07-31T13:00:19.907Z - [REQUEST]: apps/org/nuxt.config.ts
+[NX Daemon Server] - 2024-07-31T13:00:19.908Z - [REQUEST]: 
+[NX Daemon Server] - 2024-07-31T13:00:21.117Z - Time taken for 'Load Nx Plugin: C:\Users\Legion\GitHub\ethereumjs\org\remix-project\org\node_modules\nx\src\plugins\project-json\build-nodes\package-json-next-to-project-json' 27.978299997746944ms
+[NX Daemon Server] - 2024-07-31T13:00:22.608Z - Time taken for 'build-project-configs' 1280.7151999995112ms
+[NX Daemon Server] - 2024-07-31T13:00:34.459Z - [WATCHER]: Processing file changes in outputs
+[NX Daemon Server] - 2024-07-31T13:00:34.529Z - [WATCHER]: Processing file changes in outputs
+[NX Daemon Server] - 2024-07-31T13:00:34.587Z - [WATCHER]: Processing file changes in outputs
+[NX Daemon Server] - 2024-07-31T13:00:36.806Z - [WATCHER]: Processing file changes in outputs
+[NX Daemon Server] - 2024-07-31T13:00:37.133Z - [WATCHER]: Processing file changes in outputs
+[NX Daemon Server] - 2024-07-31T13:00:37.445Z - [WATCHER]: Processing file changes in outputs
+[NX Daemon Server] - 2024-07-31T13:00:37.695Z - [WATCHER]: Processing file changes in outputs
+[NX Daemon Server] - 2024-07-31T13:00:37.797Z - [WATCHER]: Processing file changes in outputs
+[NX Daemon Server] - 2024-07-31T13:00:37.852Z - [WATCHER]: Processing file changes in outputs
+[NX Daemon Server] - 2024-07-31T13:00:37.912Z - [WATCHER]: Processing file changes in outputs
+[NX Daemon Server] - 2024-07-31T13:00:38.584Z - [WATCHER]: Processing file changes in outputs
+[NX Daemon Server] - 2024-07-31T13:00:38.648Z - [WATCHER]: Processing file changes in outputs
+[NX Daemon Server] - 2024-07-31T13:00:41.133Z - [WATCHER]: Processing file changes in outputs
+[NX Daemon Server] - 2024-07-31T13:00:42.931Z - [WATCHER]: Processing file changes in outputs
+[NX Daemon Server] - 2024-07-31T13:00:43.072Z - [WATCHER]: Processing file changes in outputs
+[NX Daemon Server] - 2024-07-31T14:01:37.583Z - Closed a connection. Number of open connections: 0
+[NX Daemon Server] - 2024-07-31T16:00:25.687Z - [WATCHER]: Stopping the watcher for C:\Users\Legion\GitHub\ethereumjs\org\remix-project\org (sources)
+[NX Daemon Server] - 2024-07-31T16:00:26.001Z - [WATCHER]: Stopping the watcher for C:\Users\Legion\GitHub\ethereumjs\org\remix-project\org (outputs)
+[NX Daemon Server] - 2024-07-31T16:00:26.082Z - Server stopped because: "10800000ms of inactivity"
+[NX Daemon Server] - 2024-11-03T05:27:12.294Z - Started listening on: \\.\pipe\nx\C:\Users\Legion\AppData\Local\Temp\e61a02938cb5908a87d8\d.sock
+[NX Daemon Server] - 2024-11-03T05:27:12.345Z - [WATCHER]: Subscribed to changes within: C:\Users\Legion\GitHub\remix-project\org (native)
+[NX Daemon Server] - 2024-11-03T05:27:12.347Z - Established a connection. Number of open connections: 1
+[NX Daemon Server] - 2024-11-03T05:27:12.350Z - Established a connection. Number of open connections: 2
+[NX Daemon Server] - 2024-11-03T05:27:12.355Z - Closed a connection. Number of open connections: 1
+[NX Daemon Server] - 2024-11-03T05:27:12.359Z - [REQUEST]: Client Request for Project Graph Received
+[NX Daemon Server] - 2024-11-03T05:27:16.581Z - [REQUEST]: Updated workspace context based on watched changes, recomputing project graph...
+[NX Daemon Server] - 2024-11-03T05:27:16.581Z - [REQUEST]: 
+[NX Daemon Server] - 2024-11-03T05:27:16.581Z - [REQUEST]: 
+[NX Daemon Server] - 2024-11-03T05:27:56.971Z - [REQUEST]: Responding to the client. project-graph
+[NX Daemon Server] - 2024-11-03T05:27:56.974Z - Time taken for 'total for creating and serializing project graph' 44611.71220000088ms
+[NX Daemon Server] - 2024-11-03T05:27:56.975Z - Done responding to the client project-graph
+[NX Daemon Server] - 2024-11-03T05:27:56.977Z - Handled REQUEST_PROJECT_GRAPH. Handling time: 44612. Response time: 6.
+[NX Daemon Server] - 2024-11-03T05:27:57.351Z - [REQUEST]: Responding to the client. handleRequestFileData
+[NX Daemon Server] - 2024-11-03T05:27:57.352Z - Done responding to the client handleRequestFileData
+[NX Daemon Server] - 2024-11-03T05:27:57.352Z - Handled REQUEST_FILE_DATA. Handling time: 0. Response time: 1.
+C:\Users\Legion\GitHub\remix-project\org\node_modules\nx\src\hasher\native-task-hasher-impl.js:32
+        const plans = this.planner.getPlansReference(tasks.map((t) => t.id), taskGraph);
+                                   ^
+
+Error: The externalDependency 'vitest' for 'org:test' could not be found
+    at NativeTaskHasherImpl.hashTasks (C:\Users\Legion\GitHub\remix-project\org\node_modules\nx\src\hasher\native-task-hasher-impl.js:32:36)
+    at InProcessTaskHasher.hashTasks (C:\Users\Legion\GitHub\remix-project\org\node_modules\nx\src\hasher\task-hasher.js:53:50)
+    at handleHashTasks (C:\Users\Legion\GitHub\remix-project\org\node_modules\nx\src\daemon\server\handle-hash-tasks.js:30:56)
+    at processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at handleResult (C:\Users\Legion\GitHub\remix-project\org\node_modules\nx\src\daemon\server\server.js:107:16)
+    at handleMessage (C:\Users\Legion\GitHub\remix-project\org\node_modules\nx\src\daemon\server\server.js:81:9)
+    at C:\Users\Legion\GitHub\remix-project\org\node_modules\nx\src\daemon\server\server.js:45:9 {
+  code: 'GenericFailure'
+}
+
+Node.js v20.0.0
