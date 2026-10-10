@@ -84,11 +84,15 @@ function formatRunTime() {
     });
     log(`Set commit status ${STATUS_CONTEXT}: pending`);
   }
-})().catch(e => { console.error(e); process.exit(1); });
+})().catch(e => {
+  console.error('[post-pr-started] Error (details omitted to avoid logging sensitive data)');
+  process.exit(1);
+});
+
 
 function parseSlug(slug) {
   const m = String(slug).match(/^(?:gh|github)\/([^/]+)\/([^/]+)$/);
-  if (!m) exit(`Bad slug: ${slug}`);
+  if (!m) exit('Bad slug format; expected "gh/owner/repo" or "github/owner/repo"');
   return { owner: m[1], repo: m[2] };
 }
 

@@ -1,0 +1,20 @@
+# Snyk (https://snyk.io) policy file, patches or ignores known vulnerabilities.
+version: v1.25.1
+ignore: {}
+# patches apply the minimum changes required to fix a vulnerability
+patch:
+  'npm:extend:20180424':
+    - npm-install-version > npm > node-gyp > request > extend:
+        patched: '2025-10-19T20:30:55.896Z'
+        id: 'npm:extend:20180424'
+        path: npm-install-version > npm > node-gyp > request > extend
+  'npm:stringstream:20180511':
+    - npm-install-version > npm > node-gyp > request > stringstream:
+        patched: '2025-10-19T20:30:55.896Z'
+        id: 'npm:stringstream:20180511'
+        path: npm-install-version > npm > node-gyp > request > stringstream
+  'npm:tough-cookie:20170905':
+    - npm-install-version > npm > node-gyp > request > tough-cookie:
+        patched: '2025-10-19T20:30:55.896Z'
+        id: 'npm:tough-cookie:20170905'
+        path: npm-install-version > npm > node-gyp > request > tough-cookie
