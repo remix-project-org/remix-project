@@ -123,6 +123,7 @@ export default class Editor extends Plugin {
       splitViewFile={state.splitViewFile}
       splitViewContent={state.splitViewContent}
       setMonaco={(monaco) => this.setMonaco(monaco)}
+      swarmDocSettings={null}
     />
   }
 
