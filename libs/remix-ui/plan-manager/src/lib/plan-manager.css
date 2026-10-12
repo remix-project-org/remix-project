@@ -1677,7 +1677,7 @@
 }
 .pm-plan__intro-offer i { font-size: 10px; }
 
-/* Intro credits line ("X free AI credits included") */
+/* Intro credits line ("One time X free AI credits included") */
 .pm-plan__intro-credits {
   display: inline-flex;
   align-items: center;
