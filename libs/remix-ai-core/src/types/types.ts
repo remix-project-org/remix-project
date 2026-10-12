@@ -32,6 +32,47 @@ export interface IContextType {
   files?: { fileName: string; content: string }[]
 }
 
+/**
+ * An image attached to a chat prompt — either picked/pasted/dropped by the user
+ * or produced by the composer's "capture the IDE" button.
+ *
+ * `dataUrl` carries the full-size image and is only ever kept for the lifetime of
+ * the request. `thumbnailDataUrl` is the small copy that gets persisted with the
+ * chat history so old conversations still render without bloating IndexedDB.
+ */
+/**
+ * How an attachment reaches the model. Each kind needs a different content
+ * block, so the classification is made once at attach time rather than
+ * re-sniffed from the mime type at every layer.
+ */
+export type ChatAttachmentKind = 'image' | 'text' | 'document';
+
+export interface ChatAttachment {
+  id: string;
+  name: string;
+  mimeType: string;
+  /** Decided at attach time from the mime type and extension. */
+  kind: ChatAttachmentKind;
+  /**
+   * Data URL for `image` and `document` attachments. Send-time only — never
+   * persisted, since a handful of these would be megabytes of base64.
+   */
+  dataUrl?: string;
+  /**
+   * Decoded contents of a `text` attachment (source files, JSON, CSV, …).
+   * Sent as a text block, so the model reads it as content rather than as an
+   * opaque blob.
+   */
+  textContent?: string;
+  /** Small downscaled preview, images only. Kept for history rendering. */
+  thumbnailDataUrl?: string;
+  /** Byte size of the processed attachment. */
+  size?: number;
+  /** True when `textContent` was cut short by the per-file character cap. */
+  truncated?: boolean;
+  source?: 'upload' | 'screenshot';
+}
+
 export interface ISimilaritySearchConfig {
   maxFiles?: number;
   similarityThreshold?: number;
@@ -88,6 +129,8 @@ export interface IParams {
   tool_choice?: string;
   toolsMessages?: any[];
   format?: string;
+  /** Images attached to this turn. Honoured by the DeepAgent route only. */
+  attachments?: ChatAttachment[];
 }
 
 export interface IAIStreamResponse{

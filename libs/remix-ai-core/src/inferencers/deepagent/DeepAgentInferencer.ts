@@ -29,11 +29,14 @@ import { BaseChatModel } from '@langchain/core/language_models/chat_models'
 import { IndexedDBCheckpointSaver } from '../../storage/IndexedDBCheckpointSaver'
 import type { DeepAgent } from 'deepagents'
 import { RemixDeepAgentMiddleware } from './deepAgentMiddleWare'
+import { RemixVisionMiddleware } from './visionMiddleware'
+import { screenshotBuffer } from './visionBuffer'
 
 import './AsyncLocalStorageInit'
 import { createModelInstance } from './ModelFactory'
 import { syncModelCatalog } from './helpers/modelCatalog'
 import { z } from 'zod'
+import { buildUserContent, contentToText } from '../../helpers/multimodal'
 import { generateStructured, StructuredOutputOptions } from '../../helpers/structuredOutput'
 import { SecurityCheckSchema, GeneratedProjectSchema, WorkspaceEditSchema } from '../../types/schemas'
 import { getLangfuseCallbackHandler, flushLangfuse } from '../../helpers/langfuse'
@@ -87,7 +90,7 @@ export class DeepAgentInferencer implements ICompletions, IGeneration {
   // Used after a cancel-and-reinitialize so the brand-new LangGraph thread
   // still has the prior user/assistant turns as context — otherwise the
   // model loses all memory whenever the user clicks Stop.
-  private pendingHistoryMessages: Array<{ role: 'user' | 'assistant'; content: string }> | null = null
+  private pendingHistoryMessages: Array<{ role: 'user' | 'assistant'; content: any }> | null = null
 
   private static generateThreadId(): string {
     return CONVERSATION_THREAD_PREFIX + `${Date.now()}-${Math.random().toString(36).substring(2, 11)}`
@@ -136,11 +139,13 @@ export class DeepAgentInferencer implements ICompletions, IGeneration {
     const oldId = this.sessionThreadId
     this.sessionThreadId = DeepAgentInferencer.generateThreadId()
     remixAILogger.log('[DeepAgent-Thread] resetSessionThread:', this.sessionThreadId, '(was:', oldId, ')')
+    screenshotBuffer.setThread(this.sessionThreadId)
   }
 
   setSessionThreadId(threadId: string): void {
     remixAILogger.log('[DeepAgent-Thread] setSessionThreadId:', threadId, '(was:', this.sessionThreadId, ')')
     this.sessionThreadId = threadId
+    screenshotBuffer.setThread(threadId)
   }
 
   /**
@@ -152,14 +157,17 @@ export class DeepAgentInferencer implements ICompletions, IGeneration {
    *
    * One-shot: cleared as soon as it's consumed by answer().
    */
-  setPendingHistoryMessages(messages: Array<{ role: 'user' | 'assistant'; content: string }> | null): void {
+  setPendingHistoryMessages(messages: Array<{ role: 'user' | 'assistant'; content: any }> | null): void {
     if (!messages || messages.length === 0) {
       this.pendingHistoryMessages = null
       return
     }
     // Defensive copy + filter to the only two roles the graph accepts.
+    // Content may be a multimodal block array, so emptiness is judged on the
+    // flattened text rather than on `typeof content === 'string'`.
     this.pendingHistoryMessages = messages
-      .filter(m => m && (m.role === 'user' || m.role === 'assistant') && typeof m.content === 'string' && m.content.trim().length > 0)
+      .filter(m => m && (m.role === 'user' || m.role === 'assistant') &&
+        (Array.isArray(m.content) ? m.content.length > 0 : contentToText(m.content).trim().length > 0))
       .map(m => ({ role: m.role, content: m.content }))
     remixAILogger.log('[DeepAgentInferencer] setPendingHistoryMessages: queued', this.pendingHistoryMessages.length, 'messages for next turn')
   }
@@ -184,6 +192,11 @@ export class DeepAgentInferencer implements ICompletions, IGeneration {
     this.event = new EventEmitter()
     this.fallbackInferencer = fallbackInferencer
     this.streamEventHandler = new StreamEventHandler(this.event, () => this.sessionThreadId)
+    // Tag captures with this instance's thread from the start, so a rebuilt
+    // inferencer (model switch, cancel → reinitialize) starts with an empty
+    // buffer: it gets a fresh thread id and its graph checkpoint is gone, so
+    // the markers those screenshots belonged to are gone with it.
+    screenshotBuffer.setThread(this.sessionThreadId)
 
     // The OpenRouter transport reports the model that actually served each
     // request — the only way to know what `auto` picked.
@@ -448,9 +461,10 @@ export class DeepAgentInferencer implements ICompletions, IGeneration {
       if (seeded.length > 0) {
         remixAILogger.log('[DeepAgentInferencer] answer(): seeding', seeded.length, 'history messages into new thread', this.sessionThreadId)
       }
+      const contextualPrompt = context ? `Context:\n${context}\n\nQuestion: ${prompt}` : prompt
       const messages = [
         ...seeded,
-        { role: 'user', content: context ? `Context:\n${context}\n\nQuestion: ${prompt}` : prompt }
+        { role: 'user', content: buildUserContent(contextualPrompt, params?.attachments) }
       ]
 
       try {
@@ -705,7 +719,7 @@ export class DeepAgentInferencer implements ICompletions, IGeneration {
       this.streamEventHandler.startInactivityTracking()
 
       // https://docs.langchain.com/oss/python/deepagents/streaming
-      remixAILogger.log('[DeepAgent-Thread] ▶ runAgent called | thread_id:', this.sessionThreadId, '| message:', String(langchainMessages[0]?.content || '').substring(0, 60) + '...')
+      remixAILogger.log('[DeepAgent-Thread] ▶ runAgent called | thread_id:', this.sessionThreadId, '| message:', contentToText(langchainMessages[0]?.content).substring(0, 60) + '...')
 
       if (!this.agent) {
         throw new DeepAgentError(
@@ -1091,7 +1105,12 @@ export class DeepAgentInferencer implements ICompletions, IGeneration {
       const checkpointer = this.checkpointer
       const hasSkillsPermission = this.hasSkillsPermission
       const harnessProfile = resolveHarnessProfile(this.modelSelection)
+      const shapedTools = applyHarnessToolRules(this.tools, harnessProfile)
 
+      // The main agent holds no Remix tools of its own: every capability is
+      // reached by delegating to a subagent, and the roster appended to the
+      // system prompt below is how it learns what is on offer. UI vision and
+      // automation live on Remix_Vision — see buildSubagentConfigs.
       // Create agent configuration with selected tools
       // Cast tools and model to any to handle @langchain/core version mismatch between root and deepagents
       const mainAgentTool = this.tools.filter(t =>
@@ -1111,14 +1130,13 @@ export class DeepAgentInferencer implements ICompletions, IGeneration {
         },
         skills: hasSkillsPermission ? ["skills/"] : [],
         checkpointer,
-        middleware: [createPatchToolCallsMiddleware(), new RemixDeepAgentMiddleware(this.plugin, this)],
+        middleware: [createPatchToolCallsMiddleware(), new RemixDeepAgentMiddleware(this.plugin, this), new RemixVisionMiddleware()],
       }
 
       if (this.config.enableSubagents && this.model) {
         // Subagents run on the user's selected model — the same instance the
         // main agent uses. No separate code-capable pick: a second model meant
         // subagents could answer from a model the user never chose.
-        const shapedTools = applyHarnessToolRules(this.tools, harnessProfile)
         if (shapedTools.length !== this.tools.length) {
           remixAILogger.log(
             `[DeepAgentInferencer] harness profile for ${this.modelSelection.modelId} hides ` +
@@ -1155,7 +1173,7 @@ export class DeepAgentInferencer implements ICompletions, IGeneration {
 
       this.agent = createDeepAgent(agentConfig as any) as DeepAgent
 
-      remixAILogger.log(`[DeepAgentInferencer] Recreated agent with ${selectedTools.length} selected tools`)
+      remixAILogger.log(`[DeepAgentInferencer] Recreated agent with ${selectedTools.length} tools available to subagents`)
     } catch (error) {
       remixAILogger.error('[DeepAgentInferencer] Failed to recreate agent with selected tools:', error)
       throw new DeepAgentError(

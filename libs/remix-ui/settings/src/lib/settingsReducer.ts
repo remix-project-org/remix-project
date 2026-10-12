@@ -340,6 +340,15 @@ export const settingReducer = (state: SettingsState, action: SettingsActions): S
     //   }
     // }
 
+    // The BYOK section has no enable switch any more
+    if (action.payload.name === 'deepagent-openrouter-api-key' ||
+        action.payload.name === 'deepagent-bedrock-bearer-token') {
+      const other = action.payload.name === 'deepagent-openrouter-api-key'
+        ? config.get('settings/deepagent-bedrock-bearer-token')
+        : config.get('settings/deepagent-openrouter-api-key')
+      config.set('settings/deepagent-api-keys-config', !!(action.payload.value || other))
+    }
+
     // Reinitialize DeepAgent when API key settings change
     if (action.payload.name === 'deepagent-api-keys-config' ||
         action.payload.name === 'deepagent-openrouter-api-key' ||

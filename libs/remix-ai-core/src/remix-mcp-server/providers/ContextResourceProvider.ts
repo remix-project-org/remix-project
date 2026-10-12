@@ -8,6 +8,7 @@ import { Plugin } from '@remixproject/engine';
 import { IMCPResource, IMCPResourceContent } from '../../types/mcp';
 import { BaseResourceProvider } from '../registry/RemixResourceProviderRegistry';
 import { ResourceCategory } from '../types/mcpResources';
+import remixUiMap from '../context/remixUiMap.json'
 
 export class ContextResourceProvider extends BaseResourceProvider {
   name = 'context';
@@ -78,10 +79,28 @@ export class ContextResourceProvider extends BaseResourceProvider {
       )
     );
 
+    resources.push(
+      this.createResource(
+        'context://ui-map',
+        'Remix UI Map',
+        'Static map of the Remix IDE interface: which panel owns which capability, the plugin call that drives it, and the data-id of each control. Read this before trying to locate a feature in the UI.',
+        'application/json',
+        {
+          category: ResourceCategory.CONFIGURATION,
+          tags: ['ui', 'layout', 'panels', 'navigation', 'data-id'],
+          priority: 7
+        }
+      )
+    );
+
     return resources;
   }
 
   async getResourceContent(uri: string, _plugin: Plugin): Promise<IMCPResourceContent> {
+    if (uri === 'context://ui-map') {
+      return this.createJsonContent('context://ui-map', remixUiMap);
+    }
+
     if (uri === 'context://workspace') {
       return this.getWorkspaceContext();
     }

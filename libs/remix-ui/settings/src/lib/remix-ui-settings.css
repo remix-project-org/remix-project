@@ -20,3 +20,24 @@
   box-shadow: none !important;
   border-color: transparent !important;
 }
+
+/* Deep-link highlight: briefly outlines the subsection that `showSection`
+   scrolled to, so the reader's eye lands on the right block. */
+.remix-settings-anchor-flash > h5 {
+  animation: remix-settings-anchor-flash 1.6s ease-out;
+  border-radius: 4px;
+}
+
+@keyframes remix-settings-anchor-flash {
+  0%, 40% {
+    box-shadow: 0 0 0 6px var(--custom-ai-color, var(--bs-info));
+    background-color: var(--custom-ai-color, var(--bs-info));
+    color: var(--bs-body-bg);
+    padding-left: 6px;
+  }
+  100% {
+    box-shadow: 0 0 0 6px transparent;
+    background-color: transparent;
+    padding-left: 0;
+  }
+}

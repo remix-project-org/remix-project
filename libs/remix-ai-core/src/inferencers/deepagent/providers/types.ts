@@ -7,6 +7,8 @@ export interface ProviderCapabilities {
   tools: boolean
   streaming: boolean
   reasoning: boolean
+  /** Transport can carry image content blocks. Per-model support is separate — see `modelSupportsVision`. */
+  vision: boolean
   injectableFetch: boolean
 }
 

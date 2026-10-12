@@ -53,7 +53,7 @@ function patchBindTools<T extends BaseChatModel>(model: T): T {
 export const bedrockAdapter: ProviderAdapter = {
   id: 'bedrock',
   // ChatBedrockConverse builds its own signed HTTP client; no fetch to inject.
-  capabilities: { tools: true, streaming: true, reasoning: true, injectableFetch: false },
+  capabilities: { tools: true, streaming: true, reasoning: true, vision: true, injectableFetch: false },
   async create({ selection, params, userApiKeys, label }) {
     // Bedrock is BYOK-only — the Remix proxy no longer fronts it. Without the
     // user's own bearer token there is no route to build, and the picker hides

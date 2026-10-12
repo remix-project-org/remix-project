@@ -47,7 +47,8 @@ export interface SettingsSection {
     description?: string,
     options: {
       name: keyof SettingsState,
-      label: string,
+      /** Optional: omit when the subsection heading already names the setting. */
+      label?: string,
       labelIcon?: string,
       headerClass?: string,
       labelIconTooltip?: string,
@@ -70,6 +71,12 @@ export interface SettingsSection {
           value: string
         }[]
       }[],
+      /**
+       * Render `toggleUIOptions` unconditionally instead of only when a toggle
+       * is on. For settings that are configured purely by filling the fields
+       * in, where an extra enable switch would be a redundant second step.
+       */
+      alwaysShowSubOptions?: boolean,
       toggleUIDescription?: string | JSX.Element,
       buttonOptions?: {
         label: string,

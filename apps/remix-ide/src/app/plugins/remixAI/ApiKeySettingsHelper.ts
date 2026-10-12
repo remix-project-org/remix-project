@@ -126,11 +126,6 @@ export class ApiKeySettingsHelper {
         return !!(await this.getSetting('deepagent-bedrock-bearer-token'))
       }
 
-      const useOwnKeysValue = await this.getSetting('deepagent-api-keys-config')
-      const useOwnKeys = useOwnKeysValue === 'true' || useOwnKeysValue === true
-
-      if (!useOwnKeys) return false
-
       let apiKey: string | boolean = ''
       switch (provider) {
       case 'openrouter':

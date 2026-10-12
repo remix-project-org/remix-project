@@ -10,7 +10,8 @@ import {
   PersistedChatMessage,
   SyncResult,
   SyncOperation,
-  StorageError
+  StorageError,
+  stripAttachmentPayloads
 } from './interfaces'
 import { titleFromPrompt, UNTITLED_CONVERSATION } from '../helpers/conversationTitle'
 
@@ -156,6 +157,8 @@ export class ChatHistoryStorageManager {
    * Save a single message
    */
   async saveMessage(message: PersistedChatMessage): Promise<void> {
+    // Persist only the thumbnail of any attached image.
+    message = stripAttachmentPayloads(message)
     await this.localBackend.saveMessage(message)
 
     // Update conversation title and preview from the first user message.
@@ -186,6 +189,7 @@ export class ChatHistoryStorageManager {
    * Save multiple messages
    */
   async saveBatch(conversationId: string, messages: ChatMessage[]): Promise<void> {
+    messages = messages.map(stripAttachmentPayloads)
     await this.localBackend.saveBatch(conversationId, messages)
 
     // Update conversation title and preview from the first user message in

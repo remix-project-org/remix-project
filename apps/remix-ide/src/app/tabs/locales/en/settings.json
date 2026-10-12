@@ -103,7 +103,7 @@
   "settings.notLoggedIn": "Not logged in. Please log in with Google, GitHub, Discord, or wallet to manage accounts.",
   "settings.deepAgentApiKeysSection": "Bring Your Own API Keys",
   "settings.useOwnApiKeys": "Input your own API keys instead of using RemixAI credits.",
-  "settings.useOwnApiKeysDescription": "This allows you to use your own API keys for OpenRouter and AWS Bedrock services.",
+  "settings.useOwnApiKeysDescription": "Use your own API keys for OpenRouter and AWS Bedrock services.",
   "settings.deepagent-openrouter-api-key": "OpenRouter API Key",
   "settings.deepagent-bedrock-bearer-token": "AWS Bedrock API Key",
   "settings.testApiKey": "Test",
