@@ -24,7 +24,7 @@
 ## Remix Web3
 **Remix Web3** is used for the entire journey of contract development by users of any knowledge level. It fosters a fast development cycle and has a rich set of plugins with intuitive GUIs. The IDE comes in 2 flavors and a VSCode extension:
 
-**Remix Online IDE**, see: [https://remix.ethereum.org](https://remix.ethereum.org)
+**Remix Online IDE**, see: [https://app.remix.live](https://app.remix.live)
 
 :point_right: Supported browsers: Firefox v100.0.1 & Chrome v101.0.4951.64. No support for Remix's use on tablets or smartphones or telephones.
 

@@ -11,7 +11,7 @@ This document link to other specialised best practices (like coding best practic
 Related links:
  - Public WebSite: https://remix.live
  - Remix basic FAQ: https://hackmd.io/KVooMJhWRImCGq6zkDgW9A
- - Remix Web3: https://remix.ethereum.org
+ - Remix Web3: https://app.remix.live
  - Remix alpha live: https://alpha.remix.live
  - Remix beta live: https://beta.remix.live
  - Remix-lib NPM module: https://www.npmjs.com/package/@remix-project/remix-lib
@@ -195,9 +195,9 @@ Before starting to coding, we should ensure all devs / contributors are aware of
 ### release process:
 
  - We release an `x.0.0` if there's a fundamental change in our UX design, which means users will need to readapt the way they use the app
- - after a week finishes, we publish/release a new version as **beta.remix.live** and inform users so early adopters can test. after another week, when the next finished work is released as **beta.remix.live**, the previous one becomes **remix.ethereum.org** and all users can start using it
+ - after a week finishes, we publish/release a new version as **beta.remix.live** and inform users so early adopters can test. after another week, when the next finished work is released as **beta.remix.live**, the previous one becomes **app.remix.live** and all users can start using it
  - a bot to automatically notify users about upcoming features on all channels whenever **beta.remix.live** is updated
- - in case it's a major version increase - this announcement should be specially marked so people can check early instead of being confronted with drastic changes when **remix.ethereum.org** updates
+ - in case it's a major version increase - this announcement should be specially marked so people can check early instead of being confronted with drastic changes when **app.remix.live** updates
 ### maintenance:
  - Setting up a "bug" time where we each take a bug for which:
      - We feel comfortable to deal with

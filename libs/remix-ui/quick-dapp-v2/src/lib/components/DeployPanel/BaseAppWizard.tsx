@@ -357,7 +357,7 @@ const BaseAppWizard: React.FC<BaseAppWizardProps> = ({ isConfigSaveInFlight, isD
       }
 
       // Step 2: Build OG tags with screenshot IPFS URL
-      const ogImageUrl = screenshotIpfsUrl || 'https://remix.ethereum.org/assets/img/remix-logo-blue.png';
+      const ogImageUrl = screenshotIpfsUrl || 'https://app.remix.live/assets/img/remix-logo-blue.png';
       const twitterCardType = screenshotIpfsUrl ? 'summary_large_image' : 'summary';
 
       const ogTags = [

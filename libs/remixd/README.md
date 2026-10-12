@@ -5,7 +5,7 @@
 [![npm](https://img.shields.io/npm/dw/@remix-project/remixd.svg?logo=npm)](https://www.npmjs.com/package/@remix-project/remixd)
 
 
-`@remix-project/remixd` is an NPM module that intends to be used with [Remix Web3](https://remix.ethereum.org/) web and desktop applications. It establishes a two-way websocket connection between the local computer and Remix Web3 for a particular project directory.
+`@remix-project/remixd` is an NPM module that intends to be used with [Remix Web3](https://app.remix.live/) web and desktop applications. It establishes a two-way websocket connection between the local computer and Remix Web3 for a particular project directory.
 
 `remixd` can be used to set up a development environment with other popular frameworks like Hardhat, Truffle, Slither etc.
 
@@ -33,7 +33,7 @@ If you were using the old one you need to:
 
 ## remixd command
 
-The remixd command without options shares present working directory and the shared Remix domain will be https://remix.ethereum.org, https://alpha.remix.live, or https://beta.remix.live
+The remixd command without options shares present working directory and the shared Remix domain will be https://app.remix.live, https://alpha.remix.live, or https://beta.remix.live
 
 The remixd command is:
 ```
@@ -64,7 +64,7 @@ Example:
 
 ## Share a project directory
 
-`remixd -s ./shared_project -u https://remix.ethereum.org`
+`remixd -s ./shared_project -u https://app.remix.live`
 
 The current user should have `read/write` access to the folder (at least `read` access).
 

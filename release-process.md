@@ -99,7 +99,7 @@ or individually:
  - `git reset --hard <remix_beta-commit-hash>` or `<master-commit-hash>` sometimes
  - `git push -f origin remix_live`
 
- CircleCI will update `https://github.com/remix-project-org/remix-live` and through `gh-pages`, Remix Web3 will be deployed on `remix.ethereum.org`
+ CircleCI will update `https://github.com/remix-project-org/remix-live` and through `gh-pages`, Remix Web3 will be deployed on `app.remix.live`
 
 :point_right: Ensure release highlights, version and blog link are properly updated in `remix-dynamics` repo's `live` branch.
  

@@ -1,7 +1,7 @@
 {
   "home.home": "Главная",
   "home.scamAlert": "Предупреждение о мошенничестве",
-  "home.scamAlertText": "Единственный URL, который использует Remix, - это remix.ethereum.org",
+  "home.scamAlertText": "Единственный URL, который использует Remix, - это remix.ethereum.org и app.remix.live",
   "home.scamAlertText2": "Остерегайтесь видеороликов, рекламирующих \"ботов-передовиков ликвидности\"",
   "home.scamAlertText3": "Дополнительные советы по технике безопасности",
   "home.learnMore": "Узнать больше",

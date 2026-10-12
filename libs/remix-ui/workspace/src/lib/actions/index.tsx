@@ -517,7 +517,7 @@ export const publishFilesToGist = (arrayOfSelectedFiles: any) => {
 
   try {
     const params = queryParams.get() as SolidityConfiguration
-    const description = 'Created using remix-ide: Realtime Ethereum Contract Compiler and Runtime. \n Load this file by pasting this gists URL or ID at https://remix.ethereum.org/#version=' + params.version + '&optimize=' + params.optimize + '&runs=' + params.runs + '&gist='
+    const description = 'Created using remix-ide: Realtime Ethereum Contract Compiler and Runtime. \n Load this file by pasting this gists URL or ID at https://app.remix.live/#version=' + params.version + '&optimize=' + params.optimize + '&runs=' + params.runs + '&gist='
     const gists = new Gists({ token: accessToken })
     dispatch(displayPopUp('Creating a new gist ...'))
 
@@ -555,7 +555,7 @@ export const publishToGist = async (path?: string) => {
       dispatch(displayNotification('Authorize Token', 'Remix requires an access token (which includes gists creation permission). Please go to the settings tab to create one.', 'Close', null, () => { }))
     } else {
       const params = queryParams.get() as SolidityConfiguration
-      const description = 'Created using remix-ide: Realtime Ethereum Contract Compiler and Runtime. \n Load this file by pasting this gists URL or ID at https://remix.ethereum.org/#version=' +
+      const description = 'Created using remix-ide: Realtime Ethereum Contract Compiler and Runtime. \n Load this file by pasting this gists URL or ID at https://app.remix.live/#version=' +
         params.version + '&optimize=' + params.optimize + '&runs=' + params.runs + '&gist='
       const gists = new Gists({ token: accessToken })
 

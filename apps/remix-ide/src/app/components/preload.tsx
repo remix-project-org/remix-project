@@ -337,7 +337,7 @@ export const Preload = (props: PreloadProps) => {
           ) : null}
         </div>
         <div className="preload-bottom opt-out">
-          { 
+          {
             <div><b>Build onchain apps with AI, no setup required</b></div>
           }
         </div>

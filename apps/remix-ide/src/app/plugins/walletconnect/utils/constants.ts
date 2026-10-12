@@ -49,7 +49,7 @@ export const constants = {
   METADATA: {
     name: 'Remix Web3',
     description: 'The Native IDE for Web3 Development.',
-    url: 'https://remix.ethereum.org/',
-    icons: ['https://remix.ethereum.org/favicon.ico'],
+    url: 'https://app.remix.live/',
+    icons: ['https://app.remix.live/favicon.ico'],
   }
 }

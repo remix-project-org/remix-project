@@ -24,14 +24,14 @@ export function HelpMenu({ onClose }: HelpMenuProps) {
               <small><FormattedMessage id="home.documentationDesc" defaultMessage="Reference, guides, and plugin API" /></small>
             </span>
           </a>
-          <a className="hm-row" href="https://remix.ethereum.org/?#activate=LearnEth" target="_blank" rel="noreferrer">
+          <a className="hm-row" href="https://app.remix.live/?#activate=LearnEth" target="_blank" rel="noreferrer">
             <span className="hm-row-icon"><CapGlyph /></span>
             <span className="hm-row-text">
               <strong><FormattedMessage id="home.tutorials" defaultMessage="Tutorials" /></strong>
               <small><FormattedMessage id="home.tutorialsDesc" defaultMessage="LearnEth interactive tutorials" /></small>
             </span>
           </a>
-          <a className="hm-row" href="https://remix.ethereum.org/?#activate=remixGuide" target="_blank" rel="noreferrer">
+          <a className="hm-row" href="https://app.remix.live/?#activate=remixGuide" target="_blank" rel="noreferrer">
             <span className="hm-row-icon"><SparkGlyph /></span>
             <span className="hm-row-text">
               <strong><FormattedMessage id="home.startLearning" defaultMessage="Start learning" /></strong>

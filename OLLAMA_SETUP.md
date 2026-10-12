@@ -186,7 +186,7 @@ curl http://localhost:11434/api/tags
 
 2. Verify CORS configuration:
    ```bash
-   curl -H "Origin: https://remix.ethereum.org" http://localhost:11434/api/tags
+   curl -H "Origin: https://app.remix.live" http://localhost:11434/api/tags
    ```
 
 3. Check if models are installed:
