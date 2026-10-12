@@ -19,7 +19,7 @@ export function Web3ProviderDialog(props: web3ProviderDialogProps) {
         <FormattedMessage id="helper.web3ProviderNote" values={{
           a: (chunks) => <a href="https://geth.ethereum.org/docs/rpc/server" target="_blank" rel="noreferrer">{chunks}</a>
         }} />
-        <div className="border p-1">geth --http --http.corsdomain https://remix.ethereum.org</div>
+        <div className="border p-1">geth --http --http.corsdomain https://app.remix.live</div>
         <br />
         <FormattedMessage id="helper.web3ProviderLocalNote" values={{
           a: (chunks) => <a href="https://geth.ethereum.org/getting-started/dev-mode" target="_blank" rel="noreferrer">{chunks}</a>

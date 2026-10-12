@@ -9,7 +9,7 @@
 
 **Remix Web3** is an open source web and desktop application. It fosters a fast development cycle and has a rich set of plugins with intuitive GUIs. Remix is used for the entire journey of contract development as well as being a playground for learning and teaching Ethereum.
 
-The Remix Web3 repository is specifically available **[here](https://github.com/remix-project-org/remix-project/tree/master/apps/remix-ide)**, and an online version is available at https://remix.ethereum.org.
+The Remix Web3 repository is specifically available **[here](https://github.com/remix-project-org/remix-project/tree/master/apps/remix-ide)**, and an online version is available at https://app.remix.live.
 
 To start with Remix Web3, check out [official documentation](https://remix-ide.readthedocs.io/en/latest/index.html).
 

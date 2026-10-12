@@ -12,7 +12,7 @@ Related links:
  - Public Website: https://remix.live
  - Awesome Remix: https://github.com/remix-project-org/awesome-remix
  - Remix basic FAQ: https://hackmd.io/KVooMJhWRImCGq6zkDgW9A
- - Remix Web3: https://remix.ethereum.org
+ - Remix Web3: https://app.remix.live
  - Remix alpha live: https://alpha.remix.live
  - Remix beta live: https://beta.remix.live
  - Remix-lib NPM module: https://www.npmjs.com/package/@remix-project/remix-lib

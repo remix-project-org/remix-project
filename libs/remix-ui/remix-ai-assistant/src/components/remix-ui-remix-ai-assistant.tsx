@@ -123,7 +123,7 @@ const OLLAMA_NOT_AVAILABLE_MESSAGE = [
   '1. **Install Ollama**: Visit [ollama.ai](https://ollama.ai) to download',
   '2. **Start Ollama**: Run `ollama serve` in your terminal',
   '3. **Install a model**: Run `ollama pull codestral:latest`',
-  '4. **Configure CORS**: e.g `OLLAMA_ORIGINS=https://remix.ethereum.org ollama serve`',
+  '4. **Configure CORS**: e.g `OLLAMA_ORIGINS=https://app.remix.live ollama serve`',
   '',
   'See the [Ollama Setup Guide](https://github.com/ethereum/remix-project/blob/master/OLLAMA_SETUP.md) for detailed instructions.',
   '',

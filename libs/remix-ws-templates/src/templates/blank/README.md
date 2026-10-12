@@ -40,7 +40,6 @@ No contract files, folders, or sample code are included.
 
 - [Remix Web3 Documentation](https://remix-ide.readthedocs.io/)
 - [Solidity Language Documentation](https://docs.soliditylang.org/)
-- [Remix Web3 Community Forum](https://forum.remix.ethereum.org/)
 
 ---
 

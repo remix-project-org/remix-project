@@ -10,7 +10,7 @@ Disallow: /assets/fontawesome/
 Allow: /assets/img/remix-logo-blue.png
 
 # Sitemap location
-Sitemap: https://remix.ethereum.org/sitemap.xml
+Sitemap: https://app.remix.live/sitemap.xml
 
 # Crawl-delay for respectful crawling (optional)
 Crawl-delay: 1
