@@ -106,7 +106,13 @@ export const RemixUiStaticAnalyser = (props: RemixUiStaticAnalyserProps) => {
   }
 
   useEffect(() => {
-    compilation(props.analysisModule, dispatch)
+    // one compilationFinished listener per plugin: the engine ignores a second registration,
+    // so clearing the previous results has to happen in this one
+    compilation(props.analysisModule, dispatch, () => {
+      setHints([])
+      setSlitherWarnings([])
+      setSsaWarnings([])
+    })
   }, [props])
 
   useEffect(() => {
@@ -116,14 +122,6 @@ export const RemixUiStaticAnalyser = (props: RemixUiStaticAnalyserProps) => {
 
   useEffect(() => {
     props.event.trigger('staticAnalysisWarning', [-1])
-  }, [state])
-
-  useEffect(() => {
-    props.analysisModule.on('solidity', 'compilationFinished', (fileName, source, languageVersion, data) => {
-      setHints([])
-      setSlitherWarnings([])
-      setSsaWarnings([])
-    })
   }, [state])
 
   useEffect(() => {
