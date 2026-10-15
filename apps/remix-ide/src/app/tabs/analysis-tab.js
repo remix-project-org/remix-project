@@ -50,7 +50,7 @@ export default class AnalysisTab extends ViewPlugin {
       await this.call('manager', 'activatePlugin', 'solidity')
     }
 
-    this.event.register('staticAnaysisWarning', (count) => {
+    this.event.register('staticAnalysisWarning', (count) => {
       let payloadType = ''
       const error = this.hints?.find(hint => hint.type === 'error')
       if (error && this.solhintEnabled) {
