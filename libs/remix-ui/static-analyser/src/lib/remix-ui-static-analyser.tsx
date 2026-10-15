@@ -837,7 +837,7 @@ export const RemixUiStaticAnalyser = (props: RemixUiStaticAnalyserProps) => {
         console.debug('Could not remove event listener from solidityStaticAnalysis:', error.message)
       }
     }
-  }, [state.data, state.source, state.file, state, props])
+  }, [state.data, state.source, state.file, state, props, isSupportedVersion, showSlither, categoryIndex, slitherEnabled, solhintEnabled, basicEnabled])
 
   return (
     <div className="analysis_3ECCBV px-3 pb-1">
