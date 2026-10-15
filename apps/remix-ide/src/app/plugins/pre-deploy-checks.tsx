@@ -7,6 +7,8 @@ import {
   Range, StepId, StepToggles, DEFAULT_TOGGLES, collectFindings, contentHash, compilerMessages, compilerSettingsKey, withoutDependencies,
   runPipeline, DeployTarget, getEnvironment, getConstructorInputs, parseConstructorArgs, buildReport, reportFileName, ContractOption
 } from '@remix-ui/pre-deploy-checks'
+import { deployCompiledContract } from '@remix-ui/run-tab-deploy'
+import type { DeployPlugin } from '../udapp/udappDeploy'
 import * as packageJson from '../../../../../package.json'
 
 const profile = {
@@ -55,8 +57,11 @@ export class PreDeployChecksPlugin extends ViewPlugin implements CheckHost {
   private compiler: { version?: string, optimize?: boolean, runs?: number, evmVersion?: string } | null = null
   private highlighted = false
 
-  constructor () {
+  private udappDeploy: DeployPlugin
+
+  constructor (udappDeploy: DeployPlugin) {
     super(profile)
+    this.udappDeploy = udappDeploy
     this.store.onChange((file, state) => {
       this.emit('stateChanged', file, state)
       this.renderComponent()
@@ -144,6 +149,11 @@ export class PreDeployChecksPlugin extends ViewPlugin implements CheckHost {
 
   getCompilation (file: string) {
     return this.compilations.get(file)
+  }
+
+  deployContract (file: string, contractName: string, args: any[]) {
+    // verification is the panel's own step, so Deploy & Run must not verify too
+    return deployCompiledContract(this.udappDeploy, file, contractName, args, false)
   }
 
   confirmDeploy ({ contractName, env, args, value }: { contractName: string, env: EnvironmentInfo, args: any[], value: string }): Promise<boolean> {

@@ -416,9 +416,6 @@ class AppComponent {
     // ----------------- ContractFlattener ----------------------------
     const contractFlattener = new ContractFlattener()
 
-    // ----------------- Pre-deploy Checks ----------------------------
-    const preDeployChecks = new PreDeployChecksPlugin()
-
     // ----------------- AI --------------------------------------
     const remixAI = new RemixAIPlugin()
     const assistantState = new AssistantStatePlugin()
@@ -532,6 +529,7 @@ class AppComponent {
 
     const udappEnvPlugin = new EnvironmentPlugin()
     const udappDeployPlugin = new DeployPlugin()
+    const preDeployChecks = new PreDeployChecksPlugin(udappDeployPlugin)
     const udappDeployedContractsPlugin = new DeployedContractsPlugin()
     const udappTransactionsPlugin = new TransactionsPlugin()
     const udappEezPlugin = new EezPlugin()

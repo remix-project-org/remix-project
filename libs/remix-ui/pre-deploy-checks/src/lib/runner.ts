@@ -29,6 +29,11 @@ export interface CheckHost {
   /** compiles the file through the Solidity compiler; resolves once the compile step is recorded */
   compile: (file: string) => Promise<void>
   getCompilation: (file: string) => Compilation | undefined
+  /**
+   * deploys through Deploy & Run's own path. Not a plugin call: the deploy calls back into udappDeploy,
+   * which the engine would queue behind the request still running, and wait forever
+   */
+  deployContract: (file: string, contractName: string, args: any[]) => Promise<{ address: string, txHash?: string, chainId?: string }>
   /** asks the user to confirm a deployment on a live chain */
   confirmDeploy: (details: { contractName: string, env: EnvironmentInfo, args: any[], value: string }) => Promise<boolean>
 }
@@ -165,7 +170,7 @@ async function runDeploy (host: CheckHost, file: string, contractName: string, a
     if (!confirmed) return 'declined'
   }
   try {
-    const deployed = await host.call('udappDeploy', 'deployCompiledContract', { filePath: file, contractName, args, verify: false })
+    const deployed = await host.deployContract(file, contractName, args)
     return result('passed', {
       contentHash,
       settingsKey: deployKey,

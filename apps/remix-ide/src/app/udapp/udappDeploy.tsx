@@ -1,7 +1,7 @@
 import React from 'react'
 import { Plugin } from '@remixproject/engine'
 import { DeployWidget } from '@remix-ui/run-tab-deploy'
-import { DeployWidgetState, Actions, GasEstimationPrompt, MainnetPrompt, DeployUdappTx, DeployUdappNetwork, deployCompiledContract } from '@remix-ui/run-tab-deploy'
+import { DeployWidgetState, Actions, GasEstimationPrompt, MainnetPrompt, DeployUdappTx, DeployUdappNetwork } from '@remix-ui/run-tab-deploy'
 import BN from 'bn.js'
 import { parseUnits } from 'ethers'
 
@@ -9,7 +9,7 @@ const profile = {
   name: 'udappDeploy',
   displayName: 'Udapp Deploy',
   description: 'Handles contract deployment UI and state',
-  methods: ['getUI', 'getGasLimit', 'getValueUnit', 'getMaxFee', 'getMaxPriorityFee', 'getBaseFeePerGas', 'getGasPrice', 'getConfirmSettings', 'getValue', 'getGasEstimationPrompt', 'getMainnetPrompt', 'getGasPriceStatus', 'setValue', 'setValueUnit', 'setBaseFeePerGas', 'getCompiledContracts', 'getSelectedContractItem', 'deployCompiledContract'],
+  methods: ['getUI', 'getGasLimit', 'getValueUnit', 'getMaxFee', 'getMaxPriorityFee', 'getBaseFeePerGas', 'getGasPrice', 'getConfirmSettings', 'getValue', 'getGasEstimationPrompt', 'getMainnetPrompt', 'getGasPriceStatus', 'setValue', 'setValueUnit', 'setBaseFeePerGas', 'getCompiledContracts', 'getSelectedContractItem'],
   events: []
 }
 
@@ -114,14 +114,6 @@ export class DeployPlugin extends Plugin {
 
   setValueUnit(unit: 'wei' | 'gwei' | 'finney' | 'ether') {
     this.getDispatch()({ type: 'SET_VALUE_UNIT', payload: unit })
-  }
-
-  /**
-   * Deploys a compiled contract with the current environment, account, value and gas settings,
-   * as the Deploy button does, and returns its address. `args` is the list of constructor arguments.
-   */
-  async deployCompiledContract({ filePath, contractName, args = [], verify = false }: { filePath: string, contractName: string, args?: any[], verify?: boolean }): Promise<{ address: string, txHash?: string, chainId?: string }> {
-    return deployCompiledContract(this, filePath, contractName, args, verify)
   }
 
   getUI() {
