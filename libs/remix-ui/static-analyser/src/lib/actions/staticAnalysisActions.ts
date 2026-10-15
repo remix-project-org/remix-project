@@ -142,8 +142,9 @@ export async function run (lastCompilationResult, lastCompilationSource, current
           trackMatomoEvent?.({ category: 'solidityStaticAnalyzer', action: 'analyze', name: 'slitherAnalyzer', isClick: true })
           const result: SlitherAnalysisResults = await props.analysisModule.call('slither', 'analyse', state.file, { currentVersion, optimize, evmVersion })
           if (result.status) {
-            props.analysisModule.call('terminal', 'log', { type: 'log', value: `[Slither Analysis]: Analysis Completed!! ${result.count} warnings found.` })
-            const report = result.data
+            props.analysisModule.call('terminal', 'log', { type: 'log', value: result.count ? `[Slither Analysis]: Analysis Completed!! ${result.count} warnings found.` : '[Slither Analysis]: Analysis Completed. No issues found.' })
+            // a clean run comes back as { count: 0 } without data
+            const report = result.data || []
             for (const item of report) {
               let location: any = {}
               let locationString = 'not available'
