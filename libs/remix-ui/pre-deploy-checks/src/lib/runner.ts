@@ -84,7 +84,9 @@ export async function getEnvironment (host: CheckHost): Promise<EnvironmentInfo>
     host.call('udappEnv', 'getSelectedAccount').catch((): any => null),
     host.call('blockchain', 'isVM').catch(() => false)
   ])
-  return { provider, network: network?.name, chainId: network?.chainId?.toString(), account, isVM: !!isVM }
+  // the VM reports its chain id as '-'
+  const chainId = network?.chainId && network.chainId !== '-' ? network.chainId.toString() : undefined
+  return { provider, network: network?.name, chainId, account, isVM: !!isVM }
 }
 
 export async function getSettingsKey (host: CheckHost): Promise<string> {
