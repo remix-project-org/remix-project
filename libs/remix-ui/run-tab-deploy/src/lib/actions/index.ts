@@ -205,22 +205,19 @@ async function createInstance(selectedContract: ContractData, args, deployMode: 
     // return statusCb(`creation of ${selectedContract.name} errored: ${error.message ? error.message : error}`)
   }
   if (overSize && (overSize.overSizeEip170 || overSize.overSizeEip3860)) {
-    return new Promise((resolve, reject) => {
+    const forceSend = await new Promise<boolean>((resolve) => {
       plugin.call('notification', 'modal', {
         id: 'contractCodeSizeOverLimit',
         title: 'Contract code size over limit',
         message: isOverSizePrompt(overSize),
         okLabel: 'Force Send',
-        okFn: async () => {
-          await deployOnBlockchain(selectedContract, args, contractMetadata, compilerContracts, plugin)
-          resolve(undefined)
-        },
+        okFn: () => resolve(true),
         cancelLabel: 'Cancel',
-        cancelFn: () => {
-          reject(`creation of ${selectedContract.name} canceled by user.`)
-        }
+        cancelFn: () => resolve(false),
+        hideFn: () => resolve(false)
       })
     })
+    if (!forceSend) throw new Error(`creation of ${selectedContract.name} canceled by user.`)
   }
   const result = await deployOnBlockchain(selectedContract, args, contractMetadata, compilerContracts, plugin)
   await plugin.call('udappDeployedContracts', 'addInstance', result.address, selectedContract.contract.abi, selectedContract.name, selectedContract)
