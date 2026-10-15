@@ -1,0 +1,247 @@
+import * as assert from 'assert'
+import { aggregateFindings, blockingFindings, collectFindings } from '../src/lib/findings'
+import { remixSeverity, slitherSeverity, solhintSeverity, canonicalRule } from '../src/lib/severity'
+import { CheckStore, contentHash, isStale, needsRun, deployedFromOlderVersion, PlanContext } from '../src/lib/store'
+import { offsetToPosition, remixFindings, slitherFindings, solhintFindings, aiFindings, compilerMessages, withoutDependencies } from '../src/lib/converters'
+import { buildReport, reportFileName } from '../src/lib/report'
+import { DEFAULT_TOGGLES, FileCheckState, RawFinding } from '../src/lib/types'
+
+const FILE = 'contracts/Wallet.sol'
+const range = (line: number, endLine = line) => ({ start: { line, column: 0 }, end: { line: endLine, column: 0 } })
+
+describe('severity mapping', () => {
+  it('maps Remix analyzer modules', () => {
+    assert.strictEqual(remixSeverity('Transaction origin: '), 'high')
+    assert.strictEqual(remixSeverity('Check-effects-interaction: '), 'high')
+    assert.strictEqual(remixSeverity('Selfdestruct: '), 'high')
+    assert.strictEqual(remixSeverity('Inline assembly: '), 'medium')
+    assert.strictEqual(remixSeverity('Block hash: '), 'medium')
+    assert.strictEqual(remixSeverity('Gas costs: '), 'low')
+    assert.strictEqual(remixSeverity('ERC20: '), 'low')
+  })
+
+  it('maps Slither impact and Solhint type', () => {
+    assert.strictEqual(slitherSeverity('High'), 'high')
+    assert.strictEqual(slitherSeverity('Medium'), 'medium')
+    assert.strictEqual(slitherSeverity('Low'), 'low')
+    assert.strictEqual(slitherSeverity('Informational'), 'info')
+    assert.strictEqual(slitherSeverity('Optimization'), 'info')
+    assert.strictEqual(solhintSeverity('error'), 'medium')
+    assert.strictEqual(solhintSeverity('warning'), 'low')
+  })
+
+  it('knows equivalent rules', () => {
+    assert.strictEqual(canonicalRule('remix', 'txOrigin'), 'tx-origin')
+    assert.strictEqual(canonicalRule('slither', 'tx-origin'), 'tx-origin')
+    assert.strictEqual(canonicalRule('solhint', 'avoid-tx-origin'), 'tx-origin')
+    assert.strictEqual(canonicalRule('slither', 'reentrancy-eth'), 'reentrancy')
+    assert.strictEqual(canonicalRule('slither', 'naming-convention'), undefined)
+  })
+})
+
+describe('converters', () => {
+  it('converts byte offsets with multi-byte characters', () => {
+    const content = '// é\nuint x;'
+    // "// é\n" is 6 bytes: "é" takes 2
+    assert.deepStrictEqual(offsetToPosition(content, 6), { line: 1, column: 0 })
+    assert.deepStrictEqual(offsetToPosition(content, 10), { line: 1, column: 4 })
+  })
+
+  it('maps Remix analyzer reports with locations', () => {
+    const content = 'contract A {\n  function f() public { require(tx.origin == msg.sender); }\n}'
+    const start = content.indexOf('tx.origin')
+    const findings = remixFindings(
+      [{ name: 'Transaction origin: ', report: [{ warning: 'Use of <i>tx.origin</i>', location: `${start}:9:0` }, { warning: 'INTERNAL ERROR', error: 'stack' }] }],
+      { [FILE]: { content } },
+      { [FILE]: { id: 0 } }
+    )
+    assert.strictEqual(findings.length, 1)
+    assert.strictEqual(findings[0].rule, 'txOrigin')
+    assert.strictEqual(findings[0].severity, 'high')
+    assert.strictEqual(findings[0].message, 'Use of tx.origin')
+    assert.strictEqual(findings[0].file, FILE)
+    assert.strictEqual(findings[0].range.start.line, 1)
+  })
+
+  it('handles a clean Slither run without data', () => {
+    assert.deepStrictEqual(slitherFindings({ status: true, count: 0 }), [])
+  })
+
+  it('keeps Slither impact and confidence', () => {
+    const [finding] = slitherFindings({
+      status: true,
+      count: 1,
+      data: [{ title: 'tx-origin', description: 'Dangerous use of tx.origin\n', severity: 'Medium', confidence: 'Medium', sourceMap: [{ source_mapping: { start: 0, length: 1, filename_relative: FILE, lines: [2, 3], starting_column: 5, ending_column: 9 } }] }]
+    })
+    assert.strictEqual(finding.severity, 'medium')
+    assert.strictEqual(finding.nativeSeverity, 'Medium · Medium confidence')
+    assert.deepStrictEqual(finding.range, { start: { line: 1, column: 4 }, end: { line: 2, column: 8 } })
+  })
+
+  it('maps Solhint, AI and compiler output', () => {
+    const [hint] = solhintFindings([{ type: 'warning', line: 4, column: 3, message: 'Avoid tx.origin', ruleId: 'avoid-tx-origin' }], FILE)
+    assert.deepStrictEqual(hint.range.start, { line: 4, column: 2 })
+    assert.strictEqual(aiFindings({ Answer: 'No', Reason: [] }, FILE).length, 0)
+    assert.strictEqual(aiFindings({ Answer: 'Yes', Reason: ['reentrancy'], Suggestion: ['use a guard'] }, FILE)[0].severity, 'high')
+    const messages = compilerMessages([
+      { severity: 'warning', type: 'Warning', message: 'unused', sourceLocation: { file: FILE, start: 0, end: 4 } },
+      { severity: 'error', type: 'TypeError', message: 'bad' }
+    ], { [FILE]: { content: 'abcd' } })
+    assert.strictEqual(messages.warnings[0].severity, 'low')
+    assert.strictEqual(messages.errors[0].title, 'TypeError')
+  })
+
+  it('separates dependency findings', () => {
+    const findings: RawFinding[] = [
+      { source: 'remix', severity: 'high', title: 'a', message: '', file: FILE },
+      { source: 'remix', severity: 'high', title: 'b', message: '', file: '.deps/npm/@openzeppelin/contracts/utils/Address.sol' },
+      { source: 'slither', severity: 'high', title: 'c', message: '', file: 'node_modules/x/y.sol' }
+    ]
+    const { own, dependencyCount } = withoutDependencies(findings)
+    assert.strictEqual(own.length, 1)
+    assert.strictEqual(dependencyCount, 2)
+  })
+})
+
+describe('aggregated findings', () => {
+  const remixTxOrigin: RawFinding = { source: 'remix', severity: 'high', rule: 'txOrigin', title: 'Transaction origin', message: 'remix', file: FILE, range: range(10) }
+  const slitherTxOrigin: RawFinding = { source: 'slither', severity: 'medium', rule: 'tx-origin', title: 'tx-origin', message: 'slither', file: FILE, range: range(9, 11), nativeSeverity: 'Medium · Medium confidence' }
+
+  it('merges equivalent findings from different tools, keeping the highest severity', () => {
+    const findings = aggregateFindings([{ finding: slitherTxOrigin, stale: false }, { finding: remixTxOrigin, stale: false }])
+    assert.strictEqual(findings.length, 1)
+    assert.deepStrictEqual(findings[0].sources, ['slither', 'remix'])
+    assert.strictEqual(findings[0].severity, 'high')
+    assert.strictEqual(findings[0].items.length, 2)
+  })
+
+  it('does not merge findings on other lines or files', () => {
+    const otherLine = { ...slitherTxOrigin, range: range(20) }
+    const otherFile = { ...slitherTxOrigin, file: 'contracts/Other.sol' }
+    assert.strictEqual(aggregateFindings([{ finding: remixTxOrigin, stale: false }, { finding: otherLine, stale: false }]).length, 2)
+    assert.strictEqual(aggregateFindings([{ finding: remixTxOrigin, stale: false }, { finding: otherFile, stale: false }]).length, 2)
+  })
+
+  it('sorts by severity then file then line', () => {
+    const low: RawFinding = { source: 'solhint', severity: 'low', title: 'l', message: '', file: FILE, range: range(1) }
+    const medium2: RawFinding = { source: 'remix', severity: 'medium', title: 'm2', message: '', file: FILE, range: range(8) }
+    const medium1: RawFinding = { source: 'remix', severity: 'medium', title: 'm1', message: '', file: FILE, range: range(3) }
+    const titles = aggregateFindings([low, medium2, medium1, remixTxOrigin].map((finding) => ({ finding, stale: false }))).map((f) => f.title)
+    assert.deepStrictEqual(titles, ['Transaction origin', 'm1', 'm2', 'l'])
+  })
+
+  it('excludes stale findings from the gate', () => {
+    const state: FileCheckState = {
+      file: FILE,
+      currentHash: 'new',
+      steps: {
+        analysis: { status: 'findings', at: 1, origin: 'panel', contentHash: 'old', findings: [remixTxOrigin] },
+        slither: { status: 'findings', at: 1, origin: 'panel', contentHash: 'new', findings: [{ ...slitherTxOrigin, severity: 'high' }] }
+      }
+    }
+    const findings = collectFindings(state)
+    assert.strictEqual(findings.length, 2) // stale and fresh findings are never merged together
+    assert.strictEqual(blockingFindings(findings).length, 1)
+    assert.strictEqual(blockingFindings(findings)[0].sources[0], 'slither')
+  })
+})
+
+describe('store and planning', () => {
+  const ctx: PlanContext = { toggles: { ...DEFAULT_TOGGLES }, settingsKey: 'v1', deployKey: '1|A|[]' }
+
+  it('hashes content', () => {
+    assert.strictEqual(contentHash('a'), contentHash('a'))
+    assert.notStrictEqual(contentHash('a'), contentHash('b'))
+  })
+
+  it('marks content steps stale, never deploy', () => {
+    const store = new CheckStore()
+    store.setCurrentHash(FILE, 'h1')
+    store.setStep(FILE, 'compile', { status: 'passed', at: 1, origin: 'manual', contentHash: 'h1', settingsKey: 'v1' })
+    store.setStep(FILE, 'deploy', { status: 'passed', at: 1, origin: 'panel', contentHash: 'h1', settingsKey: '1|A|[]', data: { address: '0x1' } })
+    assert.strictEqual(isStale(store.get(FILE), 'compile'), false)
+    store.setCurrentHash(FILE, 'h2')
+    assert.strictEqual(isStale(store.get(FILE), 'compile'), true)
+    assert.strictEqual(isStale(store.get(FILE), 'deploy'), false)
+    assert.strictEqual(deployedFromOlderVersion(store.get(FILE)), true)
+    store.setCurrentHash(FILE, 'h1') // reverting the content makes results fresh again (FR-26)
+    assert.strictEqual(isStale(store.get(FILE), 'compile'), false)
+  })
+
+  it('runs only missing, failed, stale or differently compiled steps', () => {
+    const state: FileCheckState = {
+      file: FILE,
+      currentHash: 'h1',
+      steps: {
+        compile: { status: 'passed', at: 1, origin: 'manual', contentHash: 'h1', settingsKey: 'v1' },
+        analysis: { status: 'findings', at: 1, origin: 'panel', contentHash: 'h0', settingsKey: 'v1' },
+        slither: { status: 'skipped', at: 1, origin: 'panel', contentHash: 'h1', settingsKey: 'v1' },
+        flatten: { status: 'passed', at: 1, origin: 'panel', contentHash: 'h1', settingsKey: 'v0' },
+        deploy: { status: 'passed', at: 1, origin: 'panel', contentHash: 'h1', settingsKey: '1|A|[]', data: { address: '0x1' } },
+        verify: { status: 'passed', at: 1, origin: 'panel', data: { address: '0x1' } }
+      }
+    }
+    assert.strictEqual(needsRun(state, 'compile', ctx), false)
+    assert.strictEqual(needsRun(state, 'analysis', ctx), true) // stale
+    assert.strictEqual(needsRun(state, 'slither', ctx), true) // skipped last time
+    assert.strictEqual(needsRun(state, 'ai', ctx), false) // off by default
+    assert.strictEqual(needsRun(state, 'flatten', ctx), true) // other compiler settings
+    assert.strictEqual(needsRun(state, 'deploy', ctx), false)
+    assert.strictEqual(needsRun(state, 'deploy', { ...ctx, deployKey: '11155111|A|[]' }), true)
+    assert.strictEqual(needsRun(state, 'verify', ctx), false)
+    assert.strictEqual(needsRun(state, 'verify', ctx, true), true)
+    assert.strictEqual(needsRun(state, 'deploy', { ...ctx, force: true }), true)
+    assert.strictEqual(needsRun(state, 'compile', { ...ctx, toggles: { ...ctx.toggles, compile: false } }), false)
+  })
+})
+
+describe('report', () => {
+  it('names the report after the contract, next to the source', () => {
+    assert.strictEqual(reportFileName(FILE, 'Wallet'), 'contracts/Wallet.predeploy.md')
+    assert.strictEqual(reportFileName('Token.sol'), 'Token.predeploy.md')
+  })
+
+  it('contains steps, gate, findings and the disclaimer', () => {
+    const state: FileCheckState = {
+      file: FILE,
+      currentHash: 'h1',
+      gateOverridden: true,
+      steps: {
+        compile: { status: 'passed', at: 0, origin: 'manual', contentHash: 'h1' },
+        analysis: { status: 'findings', at: 0, origin: 'panel', contentHash: 'h1', findings: [{ source: 'remix', severity: 'high', rule: 'txOrigin', title: 'Transaction origin', message: 'Use of | tx.origin', file: FILE, range: range(4) }] },
+        deploy: { status: 'passed', at: 0, origin: 'panel', contentHash: 'h1', data: { contractName: 'Wallet', address: '0xabc', txHash: '0xdef', args: [1] } }
+      }
+    }
+    const md = buildReport(state, { date: new Date(0), contractName: 'Wallet', compiler: { version: '0.8.26', optimize: true, runs: 200 }, environment: { provider: 'vm-prague', network: 'VM', chainId: '1337', account: '0x5B3' } })
+    assert.ok(md.includes('not a security audit'))
+    assert.ok(md.includes('| Compile | passed | by hand |'))
+    assert.ok(md.includes('Overridden: deployed with 1 high-severity finding'))
+    assert.ok(md.includes('contracts/Wallet.sol:5'))
+    assert.ok(md.includes('Use of \\| tx.origin'))
+    assert.ok(md.includes('`0xabc`'))
+    assert.ok(md.includes('optimizer on (200 runs)'))
+  })
+})
+
+describe('constructor arguments', () => {
+  const { parseConstructorArgs } = require('../src/lib/args')
+  const inputs = [
+    { name: 'owner', type: 'address' },
+    { name: 'supply', type: 'uint256' },
+    { name: 'paused', type: 'bool' },
+    { name: 'ids', type: 'uint8[]' },
+    { name: 'name', type: 'string' },
+    { name: 'salt', type: 'bytes32' }
+  ]
+
+  it('parses typed values', () => {
+    const parsed = parseConstructorArgs(inputs, ['0x5B38Da6a701c568545dCfcB03FcB875f56beddC4', '1000', 'false', '[1, 2]', 'My token', '0x' + '00'.repeat(32)])
+    assert.deepStrictEqual(parsed.errors, {})
+    assert.deepStrictEqual(parsed.values, ['0x5B38Da6a701c568545dCfcB03FcB875f56beddC4', '1000', false, [1, 2], 'My token', '0x' + '00'.repeat(32)])
+  })
+
+  it('reports an error per invalid input', () => {
+    const parsed = parseConstructorArgs(inputs, ['0x123', '-1', 'yes', '[1,', '', '0x12'])
+    assert.deepStrictEqual(Object.keys(parsed.errors).map(Number), [0, 1, 2, 3, 5])
+  })
+})

@@ -1,0 +1,99 @@
+export type Severity = 'high' | 'medium' | 'low' | 'info'
+
+export type StepId = 'compile' | 'analysis' | 'slither' | 'ai' | 'flatten' | 'deploy' | 'verify'
+
+export type StepStatus = 'not-run' | 'running' | 'passed' | 'findings' | 'submitted' | 'failed' | 'skipped'
+
+export type FindingSource = 'compiler' | 'remix' | 'solhint' | 'slither' | 'ai'
+
+export type Origin = 'panel' | 'manual'
+
+export interface Position {
+  line: number // 0-based
+  column: number // 0-based
+}
+
+export interface Range {
+  start: Position
+  end: Position
+}
+
+/** One finding as reported by one tool. Native data is kept as-is. */
+export interface RawFinding {
+  source: FindingSource
+  severity: Severity
+  /** the tool's own rule id: Remix module key, Slither detector, Solhint rule id */
+  rule?: string
+  title: string
+  message: string
+  file?: string
+  range?: Range
+  /** the tool's own severity wording, e.g. "High · Medium confidence" or "warning" */
+  nativeSeverity?: string
+}
+
+/** A finding in the aggregated list: one or more raw findings describing the same issue. */
+export interface Finding {
+  id: string
+  severity: Severity
+  title: string
+  message: string
+  file?: string
+  range?: Range
+  sources: FindingSource[]
+  items: RawFinding[]
+  stale: boolean
+}
+
+export interface StepResult {
+  status: StepStatus
+  at: number
+  origin: Origin
+  /** keccak256 of the file content the result was produced from */
+  contentHash?: string
+  /** compiler version + settings the result was produced with */
+  settingsKey?: string
+  findings?: RawFinding[]
+  note?: string
+  data?: any
+}
+
+export interface FileCheckState {
+  file: string
+  currentHash?: string
+  steps: Partial<Record<StepId, StepResult>>
+  gateOverridden?: boolean
+}
+
+export interface DeployResult {
+  address: string
+  txHash?: string
+  chainId: string
+  network?: string
+  account?: string
+  contractName: string
+  args: any[]
+}
+
+export interface VerifyResult {
+  chainId: string
+  address: string
+  submitted: boolean
+}
+
+export type StepToggles = Record<StepId, boolean>
+
+export const STEP_ORDER: StepId[] = ['compile', 'analysis', 'slither', 'ai', 'flatten', 'deploy', 'verify']
+
+/** steps whose result depends on the file content and becomes out of date when it changes */
+export const CONTENT_STEPS: StepId[] = ['compile', 'analysis', 'slither', 'ai', 'flatten']
+
+export const DEFAULT_TOGGLES: StepToggles = {
+  compile: true,
+  analysis: true,
+  slither: true,
+  ai: false,
+  flatten: true,
+  deploy: true,
+  verify: true
+}

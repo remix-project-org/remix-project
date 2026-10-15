@@ -194,13 +194,34 @@ export async function deployContract(selectedContract: ContractData, args: strin
   }
 }
 
-async function createInstance(selectedContract: ContractData, args, deployMode: OZDeployMode, isVerifyChecked: boolean, plugin: DeployPlugin) {
+/**
+ * Deploys a compiled contract through the same path as the Deploy button and returns where it landed.
+ * Used by other plugins (Pre-deploy Checks). `args` are the constructor arguments as a list.
+ */
+export async function deployCompiledContract (plugin: DeployPlugin, filePath: string, contractName: string, args: any[], verify: boolean) {
+  const compiler: CompilerAbstract = await plugin.call('compilerArtefacts', 'getCompilerAbstract', filePath)
+  if (!compiler) throw new Error(`${filePath} is not compiled`)
+  const contract = compiler.getContract(contractName) ? getContractData(contractName, compiler) : null
+  if (!contract) throw new Error(`Contract ${contractName} not found in ${filePath}`)
+  if (contract.bytecodeObject.length === 0) throw new Error(`${contractName} has no bytecode: it may be abstract or an interface`)
+
+  const result = await createInstance(contract, args, { deployWithProxy: false, upgradeWithProxy: false }, verify, plugin, compiler)
+  const status = await plugin.call('blockchain', 'detectNetwork')
+  const txResult = result.txResult || {}
+  return {
+    address: result.address,
+    txHash: txResult.transactionHash || txResult.receipt?.transactionHash,
+    chainId: status?.id?.toString()
+  }
+}
+
+async function createInstance(selectedContract: ContractData, args: string | any[], deployMode: OZDeployMode, isVerifyChecked: boolean, plugin: DeployPlugin, compilation?: CompilerAbstract) {
   const contractMetadata = await plugin.call('compilerMetadata', 'deployMetadataOf', selectedContract.name, selectedContract.contract.file)
-  const compilerContracts = await plugin.call('compilerArtefacts', 'getLastCompilationResult')
+  const compilerContracts = compilation || await plugin.call('compilerArtefacts', 'getLastCompilationResult')
   const currentParams = !deployMode.deployWithProxy && !deployMode.upgradeWithProxy ? args : ''
   let overSize
   try {
-    overSize = await selectedContract.isOverSizeLimit(currentParams)
+    overSize = await selectedContract.isOverSizeLimit(currentParams as string)
   } catch (error) {
     // return statusCb(`creation of ${selectedContract.name} errored: ${error.message ? error.message : error}`)
   }
@@ -255,7 +276,7 @@ async function createInstance(selectedContract: ContractData, args, deployMode: 
   return result
 }
 
-async function deployOnBlockchain (selectedContract: ContractData, args: string, contractMetadata: any, compilerContracts: any, plugin: DeployPlugin) {
+async function deployOnBlockchain (selectedContract: ContractData, args: string | any[], contractMetadata: any, compilerContracts: any, plugin: DeployPlugin) {
   const networkStatus = await plugin.call('udappEnv', 'getNetwork')
   await trackMatomoEvent(plugin, { category: 'udapp', action: 'DeployContractTo', name: networkStatus.name || 'unknown', isClick: false })
   if (!contractMetadata || (contractMetadata && contractMetadata.autoDeployLib)) {
