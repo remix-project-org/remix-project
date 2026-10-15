@@ -233,6 +233,19 @@ export class PreDeployChecksPlugin extends ViewPlugin implements CheckHost {
     this.refreshSetup()
   }
 
+  async syncContent (file: string) {
+    let content: string
+    try {
+      content = await this.call('editor', 'getText', file)
+    } catch (e) { /* not open in the editor */ }
+    if (typeof content !== 'string') {
+      try {
+        content = await this.call('fileManager', 'readFile', file)
+      } catch (e) { /* not readable */ }
+    }
+    if (typeof content === 'string') this.store.setCurrentHash(file, contentHash(content))
+  }
+
   private async refreshHash (file: string) {
     if (!file || !file.endsWith('.sol')) return
     try {

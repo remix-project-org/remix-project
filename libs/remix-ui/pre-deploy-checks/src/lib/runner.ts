@@ -29,6 +29,8 @@ export interface CheckHost {
   /** compiles the file through the Solidity compiler; resolves once the compile step is recorded */
   compile: (file: string) => Promise<void>
   getCompilation: (file: string) => Compilation | undefined
+  /** updates the file's current content hash from the editor right away (the editor's event is debounced) */
+  syncContent: (file: string) => Promise<void>
   /**
    * deploys through Deploy & Run's own path. Not a plugin call: the deploy calls back into udappDeploy,
    * which the engine would queue behind the request still running, and wait forever
@@ -202,6 +204,7 @@ async function runVerify (host: CheckHost, file: string, state: FileCheckState, 
  */
 export async function runPipeline (host: CheckHost, opts: RunOptions): Promise<RunOutcome> {
   const { file, store } = { file: opts.file, store: host.store }
+  await host.syncContent(file)
   const settingsKey = await getSettingsKey(host)
   const env = await getEnvironment(host)
   let target: { contractName?: string, args: any[] } = { args: []}
@@ -238,6 +241,13 @@ export async function runPipeline (host: CheckHost, opts: RunOptions): Promise<R
       if (stepId === 'compile') {
         setRunning('compile')
         await host.compile(file)
+        // an auto-compile of an earlier version can land first: compile again so every step uses the current content
+        await host.syncContent(file)
+        const compiled = store.get(file)
+        if (compiled.steps.compile?.status !== 'failed' && compiled.steps.compile?.contentHash !== compiled.currentHash) {
+          setRunning('compile')
+          await host.compile(file)
+        }
         if (store.get(file).steps.compile?.status === 'failed') return { kind: 'compile-failed' }
         continue
       }
