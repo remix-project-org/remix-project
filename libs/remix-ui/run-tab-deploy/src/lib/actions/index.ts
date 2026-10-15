@@ -240,7 +240,8 @@ async function createInstance(selectedContract: ContractData, args, deployMode: 
         address: result.address,
         contractName: selectedContract.name,
         filePath: selectedContract.contract.file,
-        args: args
+        // the verifier ABI-encodes the arguments, so it needs them as a list, not the typed-in string
+        args: typeof args === 'string' ? (args.trim() ? execution.txFormat.parseFunctionParams(args) : []) : args
       }
 
       setTimeout(async () => {
