@@ -121,7 +121,7 @@ export class DeployContractHandler extends BaseToolHandler {
       // ignored, so deployments silently went out from the selected account.
       if (args.account) {
         try {
-          await plugin.call('udapp' as any, 'setAccount', args.account)
+          await plugin.call('udappEnv' as any, 'setSelectedAccount', args.account)
         } catch (e) {
           return this.createErrorResult(`Could not select account '${args.account}': ${(e as any)?.message || e}`)
         }
@@ -158,7 +158,8 @@ export class DeployContractHandler extends BaseToolHandler {
       const result: DeploymentResult = {
         transactionHash: receipt.hash,
         gasUsed: toNumber(receipt.gasUsed),
-        effectiveGasPrice: args.gasPrice || '20000000000',
+        // what the transaction actually paid; absent when the receipt doesn't say
+        effectiveGasPrice: (receipt.effectiveGasPrice ?? receipt.gasPrice)?.toString(),
         blockNumber: toNumber(receipt.blockNumber),
         logs: receipt.logs,
         contractAddress: receipt.contractAddress || txReturn.address,
