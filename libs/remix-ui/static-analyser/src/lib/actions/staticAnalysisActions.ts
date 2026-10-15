@@ -181,9 +181,14 @@ export async function run (lastCompilationResult, lastCompilationSource, current
                 const { file, provider } = await props.analysisModule.call('fileManager', 'getPathFromUrl', fileName)
                 if (file.startsWith('.deps') || (file.includes('.deps')) || (provider.type === 'localhost' && file.startsWith('localhost/node_modules'))) isLibrary = true
               }
-              const msg = message(item.title, item.description, item.more ?? '', fileName, locationString)
+              // keep Slither's own rating: impact (reported as `severity`) and confidence
+              const rating = [item.severity && `${item.severity} impact`, item.confidence && `${item.confidence} confidence`].filter(Boolean).join(' · ')
+              const msg = message(rating ? `${item.title} (${rating})` : item.title, item.description, item.more ?? '', fileName, locationString)
               const options = {
-                type: item.sourceMap && item.sourceMap.length > 0 ? item.sourceMap[0].type : '',
+                type: item.severity === 'High' ? 'error' : 'warning',
+                elementType: item.sourceMap && item.sourceMap.length > 0 ? item.sourceMap[0].type : '',
+                severity: item.severity,
+                confidence: item.confidence,
                 useSpan: true,
                 errFile: fileName,
                 fileName,
