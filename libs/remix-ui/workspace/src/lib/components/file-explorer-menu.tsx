@@ -541,6 +541,7 @@ export const FileExplorerMenu = (props: FileExplorerMenuProps) => {
                         data-id="fileExplorerCreateButton-createNewWorkspace"
                         key={index}
                         onClick={async () => {
+                          await global.plugin.call('templateexplorermodal', 'resetFileMode')
                           appContext.appStateDispatch({
                             type: appActionTypes.showGenericModal,
                             payload: true
