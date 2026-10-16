@@ -1,8 +1,7 @@
 import { CodeAnalysis } from '@remix-project/remix-analyzer'
 import { aiFindings, remixFindings, slitherFindings, solhintFindings, withoutDependencies } from './converters'
-import { blockingFindings, collectFindings } from './findings'
 import { CheckStore, compilerSettingsKey, needsRun, PlanContext } from './store'
-import { FileCheckState, STEP_ORDER, StepId, StepResult, StepToggles } from './types'
+import { CHECK_STEPS, CheckStepId, StepResult, StepToggles } from './types'
 
 /** Last compilation of a file, as received from `solidity.compilationFinished`. */
 export interface Compilation {
@@ -31,40 +30,21 @@ export interface CheckHost {
   getCompilation: (file: string) => Compilation | undefined
   /** updates the file's current content hash from the editor right away (the editor's event is debounced) */
   syncContent: (file: string) => Promise<void>
-  /**
-   * deploys through Deploy & Run's own path. Not a plugin call: the deploy calls back into udappDeploy,
-   * which the engine would queue behind the request still running, and wait forever
-   */
-  deployContract: (file: string, contractName: string, args: any[]) => Promise<{ address: string, txHash?: string, chainId?: string }>
-  /** asks the user to confirm a deployment on a live chain */
-  confirmDeploy: (details: { contractName: string, env: EnvironmentInfo, args: any[], value: string }) => Promise<boolean>
 }
-
-export type DeployTarget =
-  | { contractName: string, args: any[] }
-  | { error: 'no-contract' | 'invalid-args' }
 
 export interface RunOptions {
   file: string
   toggles: StepToggles
-  /** contract and constructor arguments to deploy; asked for once the file is compiled */
-  getDeployTarget: () => DeployTarget
   force?: boolean
-  /** continue past the gate ("Deploy anyway") */
-  overrideGate?: boolean
   isCancelled: () => boolean
-  onStep?: (step: StepId | null) => void
+  onStep?: (step: CheckStepId | null) => void
 }
 
+/** How a run ended. Whether the file may be deployed is not decided here: it follows from the open issues. */
 export type RunOutcome =
   | { kind: 'done' }
   | { kind: 'cancelled' }
   | { kind: 'compile-failed' }
-  | { kind: 'gate', high: number, notRun: string[] }
-  | { kind: 'no-contract' }
-  | { kind: 'invalid-args' }
-  | { kind: 'deploy-failed' }
-  | { kind: 'deploy-declined' }
   | { kind: 'error', message: string }
 
 const SECURITY_PROMPT_SUFFIX = 'Reply in a short manner: Does this code contain major security vulnerabilities leading to a scam or loss of funds?'
@@ -167,78 +147,26 @@ async function runFlatten (host: CheckHost, file: string, compilation: Compilati
   return result('passed', { data: { path: flattenedPath(file) } })
 }
 
-async function runDeploy (host: CheckHost, file: string, contractName: string, args: any[], env: EnvironmentInfo, deployKey: string, contentHash: string): Promise<StepResult | 'declined'> {
-  if (!env.isVM) {
-    const value = await host.call('udappDeploy', 'getValue').catch((): any => '0')
-    const confirmed = await host.confirmDeploy({ contractName, env, args, value: `${value?.toString() || '0'} wei` })
-    if (!confirmed) return 'declined'
-  }
-  try {
-    const deployed = await host.deployContract(file, contractName, args)
-    return result('passed', {
-      contentHash,
-      settingsKey: deployKey,
-      data: { contractName, address: deployed.address, txHash: deployed.txHash, chainId: deployed.chainId || env.chainId, network: env.network, account: env.account, args }
-    })
-  } catch (e) {
-    return result('failed', { contentHash, settingsKey: deployKey, note: errorMessage(e) })
-  }
-}
-
-async function runVerify (host: CheckHost, file: string, state: FileCheckState, env: EnvironmentInfo): Promise<StepResult> {
-  const deploy = state.steps.deploy?.data
-  if (!deploy?.address) return result('skipped', { note: 'Nothing deployed yet' })
-  if (env.isVM) return result('skipped', { note: 'Verification is not available on Remix VM', data: { address: deploy.address } })
-  const chainId = deploy.chainId || env.chainId
-  const supported = await host.call('contract-verification', 'isVerificationSupportedForChain', chainId).catch(() => false)
-  if (!supported) return result('skipped', { note: 'Verification is not available on this network', data: { address: deploy.address } })
-  try {
-    await host.call('contract-verification', 'verifyOnDeploy', { chainId, address: deploy.address, contractName: deploy.contractName, filePath: file, args: deploy.args })
-  } catch (e) {
-    return result('failed', { note: errorMessage(e), data: { address: deploy.address } })
-  }
-  return result('submitted', { note: 'Submitted: results in the terminal and in Contract Verification', data: { address: deploy.address, chainId } })
-}
-
 /**
- * Runs the enabled steps that are missing or out of date, in order (FR-11, FR-12).
- * Stops when compilation fails, at the gate, or when deploying fails.
+ * Runs the enabled check steps that are missing or out of date, in order (FR-11, FR-12).
+ * Stops when compilation fails. Never deploys: deploying stays in Deploy & Run.
  */
 export async function runPipeline (host: CheckHost, opts: RunOptions): Promise<RunOutcome> {
   const { file, store } = { file: opts.file, store: host.store }
   await host.syncContent(file)
   const settingsKey = await getSettingsKey(host)
-  const env = await getEnvironment(host)
-  let target: { contractName?: string, args: any[] } = { args: []}
-  const deployKey = () => `${env.chainId}|${target.contractName}|${JSON.stringify(target.args)}`
-  const ctx = (): PlanContext => ({ toggles: opts.toggles, settingsKey, deployKey: deployKey(), force: opts.force })
-  let deployRan = false
+  const ctx: PlanContext = { toggles: opts.toggles, settingsKey, force: opts.force }
 
-  const setRunning = (stepId: StepId) => {
+  const setRunning = (stepId: CheckStepId) => {
     const previous = store.get(file).steps[stepId]
     store.setStep(file, stepId, { ...(previous || { at: Date.now(), origin: 'panel' }), status: 'running', at: Date.now(), origin: 'panel' })
     opts.onStep && opts.onStep(stepId)
   }
 
   try {
-    for (const stepId of STEP_ORDER) {
+    for (const stepId of CHECK_STEPS) {
       if (opts.isCancelled()) return { kind: 'cancelled' }
-      const state = store.get(file)
-
-      if (stepId === 'deploy' && opts.toggles.deploy) {
-        const deployTarget = opts.getDeployTarget()
-        if ('error' in deployTarget) return { kind: deployTarget.error }
-        target = deployTarget
-        const high = blockingFindings(collectFindings(state)).length
-        const notRun = (['analysis', 'slither'] as StepId[]).filter((id) => opts.toggles[id] && ['skipped', 'failed'].includes(state.steps[id]?.status))
-        if (high > 0 && !opts.overrideGate && needsRun(state, 'deploy', ctx())) {
-          return { kind: 'gate', high, notRun }
-        }
-        if (high > 0 && opts.overrideGate) store.patch(file, { gateOverridden: true })
-        if (high === 0) store.patch(file, { gateOverridden: false })
-      }
-
-      if (!needsRun(state, stepId, ctx(), deployRan)) continue
+      if (!needsRun(store.get(file), stepId, ctx)) continue
 
       if (stepId === 'compile') {
         setRunning('compile')
@@ -256,34 +184,19 @@ export async function runPipeline (host: CheckHost, opts: RunOptions): Promise<R
 
       const compiled = store.get(file).steps.compile
       const compilation = host.getCompilation(file)
-      const hash = compiled?.contentHash
       setRunning(stepId)
-      let stepResult: StepResult | 'declined'
+      let stepResult: StepResult
       try {
         switch (stepId) {
         case 'analysis': stepResult = await runAnalysis(host, file, compilation); break
         case 'slither': stepResult = await runSlither(host, file); break
         case 'ai': stepResult = await runAiReview(host, file); break
         case 'flatten': stepResult = await runFlatten(host, file, compilation); break
-        case 'deploy': stepResult = await runDeploy(host, file, target.contractName, target.args, env, deployKey(), state.currentHash); break
-        case 'verify': stepResult = await runVerify(host, file, store.get(file), env); break
         }
       } catch (e) {
         stepResult = result('failed', { note: errorMessage(e) })
       }
-
-      if (stepResult === 'declined') {
-        store.setStep(file, 'deploy', state.steps.deploy || result('not-run'))
-        return { kind: 'deploy-declined' }
-      }
-      if (stepId !== 'deploy' && stepId !== 'verify') {
-        stepResult = { ...stepResult, contentHash: hash, settingsKey: compiled?.settingsKey }
-      }
-      store.setStep(file, stepId, stepResult)
-      if (stepId === 'deploy') {
-        if (stepResult.status === 'failed') return { kind: 'deploy-failed' }
-        deployRan = true
-      }
+      store.setStep(file, stepId, { ...stepResult, contentHash: compiled?.contentHash, settingsKey: compiled?.settingsKey })
     }
     return { kind: 'done' }
   } finally {

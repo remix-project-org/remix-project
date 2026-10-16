@@ -3,18 +3,17 @@ import { ViewPlugin } from '@remixproject/engine-web'
 import isElectron from 'is-electron'
 import { PluginViewWrapper } from '@remix-ui/helper'
 import {
-  PreDeployChecksUI, PreDeployChecksViewState, CheckStore, CheckHost, Compilation, EnvironmentInfo, FileCheckState, Finding, RunOutcome,
-  Range, StepId, StepToggles, DEFAULT_TOGGLES, collectFindings, contentHash, compilerMessages, compilerSettingsKey, withoutDependencies,
-  runPipeline, DeployTarget, getEnvironment, getConstructorInputs, parseConstructorArgs, buildReport, reportFileName, ContractOption
+  PreDeployChecksUI, PreDeployChecksViewState, CheckStore, CheckHost, Compilation, EnvironmentInfo, FileCheckState, RunOutcome,
+  Range, CheckStepId, StepToggles, DEFAULT_TOGGLES, collectFindings, contentHash, compilerMessages, compilerSettingsKey, withoutDependencies,
+  runPipeline, getEnvironment, getConstructorInputs, parseConstructorArgs, buildReport, reportFileName, ContractOption
 } from '@remix-ui/pre-deploy-checks'
-import { deployCompiledContract } from '@remix-ui/run-tab-deploy'
 import type { DeployPlugin } from '../udapp/udappDeploy'
 import * as packageJson from '../../../../../package.json'
 
 const profile = {
   name: 'preDeployChecks',
   displayName: 'Pre-deploy Checks',
-  description: 'Compile, analyze, flatten, deploy and verify the current Solidity file in one run.',
+  description: 'Compile, analyze and flatten the current Solidity file in one run before deploying it.',
   methods: ['open', 'run', 'getState'],
   events: ['stateChanged'],
   icon: 'assets/img/preDeployChecks.svg',
@@ -51,7 +50,7 @@ export class PreDeployChecksPlugin extends ViewPlugin implements CheckHost {
   private currentFile: string | null = null
   private pendingCompile: { file: string, done: () => void } | null = null
   private running: { file: string, cancelled: boolean } | null = null
-  private currentStep: StepId | null = null
+  private currentStep: CheckStepId | null = null
   private outcomes = new Map<string, RunOutcome>()
   private env: EnvironmentInfo | null = null
   private compiler: { version?: string, optimize?: boolean, runs?: number, evmVersion?: string } | null = null
@@ -149,36 +148,6 @@ export class PreDeployChecksPlugin extends ViewPlugin implements CheckHost {
 
   getCompilation (file: string) {
     return this.compilations.get(file)
-  }
-
-  deployContract (file: string, contractName: string, args: any[]) {
-    // verification is the panel's own step, so Deploy & Run must not verify too
-    return deployCompiledContract(this.udappDeploy, file, contractName, args, false)
-  }
-
-  confirmDeploy ({ contractName, env, args, value }: { contractName: string, env: EnvironmentInfo, args: any[], value: string }): Promise<boolean> {
-    return new Promise((resolve) => {
-      this.call('notification', 'modal', {
-        id: 'preDeployChecksConfirmDeploy',
-        title: `Deploy ${contractName}?`,
-        message: (
-          <div data-id="preDeployChecksConfirmDeploy">
-            <p>This deploys a contract to <b>{env.network || 'the selected network'}</b>{env.chainId ? ` (chain id ${env.chainId})` : ''}.</p>
-            <ul className="ps-3 mb-0">
-              <li>Contract: {contractName}</li>
-              <li>Account: <span className="text-break">{env.account || 'unknown'}</span></li>
-              <li>Value: {value}</li>
-              <li>Constructor arguments: {args.length ? <span className="text-break">{JSON.stringify(args)}</span> : 'none'}</li>
-            </ul>
-          </div>
-        ),
-        okLabel: 'Deploy',
-        cancelLabel: 'Cancel',
-        okFn: () => resolve(true),
-        cancelFn: () => resolve(false),
-        hideFn: () => resolve(false)
-      })
-    })
   }
 
   // ---------------------------------------------------------------- events
@@ -305,7 +274,7 @@ export class PreDeployChecksPlugin extends ViewPlugin implements CheckHost {
     this.renderComponent()
   }
 
-  setToggle (stepId: StepId, enabled: boolean) {
+  setToggle (stepId: CheckStepId, enabled: boolean) {
     if (stepId === 'compile') return
     this.toggles = { ...this.toggles, [stepId]: enabled }
     try {
@@ -316,7 +285,7 @@ export class PreDeployChecksPlugin extends ViewPlugin implements CheckHost {
 
   // ---------------------------------------------------------------- running
 
-  async startRun (file: string, opts: { force?: boolean, overrideGate?: boolean } = {}) {
+  async startRun (file: string, opts: { force?: boolean } = {}) {
     if (this.running) return
     this.running = { file, cancelled: false }
     this.outcomes.delete(file)
@@ -327,8 +296,6 @@ export class PreDeployChecksPlugin extends ViewPlugin implements CheckHost {
         file,
         toggles: this.toggles,
         force: opts.force,
-        overrideGate: opts.overrideGate,
-        getDeployTarget: () => this.deployTarget(file),
         isCancelled: () => this.running?.cancelled,
         onStep: (step) => {
           this.currentStep = step
@@ -346,26 +313,11 @@ export class PreDeployChecksPlugin extends ViewPlugin implements CheckHost {
     this.renderComponent()
   }
 
-  /** The contract and constructor arguments to deploy, known once the file is compiled. */
-  private deployTarget (file: string): DeployTarget {
-    this.ensureContractSelection(file)
-    const selection = this.selections.get(file)
-    const contract = this.contractsOf(file).find((c) => c.name === selection?.contractName)
-    if (!contract) return { error: 'no-contract' }
-    const parsed = parseConstructorArgs(contract.inputs, selection.rawArgs)
-    if (Object.keys(parsed.errors).length) return { error: 'invalid-args' }
-    return { contractName: contract.name, args: parsed.values }
-  }
-
   cancelRun () {
     if (this.running) {
       this.running.cancelled = true
       this.renderComponent()
     }
-  }
-
-  deployAnyway () {
-    if (this.currentFile) this.startRun(this.currentFile, { overrideGate: true })
   }
 
   // ---------------------------------------------------------------- findings and report

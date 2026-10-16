@@ -4,6 +4,7 @@ import { remixSeverity, slitherSeverity, solhintSeverity, canonicalRule } from '
 import { CheckStore, contentHash, isStale, needsRun, deployedFromOlderVersion, PlanContext } from '../src/lib/store'
 import { offsetToPosition, remixFindings, slitherFindings, solhintFindings, aiFindings, compilerMessages, withoutDependencies } from '../src/lib/converters'
 import { buildReport, reportFileName } from '../src/lib/report'
+import { CheckHost, runPipeline } from '../src/lib/runner'
 import { DEFAULT_TOGGLES, FileCheckState, RawFinding } from '../src/lib/types'
 
 const FILE = 'contracts/Wallet.sol'
@@ -147,7 +148,7 @@ describe('aggregated findings', () => {
 })
 
 describe('store and planning', () => {
-  const ctx: PlanContext = { toggles: { ...DEFAULT_TOGGLES }, settingsKey: 'v1', deployKey: '1|A|[]' }
+  const ctx: PlanContext = { toggles: { ...DEFAULT_TOGGLES }, settingsKey: 'v1' }
 
   it('hashes content', () => {
     assert.strictEqual(contentHash('a'), contentHash('a'))
@@ -186,12 +187,55 @@ describe('store and planning', () => {
     assert.strictEqual(needsRun(state, 'slither', ctx), true) // skipped last time
     assert.strictEqual(needsRun(state, 'ai', ctx), false) // off by default
     assert.strictEqual(needsRun(state, 'flatten', ctx), true) // other compiler settings
-    assert.strictEqual(needsRun(state, 'deploy', ctx), false)
-    assert.strictEqual(needsRun(state, 'deploy', { ...ctx, deployKey: '11155111|A|[]' }), true)
-    assert.strictEqual(needsRun(state, 'verify', ctx), false)
-    assert.strictEqual(needsRun(state, 'verify', ctx, true), true)
-    assert.strictEqual(needsRun(state, 'deploy', { ...ctx, force: true }), true)
+    assert.strictEqual(needsRun(state, 'compile', { ...ctx, force: true }), true)
     assert.strictEqual(needsRun(state, 'compile', { ...ctx, toggles: { ...ctx.toggles, compile: false } }), false)
+  })
+})
+
+describe('runner', () => {
+  const compilation = {
+    file: FILE,
+    source: { sources: { [FILE]: { content: 'contract A {}' } }, target: FILE },
+    data: { sources: { [FILE]: { id: 0 } }, contracts: {} },
+    input: '{}',
+    version: '0.8.26'
+  }
+
+  function fakeHost (compileStatus: 'passed' | 'failed') {
+    const calls: string[] = []
+    const store = new CheckStore()
+    const host: CheckHost = {
+      store,
+      isDesktop: false,
+      call: async (plugin, method) => {
+        calls.push(`${plugin}.${method}`)
+        if (method === 'getCompilerState') return { currentVersion: '0.8.26' }
+        if (method === 'lint') return []
+        if (method === 'flattenContract') return 'flat'
+        return null
+      },
+      compile: async (file) => { store.setStep(file, 'compile', { status: compileStatus, at: 1, origin: 'panel', contentHash: 'h1', settingsKey: '0.8.26|no-opt|default' }) },
+      getCompilation: () => compilation as any,
+      syncContent: async (file) => store.setCurrentHash(file, 'h1')
+    }
+    return { host, calls, store }
+  }
+
+  it('runs the checks only and never deploys', async () => {
+    const { host, calls, store } = fakeHost('passed')
+    const outcome = await runPipeline(host, { file: FILE, toggles: { ...DEFAULT_TOGGLES }, isCancelled: () => false })
+    assert.deepStrictEqual(outcome, { kind: 'done' })
+    assert.deepStrictEqual(Object.keys(store.get(FILE).steps), ['compile', 'analysis', 'slither', 'flatten'])
+    assert.strictEqual(store.get(FILE).steps.slither.status, 'skipped') // no remixd
+    assert.strictEqual(store.get(FILE).steps.flatten.contentHash, 'h1')
+    assert.ok(!calls.some((c) => c.startsWith('udapp') || c.startsWith('contract-verification')))
+  })
+
+  it('stops when compilation fails', async () => {
+    const { host, store } = fakeHost('failed')
+    const outcome = await runPipeline(host, { file: FILE, toggles: { ...DEFAULT_TOGGLES }, isCancelled: () => false })
+    assert.deepStrictEqual(outcome, { kind: 'compile-failed' })
+    assert.deepStrictEqual(Object.keys(store.get(FILE).steps), ['compile'])
   })
 })
 

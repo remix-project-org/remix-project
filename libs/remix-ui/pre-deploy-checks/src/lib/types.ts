@@ -81,19 +81,22 @@ export interface VerifyResult {
   submitted: boolean
 }
 
-export type StepToggles = Record<StepId, boolean>
+/** the steps a run performs; deploy and verify are recorded from Deploy & Run, never run by the panel */
+export type CheckStepId = 'compile' | 'analysis' | 'slither' | 'ai' | 'flatten'
+
+export type StepToggles = Record<CheckStepId, boolean>
 
 export const STEP_ORDER: StepId[] = ['compile', 'analysis', 'slither', 'ai', 'flatten', 'deploy', 'verify']
 
-/** steps whose result depends on the file content and becomes out of date when it changes */
-export const CONTENT_STEPS: StepId[] = ['compile', 'analysis', 'slither', 'ai', 'flatten']
+/** steps a run performs, in order; their result depends on the file content and becomes out of date when it changes */
+export const CHECK_STEPS: CheckStepId[] = ['compile', 'analysis', 'slither', 'ai', 'flatten']
+
+export const CONTENT_STEPS: StepId[] = CHECK_STEPS
 
 export const DEFAULT_TOGGLES: StepToggles = {
   compile: true,
   analysis: true,
   slither: true,
   ai: false,
-  flatten: true,
-  deploy: true,
-  verify: true
+  flatten: true
 }

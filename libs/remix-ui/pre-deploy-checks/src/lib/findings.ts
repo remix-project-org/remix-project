@@ -75,7 +75,7 @@ export function collectFindings (state: FileCheckState): Finding[] {
   return aggregateFindings(raw)
 }
 
-/** Up-to-date high-severity findings: these stop a run before Deploy. */
+/** Up-to-date high-severity findings: while any is open, the panel asks before going to Deploy & Run. */
 export function blockingFindings (findings: Finding[]): Finding[] {
   return findings.filter((f) => !f.stale && f.severity === 'high')
 }

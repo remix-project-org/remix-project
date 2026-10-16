@@ -1,5 +1,5 @@
 import { keccak256, toUtf8Bytes } from 'ethers'
-import { CONTENT_STEPS, FileCheckState, STEP_ORDER, StepId, StepResult, StepToggles } from './types'
+import { CheckStepId, CONTENT_STEPS, FileCheckState, STEP_ORDER, StepId, StepResult, StepToggles } from './types'
 
 export function contentHash (content: string): string {
   return keccak256(toUtf8Bytes(content ?? ''))
@@ -32,8 +32,6 @@ export interface PlanContext {
   toggles: StepToggles
   /** current compiler settings key */
   settingsKey: string
-  /** `${chainId}|${contractName}|${args}`: a deploy is redone when any of them changes */
-  deployKey: string
   force?: boolean
 }
 
@@ -41,22 +39,13 @@ function hasUsableResult (step?: StepResult): boolean {
   return !!step && (step.status === 'passed' || step.status === 'findings' || step.status === 'submitted')
 }
 
-/** Whether a step must run, given its last result (FR-12, FR-13). */
-export function needsRun (state: FileCheckState, stepId: StepId, ctx: PlanContext, deployWillRun = false): boolean {
+/** Whether a check step must run, given its last result (FR-12, FR-13). */
+export function needsRun (state: FileCheckState, stepId: CheckStepId, ctx: PlanContext): boolean {
   if (stepId !== 'compile' && !ctx.toggles[stepId]) return false
   if (ctx.force) return true
   const step = state.steps[stepId]
   if (!hasUsableResult(step)) return true
-  if (CONTENT_STEPS.includes(stepId)) {
-    return step.contentHash !== state.currentHash || step.settingsKey !== ctx.settingsKey
-  }
-  if (stepId === 'deploy') {
-    return step.contentHash !== state.currentHash || step.settingsKey !== ctx.deployKey
-  }
-  if (stepId === 'verify') {
-    return deployWillRun || step.data?.address !== state.steps.deploy?.data?.address
-  }
-  return true
+  return step.contentHash !== state.currentHash || step.settingsKey !== ctx.settingsKey
 }
 
 export type StateListener = (file: string, state: FileCheckState) => void

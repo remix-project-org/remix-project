@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react'
 import { FormattedMessage, useIntl } from 'react-intl'
 import { blockingFindings } from '../findings'
 import { isStale } from '../store'
-import { STEP_ORDER, StepId } from '../types'
+import { CHECK_STEPS, CheckStepId } from '../types'
 import { FindingsList } from './findings-list'
 import { StepRow } from './step-row'
 import { PreDeployChecksActions, PreDeployChecksViewState } from './types'
@@ -34,35 +34,8 @@ function OutcomeBanner ({ view, plugin }: PreDeployChecksUIProps) {
   const { outcome, file } = view
   if (!outcome || view.running) return null
   switch (outcome.kind) {
-  case 'gate':
-    return (
-      <div className="alert alert-danger py-2 px-2 small" role="alert" data-id="preDeployChecks-gate">
-        <div className="mb-2">
-          <FormattedMessage id="preDeployChecks.gate" values={{ count: outcome.high }} />
-        </div>
-        {outcome.notRun.length > 0 && (
-          <div className="mb-2"><FormattedMessage id="preDeployChecks.notRun" values={{ steps: outcome.notRun.join(', ') }} /></div>
-        )}
-        <div className="d-flex gap-2">
-          <button className="btn btn-sm btn-secondary" data-id="preDeployChecks-rerun" onClick={() => plugin.startRun(file)}>
-            <FormattedMessage id="preDeployChecks.rerun" />
-          </button>
-          <button className="btn btn-sm btn-danger" data-id="preDeployChecks-deployAnyway" onClick={() => plugin.deployAnyway()}>
-            <FormattedMessage id="preDeployChecks.deployAnyway" />
-          </button>
-        </div>
-      </div>
-    )
   case 'compile-failed':
     return <div className="alert alert-danger py-2 px-2 small" data-id="preDeployChecks-outcome-compile-failed"><FormattedMessage id="preDeployChecks.outcome.compileFailed" /></div>
-  case 'no-contract':
-    return <div className="alert alert-warning py-2 px-2 small" data-id="preDeployChecks-outcome-no-contract"><FormattedMessage id="preDeployChecks.outcome.noContract" /></div>
-  case 'invalid-args':
-    return <div className="alert alert-warning py-2 px-2 small" data-id="preDeployChecks-outcome-invalid-args"><FormattedMessage id="preDeployChecks.outcome.invalidArgs" /></div>
-  case 'deploy-failed':
-    return <div className="alert alert-danger py-2 px-2 small" data-id="preDeployChecks-outcome-deploy-failed"><FormattedMessage id="preDeployChecks.outcome.deployFailed" /></div>
-  case 'deploy-declined':
-    return <div className="alert alert-secondary py-2 px-2 small" data-id="preDeployChecks-outcome-deploy-declined"><FormattedMessage id="preDeployChecks.outcome.deployDeclined" /></div>
   case 'cancelled':
     return <div className="alert alert-secondary py-2 px-2 small" data-id="preDeployChecks-outcome-cancelled"><FormattedMessage id="preDeployChecks.outcome.cancelled" /></div>
   case 'error':
@@ -156,24 +129,21 @@ export function PreDeployChecksUI ({ plugin, view }: PreDeployChecksUIProps) {
     )
   }
 
-  const upToDate = STEP_ORDER.filter((id) => {
+  const upToDate = CHECK_STEPS.filter((id) => {
     const step = state.steps[id]
-    return toggles[id] && step && ['passed', 'findings', 'submitted'].includes(step.status) && !isStale(state, id)
+    return toggles[id] && step && ['passed', 'findings'].includes(step.status) && !isStale(state, id)
   }).length
-  const enabledCount = STEP_ORDER.filter((id) => toggles[id]).length
+  const enabledCount = CHECK_STEPS.filter((id) => toggles[id]).length
   const high = blockingFindings(findings).length
   const deploy = state.steps.deploy
 
-  const stepAction = (stepId: StepId): { label: string, onClick: () => void } | undefined => {
+  const stepAction = (stepId: CheckStepId): { label: string, onClick: () => void } | undefined => {
     const step = state.steps[stepId]
     if (stepId === 'slither' && step?.status === 'skipped' && step.data?.reason === 'unavailable') {
       return { label: intl.formatMessage({ id: 'preDeployChecks.action.connectRemixd' }), onClick: () => plugin.openPlugin('filePanel') }
     }
     if (stepId === 'ai' && step?.status === 'skipped' && step.data?.reason === 'sign-in') {
       return { label: intl.formatMessage({ id: 'preDeployChecks.action.openRemixAI' }), onClick: () => plugin.openPlugin('remixaiassistant') }
-    }
-    if (stepId === 'verify' && step?.status === 'submitted') {
-      return { label: intl.formatMessage({ id: 'preDeployChecks.action.openVerification' }), onClick: () => plugin.openPlugin('contract-verification') }
     }
     return undefined
   }
@@ -193,7 +163,7 @@ export function PreDeployChecksUI ({ plugin, view }: PreDeployChecksUIProps) {
       <SetupSection view={view} plugin={plugin} />
 
       <ul className="list-group mb-3" data-id="preDeployChecks-steps">
-        {STEP_ORDER.map((stepId) => (
+        {CHECK_STEPS.map((stepId) => (
           <StepRow
             key={stepId}
             stepId={stepId}

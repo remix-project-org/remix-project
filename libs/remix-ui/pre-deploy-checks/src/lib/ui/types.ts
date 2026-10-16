@@ -1,6 +1,6 @@
 import type { AbiInput } from '../args'
 import type { EnvironmentInfo, RunOutcome } from '../runner'
-import type { FileCheckState, Finding, Range, StepId, StepToggles } from '../types'
+import type { CheckStepId, FileCheckState, Finding, Range, StepToggles } from '../types'
 
 export interface ContractOption {
   name: string
@@ -15,7 +15,7 @@ export interface PreDeployChecksViewState {
   toggles: StepToggles
   running: boolean
   cancelling: boolean
-  currentStep: StepId | null
+  currentStep: CheckStepId | null
   outcome: RunOutcome | null
   env: EnvironmentInfo | null
   compiler: { version?: string, optimize?: boolean, runs?: number, evmVersion?: string } | null
@@ -28,10 +28,9 @@ export interface PreDeployChecksViewState {
 
 /** Actions the panel can ask the plugin to perform. */
 export interface PreDeployChecksActions {
-  startRun: (file: string, opts?: { force?: boolean, overrideGate?: boolean }) => Promise<void>
+  startRun: (file: string, opts?: { force?: boolean }) => Promise<void>
   cancelRun: () => void
-  deployAnyway: () => void
-  setToggle: (stepId: StepId, enabled: boolean) => void
+  setToggle: (stepId: CheckStepId, enabled: boolean) => void
   selectContract: (name: string) => void
   setArg: (index: number, value: string) => void
   openFinding: (finding: { file?: string, range?: Range }) => Promise<void>
