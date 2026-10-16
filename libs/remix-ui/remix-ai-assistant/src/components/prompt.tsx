@@ -198,6 +198,35 @@ export const PromptArea: React.FC<PromptAreaProps> = ({
   const promptAreaRef = useRef<HTMLDivElement>(null)
   const shortcutsRef = useRef<HTMLDivElement>(null)
   const [activeShortcut, setActiveShortcut] = useState<string | null>(null)
+  // Shortcut pills scroll sideways when the panel is narrow; the faded edges show there is more
+  const pillRowRef = useRef<HTMLDivElement>(null)
+  const [pillOverflow, setPillOverflow] = useState({ start: false, end: false })
+  const updatePillOverflow = useCallback(() => {
+    const row = pillRowRef.current
+    if (!row) return
+    const start = row.scrollLeft > 1
+    const end = row.scrollLeft + row.clientWidth < row.scrollWidth - 1
+    setPillOverflow(prev => prev.start === start && prev.end === end ? prev : { start, end })
+  }, [])
+
+  useEffect(() => {
+    const row = pillRowRef.current
+    if (!row) return
+    updatePillOverflow()
+    const resizeObserver = new ResizeObserver(updatePillOverflow)
+    resizeObserver.observe(row)
+    // A vertical mouse wheel scrolls the row sideways
+    const handleWheel = (e: WheelEvent) => {
+      if (row.scrollWidth <= row.clientWidth || Math.abs(e.deltaY) <= Math.abs(e.deltaX)) return
+      e.preventDefault()
+      row.scrollLeft += e.deltaY
+    }
+    row.addEventListener('wheel', handleWheel, { passive: false })
+    return () => {
+      resizeObserver.disconnect()
+      row.removeEventListener('wheel', handleWheel)
+    }
+  }, [updatePillOverflow])
 
   // Auto-size the textarea to its content. Skipped while it isn't rendered
   // (e.g. mounted inside a still-hidden panel on a mode switch): a hidden
@@ -475,7 +504,13 @@ export const PromptArea: React.FC<PromptAreaProps> = ({
   return (
     <>
       <div ref={shortcutsRef} className="position-relative mx-2 mb-1">
-        <div className="d-flex flex-row align-items-center" style={{ gap: '4px' }}>
+        <div
+          ref={pillRowRef}
+          onScroll={updatePillOverflow}
+          className={`ai-shortcut-pills d-flex flex-row align-items-center ${pillOverflow.start ? 'ai-shortcut-pills-fade-start' : ''} ${pillOverflow.end ? 'ai-shortcut-pills-fade-end' : ''}`}
+          style={{ gap: '4px' }}
+          data-id="shortcut-pills"
+        >
           {[...SHORTCUT_CATEGORIES, ...dynamicCategoryPills].map(cat => (
             <button
               key={cat.id}
@@ -497,7 +532,7 @@ export const PromptArea: React.FC<PromptAreaProps> = ({
                   return next
                 })
               }}
-              className="btn btn-sm rounded-pill"
+              className="btn btn-sm rounded-pill flex-shrink-0 text-nowrap"
               style={{
                 fontSize: '0.72rem',
                 padding: '2px 10px',

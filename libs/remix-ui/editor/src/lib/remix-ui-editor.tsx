@@ -145,6 +145,7 @@ export type DiffSession = {
   originalContent: string
   modifiedContent: string
   filePath: string
+  source?: string
   createdAt: number
 }
 
@@ -179,6 +180,8 @@ export interface EditorUIProps {
   currentFile: string
   currentDiffFile: string
   isDiff: boolean
+  /** 'ai': an edit RemixAI proposes (Accept / Reject); 'ai-applied': one it already made (view only) */
+  diffSource?: 'ai' | 'ai-applied' | null
   splitViewFile: string
   splitViewContent: string
   events: {
@@ -544,10 +547,15 @@ export const EditorUI = (props: EditorUIProps) => {
     const file = editorModelsState[props.currentFile]
     if (!file?.model) return
 
-    props.isDiff && diffEditorRef && diffEditorRef.current && diffEditorRef.current.setModel({
-      original: editorModelsState[props.currentDiffFile].model,
-      modified: file.model
-    })
+    if (props.isDiff && diffEditorRef && diffEditorRef.current) {
+      const original = editorModelsState[props.currentDiffFile].model
+      const shown = diffEditorRef.current.getModel()
+      if (shown?.original !== original || shown?.modified !== file.model) {
+        // Clear the previous diff first: switching straight to new texts can apply its stale results to them (Monaco 0.44: "Illegal value for lineNumber")
+        if (shown) diffEditorRef.current.setModel(null)
+        diffEditorRef.current.setModel({ original, modified: file.model })
+      }
+    }
 
     props.isDiff && diffEditorRef.current.getModifiedEditor().updateOptions({ readOnly: editorModelsState[props.currentFile].readOnly })
 
@@ -2258,25 +2266,65 @@ For Inline mode, preserve the existing /frontend overwrite confirmation flow.`
     return decoratorList
   }
 
+  // Accept / discard the active diff, then refresh the remaining diff sessions
+  const closeActiveDiff = async (action: () => Promise<boolean>) => {
+    const result = await action()
+    if (result) {
+      const sessions = await props.editorAPI.getDiffSessions()
+      setDiffSessions(sessions)
+      if (sessions.length === 0) {
+        setActiveDiffId(null)
+      }
+    }
+  }
+  const acceptActiveDiff = () => closeActiveDiff(props.editorAPI.acceptDiff)
+  const discardActiveDiff = () => closeActiveDiff(props.editorAPI.discardDiff)
+  const openActiveDiffFile = () => {
+    const session = diffSessions.find((session) => session.id === activeDiffId) || diffSessions[0]
+    if (session) props.plugin.call('fileManager', 'open', session.filePath)
+  }
+
   return (
     <div className="w-100 h-100 d-flex flex-column-reverse position-relative">
       {props.isDiff && (
-        <>
-          {/* Action Buttons */}
+        props.diffSource === 'ai-applied' ? (
+          <div className="remix-ai-diff-actions d-flex justify-content-end align-items-center gap-2 p-2 border-top" data-id="ai-diff-actions">
+            <button
+              className="remix-ai-diff-btn remix-ai-diff-btn-secondary"
+              onClick={openActiveDiffFile}
+              title="Open the file in the editor"
+              disabled={diffSessions.length === 0}
+              data-id="ai-diff-open-file"
+            >
+              <i className="fas fa-code me-1"></i>Open file
+            </button>
+          </div>
+        ) : props.diffSource === 'ai' ? (
+          <div className="remix-ai-diff-actions d-flex justify-content-end align-items-center gap-2 p-2 border-top" data-id="ai-diff-actions">
+            <button
+              className="remix-ai-diff-btn remix-ai-diff-btn-secondary"
+              onClick={discardActiveDiff}
+              title="Reject the changes and close the diff view"
+              disabled={diffSessions.length === 0}
+              data-id="ai-diff-reject"
+            >
+              Reject
+            </button>
+            <button
+              className="remix-ai-diff-btn remix-ai-diff-btn-accept"
+              onClick={acceptActiveDiff}
+              title="Accept the changes and close the diff view"
+              disabled={diffSessions.length === 0}
+              data-id="ai-diff-accept"
+            >
+              Accept
+            </button>
+          </div>
+        ) : (
           <div className="d-flex justify-content-center gap-2 p-2 border-bottom">
             <button
               className="btn btn-success btn-sm"
-              onClick={async () => {
-                const result = await props.editorAPI.acceptDiff()
-                if (result) {
-                  // Refresh diff sessions after accepting
-                  const sessions = await props.editorAPI.getDiffSessions()
-                  setDiffSessions(sessions)
-                  if (sessions.length === 0) {
-                    setActiveDiffId(null)
-                  }
-                }
-              }}
+              onClick={acceptActiveDiff}
               title="Accept all changes and close diff view"
               disabled={diffSessions.length === 0}
             >
@@ -2284,24 +2332,14 @@ For Inline mode, preserve the existing /frontend overwrite confirmation flow.`
             </button>
             <button
               className="btn btn-secondary btn-sm"
-              onClick={async () => {
-                const result = await props.editorAPI.discardDiff()
-                if (result) {
-                  // Refresh diff sessions after discarding
-                  const sessions = await props.editorAPI.getDiffSessions()
-                  setDiffSessions(sessions)
-                  if (sessions.length === 0) {
-                    setActiveDiffId(null)
-                  }
-                }
-              }}
+              onClick={discardActiveDiff}
               title="Discard all changes and close diff view"
               disabled={diffSessions.length === 0}
             >
               Discard Changes
             </button>
           </div>
-        </>
+        )
       )}
       <DiffEditor
         originalLanguage={'remix-solidity'}
@@ -2396,15 +2434,17 @@ For Inline mode, preserve the existing /frontend overwrite confirmation flow.`
           className={props.isDiff ? "d-none" : "d-block"}
         />
       )}
-      {editorModelsState[props.currentFile]?.readOnly && (
-        <span className="ps-4 h6 mb-0 w-100 alert-info position-absolute bottom-0 end-0">
-          <i className="fas fa-lock-alt p-2"></i>
-          <FormattedMessage
-            id="editor.text"
-            values={{
-              b: (chunks) => <b>{chunks}</b>,
-            }}
-          />
+      {editorModelsState[props.currentFile]?.readOnly && !props.isDiff && (
+        <span className="remix-readonly-banner d-flex align-items-center gap-2 px-3 py-1 w-100 position-absolute bottom-0 end-0" data-id="editor-readonly-banner">
+          <i className="fas fa-lock-alt"></i>
+          <span>
+            <FormattedMessage
+              id="editor.text"
+              values={{
+                b: (chunks) => <b>{chunks}</b>,
+              }}
+            />
+          </span>
         </span>
       )}
 

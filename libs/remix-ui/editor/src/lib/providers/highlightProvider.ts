@@ -13,13 +13,16 @@ export class RemixHighLightProvider implements monaco.languages.DocumentHighligh
 
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   async provideDocumentHighlights(model: monaco.editor.ITextModel, position: monaco.Position, token: monaco.CancellationToken): Promise<monaco.languages.DocumentHighlight[]> {
+    // Only the code editor's own files: other editors (the RemixAI changes panel) use in-memory models
+    if (model.uri.scheme === 'inmemory') return []
     const cursorPosition = this.props.editorAPI.getCursorPosition()
     const nodes = await this.props.plugin.call('codeParser', 'referrencesAtPosition', cursorPosition)
     const highlights: monaco.languages.DocumentHighlight[] = []
     if (nodes && nodes.length) {
       const compilationResult = await this.props.plugin.call('codeParser', 'getLastCompilationResult')
-      const file = await this.props.plugin.call('fileManager', 'file')
-      if (compilationResult && compilationResult.data && compilationResult.data.sources[file]) {
+      // No file open (a diff can be showing): nothing to highlight
+      const file = await this.props.plugin.call('fileManager', 'file').catch(() => null)
+      if (file && compilationResult && compilationResult.data && compilationResult.data.sources[file]) {
         for (const node of nodes) {
           const position = sourceMappingDecoder.decode(node.src)
           const fileInNode = compilationResult.getSourceName(position.file)

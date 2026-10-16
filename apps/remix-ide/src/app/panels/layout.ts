@@ -32,7 +32,8 @@ export class Layout extends Plugin {
   event: any
   // @ts-ignore
   panels: panels
-  enhanced: { [key: string]: boolean | { coeff?: number } }
+  // Plugins that open the side panel wider than its default: a share of the window (coeff) or a fixed width in px
+  enhanced: { [key: string]: boolean | { coeff?: number, width?: number } }
   aiChatMaximized = false
   preAIChatMaximizedState: { mainActive: boolean, mainFocus: string | null } | null = null
   aiModeTarget: { editor?: boolean, main?: string } | null = null
@@ -56,7 +57,9 @@ export class Layout extends Plugin {
       'dgit': true,
       'remixaiassistant': true,
       'quick-dapp-v2': true,
-      'udapp': true
+      'udapp': true,
+      'solidity': { width: 320 },
+      'pluginManager': { width: 320 }
     }
     this.event = new EventEmitter()
   }
@@ -83,6 +86,11 @@ export class Layout extends Plugin {
     if (!config) return undefined
     if (typeof config === 'object' && typeof config.coeff === 'number') return config.coeff
     return defaultCoeff
+  }
+
+  private getEnhancedWidth(name: string) {
+    const config = this.enhanced[name]
+    return typeof config === 'object' && typeof config.width === 'number' ? config.width : undefined
   }
 
   async onActivation (): Promise<void> {
@@ -131,7 +139,7 @@ export class Layout extends Plugin {
         this.enhanced[current] = false
       } else {
         if (this.isEnhancedPanel(current)) {
-          this.event.emit('enhancesidepanel', this.getEnhancedCoeff(current))
+          this.event.emit('enhancesidepanel', this.getEnhancedCoeff(current), this.getEnhancedWidth(current))
         }
       }
 
@@ -147,7 +155,7 @@ export class Layout extends Plugin {
     this.on('rightSidePanel', 'pinnedPlugin', async (name: any) => {
       const current = await this.call('rightSidePanel', 'currentFocus')
       if (this.isEnhancedPanel(current)) {
-        this.event.emit('enhanceRightSidePanel', this.getEnhancedCoeff(current))
+        this.event.emit('enhanceRightSidePanel', this.getEnhancedCoeff(current), this.getEnhancedWidth(current))
       }
 
       if (this.maximized[current] && this.maximized[current].maximized) {
@@ -162,7 +170,7 @@ export class Layout extends Plugin {
     this.on('rightSidePanel', 'rightSidePanelShown', async () => {
       const current = await this.call('rightSidePanel', 'currentFocus')
       if (this.isEnhancedPanel(current)) {
-        this.event.emit('enhanceRightSidePanel', this.getEnhancedCoeff(current))
+        this.event.emit('enhanceRightSidePanel', this.getEnhancedCoeff(current), this.getEnhancedWidth(current))
       }
 
       if (this.maximized[current] && this.maximized[current].maximized) {

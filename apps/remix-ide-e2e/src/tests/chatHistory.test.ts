@@ -6,7 +6,6 @@ import { releaseAccount } from '../helpers/pool'
 const regExp = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 const poolApiKey = process.env.E2E_POOL_API_KEY || ''
 
-
 const test = {
   '@disabled': true,
   before: function (browser: NightwatchBrowser, done: VoidFunction) {
@@ -74,7 +73,6 @@ const test = {
       .pause(5000)
   },
 
-
   // ==================== GROUP 1: Basic Conversation Operations ====================
 
   'Should open chat history sidebar #group1': function (browser: NightwatchBrowser) {
@@ -121,8 +119,8 @@ const test = {
         console.log('Testing conversation metadata for conversation ID:', conversationId)
         browser
           .waitForElementVisible(`*[data-id="conversation-item-${conversationId}"]`, 5000)
-          .assert.textContains(`*[data-id="conversation-item-${conversationId}"] .conversation-meta`, 'message')
-          .assert.containsText(`*[data-id="conversation-item-${conversationId}"] .conversation-meta`, 'Just now')
+          .assert.textContains(`*[data-id="conversation-item-${conversationId}"] [data-id="conversation-item-meta"]`, 'message')
+          .assert.containsText(`*[data-id="conversation-item-${conversationId}"] [data-id="conversation-item-meta"]`, 'Just now')
       })
   },
 
@@ -164,8 +162,8 @@ const test = {
         browser
           .pause(500)
           .waitForElementVisible(`*[data-id="conversation-item-${conversationId}"]`)
-          .assert.textContains(`*[data-id="conversation-item-${conversationId}"] .conversation-meta`, '6 messages')
-          .assert.containsText(`*[data-id="conversation-item-${conversationId}"] .conversation-meta`, 'Just now')
+          .assert.textContains(`*[data-id="conversation-item-${conversationId}"] [data-id="conversation-item-meta"]`, '6 messages')
+          .assert.containsText(`*[data-id="conversation-item-${conversationId}"] [data-id="conversation-item-meta"]`, 'Just now')
       })
   },
 
@@ -334,6 +332,35 @@ const test = {
       .click('#ai-chat-maximized-host *[data-id="toggle-history-btn"]')
       .waitForElementVisible('#ai-chat-maximized-host *[data-id="chat-history-sidebar"]', 5000)
       .assert.containsText('#ai-chat-maximized-host *[data-id="chat-history-sidebar-title"]', 'Chat History')
+  },
+
+  'Should resize the chat history panel in AI mode by dragging its left edge #group1': function (browser: NightwatchBrowser) {
+    const sidebar = '#ai-chat-maximized-host *[data-id="chat-history-sidebar"]'
+    const handle = '#ai-chat-maximized-host *[data-id="chat-history-resize-handle"]'
+    const sidebarWidth = (expected: number, message: string) => browser.execute(function (selector) {
+      return Math.round((document.querySelector(selector) as HTMLElement).getBoundingClientRect().width)
+    }, [sidebar], (result) => {
+      browser.assert.equal(result.value, expected, message)
+    })
+    browser
+      .waitForElementVisible(handle)
+      .execute(function (selector) {
+        const rect = (document.querySelector(selector) as HTMLElement).getBoundingClientRect()
+        return { x: Math.round(rect.left + rect.width / 2), y: Math.round(rect.top + rect.height / 2) }
+      }, [handle], function (result: any) {
+        const { x, y } = result.value
+        browser.perform(function () {
+          return this.actions({ async: true })
+            .move({ origin: 'viewport', x, y })
+            .press()
+            .move({ origin: 'viewport', x: x - 50, y })
+            .move({ origin: 'viewport', x: x - 100, y })
+            .release()
+        }).pause(500)
+      })
+    sidebarWidth(420, 'Dragging the left edge 100px makes the history panel 420px wide')
+    browser.doubleClick(handle).pause(500)
+    sidebarWidth(320, 'Double-click resets the history panel to 320px')
   },
 
   'Should seed many conversations into IndexedDB for scroll test #group2': function (browser: NightwatchBrowser) {
@@ -550,7 +577,7 @@ const test = {
       .pause(500)
       .execute(function () {
         const item = document.querySelector('[data-id^="conversation-item-"]')
-        const title = item?.querySelector('.conversation-title')
+        const title = item?.querySelector('[data-id="conversation-item-title"]')
         return {
           hasItem: item !== null,
           hasEllipsis: title ? window.getComputedStyle(title).textOverflow === 'ellipsis' : false
@@ -637,6 +664,7 @@ const test = {
         browser.assert.ok(count >= 2, `Should have at least 2 archived conversations, found ${count}`)
       })
       // Delete all archived conversations
+      .click('*[data-id="chat-history-menu-btn"]')
       .waitForElementVisible('*[data-id="delete-all-conversations-btn"]', 5000)
       .click('*[data-id="delete-all-conversations-btn"]')
       .pause(500)
@@ -970,6 +998,5 @@ const test = {
       })
   }
 }
-
 
 module.exports = {}

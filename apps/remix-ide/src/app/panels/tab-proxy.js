@@ -197,9 +197,13 @@ export default class TabProxy extends Plugin {
     })
 
     this.on('fileManager', 'openDiff', (commit) => {
+      // A change RemixAI already made: file name, RemixAI icon, full path in the tooltip.
+      // Its hashes all start with "remixai-", so its name keeps both of them whole: each change gets its own tab
+      const aiApplied = commit.source === 'ai-applied'
       const hash = commit.hashModified? commit.hashModified.substring(0,6): 'Working Tree'
-      const name =  `${commit.path} (${hash})`
-      this.addTab(name, name, async () => {
+      const name = aiApplied ? `${commit.path} (${commit.hashOriginal}..${commit.hashModified})` : `${commit.path} (${hash})`
+      const title = aiApplied ? `${commit.path.split('/').pop()} · RemixAI edit` : name
+      this.addTab(name, title, async () => {
         await this.fileManager.diff(commit)
         this.event.emit('openDiff', commit)
         this.emit('openDiff', commit)
@@ -209,7 +213,9 @@ export default class TabProxy extends Plugin {
         await this.fileManager.closeDiff(commit)
         this.event.emit('closeDiff', commit)
         this.emit('closeDiff', commit)
-      })
+      },
+      aiApplied ? 'assets/img/remixai-logoAI.svg' : undefined,
+      aiApplied ? `${commit.path} · RemixAI edit` : '')
       this.tabsApi.activateTab(name)
     })
 
@@ -464,6 +470,7 @@ export default class TabProxy extends Plugin {
       tabs={state.loadedTabs}
       onSelect={state.onSelect}
       onClose={state.onClose}
+      onReorder={state.onReorder}
       onZoomIn={state.onZoomIn}
       onZoomOut={state.onZoomOut}
       onReady={state.onReady}
@@ -492,6 +499,15 @@ export default class TabProxy extends Plugin {
       }
     }
 
+    const onReorder = (fromIndex, toIndex) => {
+      if (!this.loadedTabs[fromIndex] || toIndex < 0 || toIndex >= this.loadedTabs.length) return
+      const tabs = [...this.loadedTabs]
+      tabs.splice(toIndex, 0, tabs.splice(fromIndex, 1)[0])
+      this.loadedTabs = tabs
+      this.renderComponent()
+      this.emit('tabsReordered', this.loadedTabs.map((tab) => tab.name))
+    }
+
     const onZoomIn = () => this.editor.editorFontSize(1)
     const onZoomOut = () => this.editor.editorFontSize(-1)
 
@@ -504,6 +520,7 @@ export default class TabProxy extends Plugin {
       loadedTabs: this.loadedTabs,
       onSelect,
       onClose,
+      onReorder,
       onZoomIn,
       onZoomOut,
       onReady,

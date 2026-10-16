@@ -178,7 +178,7 @@
 /* Both AI and Code get the same treatment when active - the thumb (one fixed accent
    color) slides behind whichever is selected, so neither state looks like "off". */
 .ai-mode-btn.active {
-  color: #0b1f1f;
+  color: var(--bs-body-bg);
 }
 
 .ai-mode-btn:not(.active):hover {

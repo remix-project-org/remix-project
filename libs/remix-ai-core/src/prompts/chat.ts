@@ -1,6 +1,7 @@
 import { remixAILogger } from '../helpers/logger'
 import { ChatEntry } from "../types/types"
 import { ChatHistoryStorageManager } from "../storage/storageManager"
+import type { ChatMessage } from "../storage/interfaces"
 
 export abstract class ChatHistory{
 
@@ -77,7 +78,7 @@ export abstract class ChatHistory{
     await this.storage.touchConversation(id)
   }
 
-  public static pushHistory(prompt, result, displayContent?: string): Promise<void> | undefined {
+  public static pushHistory(prompt, result, displayContent?: string, assistantExtras?: Pick<ChatMessage, 'fileChanges'>): Promise<void> | undefined {
     if (result === "" || !result) return // do not allow empty assistant message due to nested stream handles on toolcalls
 
     const lastEntry = this.chatEntries[this.chatEntries.length - 1]
@@ -89,7 +90,7 @@ export abstract class ChatHistory{
     this.chatEntries.push(chat)
 
     if (this.storage && this.currentConversationId) {
-      return this.persistMessages(prompt, result, displayContent).catch(err => {
+      return this.persistMessages(prompt, result, displayContent, assistantExtras).catch(err => {
         remixAILogger.error('Failed to persist chat history:', err)
       })
     }
@@ -98,7 +99,7 @@ export abstract class ChatHistory{
   /**
    * Persist user and assistant messages to storage
    */
-  private static async persistMessages(prompt: string, result: string, displayContent?: string): Promise<void> {
+  private static async persistMessages(prompt: string, result: string, displayContent?: string, assistantExtras?: Pick<ChatMessage, 'fileChanges'>): Promise<void> {
     if (!this.storage || !this.currentConversationId) return
 
     const now = Date.now()
@@ -119,7 +120,8 @@ export abstract class ChatHistory{
       role: 'assistant' as const,
       content: result,
       timestamp: now + 1, // Slightly later timestamp
-      conversationId: this.currentConversationId
+      conversationId: this.currentConversationId,
+      ...(assistantExtras?.fileChanges?.length ? { fileChanges: assistantExtras.fileChanges } : {})
     }
 
     await this.storage.saveBatch(this.currentConversationId, [userMessage, assistantMessage])

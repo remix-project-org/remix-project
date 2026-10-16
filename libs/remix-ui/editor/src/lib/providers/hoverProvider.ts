@@ -12,6 +12,8 @@ export class RemixHoverProvider implements monacoTypes.languages.HoverProvider {
   }
 
   provideHover = async function (model: monacoTypes.editor.ITextModel, position: monacoTypes.Position): Promise<monacoTypes.languages.Hover> {
+    // Only the code editor's own files: other editors (the RemixAI changes panel) use in-memory models
+    if (model.uri.scheme === 'inmemory') return null
     const cursorPosition = this.props.editorAPI.getHoverPosition(position)
     const nodeAtPosition = await this.props.plugin.call('codeParser', 'definitionAtPosition', cursorPosition)
     const contents = []

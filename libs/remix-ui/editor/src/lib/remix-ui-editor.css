@@ -320,3 +320,49 @@ div.monaco-list-row > span.title {
 .fab-main-button:not(.fab-expanded):not(:hover) {
     animation: fabPulse 3s ease-in-out infinite;
 }
+/* Diff of changes proposed by RemixAI: same buttons as the AI chat's approval card */
+.remix-ai-diff-actions {
+    background-color: var(--bs-body-bg);
+}
+
+.remix-ai-diff-btn {
+    padding: 5px 14px;
+    border-radius: 4px;
+    border: none;
+    cursor: pointer;
+    font-size: 12px;
+    font-weight: 500;
+}
+
+.remix-ai-diff-btn:hover:not(:disabled) {
+    opacity: 0.85;
+}
+
+.remix-ai-diff-btn:disabled {
+    opacity: 0.5;
+    cursor: default;
+}
+
+.remix-ai-diff-btn-accept {
+    background: var(--custom-ai-color);
+    color: var(--bs-body-bg);
+}
+
+.remix-ai-diff-btn-secondary {
+    background: color-mix(in srgb, var(--bs-body-color) 16%, transparent);
+    color: var(--bs-body-color);
+}
+
+/* Read-only notice at the bottom of the editor: a slim bar instead of a large alert */
+.remix-readonly-banner {
+    z-index: 5;
+    font-size: 12px;
+    color: var(--bs-secondary-color);
+    background-color: color-mix(in srgb, var(--bs-body-color) 6%, var(--bs-body-bg));
+    border-top: 1px solid var(--bs-border-color);
+}
+
+.remix-readonly-banner b {
+    color: var(--bs-body-color);
+    font-weight: 600;
+}

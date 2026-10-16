@@ -27,6 +27,7 @@ export interface TabsUIProps {
   plugin: TabProxy
   onSelect: (index: number) => void
   onClose: (index: number) => void
+  onReorder?: (fromIndex: number, toIndex: number) => void
   onZoomOut: () => void
   onZoomIn: () => void
   onReady: (api: any) => void
@@ -116,6 +117,13 @@ const tabsReducer = (state: ITabsState, action: ITabsAction) => {
 }
 const PlayExtList = ['js', 'ts', 'sol', 'circom', 'vy', 'nr', 'yul', 'sql', 'subgraph']
 
+// a childless component: react-tabs rewrites the children of every element inside TabList, which breaks the tooltip
+const NewFileButton = ({ onClick }: { onClick: () => void }) => (
+  <CustomTooltip placement="bottom" tooltipId="overlay-tooltip-new-file" tooltipText={<FormattedMessage id="remixUiTabs.newFile" />}>
+    <span data-id="tabsNewFile" className="btn fas fa-plus text-dark d-flex p-2 ms-1 zoom-icon-btn" onClick={onClick}></span>
+  </CustomTooltip>
+)
+
 export const TabsUI = (props: TabsUIProps) => {
 
   const [tabsState, dispatch] = useReducer(tabsReducer, initialTabsState)
@@ -126,6 +134,8 @@ export const TabsUI = (props: TabsUIProps) => {
   const [bannerVisible, setBannerVisible] = useState<boolean>(true)
   const [quickDappStartSetup, setQuickDappStartSetup] = useState<QuickDappStartSetup | null>(null)
   const [quickDappNoContractsNotice, setQuickDappNoContractsNotice] = useState<QuickDappNoContractsNotice | null>(null)
+  const draggedIndexRef = useRef<number>(-1)
+  const [dropTarget, setDropTarget] = useState<{ index: number, side: 'before' | 'after' } | null>(null)
   const tabs = useRef(props.tabs)
   tabs.current = props.tabs // we do this to pass the tabs list to the onReady callbacks
   const appContext = useContext(AppContext)
@@ -188,6 +198,75 @@ export const TabsUI = (props: TabsUIProps) => {
     return <FileDecorationIcons file={{ path: tab.name }} fileDecorations={tabsState.fileDecorations} />
   }
 
+  const resetTabDrag = () => {
+    draggedIndexRef.current = -1
+    setDropTarget(null)
+  }
+
+  const handleTabDragStart = (event: React.DragEvent, index: number) => {
+    draggedIndexRef.current = index
+    event.dataTransfer.effectAllowed = 'move'
+    event.dataTransfer.setData('text/plain', props.tabs[index].name) // required by Firefox to start the drag
+  }
+
+  const getDropSide = (event: React.DragEvent): 'before' | 'after' => {
+    const rect = event.currentTarget.getBoundingClientRect()
+    return event.clientX < rect.left + rect.width / 2 ? 'before' : 'after'
+  }
+
+  const handleTabDragOver = (event: React.DragEvent, index: number) => {
+    if (draggedIndexRef.current < 0) return // not a tab being dragged (e.g. a file from the OS)
+    event.preventDefault()
+    event.dataTransfer.dropEffect = 'move'
+    const side = getDropSide(event)
+    setDropTarget((current) => current && current.index === index && current.side === side ? current : { index, side })
+  }
+
+  const handleTabDrop = (event: React.DragEvent, index: number) => {
+    const from = draggedIndexRef.current
+    if (from < 0) return
+    event.preventDefault()
+    let to = getDropSide(event) === 'after' ? index + 1 : index
+    if (from < to) to -= 1
+    moveTab(from, to)
+  }
+
+  // the empty header space after the last tab moves the dragged tab to the end
+  const isOverStrip = (event: React.DragEvent) =>
+    !(event.target as HTMLElement).closest('.tab') && !!tabsElement.current && event.clientX > tabsElement.current.getBoundingClientRect().left
+
+  const handleStripDragOver = (event: React.DragEvent) => {
+    if (draggedIndexRef.current < 0 || !isOverStrip(event)) return
+    event.preventDefault()
+    event.dataTransfer.dropEffect = 'move'
+    let lastVisible = props.tabs.length - 1
+    while (lastVisible > 0 && !props.tabs[lastVisible].show) lastVisible--
+    setDropTarget((current) => current && current.index === lastVisible && current.side === 'after' ? current : { index: lastVisible, side: 'after' })
+  }
+
+  const handleStripDrop = (event: React.DragEvent) => {
+    const from = draggedIndexRef.current
+    if (from < 0 || !isOverStrip(event)) return
+    event.preventDefault()
+    moveTab(from, props.tabs.length - 1)
+  }
+
+  const moveTab = (from: number, to: number) => {
+    resetTabDrag()
+    if (to === from) return
+
+    // selection is index based: keep the active tab highlighted at its new position
+    const activeName = active()
+    const reordered = [...props.tabs]
+    reordered.splice(to, 0, reordered.splice(from, 1)[0])
+    const newActiveIndex = reordered.findIndex((tab) => tab.name === activeName)
+    if (newActiveIndex > -1) {
+      currentIndexRef.current = newActiveIndex
+      dispatch({ type: 'SELECT_INDEX', payload: newActiveIndex, ext: getExt(activeName), name: activeName })
+    }
+    props.onReorder(from, to)
+  }
+
   const renderTab = (tab: Tab, index) => {
     const classNameImg = 'my-1 me-1 text-dark ' + tab.iconClass
     const classNameTab = 'nav-item nav-link d-flex justify-content-center align-items-center px-2 py-1 tab' + (index === currentIndexRef.current ? ' active' : '')
@@ -201,15 +280,23 @@ export const TabsUI = (props: TabsUIProps) => {
       }
     }
 
+    const dropClass = dropTarget && dropTarget.index === index ? ` tab-drop-${dropTarget.side}` : ''
+    const draggingClass = draggedIndexRef.current === index ? ' tab-dragging' : ''
+
     return (
-      <CustomTooltip tooltipId="tabsActive" tooltipText={tab.tooltip} placement="bottom-start">
+      <CustomTooltip tooltipId="tabsActive" tooltipText={tab.tooltip} tooltipClasses="text-nowrap" placement="bottom-start">
         <div
           ref={(el) => {
             tabsRef.current[index] = el
           }}
-          className={classNameTab}
+          className={classNameTab + dropClass + draggingClass}
           data-id={index === currentIndexRef.current ? 'tab-active' : ''}
           data-path={tab.name}
+          draggable={!!props.onReorder}
+          onDragStart={(event) => handleTabDragStart(event, index)}
+          onDragOver={(event) => handleTabDragOver(event, index)}
+          onDrop={(event) => handleTabDrop(event, index)}
+          onDragEnd={resetTabDrag}
           onMouseDown={(event) => handleTabMouseDown(event, index)}
         >
           {tab.icon ? <img className="my-1 me-1 iconImage" src={tab.icon} /> : <i className={classNameImg}></i>}
@@ -964,6 +1051,8 @@ For Inline mode, preserve the existing /frontend overwrite confirmation flow.`
         className={`remix-ui-tabs justify-content-between border-bottom header nav-tabs ${appContext.appState.connectedToDesktop === desktopConnectionType.disabled ? 'd-flex' : 'd-none'
         }`}
         data-id="tabs-component"
+        onDragOver={handleStripDragOver}
+        onDrop={handleStripDrop}
       >
         <div className="d-flex flex-row" style={{ maxWidth: 'fit-content', width: '99%' }}>
           <div className="d-flex flex-row justify-content-center align-items-center m-1 me-0">
@@ -1077,6 +1166,17 @@ For Inline mode, preserve the existing /frontend overwrite confirmation flow.`
                   {renderTab(tab, i)}
                 </Tab>
               ))}
+              <NewFileButton
+                onClick={async () => {
+                  trackMatomoEvent?.({
+                    category: 'editor',
+                    action: 'newFileFromTabs',
+                    isClick: true
+                  })
+                  await props.plugin.call('menuicons', 'select', 'filePanel')
+                  await props.plugin.call('filePanel', 'createNewFile')
+                }}
+              />
               <div style={{ minWidth: '4rem', height: '1rem' }} id="dummyElForLastXVisibility"></div>
             </TabList>
             {props.tabs.map((tab) => (

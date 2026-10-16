@@ -10,5 +10,6 @@
   "remixUiTabs.tooltipText9": "Configure scripting dependencies",
   "remixUiTabs.tooltipTextDisabledCopilot": "To use RemixAI Copilot, choose a supported file",
   "remixUiTabs.zoomOut": "Zoom out",
-  "remixUiTabs.zoomIn": "Zoom in"
+  "remixUiTabs.zoomIn": "Zoom in",
+  "remixUiTabs.newFile": "New file"
 }

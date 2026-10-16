@@ -1,5 +1,5 @@
 import { remixAILogger, DeepAgentErrorType } from '@remix/remix-ai-core'
-import type { DeepAgentInferencer } from '@remix/remix-ai-core'
+import type { DeepAgentInferencer, AIFileChange } from '@remix/remix-ai-core'
 import type {
   IRemixAIPlugin,
   StreamResultData,
@@ -35,6 +35,7 @@ export class DeepAgentEventBridge {
     'onTodoError',
     'onApiError',
     'onToolApprovalRequired',
+    'onAIFileChanged',
     'onTokenUsage',
     'onModelUsed',
     'onInactivityTimeout'
@@ -131,6 +132,11 @@ export class DeepAgentEventBridge {
     eventEmitter.on('onToolApprovalRequired', (request: ToolApprovalRequest) => {
       remixAILogger.log('[Bridge] onToolApprovalRequired', request.toolName, request.requestId)
       plugin.emit('onToolApprovalRequired', request)
+    })
+
+    // Files the agent has actually written, for the AI mode changes panel
+    eventEmitter.on('onAIFileChanged', (change: AIFileChange) => {
+      plugin.emit('onAIFileChanged', change)
     })
 
     this.listenersSetup = true

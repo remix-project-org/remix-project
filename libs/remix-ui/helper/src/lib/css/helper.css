@@ -370,3 +370,8 @@ mark,
   --bs-popover-border-color: var(--bs-border-color);
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35);
 }
+
+/* One-line tooltips (tooltipClasses="text-nowrap") fit their text instead of the 276px popover cap */
+.remixui-tooltip-popover:has(> .popover-body.text-nowrap) {
+  --bs-popover-max-width: calc(100vw - 16px);
+}

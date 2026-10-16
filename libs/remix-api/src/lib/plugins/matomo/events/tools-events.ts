@@ -35,7 +35,8 @@ export interface EditorEvent extends MatomoEventBase {
     | 'runScript'
     | 'runScriptWithEnv'
     | 'clickRunFromEditor'
-    | 'onDidPaste';
+    | 'onDidPaste'
+    | 'newFileFromTabs';
 }
 
 export interface SolidityUnitTestingEvent extends MatomoEventBase {

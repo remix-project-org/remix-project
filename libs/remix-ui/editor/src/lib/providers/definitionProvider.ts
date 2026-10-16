@@ -12,6 +12,8 @@ export class RemixDefinitionProvider implements monaco.languages.DefinitionProvi
 
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   async provideDefinition(model: monaco.editor.ITextModel, position: monaco.Position, token: monaco.CancellationToken): Promise<monaco.languages.Definition | monaco.languages.LocationLink[]> {
+    // Only the code editor's own files: other editors (the RemixAI changes panel) use in-memory models
+    if (model.uri.scheme === 'inmemory') return []
     const cursorPosition = this.props.editorAPI.getCursorPosition()
     let jumpLocation = await this.jumpToDefinition(cursorPosition)
     if (!jumpLocation || !jumpLocation.fileName) {
@@ -57,9 +59,11 @@ export class RemixDefinitionProvider implements monaco.languages.DefinitionProvi
   async jumpToPosition(position: any) {
     const jumpToLine = async (fileName: string, lineColumn: any) => {
 
-      const currentFile = await this.props.plugin.call('fileManager', 'file')
+      // No file open (a diff can be showing): nowhere to jump from
+      const currentFile = await this.props.plugin.call('fileManager', 'file').catch(() => null)
+      if (!currentFile) return
       const fileTarget = await this.props.plugin.call('resolutionIndex', 'resolvePath', currentFile, fileName)
-      if (fileName !== await this.props.plugin.call('fileManager', 'file')) {
+      if (fileName !== currentFile) {
         const fileContent = await this.props.plugin.call('fileManager', 'readFile', fileTarget)
         try {
           await this.props.plugin.call('editor', 'addModel', fileTarget, fileContent)

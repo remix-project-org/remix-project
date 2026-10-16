@@ -22,6 +22,31 @@ export interface ToolApprovalResponse {
   timedOut?: boolean
 }
 
+/** Emitted (as 'onAIFileChanged') after the agent has written a file */
+export interface AIFileChange {
+  path: string
+  existed: boolean
+  oldContent: string
+  newContent: string
+  timestamp: number
+  deleted?: boolean
+  /** Set when the file was moved: its previous path */
+  movedFrom?: string
+  /** 'rejected': the user rejected the change, newContent is what the agent proposed */
+  status?: 'rejected'
+}
+
+/** An AIFileChange as kept on the assistant message, with where it happened */
+export interface AIFileChangeRecord extends AIFileChange {
+  workspace?: string
+  /** HEAD commit at the time of the change, when the workspace is a git repo */
+  gitHead?: string
+  /** Chat bubble that was streaming when the change happened */
+  messageId?: string
+  /** End of that bubble's text at that moment: where the change is shown in the answer */
+  anchor?: string
+}
+
 export type ToolCategory = 'file_write' | 'file_delete' | 'deployment' | 'transaction' | 'dapp' | 'other'
 export type ToolRisk = 'low' | 'medium' | 'high'
 export type ToolApprovalPolicy = 'always_ask' | 'ask_risky' | 'auto_approve'
