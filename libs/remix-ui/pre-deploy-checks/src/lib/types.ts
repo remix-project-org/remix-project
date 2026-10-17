@@ -76,7 +76,6 @@ export interface FileCheckState {
   steps: Partial<Record<StepId, StepResult>>
   /** ignored issues by finding key, for the session */
   ignored?: Record<string, IgnoredIssue>
-  gateOverridden?: boolean
 }
 
 export interface DeployResult {

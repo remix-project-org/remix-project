@@ -13,14 +13,6 @@ export interface Compilation {
   version: string
 }
 
-export interface EnvironmentInfo {
-  provider?: string
-  network?: string
-  chainId?: string
-  account?: string
-  isVM: boolean
-}
-
 /** What the runner needs from the plugin that hosts it. */
 export interface CheckHost {
   call: (plugin: string, method: string, ...args: any[]) => Promise<any>
@@ -56,18 +48,6 @@ function result (status: StepResult['status'], extra: Partial<StepResult> = {}):
 
 function errorMessage (e: any): string {
   return (e && (e.message || e.error)) || String(e)
-}
-
-export async function getEnvironment (host: CheckHost): Promise<EnvironmentInfo> {
-  const [network, provider, account, isVM] = await Promise.all([
-    host.call('udappEnv', 'getNetwork').catch((): any => null),
-    host.call('udappEnv', 'getSelectedProvider').catch((): any => null),
-    host.call('udappEnv', 'getSelectedAccount').catch((): any => null),
-    host.call('blockchain', 'isVM').catch(() => false)
-  ])
-  // the VM reports its chain id as '-'
-  const chainId = network?.chainId && network.chainId !== '-' ? network.chainId.toString() : undefined
-  return { provider, network: network?.name, chainId, account, isVM: !!isVM }
 }
 
 export async function getSettingsKey (host: CheckHost): Promise<string> {

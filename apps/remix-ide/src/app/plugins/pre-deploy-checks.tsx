@@ -3,9 +3,9 @@ import { ViewPlugin } from '@remixproject/engine-web'
 import isElectron from 'is-electron'
 import { PluginViewWrapper } from '@remix-ui/helper'
 import {
-  PreDeployChecksUI, PreDeployChecksViewState, CheckStore, CheckHost, Compilation, CompilerSummary, EnvironmentInfo, FileCheckState,
+  PreDeployChecksUI, PreDeployChecksViewState, CheckStore, CheckHost, Compilation, CompilerSummary, FileCheckState,
   Finding, IgnoreReason, Range, CheckStepId, StepToggles, DEFAULT_TOGGLES, collectFindings, contentHash, compilerMessages, compilerSettingsKey,
-  withIssueKeys, withoutDependencies, runPipeline, getEnvironment, buildReport, reportFileName, summarize, ChecksSummary
+  withIssueKeys, withoutDependencies, runPipeline, blockingFindings, buildReport, reportFileName, summarize, ChecksSummary
 } from '@remix-ui/pre-deploy-checks'
 import * as packageJson from '../../../../../package.json'
 
@@ -55,7 +55,6 @@ export class PreDeployChecksPlugin extends ViewPlugin implements CheckHost {
   private pendingCompile: { file: string, done: () => void } | null = null
   private running: { file: string, cancelled: boolean } | null = null
   private currentStep: CheckStepId | null = null
-  private env: EnvironmentInfo | null = null
   private compiler: CompilerSummary | null = null
   private themeQuality: 'dark' | 'light' = 'dark'
   private highlighted = false
@@ -87,8 +86,6 @@ export class PreDeployChecksPlugin extends ViewPlugin implements CheckHost {
     this.on('editor', 'contentChanged', (file: string, content: string) => {
       if (file && file.endsWith('.sol') && typeof content === 'string') this.store.setCurrentHash(file, contentHash(content))
     })
-    this.on('blockchain', 'contextChanged', () => this.refreshSetup())
-    this.on('blockchain', 'networkStatus', () => this.refreshSetup())
     this.on('udappDeploy', 'contractDeployed', (deployment: Deployment) => this.onDeployed(deployment))
     this.on('theme', 'themeChanged', (theme: { quality?: string }) => this.setThemeQuality(theme?.quality))
     this.call('theme', 'currentTheme').then((theme) => this.setThemeQuality(theme?.quality)).catch(() => { /* theme plugin not ready */ })
@@ -109,8 +106,6 @@ export class PreDeployChecksPlugin extends ViewPlugin implements CheckHost {
     this.off('fileManager', 'fileRenamed')
     this.off('fileManager', 'fileRemoved')
     this.off('editor', 'contentChanged')
-    this.off('blockchain', 'contextChanged')
-    this.off('blockchain', 'networkStatus')
     this.off('theme', 'themeChanged')
     this.off('udappDeploy', 'contractDeployed')
   }
@@ -227,7 +222,7 @@ export class PreDeployChecksPlugin extends ViewPlugin implements CheckHost {
   private async setCurrentFile (file: string | null) {
     this.currentFile = file && file.endsWith('.sol') ? file : null
     if (this.currentFile) await this.refreshHash(this.currentFile)
-    this.refreshSetup()
+    this.refreshCompiler()
   }
 
   async syncContent (file: string) {
@@ -252,12 +247,9 @@ export class PreDeployChecksPlugin extends ViewPlugin implements CheckHost {
   }
 
   private refreshTimer: any = null
-  private refreshSetup () {
+  private refreshCompiler () {
     clearTimeout(this.refreshTimer)
     this.refreshTimer = setTimeout(async () => {
-      try {
-        this.env = await getEnvironment(this)
-      } catch (e) { /* environment not ready */ }
       try {
         const state = await this.call('solidity', 'getCompilerState')
         this.compiler = { version: state.currentVersion, optimize: state.optimize, runs: state.runs, evmVersion: state.evmVersion }
@@ -350,7 +342,8 @@ export class PreDeployChecksPlugin extends ViewPlugin implements CheckHost {
       at,
       origin: 'manual',
       contentHash: state.steps.compile?.contentHash,
-      data: { contractName, address, txHash, chainId, network }
+      // the report records a deployment made while high-severity issues were open
+      data: { contractName, address, txHash, chainId, network, openHigh: blockingFindings(collectFindings(state)).length }
     }
     // Deploy & Run verifies on its own when its Verify option is on; results arrive in Contract Verification
     if (verify && chainId) steps.verify = { status: 'submitted', at, origin: 'manual', data: { address, chainId } }
@@ -395,7 +388,7 @@ export class PreDeployChecksPlugin extends ViewPlugin implements CheckHost {
     const file = this.currentFile
     if (!file) return
     const contractName = this.contractNameOf(file)
-    const md = buildReport(this.store.get(file), { date: new Date(), contractName, compiler: this.compiler || undefined, environment: this.env || undefined })
+    const md = buildReport(this.store.get(file), { date: new Date(), contractName, compiler: this.compiler || undefined })
     const path = reportFileName(file, contractName)
     await this.call('fileManager', 'writeFile', path, md)
     await this.call('fileManager', 'open', path)

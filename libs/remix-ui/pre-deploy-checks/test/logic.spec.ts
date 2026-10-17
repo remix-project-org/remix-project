@@ -394,24 +394,45 @@ describe('report', () => {
     assert.strictEqual(reportFileName('Token.sol'), 'Token.predeploy.md')
   })
 
-  it('contains steps, gate, findings and the disclaimer', () => {
+  it('contains the checks, open and ignored issues, the deployment and the disclaimer', () => {
+    const txOrigin: RawFinding = { source: 'remix', severity: 'high', rule: 'txOrigin', title: 'Transaction origin', message: 'Use of | tx.origin', file: FILE, range: range(4), key: 'k1' }
+    const assembly: RawFinding = { source: 'remix', severity: 'medium', rule: 'inlineAssembly', title: 'Inline assembly', message: 'Use of assembly', file: FILE, range: range(9), key: 'k2' }
     const state: FileCheckState = {
       file: FILE,
       currentHash: 'h1',
-      gateOverridden: true,
+      ignored: { k2: { reason: 'accepted-risk', at: 0 } },
       steps: {
         compile: { status: 'passed', at: 0, origin: 'manual', contentHash: 'h1' },
-        analysis: { status: 'findings', at: 0, origin: 'panel', contentHash: 'h1', findings: [{ source: 'remix', severity: 'high', rule: 'txOrigin', title: 'Transaction origin', message: 'Use of | tx.origin', file: FILE, range: range(4) }]},
-        deploy: { status: 'passed', at: 0, origin: 'panel', contentHash: 'h1', data: { contractName: 'Wallet', address: '0xabc', txHash: '0xdef', args: [1]} }
+        analysis: { status: 'findings', at: 0, origin: 'panel', contentHash: 'h1', findings: [txOrigin, assembly] },
+        deploy: { status: 'passed', at: 0, origin: 'manual', contentHash: 'h1', data: { contractName: 'Wallet', address: '0xabc', txHash: '0xdef', network: 'Sepolia', chainId: '11155111', openHigh: 1 } },
+        verify: { status: 'submitted', at: 0, origin: 'manual' }
       }
     }
-    const md = buildReport(state, { date: new Date(0), contractName: 'Wallet', compiler: { version: '0.8.26', optimize: true, runs: 200 }, environment: { provider: 'vm-prague', network: 'VM', chainId: '1337', account: '0x5B3' } })
+    const md = buildReport(state, { date: new Date(0), contractName: 'Wallet', compiler: { version: '0.8.26', optimize: true, runs: 200 } })
     assert.ok(md.includes('not a security audit'))
     assert.ok(md.includes('| Compile | passed | by hand |'))
-    assert.ok(md.includes('Overridden: deployed with 1 high-severity finding'))
+    assert.ok(!md.includes('| Deploy |'))
+    assert.ok(md.includes('1 open high-severity issue.'))
+    assert.ok(md.includes('1 issue ignored'))
+    assert.ok(md.includes('Deployed with 1 open high-severity issue.'))
     assert.ok(md.includes('contracts/Wallet.sol:5'))
     assert.ok(md.includes('Use of \\| tx.origin'))
+    assert.ok(md.includes('| medium | Remix analyzer | inlineAssembly | contracts/Wallet.sol:10 | Accepted risk | Use of assembly |'))
     assert.ok(md.includes('`0xabc`'))
+    assert.ok(md.includes('Sepolia (chain id 11155111)'))
+    assert.ok(md.includes('the version checked above'))
+    assert.ok(md.includes('**Verification:** submitted'))
     assert.ok(md.includes('optimizer on (200 runs)'))
+  })
+
+  it('says when the deployment came from an earlier version', () => {
+    const state: FileCheckState = {
+      file: FILE,
+      currentHash: 'h2',
+      steps: { deploy: { status: 'passed', at: 0, origin: 'manual', contentHash: 'h1', data: { contractName: 'Wallet', address: '0xabc' } } }
+    }
+    const md = buildReport(state, { date: new Date(0) })
+    assert.ok(md.includes('an earlier version of the file'))
+    assert.ok(!md.includes('Deployed with'))
   })
 })

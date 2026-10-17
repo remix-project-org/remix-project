@@ -1,15 +1,14 @@
 import { collectFindings } from './findings'
-import { isStale } from './store'
-import { FileCheckState, FindingSource, STEP_ORDER, StepId, StepResult } from './types'
+import { deployedFromOlderVersion, isStale } from './store'
+import { CHECK_STEPS, FileCheckState, Finding, FindingSource, IgnoreReason, StepId, StepResult } from './types'
 
 export interface ReportContext {
   date: Date
   compiler?: { version?: string, optimize?: boolean, runs?: number | string, evmVersion?: string }
-  environment?: { provider?: string, network?: string, chainId?: string, account?: string }
   contractName?: string
 }
 
-export const DISCLAIMER = 'Automated checks only. Passing them is not a security audit.'
+export const DISCLAIMER = 'Automated checks, not a security audit. They run existing tools (compiler, Remix analyzer, Solhint, Slither, optional AI review). Passing them does not mean the contract is safe.'
 
 export const STEP_LABELS: Record<StepId, string> = {
   compile: 'Compile',
@@ -29,6 +28,12 @@ export const SOURCE_LABELS: Record<FindingSource, string> = {
   ai: 'RemixAI'
 }
 
+export const REASON_LABELS: Record<IgnoreReason, string> = {
+  'false-positive': 'False positive',
+  'accepted-risk': 'Accepted risk',
+  'test-code': 'Test or example code'
+}
+
 export function reportFileName (file: string, contractName?: string): string {
   const dir = file.includes('/') ? file.substring(0, file.lastIndexOf('/') + 1) : ''
   const base = contractName || file.substring(dir.length).replace(/\.sol$/, '')
@@ -36,7 +41,8 @@ export function reportFileName (file: string, contractName?: string): string {
 }
 
 function cell (text: string): string {
-  return (text || '').replace(/\|/g, '\\|').replace(/\r?\n/g, ' ')
+  // analyzer messages carry indentation and line breaks from their source strings
+  return (text || '').replace(/\|/g, '\\|').replace(/\s+/g, ' ').trim()
 }
 
 function stepLine (state: FileCheckState, id: StepId, step?: StepResult): string {
@@ -46,10 +52,23 @@ function stepLine (state: FileCheckState, id: StepId, step?: StepResult): string
   return `| ${STEP_LABELS[id]} | ${cell(status)}${step.note ? ` — ${cell(step.note)}` : ''} | ${origin} | ${new Date(step.at).toISOString()} |`
 }
 
+function plural (count: number, word: string): string {
+  return `${count} ${word}${count === 1 ? '' : 's'}`
+}
+
+function findingRow (f: Finding, extra?: string): string {
+  const tools = f.items.map((i) => SOURCE_LABELS[i.source] + (i.nativeSeverity ? ` (${i.nativeSeverity})` : '')).join(', ')
+  const rules = Array.from(new Set(f.items.map((i) => i.rule || i.title))).join(', ')
+  const location = f.file ? `${f.file}${f.range ? `:${f.range.start.line + 1}` : ''}` : ''
+  return `| ${f.severity} | ${cell(tools)} | ${cell(rules)} | ${cell(location)} |${extra !== undefined ? ` ${cell(extra)} |` : ''} ${cell(f.message)} |`
+}
+
 export function buildReport (state: FileCheckState, ctx: ReportContext): string {
   const lines: string[] = []
-  const findings = collectFindings(state).filter((f) => !f.stale)
-  const high = findings.filter((f) => f.severity === 'high').length
+  const current = collectFindings(state).filter((f) => !f.stale)
+  const open = current.filter((f) => !f.ignored)
+  const ignored = current.filter((f) => f.ignored)
+  const high = open.filter((f) => f.severity === 'high').length
   const deploy = state.steps.deploy
   const verify = state.steps.verify
   const flatten = state.steps.flatten
@@ -63,60 +82,63 @@ export function buildReport (state: FileCheckState, ctx: ReportContext): string 
   lines.push(`- **Content hash:** \`${state.currentHash || 'unknown'}\``)
   if (ctx.compiler) {
     const c = ctx.compiler
-    lines.push(`- **Compiler:** ${c.version || 'unknown'}, optimizer ${c.optimize ? `on (${c.runs} runs)` : 'off'}, EVM ${c.evmVersion || 'default'}`)
-  }
-  if (ctx.environment) {
-    const e = ctx.environment
-    lines.push(`- **Environment:** ${e.provider || 'unknown'} · ${e.network || 'unknown network'}${e.chainId ? ` (chain id ${e.chainId})` : ''}`)
-    if (e.account) lines.push(`- **Account:** \`${e.account}\``)
+    lines.push(`- **Compiler:** ${(c.version || 'unknown').replace(/\.Emscripten.*$/, '')}, optimizer ${c.optimize ? `on (${c.runs} runs)` : 'off'}, EVM ${c.evmVersion || 'default'}`)
   }
   lines.push('')
 
-  lines.push('## Steps')
+  lines.push('## Checks')
   lines.push('')
-  lines.push('| Step | Status | Origin | Time |')
+  lines.push('| Check | Status | Origin | Time |')
   lines.push('|---|---|---|---|')
-  for (const id of STEP_ORDER) lines.push(stepLine(state, id, state.steps[id]))
+  for (const id of CHECK_STEPS) lines.push(stepLine(state, id, state.steps[id]))
   lines.push('')
 
-  lines.push('## Gate')
+  lines.push('## High-severity issues')
   lines.push('')
-  if (state.gateOverridden) lines.push(`Overridden: deployed with ${high} high-severity finding${high === 1 ? '' : 's'} ("Deploy anyway").`)
-  else if (high > 0) lines.push(`Blocked: ${high} high-severity finding${high === 1 ? '' : 's'}.`)
-  else lines.push('Passed: no high-severity findings.')
+  lines.push(high > 0 ? `${plural(high, 'open high-severity issue')}.` : 'None open.')
+  if (ignored.length) lines.push(`${plural(ignored.length, 'issue')} ignored, listed below with the reason.`)
+  if (deploy?.status === 'passed' && deploy.data?.openHigh > 0) {
+    lines.push(`Deployed with ${plural(deploy.data.openHigh, 'open high-severity issue')}.`)
+  }
   lines.push('')
 
-  lines.push('## Findings')
+  lines.push('## Issues')
   lines.push('')
-  if (!findings.length) {
-    lines.push('No findings.')
+  if (!open.length) {
+    lines.push('No open issues.')
   } else {
     lines.push('| Severity | Tools | Rule | Location | Message |')
     lines.push('|---|---|---|---|---|')
-    for (const f of findings) {
-      const tools = f.items.map((i) => SOURCE_LABELS[i.source] + (i.nativeSeverity ? ` (${i.nativeSeverity})` : '')).join(', ')
-      const rules = Array.from(new Set(f.items.map((i) => i.rule || i.title))).join(', ')
-      const location = f.file ? `${f.file}${f.range ? `:${f.range.start.line + 1}` : ''}` : ''
-      lines.push(`| ${f.severity} | ${cell(tools)} | ${cell(rules)} | ${cell(location)} | ${cell(f.message)} |`)
-    }
+    for (const f of open) lines.push(findingRow(f))
   }
   lines.push('')
 
-  lines.push('## Output')
-  lines.push('')
-  lines.push(`- **Flattened file:** ${flatten?.data?.path ? `\`${flatten.data.path}\`` : 'none'}`)
-  if (deploy?.status === 'passed' && deploy.data) {
-    lines.push(`- **Contract:** ${deploy.data.contractName} at \`${deploy.data.address}\``)
-    if (deploy.data.txHash) lines.push(`- **Transaction:** \`${deploy.data.txHash}\``)
-    if (deploy.data.args?.length) lines.push(`- **Constructor arguments:** \`${cell(JSON.stringify(deploy.data.args))}\``)
-  } else {
-    lines.push('- **Deployment:** none')
+  if (ignored.length) {
+    lines.push('## Ignored issues')
+    lines.push('')
+    lines.push('| Severity | Tools | Rule | Location | Reason | Message |')
+    lines.push('|---|---|---|---|---|---|')
+    for (const f of ignored) lines.push(findingRow(f, REASON_LABELS[f.ignored.reason]))
+    lines.push('')
   }
-  if (verify) {
-    lines.push(`- **Verification:** ${verify.status}${verify.note ? ` — ${verify.note}` : ''}`)
-    for (const receipt of verify.data?.receipts || []) {
-      lines.push(`  - ${receipt.verifier}: ${receipt.status}${receipt.lookupUrl ? ` — ${receipt.lookupUrl}` : ''}`)
-    }
+
+  lines.push('## Outputs')
+  lines.push('')
+  lines.push(`- **Flattened file:** ${flatten?.status === 'passed' && flatten.data?.path ? `\`${flatten.data.path}\`${isStale(state, 'flatten') ? ' (out of date)' : ''}` : 'none'}`)
+  lines.push('')
+
+  lines.push('## Deployment')
+  lines.push('')
+  if (deploy?.status === 'passed' && deploy.data?.address) {
+    const d = deploy.data
+    lines.push(`- **Contract:** ${d.contractName} at \`${d.address}\``)
+    lines.push(`- **Network:** ${d.network || 'unknown'}${d.chainId ? ` (chain id ${d.chainId})` : ''}`)
+    if (d.txHash) lines.push(`- **Transaction:** \`${d.txHash}\``)
+    lines.push(`- **Time:** ${new Date(deploy.at).toISOString()}, from Deploy & Run`)
+    lines.push(`- **Version:** ${deployedFromOlderVersion(state) ? 'an earlier version of the file' : 'the version checked above'}`)
+    if (verify) lines.push(`- **Verification:** ${verify.status}${verify.note ? ` — ${cell(verify.note)}` : ''}`)
+  } else {
+    lines.push('Not deployed from Deploy & Run in this session.')
   }
   lines.push('')
   return lines.join('\n')
