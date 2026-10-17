@@ -1,11 +1,16 @@
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useMemo, useState } from 'react'
 import { FormattedMessage, useIntl } from 'react-intl'
-import { blockingFindings } from '../findings'
+import { aggregateFindings } from '../findings'
 import { isStale } from '../store'
-import { CHECK_STEPS, CheckStepId } from '../types'
-import { FindingsList } from './findings-list'
-import { StepRow } from './step-row'
+import { CHECK_STEPS, Finding } from '../types'
+import { deriveVerdict, toolLines } from '../verdict'
+import { splitPath } from './format'
+import { Issues } from './issues'
+import { Deployment, Outputs } from './outputs'
+import { Settings } from './settings'
+import { StatusCard } from './status-card'
 import { PreDeployChecksActions, PreDeployChecksViewState } from './types'
+import './pre-deploy-checks.css'
 
 interface PreDeployChecksUIProps {
   plugin: PreDeployChecksActions
@@ -21,200 +26,103 @@ function useNow (intervalMs = 30000) {
   return now
 }
 
-function Disclaimer () {
+function Header ({ file, onSettings }: { file: string, onSettings: () => void }) {
+  const intl = useIntl()
+  const { name, folder } = splitPath(file)
   return (
-    <p className="small text-secondary mb-2" data-id="preDeployChecks-disclaimer">
-      <i className="fas fa-info-circle me-1" aria-hidden="true"></i>
-      <FormattedMessage id="preDeployChecks.disclaimer" />
-    </p>
+    <header className="pdc-header">
+      <i className="far fa-file-code pdc-header-icon" aria-hidden="true"></i>
+      <div className="min-w-0 flex-grow-1">
+        <div className="pdc-file text-truncate" data-id="preDeployChecks-file" title={file}>{name}</div>
+        <div className="pdc-folder text-truncate">{folder || <FormattedMessage id="preDeployChecks.workspaceRoot" />}</div>
+      </div>
+      <button
+        className="pdc-icon-btn pdc-info-btn"
+        data-id="preDeployChecks-info"
+        aria-label={intl.formatMessage({ id: 'preDeployChecks.about' })}
+        title={intl.formatMessage({ id: 'preDeployChecks.disclaimer' })}
+      >
+        <i className="fas fa-info-circle" aria-hidden="true"></i>
+      </button>
+      <button className="pdc-icon-btn" data-id="preDeployChecks-openSettings" onClick={onSettings} aria-label={intl.formatMessage({ id: 'preDeployChecks.settings' })} title={intl.formatMessage({ id: 'preDeployChecks.settings' })}>
+        <i className="fas fa-cog" aria-hidden="true"></i>
+      </button>
+    </header>
   )
 }
 
-function OutcomeBanner ({ view, plugin }: PreDeployChecksUIProps) {
-  const { outcome, file } = view
-  if (!outcome || view.running) return null
-  switch (outcome.kind) {
-  case 'compile-failed':
-    return <div className="alert alert-danger py-2 px-2 small" data-id="preDeployChecks-outcome-compile-failed"><FormattedMessage id="preDeployChecks.outcome.compileFailed" /></div>
-  case 'cancelled':
-    return <div className="alert alert-secondary py-2 px-2 small" data-id="preDeployChecks-outcome-cancelled"><FormattedMessage id="preDeployChecks.outcome.cancelled" /></div>
-  case 'error':
-    return <div className="alert alert-danger py-2 px-2 small text-break" data-id="preDeployChecks-outcome-error">{outcome.message}</div>
-  case 'done':
-    return <div className="alert alert-success py-2 px-2 small" data-id="preDeployChecks-outcome-done"><FormattedMessage id="preDeployChecks.outcome.done" /></div>
-  }
-}
-
-function SetupSection ({ view, plugin }: PreDeployChecksUIProps) {
-  const intl = useIntl()
-  const [open, setOpen] = useState(true)
-  const { compiler, env, contracts, contractName, rawArgs, argErrors } = view
-  const contract = contracts.find((c) => c.name === contractName)
-
+function Intro ({ view, plugin, onSettings }: { view: PreDeployChecksViewState, plugin: PreDeployChecksActions, onSettings: () => void }) {
+  const steps = CHECK_STEPS.filter((id) => id === 'compile' || view.toggles[id])
   return (
-    <div className="mb-3" data-id="preDeployChecks-setup">
-      <button className="btn btn-sm p-0 d-flex align-items-center gap-1 fw-semibold mb-1 text-body" aria-expanded={open} onClick={() => setOpen(!open)} data-id="preDeployChecks-setup-toggle">
-        <i className={`fas fa-angle-${open ? 'down' : 'right'}`} aria-hidden="true"></i>
-        <FormattedMessage id="preDeployChecks.setup" />
-      </button>
-      {open && (
-        <div className="small">
-          <div className="d-flex justify-content-between gap-2 mb-1">
-            <span className="text-secondary"><FormattedMessage id="preDeployChecks.compiler" /></span>
-            <span className="text-end text-break" data-id="preDeployChecks-compiler">
-              {compiler?.version ? `${compiler.version.replace(/^soljson-v?/, '').replace(/\.js$/, '')}, ${compiler.optimize ? `optimizer ${compiler.runs}` : 'no optimizer'}, ${compiler.evmVersion || 'default EVM'}` : '—'}
-              {' '}<a href="#" onClick={(e) => { e.preventDefault(); plugin.openPlugin('solidity') }}><FormattedMessage id="preDeployChecks.change" /></a>
-            </span>
-          </div>
-          <div className="d-flex justify-content-between gap-2 mb-1">
-            <span className="text-secondary"><FormattedMessage id="preDeployChecks.environment" /></span>
-            <span className="text-end text-break" data-id="preDeployChecks-environment">
-              {env ? `${env.network || env.provider || '—'}${env.chainId ? ` (${env.chainId})` : ''}` : '—'}
-              {' '}<a href="#" onClick={(e) => { e.preventDefault(); plugin.openPlugin('udapp') }}><FormattedMessage id="preDeployChecks.change" /></a>
-            </span>
-          </div>
-          <div className="d-flex justify-content-between gap-2 mb-2">
-            <span className="text-secondary"><FormattedMessage id="preDeployChecks.account" /></span>
-            <span className="text-end text-break" data-id="preDeployChecks-account">{env?.account || '—'}</span>
-          </div>
-          {contracts.length > 0 ? (
-            <>
-              <label className="form-label text-secondary mb-1" htmlFor="preDeployChecks-contract"><FormattedMessage id="preDeployChecks.contract" /></label>
-              <select
-                id="preDeployChecks-contract"
-                className="form-select form-select-sm mb-2"
-                data-id="preDeployChecks-contract"
-                value={contractName || ''}
-                disabled={view.running}
-                onChange={(e) => plugin.selectContract(e.target.value)}
-              >
-                {contracts.map((c) => <option key={c.name} value={c.name}>{c.name}</option>)}
-              </select>
-              {contract?.inputs.map((input, index) => (
-                <div className="mb-2" key={index}>
-                  <label className="form-label text-secondary mb-1" htmlFor={`preDeployChecks-arg-${index}`}>{input.name || `arg${index}`} <span className="text-secondary">({input.type})</span></label>
-                  <input
-                    id={`preDeployChecks-arg-${index}`}
-                    className={`form-control form-control-sm ${argErrors[index] && rawArgs[index] !== undefined ? 'is-invalid' : ''}`}
-                    data-id={`preDeployChecks-arg-${index}`}
-                    placeholder={input.type}
-                    value={rawArgs[index] || ''}
-                    disabled={view.running}
-                    onChange={(e) => plugin.setArg(index, e.target.value)}
-                  />
-                  {argErrors[index] && rawArgs[index] !== undefined && <div className="invalid-feedback">{argErrors[index]}</div>}
-                </div>
-              ))}
-            </>
-          ) : (
-            <p className="text-secondary mb-0" data-id="preDeployChecks-contract-unknown">{intl.formatMessage({ id: 'preDeployChecks.contractAfterCompile' })}</p>
-          )}
-        </div>
-      )}
-    </div>
+    <section className="pdc-card pdc-intro" data-id="preDeployChecks-intro">
+      <div className="pdc-title"><FormattedMessage id="preDeployChecks.intro.title" /></div>
+      <div className="pdc-sub"><FormattedMessage id="preDeployChecks.intro.text" /></div>
+      <ul className="pdc-intro-list">
+        {steps.map((id) => <li key={id}><i className="far fa-circle" aria-hidden="true"></i><FormattedMessage id={`preDeployChecks.step.${id}`} /></li>)}
+      </ul>
+      <div className="pdc-actions">
+        <button className="btn pdc-btn btn-primary" data-id="preDeployChecks-run" onClick={() => plugin.startRun(view.file)}>
+          <FormattedMessage id="preDeployChecks.run" />
+        </button>
+      </div>
+      <div className="text-center mt-2">
+        <button className="pdc-link-btn pdc-muted" data-id="preDeployChecks-chooseChecks" onClick={onSettings}><FormattedMessage id="preDeployChecks.chooseChecks" /></button>
+      </div>
+    </section>
   )
 }
 
 export function PreDeployChecksUI ({ plugin, view }: PreDeployChecksUIProps) {
-  const intl = useIntl()
   const now = useNow()
+  const [page, setPage] = useState<'main' | 'settings'>('main')
   const { file, state, findings, toggles, running } = view
+  const themeClass = view.themeQuality === 'light' ? 'pdc-light' : 'pdc-dark'
+
+  const input = { state, findings, toggles, runningStep: running ? view.currentStep : null }
+  const { verdict, actions } = deriveVerdict(input)
+  const lines = toolLines(input)
+
+  // compile errors are issues too: high severity, tagged Compiler, listed first
+  const compileErrors = useMemo((): Finding[] => {
+    const compile = state?.steps.compile
+    if (compile?.status !== 'failed' || !compile.data?.errors?.length) return []
+    const stale = isStale(state, 'compile')
+    return aggregateFindings(compile.data.errors.map((finding) => ({ finding, stale })))
+  }, [state])
 
   if (!file || !state) {
     return (
-      <div className="px-3 pt-2" data-id="preDeployChecks-empty">
-        <Disclaimer />
-        <p className="text-secondary"><FormattedMessage id="preDeployChecks.empty" /></p>
+      <div className={`pdc ${themeClass}`} data-id="preDeployChecks-empty">
+        <div className="pdc-empty">
+          <i className="far fa-file-code" aria-hidden="true"></i>
+          <div className="pdc-title"><FormattedMessage id="preDeployChecks.empty.title" /></div>
+          <div className="pdc-sub"><FormattedMessage id="preDeployChecks.empty.text" /></div>
+        </div>
       </div>
     )
   }
 
-  const upToDate = CHECK_STEPS.filter((id) => {
-    const step = state.steps[id]
-    return toggles[id] && step && ['passed', 'findings'].includes(step.status) && !isStale(state, id)
-  }).length
-  const enabledCount = CHECK_STEPS.filter((id) => toggles[id]).length
-  const high = blockingFindings(findings).length
-  const deploy = state.steps.deploy
-
-  const stepAction = (stepId: CheckStepId): { label: string, onClick: () => void } | undefined => {
-    const step = state.steps[stepId]
-    if (stepId === 'slither' && step?.status === 'skipped' && step.data?.reason === 'unavailable') {
-      return { label: intl.formatMessage({ id: 'preDeployChecks.action.connectRemixd' }), onClick: () => plugin.openPlugin('filePanel') }
-    }
-    if (stepId === 'ai' && step?.status === 'skipped' && step.data?.reason === 'sign-in') {
-      return { label: intl.formatMessage({ id: 'preDeployChecks.action.openRemixAI' }), onClick: () => plugin.openPlugin('remixaiassistant') }
-    }
-    return undefined
+  if (page === 'settings') {
+    return (
+      <div className={`pdc ${themeClass}`} data-id="preDeployChecks">
+        <Settings toggles={toggles} compiler={view.compiler} disabled={running} onBack={() => setPage('main')} plugin={plugin} />
+      </div>
+    )
   }
 
   return (
-    <div className="px-3 pt-2 pb-4" data-id="preDeployChecks">
-      <Disclaimer />
-
-      <div className="mb-3">
-        <div className="fw-semibold text-break" data-id="preDeployChecks-file">{file}</div>
-        <div className="small text-secondary" data-id="preDeployChecks-overall">
-          <FormattedMessage id="preDeployChecks.overall" values={{ upToDate, total: enabledCount }} />
-          {high > 0 && <> · <span className="text-danger"><FormattedMessage id="preDeployChecks.highCount" values={{ count: high }} /></span></>}
-        </div>
-      </div>
-
-      <SetupSection view={view} plugin={plugin} />
-
-      <ul className="list-group mb-3" data-id="preDeployChecks-steps">
-        {CHECK_STEPS.map((stepId) => (
-          <StepRow
-            key={stepId}
-            stepId={stepId}
-            state={state}
-            enabled={toggles[stepId]}
-            canToggle={stepId !== 'compile'}
-            disabled={running}
-            now={now}
-            onToggle={(enabled) => plugin.setToggle(stepId, enabled)}
-            onOpenFile={(path) => plugin.openFile(path)}
-            onOpenError={(error) => plugin.openFinding(error)}
-            action={stepAction(stepId)}
-          />
-        ))}
-      </ul>
-      {toggles.ai && <p className="small text-secondary mt-n2 mb-3" data-id="preDeployChecks-aiNotice"><FormattedMessage id="preDeployChecks.aiNotice" /></p>}
-
-      <div className="d-flex gap-2 mb-3">
-        {running ? (
-          <button className="btn btn-secondary btn-sm flex-grow-1" data-id="preDeployChecks-cancel" disabled={view.cancelling} onClick={() => plugin.cancelRun()}>
-            <FormattedMessage id={view.cancelling ? 'preDeployChecks.cancelling' : 'preDeployChecks.cancel'} />
-          </button>
-        ) : (
-          <>
-            <button className="btn btn-primary btn-sm flex-grow-1" data-id="preDeployChecks-run" onClick={() => plugin.startRun(file)}>
-              <FormattedMessage id="preDeployChecks.run" />
-            </button>
-            <button className="btn btn-outline-secondary btn-sm" data-id="preDeployChecks-rerunAll" onClick={() => plugin.startRun(file, { force: true })}>
-              <FormattedMessage id="preDeployChecks.rerunAll" />
-            </button>
-          </>
-        )}
-      </div>
-
-      <OutcomeBanner view={view} plugin={plugin} />
-
-      <h6 className="mt-3 mb-2"><FormattedMessage id="preDeployChecks.findings" /></h6>
-      <FindingsList findings={findings} onOpen={(finding) => plugin.openFinding(finding)} />
-
-      {deploy?.status === 'passed' && deploy.data?.address && (
-        <div className="mt-3 small" data-id="preDeployChecks-deployment">
-          <h6 className="mb-2"><FormattedMessage id="preDeployChecks.deployment" /></h6>
-          <div className="text-break">{deploy.data.contractName}: <span data-id="preDeployChecks-deployedAddress">{deploy.data.address}</span></div>
-          {deploy.data.txHash && <div className="text-break text-secondary">tx {deploy.data.txHash}</div>}
-          {deploy.data.network && <div className="text-secondary">{deploy.data.network}{deploy.data.chainId ? ` (${deploy.data.chainId})` : ''}</div>}
-        </div>
+    <div className={`pdc ${themeClass}`} data-id="preDeployChecks">
+      <Header file={file} onSettings={() => setPage('settings')} />
+      {verdict.kind === 'not-checked' ? (
+        <Intro view={view} plugin={plugin} onSettings={() => setPage('settings')} />
+      ) : (
+        <>
+          <StatusCard file={file} verdict={verdict} actions={actions} cancelling={view.cancelling} now={now} plugin={plugin} />
+          <Deployment state={state} />
+          <Issues findings={findings} compileErrors={compileErrors} lines={lines} running={running} plugin={plugin} />
+          {!running && state.steps.compile && <Outputs state={state} flattenEnabled={toggles.flatten} reportPath={view.reportPath} plugin={plugin} />}
+        </>
       )}
-
-      <button className="btn btn-outline-primary btn-sm w-100 mt-3" data-id="preDeployChecks-saveReport" disabled={running || !Object.keys(state.steps).length} onClick={() => plugin.saveReport()}>
-        <FormattedMessage id="preDeployChecks.saveReport" />
-      </button>
     </div>
   )
 }

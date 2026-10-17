@@ -407,26 +407,3 @@ describe('report', () => {
     assert.ok(md.includes('optimizer on (200 runs)'))
   })
 })
-
-describe('constructor arguments', () => {
-  const { parseConstructorArgs } = require('../src/lib/args')
-  const inputs = [
-    { name: 'owner', type: 'address' },
-    { name: 'supply', type: 'uint256' },
-    { name: 'paused', type: 'bool' },
-    { name: 'ids', type: 'uint8[]' },
-    { name: 'name', type: 'string' },
-    { name: 'salt', type: 'bytes32' }
-  ]
-
-  it('parses typed values', () => {
-    const parsed = parseConstructorArgs(inputs, ['0x5B38Da6a701c568545dCfcB03FcB875f56beddC4', '1000', 'false', '[1, 2]', 'My token', '0x' + '00'.repeat(32)])
-    assert.deepStrictEqual(parsed.errors, {})
-    assert.deepStrictEqual(parsed.values, ['0x5B38Da6a701c568545dCfcB03FcB875f56beddC4', '1000', false, [1, 2], 'My token', '0x' + '00'.repeat(32)])
-  })
-
-  it('reports an error per invalid input', () => {
-    const parsed = parseConstructorArgs(inputs, ['0x123', '-1', 'yes', '[1,', '', '0x12'])
-    assert.deepStrictEqual(Object.keys(parsed.errors).map(Number), [0, 1, 2, 3, 5])
-  })
-})

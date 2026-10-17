@@ -3,10 +3,9 @@ import { ViewPlugin } from '@remixproject/engine-web'
 import isElectron from 'is-electron'
 import { PluginViewWrapper } from '@remix-ui/helper'
 import {
-  PreDeployChecksUI, PreDeployChecksViewState, CheckStore, CheckHost, Compilation, EnvironmentInfo, FileCheckState, RunOutcome,
+  PreDeployChecksUI, PreDeployChecksViewState, CheckStore, CheckHost, Compilation, CompilerSummary, EnvironmentInfo, FileCheckState,
   Finding, IgnoreReason, Range, CheckStepId, StepToggles, DEFAULT_TOGGLES, collectFindings, contentHash, compilerMessages, compilerSettingsKey,
-  withIssueKeys, withoutDependencies,
-  runPipeline, getEnvironment, getConstructorInputs, parseConstructorArgs, buildReport, reportFileName, ContractOption
+  withIssueKeys, withoutDependencies, runPipeline, getEnvironment, buildReport, reportFileName
 } from '@remix-ui/pre-deploy-checks'
 import type { DeployPlugin } from '../udapp/udappDeploy'
 import * as packageJson from '../../../../../package.json'
@@ -36,25 +35,19 @@ function loadToggles (): StepToggles {
   }
 }
 
-interface FileSelection {
-  contractName?: string
-  rawArgs: string[]
-}
-
 export class PreDeployChecksPlugin extends ViewPlugin implements CheckHost {
   dispatch: React.Dispatch<PreDeployChecksViewState> | null = null
   store = new CheckStore()
   isDesktop = isElectron()
   private compilations = new Map<string, Compilation>()
-  private selections = new Map<string, FileSelection>()
   private toggles: StepToggles = loadToggles()
   private currentFile: string | null = null
   private pendingCompile: { file: string, done: () => void } | null = null
   private running: { file: string, cancelled: boolean } | null = null
   private currentStep: CheckStepId | null = null
-  private outcomes = new Map<string, RunOutcome>()
   private env: EnvironmentInfo | null = null
-  private compiler: { version?: string, optimize?: boolean, runs?: number, evmVersion?: string } | null = null
+  private compiler: CompilerSummary | null = null
+  private themeQuality: 'dark' | 'light' = 'dark'
   private highlighted = false
 
   private udappDeploy: DeployPlugin
@@ -86,6 +79,8 @@ export class PreDeployChecksPlugin extends ViewPlugin implements CheckHost {
     })
     this.on('blockchain', 'contextChanged', () => this.refreshSetup())
     this.on('blockchain', 'networkStatus', () => this.refreshSetup())
+    this.on('theme', 'themeChanged', (theme: { quality?: string }) => this.setThemeQuality(theme?.quality))
+    this.call('theme', 'currentTheme').then((theme) => this.setThemeQuality(theme?.quality)).catch(() => { /* theme plugin not ready */ })
 
     try {
       this.setCurrentFile(await this.call('fileManager', 'file'))
@@ -105,6 +100,7 @@ export class PreDeployChecksPlugin extends ViewPlugin implements CheckHost {
     this.off('editor', 'contentChanged')
     this.off('blockchain', 'contextChanged')
     this.off('blockchain', 'networkStatus')
+    this.off('theme', 'themeChanged')
   }
 
   // ---------------------------------------------------------------- public API
@@ -175,7 +171,6 @@ export class PreDeployChecksPlugin extends ViewPlugin implements CheckHost {
       settingsKey,
       findings: withIssueKeys(own, source?.sources)
     })
-    this.ensureContractSelection(file)
     if (origin === 'panel') this.pendingCompile.done()
   }
 
@@ -239,40 +234,19 @@ export class PreDeployChecksPlugin extends ViewPlugin implements CheckHost {
     }, 200)
   }
 
-  // ---------------------------------------------------------------- contracts and arguments
+  private setThemeQuality (quality?: string) {
+    this.themeQuality = quality === 'light' ? 'light' : 'dark'
+    this.renderComponent()
+  }
 
-  private contractsOf (file: string): ContractOption[] {
+  /** The contract the report is named after: the deployed one, else the one named like the file, else the last one. */
+  private contractNameOf (file: string): string | undefined {
+    const deployed = this.store.get(file).steps.deploy?.data?.contractName
+    if (deployed) return deployed
     const compiled = this.compilations.get(file)?.data?.contracts?.[file] || {}
-    return Object.keys(compiled)
-      .filter((name) => compiled[name]?.evm?.bytecode?.object?.length > 0)
-      .map((name) => ({ name, inputs: getConstructorInputs(compiled[name].abi) }))
-  }
-
-  private ensureContractSelection (file: string) {
-    const contracts = this.contractsOf(file)
-    const selection = this.selections.get(file) || { rawArgs: []}
-    if (!selection.contractName || !contracts.find((c) => c.name === selection.contractName)) {
-      const baseName = file.substring(file.lastIndexOf('/') + 1).replace(/\.sol$/, '')
-      const preferred = contracts.find((c) => c.name === baseName) || contracts[contracts.length - 1]
-      selection.contractName = preferred?.name
-      selection.rawArgs = []
-    }
-    this.selections.set(file, selection)
-  }
-
-  selectContract (name: string) {
-    if (!this.currentFile) return
-    this.selections.set(this.currentFile, { contractName: name, rawArgs: []})
-    this.renderComponent()
-  }
-
-  setArg (index: number, value: string) {
-    if (!this.currentFile) return
-    const selection = this.selections.get(this.currentFile) || { rawArgs: []}
-    const rawArgs = [...selection.rawArgs]
-    rawArgs[index] = value
-    this.selections.set(this.currentFile, { ...selection, rawArgs })
-    this.renderComponent()
+    const names = Object.keys(compiled).filter((name) => compiled[name]?.evm?.bytecode?.object?.length > 0)
+    const baseName = file.substring(file.lastIndexOf('/') + 1).replace(/\.sol$/, '')
+    return names.find((name) => name === baseName) || names[names.length - 1]
   }
 
   setToggle (stepId: CheckStepId, enabled: boolean) {
@@ -289,11 +263,9 @@ export class PreDeployChecksPlugin extends ViewPlugin implements CheckHost {
   async startRun (file: string, opts: { force?: boolean } = {}) {
     if (this.running) return
     this.running = { file, cancelled: false }
-    this.outcomes.delete(file)
     this.renderComponent()
-    let outcome: RunOutcome
     try {
-      outcome = await runPipeline(this, {
+      await runPipeline(this, {
         file,
         toggles: this.toggles,
         force: opts.force,
@@ -305,12 +277,11 @@ export class PreDeployChecksPlugin extends ViewPlugin implements CheckHost {
       })
     } catch (e) {
       console.error(e)
-      outcome = { kind: 'error', message: e?.message || String(e) }
+      this.call('notification', 'toast', `Pre-deploy checks stopped: ${e?.message || String(e)}`)
     } finally {
       this.running = null
       this.currentStep = null
     }
-    this.outcomes.set(file, outcome)
     this.renderComponent()
   }
 
@@ -319,6 +290,10 @@ export class PreDeployChecksPlugin extends ViewPlugin implements CheckHost {
       this.running.cancelled = true
       this.renderComponent()
     }
+  }
+
+  async goToDeploy () {
+    await this.call('menuicons', 'select', 'udapp')
   }
 
   // ---------------------------------------------------------------- findings and report
@@ -357,8 +332,7 @@ export class PreDeployChecksPlugin extends ViewPlugin implements CheckHost {
   async saveReport () {
     const file = this.currentFile
     if (!file) return
-    const selection = this.selections.get(file)
-    const contractName = this.store.get(file).steps.deploy?.data?.contractName || selection?.contractName
+    const contractName = this.contractNameOf(file)
     const md = buildReport(this.store.get(file), { date: new Date(), contractName, compiler: this.compiler || undefined, environment: this.env || undefined })
     const path = reportFileName(file, contractName)
     await this.call('fileManager', 'writeFile', path, md)
@@ -384,9 +358,6 @@ export class PreDeployChecksPlugin extends ViewPlugin implements CheckHost {
     if (!this.dispatch) return
     const file = this.currentFile
     const state = file ? this.store.get(file) : null
-    const selection = file ? this.selections.get(file) : null
-    const contracts = file ? this.contractsOf(file) : []
-    const contract = contracts.find((c) => c.name === selection?.contractName)
     this.dispatch({
       file,
       state,
@@ -395,14 +366,9 @@ export class PreDeployChecksPlugin extends ViewPlugin implements CheckHost {
       running: !!this.running && this.running.file === file,
       cancelling: !!this.running?.cancelled,
       currentStep: this.running?.file === file ? this.currentStep : null,
-      outcome: file ? this.outcomes.get(file) || null : null,
-      env: this.env,
       compiler: this.compiler,
-      contracts,
-      contractName: selection?.contractName,
-      rawArgs: selection?.rawArgs || [],
-      argErrors: contract ? parseConstructorArgs(contract.inputs, selection?.rawArgs || []).errors : {},
-      isDesktop: this.isDesktop
+      reportPath: file ? reportFileName(file, this.contractNameOf(file)) : null,
+      themeQuality: this.themeQuality
     })
   }
 }
