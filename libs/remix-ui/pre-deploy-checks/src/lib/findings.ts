@@ -1,8 +1,29 @@
 import { canonicalRule, maxSeverity, SEVERITY_RANK } from './severity'
 import { FileCheckState, Finding, FindingSource, Range, RawFinding, Severity, StepId } from './types'
-import { isStale } from './store'
+import { contentHash, isStale } from './store'
 
 const FINDING_STEPS: StepId[] = ['compile', 'analysis', 'slither', 'ai']
+
+/** The code a range covers, whitespace collapsed, so moving or re-indenting the lines keeps the same text. */
+function codeAt (content: string, range: Range): string {
+  return content.split('\n').slice(range.start.line, range.end.line + 1).join(' ').replace(/\s+/g, ' ').trim()
+}
+
+/**
+ * Key that identifies a finding across runs: the tool's rule plus the code it points at. It survives
+ * edits elsewhere in the file and changes when the flagged lines change. Without a location the
+ * message stands in for the code.
+ */
+export function issueKey (finding: RawFinding, content?: string): string {
+  const rule = canonicalRule(finding.source, finding.rule) || `${finding.source}:${finding.rule || finding.title}`
+  const code = finding.range && typeof content === 'string' ? codeAt(content, finding.range) : ''
+  return `${rule}|${finding.file || ''}|${contentHash(code || finding.message).substring(2, 18)}`
+}
+
+/** Adds keys from the sources the tool ran on (file path → content). */
+export function withIssueKeys (findings: RawFinding[], sources: Record<string, { content: string }> = {}): RawFinding[] {
+  return findings.map((finding) => ({ ...finding, key: issueKey(finding, sources[finding.file]?.content) }))
+}
 
 function rangesOverlap (a?: Range, b?: Range): boolean {
   if (!a || !b) return false
@@ -53,13 +74,14 @@ export function aggregateFindings (raw: { finding: RawFinding, stale: boolean }[
         range: finding.range,
         sources: [finding.source],
         items: [finding],
-        stale
+        stale,
+        keys: []
       })
     }
   }
 
   return merged
-    .map(({ rule, ...finding }) => finding)
+    .map(({ rule, ...finding }) => ({ ...finding, keys: finding.items.map((item) => item.key || issueKey(item)) }))
     .sort(compareFindings)
     .map((finding, index) => ({ ...finding, id: `${finding.sources.join('+')}-${index}` }))
 }
@@ -72,17 +94,22 @@ export function collectFindings (state: FileCheckState): Finding[] {
     const stale = isStale(state, stepId)
     for (const finding of step.findings) raw.push({ finding, stale })
   }
-  return aggregateFindings(raw)
+  const ignored = state.ignored || {}
+  return aggregateFindings(raw).map((finding) => {
+    const match = finding.keys.find((key) => ignored[key])
+    return match ? { ...finding, ignored: ignored[match] } : finding
+  })
 }
 
-/** Up-to-date high-severity findings: while any is open, the panel asks before going to Deploy & Run. */
+/** Up-to-date, not ignored high-severity findings: while any is open, the panel asks before going to Deploy & Run. */
 export function blockingFindings (findings: Finding[]): Finding[] {
-  return findings.filter((f) => !f.stale && f.severity === 'high')
+  return findings.filter((f) => !f.stale && !f.ignored && f.severity === 'high')
 }
 
+/** Counts of up-to-date, not ignored findings. */
 export function countBySeverity (findings: Finding[]): Record<Severity, number> {
   const counts: Record<Severity, number> = { high: 0, medium: 0, low: 0, info: 0 }
-  for (const f of findings) if (!f.stale) counts[f.severity]++
+  for (const f of findings) if (!f.stale && !f.ignored) counts[f.severity]++
   return counts
 }
 

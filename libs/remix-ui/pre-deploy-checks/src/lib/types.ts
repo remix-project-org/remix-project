@@ -30,6 +30,8 @@ export interface RawFinding {
   range?: Range
   /** the tool's own severity wording, e.g. "High · Medium confidence" or "warning" */
   nativeSeverity?: string
+  /** stable identity used to ignore the finding: rule + the code it points at, not its line number */
+  key?: string
 }
 
 /** A finding in the aggregated list: one or more raw findings describing the same issue. */
@@ -43,6 +45,16 @@ export interface Finding {
   sources: FindingSource[]
   items: RawFinding[]
   stale: boolean
+  /** keys of its raw findings; ignoring the finding ignores all of them */
+  keys: string[]
+  ignored?: IgnoredIssue
+}
+
+export type IgnoreReason = 'false-positive' | 'accepted-risk' | 'test-code'
+
+export interface IgnoredIssue {
+  reason: IgnoreReason
+  at: number
 }
 
 export interface StepResult {
@@ -62,6 +74,8 @@ export interface FileCheckState {
   file: string
   currentHash?: string
   steps: Partial<Record<StepId, StepResult>>
+  /** ignored issues by finding key, for the session */
+  ignored?: Record<string, IgnoredIssue>
   gateOverridden?: boolean
 }
 

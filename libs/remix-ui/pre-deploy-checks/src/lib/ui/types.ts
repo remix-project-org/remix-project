@@ -1,6 +1,6 @@
 import type { AbiInput } from '../args'
 import type { EnvironmentInfo, RunOutcome } from '../runner'
-import type { CheckStepId, FileCheckState, Finding, Range, StepToggles } from '../types'
+import type { CheckStepId, FileCheckState, Finding, IgnoreReason, Range, StepToggles } from '../types'
 
 export interface ContractOption {
   name: string
@@ -34,6 +34,8 @@ export interface PreDeployChecksActions {
   selectContract: (name: string) => void
   setArg: (index: number, value: string) => void
   openFinding: (finding: { file?: string, range?: Range }) => Promise<void>
+  ignoreFinding: (finding: Finding, reason: IgnoreReason) => void
+  restoreFinding: (finding: Finding) => void
   openFile: (file: string) => Promise<void>
   openPlugin: (name: string) => Promise<void>
   saveReport: () => Promise<void>

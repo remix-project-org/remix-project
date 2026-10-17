@@ -1,5 +1,5 @@
 import { keccak256, toUtf8Bytes } from 'ethers'
-import { CheckStepId, CONTENT_STEPS, FileCheckState, STEP_ORDER, StepId, StepResult, StepToggles } from './types'
+import { CheckStepId, CONTENT_STEPS, FileCheckState, IgnoreReason, STEP_ORDER, StepId, StepResult, StepToggles } from './types'
 
 export function contentHash (content: string): string {
   return keccak256(toUtf8Bytes(content ?? ''))
@@ -85,6 +85,20 @@ export class CheckStore {
 
   patch (file: string, changes: Partial<FileCheckState>) {
     this.update(file, { ...this.get(file), ...changes })
+  }
+
+  ignore (file: string, keys: string[], reason: IgnoreReason) {
+    const state = this.get(file)
+    const ignored = { ...state.ignored }
+    for (const key of keys) ignored[key] = { reason, at: Date.now() }
+    this.update(file, { ...state, ignored })
+  }
+
+  restore (file: string, keys: string[]) {
+    const state = this.get(file)
+    const ignored = { ...state.ignored }
+    for (const key of keys) delete ignored[key]
+    this.update(file, { ...state, ignored })
   }
 
   rename (oldFile: string, newFile: string) {

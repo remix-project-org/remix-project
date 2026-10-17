@@ -1,5 +1,5 @@
 import * as assert from 'assert'
-import { aggregateFindings, blockingFindings, collectFindings } from '../src/lib/findings'
+import { aggregateFindings, blockingFindings, collectFindings, countBySeverity, issueKey, withIssueKeys } from '../src/lib/findings'
 import { remixSeverity, slitherSeverity, solhintSeverity, canonicalRule } from '../src/lib/severity'
 import { CheckStore, contentHash, isStale, needsRun, deployedFromOlderVersion, PlanContext } from '../src/lib/store'
 import { offsetToPosition, remixFindings, slitherFindings, solhintFindings, aiFindings, compilerMessages, withoutDependencies } from '../src/lib/converters'
@@ -144,6 +144,67 @@ describe('aggregated findings', () => {
     assert.strictEqual(findings.length, 2) // stale and fresh findings are never merged together
     assert.strictEqual(blockingFindings(findings).length, 1)
     assert.strictEqual(blockingFindings(findings)[0].sources[0], 'slither')
+  })
+})
+
+describe('ignored issues', () => {
+  const content = 'contract Wallet {\n  function pay() public {\n    require(tx.origin == owner);\n  }\n}'
+  const txOrigin: RawFinding = { source: 'remix', severity: 'high', rule: 'txOrigin', title: 'Transaction origin', message: 'Use of tx.origin', file: FILE, range: range(2) }
+
+  it('keys a finding by its rule and code, not its line', () => {
+    const moved = '// header\n\n' + content.replace('    require', '      require')
+    assert.strictEqual(issueKey(txOrigin, content), issueKey({ ...txOrigin, range: range(4) }, moved))
+    const edited = content.replace('tx.origin == owner', 'tx.origin == admin')
+    assert.notStrictEqual(issueKey(txOrigin, content), issueKey(txOrigin, edited))
+    // equivalent rules from other tools share the key
+    assert.strictEqual(issueKey(txOrigin, content), issueKey({ ...txOrigin, source: 'slither', rule: 'tx-origin' }, content))
+    // without a location the message stands in for the code
+    const ai: RawFinding = { source: 'ai', severity: 'high', title: 'AI', message: 'reentrancy', file: FILE }
+    assert.strictEqual(issueKey(ai), issueKey({ ...ai }))
+    assert.notStrictEqual(issueKey(ai), issueKey({ ...ai, message: 'overflow' }))
+  })
+
+  it('leaves ignored findings out of the gate and the counts, and restores them', () => {
+    const store = new CheckStore()
+    store.setCurrentHash(FILE, 'h1')
+    store.setStep(FILE, 'analysis', { status: 'findings', at: 1, origin: 'panel', contentHash: 'h1', findings: withIssueKeys([txOrigin], { [FILE]: { content } }) })
+    const [finding] = collectFindings(store.get(FILE))
+    assert.strictEqual(blockingFindings([finding]).length, 1)
+
+    store.ignore(FILE, finding.keys, 'false-positive')
+    const [ignored] = collectFindings(store.get(FILE))
+    assert.strictEqual(ignored.ignored.reason, 'false-positive')
+    assert.strictEqual(blockingFindings([ignored]).length, 0)
+    assert.strictEqual(countBySeverity([ignored]).high, 0)
+
+    store.restore(FILE, finding.keys)
+    assert.strictEqual(collectFindings(store.get(FILE))[0].ignored, undefined)
+  })
+
+  it('keeps an ignore across a run on an edited file while the flagged code stays the same', () => {
+    const store = new CheckStore()
+    store.setStep(FILE, 'analysis', { status: 'findings', at: 1, origin: 'panel', findings: withIssueKeys([txOrigin], { [FILE]: { content } }) })
+    store.ignore(FILE, collectFindings(store.get(FILE))[0].keys, 'accepted-risk')
+
+    const editedElsewhere = content.replace('contract Wallet {', 'contract Wallet {\n  uint public total;')
+    store.setStep(FILE, 'analysis', { status: 'findings', at: 2, origin: 'panel', findings: withIssueKeys([{ ...txOrigin, range: range(3) }], { [FILE]: { content: editedElsewhere } }) })
+    assert.strictEqual(collectFindings(store.get(FILE))[0].ignored?.reason, 'accepted-risk')
+
+    const editedThere = content.replace('tx.origin == owner', 'tx.origin == msg.sender')
+    store.setStep(FILE, 'analysis', { status: 'findings', at: 3, origin: 'panel', findings: withIssueKeys([txOrigin], { [FILE]: { content: editedThere } }) })
+    assert.strictEqual(collectFindings(store.get(FILE))[0].ignored, undefined)
+  })
+
+  it('ignores a merged finding when any of its tools reported the ignored code', () => {
+    const slither: RawFinding = { source: 'slither', severity: 'medium', rule: 'tx-origin', title: 'tx-origin', message: 's', file: FILE, range: range(1, 3) }
+    const store = new CheckStore()
+    store.setStep(FILE, 'analysis', { status: 'findings', at: 1, origin: 'panel', findings: withIssueKeys([txOrigin], { [FILE]: { content } }) })
+    store.ignore(FILE, collectFindings(store.get(FILE))[0].keys, 'false-positive')
+    store.setStep(FILE, 'slither', { status: 'findings', at: 1, origin: 'panel', findings: withIssueKeys([slither], { [FILE]: { content } }) })
+    const findings = collectFindings(store.get(FILE))
+    assert.strictEqual(findings.length, 1)
+    assert.strictEqual(findings[0].keys.length, 2)
+    assert.ok(findings[0].ignored)
   })
 })
 

@@ -4,7 +4,8 @@ import isElectron from 'is-electron'
 import { PluginViewWrapper } from '@remix-ui/helper'
 import {
   PreDeployChecksUI, PreDeployChecksViewState, CheckStore, CheckHost, Compilation, EnvironmentInfo, FileCheckState, RunOutcome,
-  Range, CheckStepId, StepToggles, DEFAULT_TOGGLES, collectFindings, contentHash, compilerMessages, compilerSettingsKey, withoutDependencies,
+  Finding, IgnoreReason, Range, CheckStepId, StepToggles, DEFAULT_TOGGLES, collectFindings, contentHash, compilerMessages, compilerSettingsKey,
+  withIssueKeys, withoutDependencies,
   runPipeline, getEnvironment, getConstructorInputs, parseConstructorArgs, buildReport, reportFileName, ContractOption
 } from '@remix-ui/pre-deploy-checks'
 import type { DeployPlugin } from '../udapp/udappDeploy'
@@ -172,7 +173,7 @@ export class PreDeployChecksPlugin extends ViewPlugin implements CheckHost {
       origin,
       contentHash: content !== undefined ? contentHash(content) : undefined,
       settingsKey,
-      findings: own
+      findings: withIssueKeys(own, source?.sources)
     })
     this.ensureContractSelection(file)
     if (origin === 'panel') this.pendingCompile.done()
@@ -191,7 +192,7 @@ export class PreDeployChecksPlugin extends ViewPlugin implements CheckHost {
       origin,
       contentHash: content !== undefined ? contentHash(content) : undefined,
       note: `${errors.length} error${errors.length === 1 ? '' : 's'}`,
-      data: { errors }
+      data: { errors: withIssueKeys(errors, source?.sources) }
     })
     if (origin === 'panel') this.pendingCompile.done()
   }
@@ -335,6 +336,14 @@ export class PreDeployChecksPlugin extends ViewPlugin implements CheckHost {
     } catch (e) {
       console.warn('Pre-deploy checks: could not open the finding', e)
     }
+  }
+
+  ignoreFinding (finding: Finding, reason: IgnoreReason) {
+    if (this.currentFile) this.store.ignore(this.currentFile, finding.keys, reason)
+  }
+
+  restoreFinding (finding: Finding) {
+    if (this.currentFile) this.store.restore(this.currentFile, finding.keys)
   }
 
   async openFile (file: string) {

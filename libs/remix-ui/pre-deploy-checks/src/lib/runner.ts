@@ -1,5 +1,6 @@
 import { CodeAnalysis } from '@remix-project/remix-analyzer'
 import { aiFindings, remixFindings, slitherFindings, solhintFindings, withoutDependencies } from './converters'
+import { withIssueKeys } from './findings'
 import { CheckStore, compilerSettingsKey, needsRun, PlanContext } from './store'
 import { CHECK_STEPS, CheckStepId, StepResult, StepToggles } from './types'
 
@@ -196,6 +197,7 @@ export async function runPipeline (host: CheckHost, opts: RunOptions): Promise<R
       } catch (e) {
         stepResult = result('failed', { note: errorMessage(e) })
       }
+      if (stepResult.findings) stepResult = { ...stepResult, findings: withIssueKeys(stepResult.findings, compilation?.source?.sources) }
       store.setStep(file, stepId, { ...stepResult, contentHash: compiled?.contentHash, settingsKey: compiled?.settingsKey })
     }
     return { kind: 'done' }
