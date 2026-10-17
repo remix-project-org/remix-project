@@ -5,6 +5,7 @@ import { CheckStore, contentHash, isStale, needsRun, deployedFromOlderVersion, P
 import { offsetToPosition, remixFindings, slitherFindings, solhintFindings, aiFindings, compilerMessages, withoutDependencies } from '../src/lib/converters'
 import { buildReport, reportFileName } from '../src/lib/report'
 import { CheckHost, runPipeline } from '../src/lib/runner'
+import { deriveVerdict, toolLines, VerdictInput } from '../src/lib/verdict'
 import { DEFAULT_TOGGLES, FileCheckState, RawFinding } from '../src/lib/types'
 
 const FILE = 'contracts/Wallet.sol'
@@ -52,7 +53,7 @@ describe('converters', () => {
     const content = 'contract A {\n  function f() public { require(tx.origin == msg.sender); }\n}'
     const start = content.indexOf('tx.origin')
     const findings = remixFindings(
-      [{ name: 'Transaction origin: ', report: [{ warning: 'Use of <i>tx.origin</i>', location: `${start}:9:0` }, { warning: 'INTERNAL ERROR', error: 'stack' }] }],
+      [{ name: 'Transaction origin: ', report: [{ warning: 'Use of <i>tx.origin</i>', location: `${start}:9:0` }, { warning: 'INTERNAL ERROR', error: 'stack' }]}],
       { [FILE]: { content } },
       { [FILE]: { id: 0 } }
     )
@@ -72,7 +73,7 @@ describe('converters', () => {
     const [finding] = slitherFindings({
       status: true,
       count: 1,
-      data: [{ title: 'tx-origin', description: 'Dangerous use of tx.origin\n', severity: 'Medium', confidence: 'Medium', sourceMap: [{ source_mapping: { start: 0, length: 1, filename_relative: FILE, lines: [2, 3], starting_column: 5, ending_column: 9 } }] }]
+      data: [{ title: 'tx-origin', description: 'Dangerous use of tx.origin\n', severity: 'Medium', confidence: 'Medium', sourceMap: [{ source_mapping: { start: 0, length: 1, filename_relative: FILE, lines: [2, 3], starting_column: 5, ending_column: 9 } }]}]
     })
     assert.strictEqual(finding.severity, 'medium')
     assert.strictEqual(finding.nativeSeverity, 'Medium · Medium confidence')
@@ -82,8 +83,8 @@ describe('converters', () => {
   it('maps Solhint, AI and compiler output', () => {
     const [hint] = solhintFindings([{ type: 'warning', line: 4, column: 3, message: 'Avoid tx.origin', ruleId: 'avoid-tx-origin' }], FILE)
     assert.deepStrictEqual(hint.range.start, { line: 4, column: 2 })
-    assert.strictEqual(aiFindings({ Answer: 'No', Reason: [] }, FILE).length, 0)
-    assert.strictEqual(aiFindings({ Answer: 'Yes', Reason: ['reentrancy'], Suggestion: ['use a guard'] }, FILE)[0].severity, 'high')
+    assert.strictEqual(aiFindings({ Answer: 'No', Reason: []}, FILE).length, 0)
+    assert.strictEqual(aiFindings({ Answer: 'Yes', Reason: ['reentrancy'], Suggestion: ['use a guard']}, FILE)[0].severity, 'high')
     const messages = compilerMessages([
       { severity: 'warning', type: 'Warning', message: 'unused', sourceLocation: { file: FILE, start: 0, end: 4 } },
       { severity: 'error', type: 'TypeError', message: 'bad' }
@@ -136,8 +137,8 @@ describe('aggregated findings', () => {
       file: FILE,
       currentHash: 'new',
       steps: {
-        analysis: { status: 'findings', at: 1, origin: 'panel', contentHash: 'old', findings: [remixTxOrigin] },
-        slither: { status: 'findings', at: 1, origin: 'panel', contentHash: 'new', findings: [{ ...slitherTxOrigin, severity: 'high' }] }
+        analysis: { status: 'findings', at: 1, origin: 'panel', contentHash: 'old', findings: [remixTxOrigin]},
+        slither: { status: 'findings', at: 1, origin: 'panel', contentHash: 'new', findings: [{ ...slitherTxOrigin, severity: 'high' }]}
       }
     }
     const findings = collectFindings(state)
@@ -300,6 +301,85 @@ describe('runner', () => {
   })
 })
 
+describe('verdict', () => {
+  const done = (extra = {}) => ({ status: 'passed' as const, at: 1, origin: 'panel' as const, contentHash: 'h1', ...extra })
+  const high: RawFinding = { source: 'remix', severity: 'high', rule: 'txOrigin', title: 'Transaction origin', message: 'm', file: FILE, range: range(3), key: 'k-high' }
+  const medium: RawFinding = { source: 'remix', severity: 'medium', rule: 'inlineAssembly', title: 'Inline assembly', message: 'm', file: FILE, range: range(8), key: 'k-medium' }
+  const checked: FileCheckState = {
+    file: FILE,
+    currentHash: 'h1',
+    steps: { compile: done(), analysis: done({ status: 'findings', findings: [high, medium]}), slither: done(), flatten: done() }
+  }
+  const input = (state: FileCheckState, extra: Partial<VerdictInput> = {}): VerdictInput =>
+    ({ state, findings: state ? collectFindings(state) : [], toggles: { ...DEFAULT_TOGGLES }, runningStep: null, ...extra })
+  const kind = (i: VerdictInput) => deriveVerdict(i).verdict
+
+  it('shows the empty and not-checked states', () => {
+    assert.deepStrictEqual(deriveVerdict(input(null)), { verdict: { kind: 'empty' }, actions: []})
+    // a compile by hand alone is not a check
+    assert.deepStrictEqual(deriveVerdict(input({ file: FILE, currentHash: 'h1', steps: { compile: done() } })), { verdict: { kind: 'not-checked' }, actions: ['run']})
+  })
+
+  it('shows a run in progress with Cancel', () => {
+    assert.deepStrictEqual(deriveVerdict(input(checked, { runningStep: 'slither' })), { verdict: { kind: 'running', step: 'slither' }, actions: ['cancel']})
+  })
+
+  it('shows a failed compile, unless the file changed since', () => {
+    const failed: FileCheckState = { file: FILE, currentHash: 'h1', steps: { compile: done({ status: 'failed', data: { errors: [{}, {}]} }) } }
+    assert.deepStrictEqual(deriveVerdict(input(failed)), { verdict: { kind: 'compile-failed', errors: 2 }, actions: ['run']})
+    assert.strictEqual(kind(input({ ...failed, steps: { ...failed.steps, analysis: done() }, currentHash: 'h2' })).kind, 'out-of-date')
+  })
+
+  it('shows out of date when the file changed since the last check', () => {
+    assert.deepStrictEqual(deriveVerdict(input({ ...checked, currentHash: 'h2' })), { verdict: { kind: 'out-of-date' }, actions: ['run']})
+  })
+
+  it('gates on open high issues and names the tools that did not run', () => {
+    const skipped: FileCheckState = { ...checked, steps: { ...checked.steps, slither: done({ status: 'skipped', data: { reason: 'unavailable' } }) } }
+    assert.deepStrictEqual(deriveVerdict(input(skipped)), { verdict: { kind: 'gate', high: 1, notRun: ['slither']}, actions: ['rerun', 'deploy-anyway']})
+  })
+
+  it('clears once the high issue is ignored, counting tools, medium and ignored issues', () => {
+    const ignoredHigh: FileCheckState = { ...checked, ignored: { 'k-high': { reason: 'false-positive', at: 1 } } }
+    assert.deepStrictEqual(deriveVerdict(input(ignoredHigh)), {
+      verdict: { kind: 'clear', tools: 4, medium: 1, ignored: 1 },
+      actions: ['go-to-deploy']
+    })
+    // Solhint that failed and AI that is switched off are not counted
+    const noSolhint: FileCheckState = { ...ignoredHigh, steps: { ...ignoredHigh.steps, analysis: { ...ignoredHigh.steps.analysis, data: { solhintError: 'down' } } } }
+    assert.strictEqual((kind(input(noSolhint)) as any).tools, 3)
+  })
+
+  it('shows a deployment of the current version', () => {
+    const deployed: FileCheckState = { ...checked, steps: { ...checked.steps, deploy: done({ at: 5, data: { address: '0x1', contractName: 'Wallet', network: 'Sepolia' } }) } }
+    assert.deepStrictEqual(deriveVerdict(input(deployed)), { verdict: { kind: 'deployed', contractName: 'Wallet', network: 'Sepolia', at: 5 }, actions: []})
+    // after an edit the file is out of date again
+    assert.strictEqual(kind(input({ ...deployed, currentHash: 'h2' })).kind, 'out-of-date')
+  })
+
+  it('lists tools without a current result', () => {
+    const state: FileCheckState = {
+      ...checked,
+      steps: {
+        compile: done(),
+        analysis: done({ data: { solhintError: 'Solhint is not active' } }),
+        slither: done({ status: 'skipped', note: 'Connect remixd', data: { reason: 'unavailable' } }),
+        ai: done({ status: 'failed', note: 'timeout' }),
+        flatten: done({ contentHash: 'h0' })
+      }
+    }
+    assert.deepStrictEqual(toolLines(input(state, { toggles: { ...DEFAULT_TOGGLES, ai: true } })), [
+      { tools: ['solhint'], kind: 'failed', note: 'Solhint is not active' },
+      { tools: ['slither'], kind: 'skipped', note: 'Connect remixd', reason: 'unavailable' },
+      { tools: ['ai'], kind: 'failed', note: 'timeout' }
+    ])
+    const stale = { ...checked, currentHash: 'h2' }
+    assert.deepStrictEqual(toolLines(input(stale)).map((l) => l.kind), ['stale', 'stale', 'stale'])
+    const running: FileCheckState = { file: FILE, currentHash: 'h1', steps: { compile: done(), analysis: { ...done(), status: 'running' } } }
+    assert.deepStrictEqual(toolLines(input(running, { runningStep: 'analysis' })).map((l) => `${l.tools.join('+')}:${l.kind}`), ['analyzer+solhint:running', 'slither:waiting'])
+  })
+})
+
 describe('report', () => {
   it('names the report after the contract, next to the source', () => {
     assert.strictEqual(reportFileName(FILE, 'Wallet'), 'contracts/Wallet.predeploy.md')
@@ -313,8 +393,8 @@ describe('report', () => {
       gateOverridden: true,
       steps: {
         compile: { status: 'passed', at: 0, origin: 'manual', contentHash: 'h1' },
-        analysis: { status: 'findings', at: 0, origin: 'panel', contentHash: 'h1', findings: [{ source: 'remix', severity: 'high', rule: 'txOrigin', title: 'Transaction origin', message: 'Use of | tx.origin', file: FILE, range: range(4) }] },
-        deploy: { status: 'passed', at: 0, origin: 'panel', contentHash: 'h1', data: { contractName: 'Wallet', address: '0xabc', txHash: '0xdef', args: [1] } }
+        analysis: { status: 'findings', at: 0, origin: 'panel', contentHash: 'h1', findings: [{ source: 'remix', severity: 'high', rule: 'txOrigin', title: 'Transaction origin', message: 'Use of | tx.origin', file: FILE, range: range(4) }]},
+        deploy: { status: 'passed', at: 0, origin: 'panel', contentHash: 'h1', data: { contractName: 'Wallet', address: '0xabc', txHash: '0xdef', args: [1]} }
       }
     }
     const md = buildReport(state, { date: new Date(0), contractName: 'Wallet', compiler: { version: '0.8.26', optimize: true, runs: 200 }, environment: { provider: 'vm-prague', network: 'VM', chainId: '1337', account: '0x5B3' } })

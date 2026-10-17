@@ -84,15 +84,17 @@ async function runAnalysis (host: CheckHost, file: string, compilation: Compilat
   const reports = analyzer.run(compilation.data, modules)
   const findings = remixFindings(reports as any, compilation.source.sources, compilation.data.sources)
   const notes: string[] = []
+  let solhintError: string | undefined
   try {
     const hints = await host.call('solhint', 'lint', file)
     findings.push(...solhintFindings(hints, file))
   } catch (e) {
-    notes.push(`Solhint unavailable: ${errorMessage(e)}`)
+    solhintError = errorMessage(e)
+    notes.push(`Solhint unavailable: ${solhintError}`)
   }
   const { own, dependencyCount } = withoutDependencies(findings)
   if (dependencyCount) notes.push(`${dependencyCount} finding${dependencyCount === 1 ? '' : 's'} in imported libraries not shown`)
-  return result(own.length ? 'findings' : 'passed', { findings: own, note: notes.join(' · ') || undefined })
+  return result(own.length ? 'findings' : 'passed', { findings: own, note: notes.join(' · ') || undefined, data: solhintError ? { solhintError } : undefined })
 }
 
 async function runSlither (host: CheckHost, file: string): Promise<StepResult> {
