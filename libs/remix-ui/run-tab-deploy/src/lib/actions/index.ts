@@ -194,30 +194,9 @@ export async function deployContract(selectedContract: ContractData, args: strin
   }
 }
 
-/**
- * Deploys a compiled contract through the same path as the Deploy button and returns where it landed.
- * Used by other plugins (Pre-deploy Checks). `args` are the constructor arguments as a list.
- */
-export async function deployCompiledContract (plugin: DeployPlugin, filePath: string, contractName: string, args: any[], verify: boolean) {
-  const compiler: CompilerAbstract = await plugin.call('compilerArtefacts', 'getCompilerAbstract', filePath)
-  if (!compiler) throw new Error(`${filePath} is not compiled`)
-  const contract = compiler.getContract(contractName) ? getContractData(contractName, compiler) : null
-  if (!contract) throw new Error(`Contract ${contractName} not found in ${filePath}`)
-  if (contract.bytecodeObject.length === 0) throw new Error(`${contractName} has no bytecode: it may be abstract or an interface`)
-
-  const result = await createInstance(contract, args, { deployWithProxy: false, upgradeWithProxy: false }, verify, plugin, compiler)
-  const status = await plugin.call('blockchain', 'detectNetwork')
-  const txResult = result.txResult || {}
-  return {
-    address: result.address,
-    txHash: txResult.transactionHash || txResult.receipt?.transactionHash,
-    chainId: status?.id?.toString()
-  }
-}
-
-async function createInstance(selectedContract: ContractData, args: string | any[], deployMode: OZDeployMode, isVerifyChecked: boolean, plugin: DeployPlugin, compilation?: CompilerAbstract) {
+async function createInstance(selectedContract: ContractData, args: string | any[], deployMode: OZDeployMode, isVerifyChecked: boolean, plugin: DeployPlugin) {
   const contractMetadata = await plugin.call('compilerMetadata', 'deployMetadataOf', selectedContract.name, selectedContract.contract.file)
-  const compilerContracts = compilation || await plugin.call('compilerArtefacts', 'getLastCompilationResult')
+  const compilerContracts = await plugin.call('compilerArtefacts', 'getLastCompilationResult')
   const currentParams = !deployMode.deployWithProxy && !deployMode.upgradeWithProxy ? args : ''
   let overSize
   try {
@@ -244,6 +223,23 @@ async function createInstance(selectedContract: ContractData, args: string | any
   await plugin.call('udappDeployedContracts', 'addInstance', result.address, selectedContract.contract.abi, selectedContract.name, selectedContract)
   const data = await plugin.call('compilerArtefacts', 'getCompilerAbstract', selectedContract.contract.file)
   await plugin.call('compilerArtefacts', 'addResolvedContract', result.address, data)
+
+  try {
+    // lets other plugins (Pre-deploy Checks) record which file and contract were deployed where
+    const network = await plugin.call('udappEnv', 'getNetwork')
+    const txResult = result.txResult || {}
+    plugin.emit('contractDeployed', {
+      filePath: selectedContract.contract.file,
+      contractName: selectedContract.name,
+      address: result.address,
+      txHash: txResult.transactionHash || txResult.receipt?.transactionHash,
+      chainId: network?.chainId && network.chainId !== '-' ? network.chainId.toString() : undefined,
+      network: network?.name,
+      verify: isVerifyChecked
+    })
+  } catch (e) {
+    console.error('Could not announce the deployment', e)
+  }
 
   if (isVerifyChecked) {
     const networkStatus = await plugin.call('udappEnv', 'getNetwork')
