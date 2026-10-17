@@ -76,10 +76,10 @@ export class SourceMappings {
   }
 
   /**
-   * Get a list of nodes that are at the given "position".
+   * Get all nodes whose source start and length exactly match the given range.
    *
-   * @param astNodeType  Type of node to return or null.
-   * @param position     Character offset where AST node should be located.
+   * @param astNodeType  Type of node to return, or null to match any node type.
+   * @param position     Source range to match by start and length; the file index is ignored.
    */
   nodesAtPosition (astNodeType: string | null, position: Location, ast: AstNode): Array<AstNode> {
     const astWalker = new AstWalker()
@@ -101,10 +101,11 @@ export class SourceMappings {
   }
 
   /**
-   * Retrieve the first "astNodeType" that includes the source map at arg instIndex, or "null" if none found.
+   * Retrieve the last node in traversal order whose source start and length exactly match
+   * the given range, or null if no matching node is found.
    *
-   * @param astNodeType   nodeType that a found ASTNode must be. Use "null" if any ASTNode can match.
-   * @param sourceLocation "src" location that the AST node must match.
+   * @param astNodeType   Required node type, or undefined to match any node type.
+   * @param sourceLocation Source range to match by start and length; the file index is ignored.
    */
   findNodeAtSourceLocation (astNodeType: string | undefined, sourceLocation: Location, ast: AstNode | null): AstNode | null {
     const astWalker = new AstWalker()
