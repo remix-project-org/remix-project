@@ -2,6 +2,7 @@
 import { Registry } from '@remix-project/remix-lib';
 import { monacoTypes } from '@remix-ui/editor';
 import { commitChange } from '@remix-ui/git';
+import { collabModelGuard } from '../swarm-collab/monacoBinding';
 export interface Action {
   type: string;
   payload: Record<string, any>
@@ -55,7 +56,7 @@ export const reducerActions = (models = initialState, action: Action) => {
     const uri = action.payload.uri
     const value = action.payload.value
     const model = models[uri]?.model
-    if (model) {
+    if (model && !collabModelGuard.interceptSetValue(uri, value)) {
       model.setValue(value)
     }
     return models
