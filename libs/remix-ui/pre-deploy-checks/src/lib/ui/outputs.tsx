@@ -59,7 +59,7 @@ export function Deployment ({ state }: { state: FileCheckState }) {
       <div className="pdc-section-title">{contractName || <FormattedMessage id="preDeployChecks.deployment" />}</div>
       <div className="pdc-address">
         <span className="pdc-mono text-truncate" data-id="preDeployChecks-deployedAddress">{address}</span>
-        <CopyToClipboard content={address} direction="top" className="pdc-icon-btn" />
+        <CopyToClipboard content={address} direction="top" classList="pdc-icon-btn" />
       </div>
       {txHash && <div className="pdc-meta text-truncate">tx <span className="pdc-mono">{txHash}</span></div>}
       {verify && (

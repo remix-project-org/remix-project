@@ -5,7 +5,7 @@ import { CheckStore, contentHash, isStale, needsRun, deployedFromOlderVersion, P
 import { offsetToPosition, remixFindings, slitherFindings, solhintFindings, aiFindings, compilerMessages, withoutDependencies } from '../src/lib/converters'
 import { buildReport, reportFileName } from '../src/lib/report'
 import { CheckHost, runPipeline } from '../src/lib/runner'
-import { deriveVerdict, toolLines, VerdictInput } from '../src/lib/verdict'
+import { deriveVerdict, summarize, toolLines, VerdictInput } from '../src/lib/verdict'
 import { DEFAULT_TOGGLES, FileCheckState, RawFinding } from '../src/lib/types'
 
 const FILE = 'contracts/Wallet.sol'
@@ -355,6 +355,14 @@ describe('verdict', () => {
     assert.deepStrictEqual(deriveVerdict(input(deployed)), { verdict: { kind: 'deployed', contractName: 'Wallet', network: 'Sepolia', at: 5 }, actions: []})
     // after an edit the file is out of date again
     assert.strictEqual(kind(input({ ...deployed, currentHash: 'h2' })).kind, 'out-of-date')
+  })
+
+  it('summarizes the verdict for Deploy & Run', () => {
+    assert.strictEqual(summarize(input(null)), null)
+    assert.deepStrictEqual(summarize(input(checked)), { file: FILE, kind: 'gate', count: 1, checkedAt: 1 })
+    const failed: FileCheckState = { file: FILE, currentHash: 'h1', steps: { compile: done({ status: 'failed', at: 7, data: { errors: [{}, {}] } }) } }
+    assert.deepStrictEqual(summarize(input(failed)), { file: FILE, kind: 'compile-failed', count: 2, checkedAt: 7 })
+    assert.deepStrictEqual(summarize(input(checked, { runningStep: 'analysis' })), { file: FILE, kind: 'running', count: 0, checkedAt: 1 })
   })
 
   it('lists tools without a current result', () => {

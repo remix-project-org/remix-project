@@ -529,7 +529,7 @@ class AppComponent {
 
     const udappEnvPlugin = new EnvironmentPlugin()
     const udappDeployPlugin = new DeployPlugin()
-    const preDeployChecks = new PreDeployChecksPlugin(udappDeployPlugin)
+    const preDeployChecks = new PreDeployChecksPlugin()
     const udappDeployedContractsPlugin = new DeployedContractsPlugin()
     const udappTransactionsPlugin = new TransactionsPlugin()
     const udappEezPlugin = new EezPlugin()

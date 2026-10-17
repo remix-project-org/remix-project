@@ -124,3 +124,25 @@ export function toolLines ({ state, toggles, runningStep }: VerdictInput): ToolL
   }
   return lines
 }
+
+/** What other panels (Deploy & Run's status line) need to know about a file's checks. */
+export interface ChecksSummary {
+  file: string
+  kind: Verdict['kind']
+  /** open high-severity issues, or compile errors when the file doesn't compile */
+  count: number
+  /** when the last check step finished */
+  checkedAt?: number
+}
+
+export function summarize (input: VerdictInput): ChecksSummary | null {
+  if (!input.state) return null
+  const { verdict } = deriveVerdict(input)
+  const finished = CHECK_STEPS.map((id) => input.state.steps[id]).filter((step) => step && step.status !== 'running').map((step) => step.at)
+  return {
+    file: input.state.file,
+    kind: verdict.kind,
+    count: verdict.kind === 'gate' ? verdict.high : verdict.kind === 'compile-failed' ? verdict.errors : 0,
+    checkedAt: finished.length ? Math.max(...finished) : undefined
+  }
+}

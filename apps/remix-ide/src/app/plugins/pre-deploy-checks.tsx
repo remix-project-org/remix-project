@@ -5,22 +5,32 @@ import { PluginViewWrapper } from '@remix-ui/helper'
 import {
   PreDeployChecksUI, PreDeployChecksViewState, CheckStore, CheckHost, Compilation, CompilerSummary, EnvironmentInfo, FileCheckState,
   Finding, IgnoreReason, Range, CheckStepId, StepToggles, DEFAULT_TOGGLES, collectFindings, contentHash, compilerMessages, compilerSettingsKey,
-  withIssueKeys, withoutDependencies, runPipeline, getEnvironment, buildReport, reportFileName
+  withIssueKeys, withoutDependencies, runPipeline, getEnvironment, buildReport, reportFileName, summarize, ChecksSummary
 } from '@remix-ui/pre-deploy-checks'
-import type { DeployPlugin } from '../udapp/udappDeploy'
 import * as packageJson from '../../../../../package.json'
 
 const profile = {
   name: 'preDeployChecks',
   displayName: 'Pre-deploy Checks',
   description: 'Compile, analyze and flatten the current Solidity file in one run before deploying it.',
-  methods: ['open', 'run', 'getState'],
-  events: ['stateChanged'],
+  methods: ['open', 'run', 'getState', 'getSummary'],
+  events: ['stateChanged', 'summaryChanged'],
   icon: 'assets/img/preDeployChecks.svg',
   location: 'sidePanel',
   documentation: '',
   version: packageJson.version,
   maintainedBy: 'Remix'
+}
+
+/** Payload of udappDeploy's contractDeployed event. */
+interface Deployment {
+  filePath: string
+  contractName: string
+  address: string
+  txHash?: string
+  chainId?: string
+  network?: string
+  verify?: boolean
 }
 
 const TOGGLES_KEY = 'preDeployChecks:toggles'
@@ -50,13 +60,13 @@ export class PreDeployChecksPlugin extends ViewPlugin implements CheckHost {
   private themeQuality: 'dark' | 'light' = 'dark'
   private highlighted = false
 
-  private udappDeploy: DeployPlugin
+  private summaries = new Map<string, string>()
 
-  constructor (udappDeploy: DeployPlugin) {
+  constructor () {
     super(profile)
-    this.udappDeploy = udappDeploy
     this.store.onChange((file, state) => {
       this.emit('stateChanged', file, state)
+      this.publishSummary(file)
       this.renderComponent()
     })
   }
@@ -79,6 +89,7 @@ export class PreDeployChecksPlugin extends ViewPlugin implements CheckHost {
     })
     this.on('blockchain', 'contextChanged', () => this.refreshSetup())
     this.on('blockchain', 'networkStatus', () => this.refreshSetup())
+    this.on('udappDeploy', 'contractDeployed', (deployment: Deployment) => this.onDeployed(deployment))
     this.on('theme', 'themeChanged', (theme: { quality?: string }) => this.setThemeQuality(theme?.quality))
     this.call('theme', 'currentTheme').then((theme) => this.setThemeQuality(theme?.quality)).catch(() => { /* theme plugin not ready */ })
 
@@ -101,6 +112,7 @@ export class PreDeployChecksPlugin extends ViewPlugin implements CheckHost {
     this.off('blockchain', 'contextChanged')
     this.off('blockchain', 'networkStatus')
     this.off('theme', 'themeChanged')
+    this.off('udappDeploy', 'contractDeployed')
   }
 
   // ---------------------------------------------------------------- public API
@@ -120,6 +132,26 @@ export class PreDeployChecksPlugin extends ViewPlugin implements CheckHost {
 
   getState (file: string): FileCheckState {
     return this.store.get(file)
+  }
+
+  getSummary (file: string): ChecksSummary | null {
+    if (!file || !file.endsWith('.sol')) return null
+    return summarize({
+      state: this.store.get(file),
+      findings: collectFindings(this.store.get(file)),
+      toggles: this.toggles,
+      runningStep: this.running?.file === file ? this.currentStep || 'compile' : null
+    })
+  }
+
+  /** Emits summaryChanged when what Deploy & Run shows for the file changes. */
+  private publishSummary (file: string) {
+    const summary = this.getSummary(file)
+    if (!summary) return
+    const key = JSON.stringify(summary)
+    if (this.summaries.get(file) === key) return
+    this.summaries.set(file, key)
+    this.emit('summaryChanged', file, summary)
   }
 
   // ---------------------------------------------------------------- CheckHost
@@ -255,6 +287,7 @@ export class PreDeployChecksPlugin extends ViewPlugin implements CheckHost {
     try {
       window.localStorage.setItem(TOGGLES_KEY, JSON.stringify(this.toggles))
     } catch (e) { /* storage unavailable */ }
+    if (this.currentFile) this.publishSummary(this.currentFile)
     this.renderComponent()
   }
 
@@ -263,6 +296,7 @@ export class PreDeployChecksPlugin extends ViewPlugin implements CheckHost {
   async startRun (file: string, opts: { force?: boolean } = {}) {
     if (this.running) return
     this.running = { file, cancelled: false }
+    this.publishSummary(file)
     this.renderComponent()
     try {
       await runPipeline(this, {
@@ -282,6 +316,7 @@ export class PreDeployChecksPlugin extends ViewPlugin implements CheckHost {
       this.running = null
       this.currentStep = null
     }
+    this.publishSummary(file)
     this.renderComponent()
   }
 
@@ -293,7 +328,34 @@ export class PreDeployChecksPlugin extends ViewPlugin implements CheckHost {
   }
 
   async goToDeploy () {
+    const file = this.currentFile
     await this.call('menuicons', 'select', 'udapp')
+    if (!file) return
+    try {
+      await this.call('udappDeploy', 'selectContract', file, this.contractNameOf(file))
+    } catch (e) {
+      console.warn('Pre-deploy checks: could not select the contract in Deploy & Run', e)
+    }
+  }
+
+  /** A deployment made in Deploy & Run: recorded for its file, from the version last compiled (FR-21). */
+  private onDeployed (deployment: Deployment) {
+    const { filePath, contractName, address, txHash, chainId, network, verify } = deployment || {} as Deployment
+    if (!filePath || !filePath.endsWith('.sol') || !address) return
+    const state = this.store.get(filePath)
+    const steps = { ...state.steps }
+    const at = Date.now()
+    steps.deploy = {
+      status: 'passed',
+      at,
+      origin: 'manual',
+      contentHash: state.steps.compile?.contentHash,
+      data: { contractName, address, txHash, chainId, network }
+    }
+    // Deploy & Run verifies on its own when its Verify option is on; results arrive in Contract Verification
+    if (verify && chainId) steps.verify = { status: 'submitted', at, origin: 'manual', data: { address, chainId } }
+    else delete steps.verify
+    this.store.patch(filePath, { steps })
   }
 
   // ---------------------------------------------------------------- findings and report
