@@ -19,7 +19,7 @@ const { txFormat, txExecution, typeConversion, txListener: Txlistener, txHelper 
 const { txResultHelper } = helpers
 const { resultToRemixTx } = txResultHelper
 import * as packageJson from '../../../../package.json'
-import { formatUnits, parseUnits } from 'ethers'
+import { formatUnits, parseUnits, hashMessage } from 'ethers'
 import { CompilerAbstract } from '@remix-project/remix-solidity'
 
 const profile = {
@@ -617,6 +617,16 @@ export class Blockchain extends Plugin {
 
   signMessage(message, account, passphrase) {
     return new Promise((resolve, reject) => {
+      if (this.getProvider() === 'kms-provider') {
+        const msgHash = hashMessage(message)
+        this.call('kms-provider', 'sendAsync', {
+          id: 1, jsonrpc: '2.0', method: 'personal_sign', params: [message, account]
+        } as any).then((result: any) => {
+          if (result.error) return reject(new Error(result.error.message))
+          resolve({ msgHash, signedData: result.result })
+        }).catch(reject)
+        return
+      }
       this.getCurrentProvider().signMessage(message, account, passphrase, (err, msgHash, signedData) => {
         if (err) {
           return reject(err)

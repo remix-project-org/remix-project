@@ -55,7 +55,7 @@
     "lint-entire": "prettier --write {apps,libs}/**/*.{js,ts,tsx}",
     "lint:libs": "nx run-many --target=lint --projects=remix-analyzer,remix-astwalker,remix-debug,remix-lib,remix-simulator,remix-solidity,remix-tests,remix-url-resolver,remix-ws-templates,remixd,remix-ui-tree-view,remix-ui-modal-dialog,remix-ui-toaster,remix-ui-helper,remix-ui-debugger-ui,remix-ui-workspace,remix-ui-static-analyser,remix-ui-checkbox,remix-ui-settings,remix-core-plugin,remix-ui-renderer,remix-ui-publish-to-storage,remix-ui-solidity-compiler,solidity-unit-testing,remix-ui-plugin-manager,remix-ui-terminal,remix-ui-editor,remix-ui-app,remix-ui-tabs,remix-ui-panel,remix-ui-run-tab,remix-ui-permission-handler,remix-ui-search,remix-ui-file-decorators,remix-ui-tooltip-popup,ghaction-helper",
     "build:libs": "node --max-old-space-size=4096 ./node_modules/.bin/nx run-many --target=build --parallel=false --with-deps=true --projects=remix-analyzer,remix-astwalker,remix-debug,remix-lib,remix-simulator,remix-solidity,remix-tests,remix-url-resolver,remix-ws-templates,remixd,ghaction-helper,remix-import-resolver",
-    "test:libs": "nx run-many --target=test --projects=remix-analyzer,remix-astwalker,remix-debug,remix-lib,remix-simulator,remix-tests,remix-url-resolver,remix-import-resolver",
+    "test:libs": "nx run-many --target=test --projects=remix-analyzer,remix-astwalker,remix-debug,remix-lib,remix-simulator,remix-tests,remix-url-resolver,remix-import-resolver,remix-ui",
     "publish:remixd": "yarn build remixd && cd ./dist/libs/remixd && yarn publish && yarn run bumpVersion:remixd",
     "publish:libs": "yarn run build:libs && lerna publish --no-verify-access --skip-git && yarn run bumpVersion:libs",
     "publishDev:libs": "yarn run build:libs && lerna publish --npm-tag alpha --skip-git && yarn run bumpVersion:libs",
@@ -99,6 +99,7 @@
   },
   "dependencies": {
     "@apollo/client": "^3.9.5",
+    "@aws-sdk/client-kms": "^3.620.0",
     "@aws-sdk/client-s3": "^3.620.0",
     "@aws-sdk/credential-providers": "^3.620.0",
     "@babel/plugin-proposal-class-properties": "^7.16.0",
