@@ -81,8 +81,17 @@ export class PreDeployChecksPlugin extends ViewPlugin implements CheckHost {
     this.on('fileManager', 'currentFileChanged', (file: string) => this.setCurrentFile(file))
     this.on('fileManager', 'noFileSelected', () => this.setCurrentFile(null))
     this.on('fileManager', 'fileSaved', (file: string) => this.refreshHash(file))
-    this.on('fileManager', 'fileRenamed', (oldName: string, newName: string) => this.store.rename(oldName, newName))
-    this.on('fileManager', 'fileRemoved', (file: string) => this.store.remove(file))
+    this.on('fileManager', 'fileRenamed', (oldName: string, newName: string) => {
+      this.store.rename(oldName, newName)
+      if (this.currentFile === oldName) this.setCurrentFile(newName.endsWith('.sol') ? newName : null)
+    })
+    this.on('fileManager', 'fileRemoved', (file: string) => {
+      this.store.remove(file)
+      if (this.currentFile === file) this.setCurrentFile(null)
+    })
+    this.on('fileManager', 'fileClosed', (file: string) => {
+      if (this.currentFile === file) this.setCurrentFile(null)
+    })
     this.on('editor', 'contentChanged', (file: string, content: string) => {
       if (file && file.endsWith('.sol') && typeof content === 'string') this.store.setCurrentHash(file, contentHash(content))
     })
@@ -105,6 +114,7 @@ export class PreDeployChecksPlugin extends ViewPlugin implements CheckHost {
     this.off('fileManager', 'fileSaved')
     this.off('fileManager', 'fileRenamed')
     this.off('fileManager', 'fileRemoved')
+    this.off('fileManager', 'fileClosed')
     this.off('editor', 'contentChanged')
     this.off('theme', 'themeChanged')
     this.off('udappDeploy', 'contractDeployed')
@@ -219,8 +229,10 @@ export class PreDeployChecksPlugin extends ViewPlugin implements CheckHost {
     if (origin === 'panel') this.pendingCompile.done()
   }
 
+  /** Follows the editor's Solidity file. Other files (the saved report, a README) keep the last one in view. */
   private async setCurrentFile (file: string | null) {
-    this.currentFile = file && file.endsWith('.sol') ? file : null
+    if (file && !file.endsWith('.sol')) return
+    this.currentFile = file
     if (this.currentFile) await this.refreshHash(this.currentFile)
     this.refreshCompiler()
   }
