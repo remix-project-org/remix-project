@@ -25,6 +25,8 @@ import {
 import { trackMatomoEvent } from '@remix-api';
 import { endpointUrls } from '@remix-endpoints-helper';
 
+import { deployToAmplify, AmplifyCredentials } from '../../utils/aws-amplify-deploy';
+
 import BaseAppWizard from './BaseAppWizard';
 import EnsRegistrationModal from './EnsRegistrationModal';
 import {
@@ -98,6 +100,13 @@ function DeployPanel({ isDeleteInFlight, publishRequestId = 0 }: DeployPanelProp
   const [isSavingConfig, setIsSavingConfig] = useState(false);
   const configSaveInFlightRef = useRef(false);
   const logoInputRef = useRef<HTMLInputElement>(null);
+
+  const [isAmplifyOpen, setIsAmplifyOpen] = useState(false);
+  const [isAmplifyDeploying, setIsAmplifyDeploying] = useState(false);
+  const [amplifyError, setAmplifyError] = useState('');
+  const [awsCreds, setAwsCreds] = useState<AmplifyCredentials>({ accessKeyId: '', secretAccessKey: '', region: 'us-east-1' });
+  const [awsCredsLoaded, setAwsCredsLoaded] = useState(false);
+  const [awsCredsEditing, setAwsCredsEditing] = useState(false);
 
   useEffect(() => {
     if (!publishRequestId || publishRequestId === lastPublishRequestIdRef.current) return;
@@ -193,6 +202,43 @@ function DeployPanel({ isDeleteInFlight, publishRequestId = 0 }: DeployPanelProp
       try { plugin.off('fileManager', 'fileSaved', onDocsFileSaved); } catch (e) {}
     };
   }, [plugin, activeDapp?.workspaceName]);
+
+  useEffect(() => {
+    if (!plugin?.call) return;
+    let cancelled = false;
+    const loadCreds = async () => {
+      try {
+        const [key, secret, region] = await Promise.all([
+          plugin.call('config', 'getAppParameter', 'settings/aws-access-key-id'),
+          plugin.call('config', 'getAppParameter', 'settings/aws-secret-access-key'),
+          plugin.call('config', 'getAppParameter', 'settings/aws-region'),
+        ]);
+        if (!cancelled) {
+          setAwsCreds({ accessKeyId: key || '', secretAccessKey: secret || '', region: region || 'us-east-1' });
+          setAwsCredsLoaded(true);
+        }
+      } catch (e) {
+        if (!cancelled) setAwsCredsLoaded(true);
+      }
+    };
+    loadCreds();
+    return () => { cancelled = true; };
+  }, [plugin]);
+
+  const handleSaveAwsCreds = async () => {
+    if (!plugin?.call) return;
+    try {
+      await Promise.all([
+        plugin.call('config', 'setAppParameter', 'settings/aws-access-key-id', awsCreds.accessKeyId),
+        plugin.call('config', 'setAppParameter', 'settings/aws-secret-access-key', awsCreds.secretAccessKey),
+        plugin.call('config', 'setAppParameter', 'settings/aws-region', awsCreds.region),
+      ]);
+      setAwsCredsEditing(false);
+      await plugin.call('notification', 'toast', 'AWS credentials saved.');
+    } catch (e: any) {
+      await plugin.call('notification', 'toast', `Failed to save credentials: ${e.message}`);
+    }
+  };
 
   const handleSaveConfig = async () => {
     if (!dappManager || !activeDapp) return;
@@ -617,6 +663,175 @@ function DeployPanel({ isDeleteInFlight, publishRequestId = 0 }: DeployPanelProp
     }
   };
 
+  const handleAmplifyDeploy = async () => {
+    if (!hasQuickdappPublishPermission) {
+      plugin.call('planManager', 'open', { reason: 'feature-required', requiredFeature: Features.DAPP_PUBLISH });
+      return;
+    }
+    if (!activeDapp) return;
+    if (isDeleteInFlight?.()) {
+      await plugin.call('notification', 'toast', 'Please wait until DApp deletion finishes before deploying.');
+      return;
+    }
+    if (!awsCreds.accessKeyId || !awsCreds.secretAccessKey) {
+      setAmplifyError('AWS credentials are not configured.');
+      return;
+    }
+    if (configSaveInFlightRef.current) {
+      await plugin.call('notification', 'toast', 'Please wait until configuration saving finishes.');
+      return;
+    }
+    if (isAiUpdating || isUpdateLocked()) {
+      await plugin.call('notification', 'toast', 'Please wait until the AI update finishes.');
+      return;
+    }
+
+    const opId = `amplify-${Date.now().toString(36)}`;
+    const lock = trySetQuickDappWorkspaceLock({
+      workspaceName: activeDapp.workspaceName,
+      slug: activeDapp.slug,
+      operationId: opId,
+      operation: 'publish',
+      reason: 'amplify_deploy',
+    });
+    if (!lock) {
+      await plugin.call('notification', 'toast', 'Please wait until the current QuickDApp operation finishes.');
+      return;
+    }
+
+    setAmplifyError('');
+    setIsAmplifyDeploying(true);
+
+    try {
+      trackMatomoEvent(plugin as any, { category: 'quick-dapp-v2', action: 'deploy_amplify', name: 'start', isClick: true } as any);
+
+      await ensureActiveDappWorkspace();
+      const builder = new InBrowserVite();
+      await builder.initialize();
+      const isInlineMode = activeDapp.mode === 'inline';
+      const dappRootPath = isInlineMode ? '/frontend' : '/';
+      const rootPathLength = isInlineMode ? '/frontend'.length : 0;
+      const filesMap = new Map<string, string>();
+      await readDappFiles(plugin, dappRootPath, filesMap, rootPathLength);
+      if (filesMap.size === 0) throw new Error(`No DApp files found in ${isInlineMode ? '/frontend folder' : 'workspace root'}`);
+
+      const jsResult = await builder.build(filesMap, '/src/main.jsx');
+      if (!jsResult.success) throw new Error(`Build failed: ${jsResult.error}`);
+
+      const indexHtmlContent = filesMap.get('/index.html') || '';
+      let logoDataUrl = '';
+      if (logo && typeof logo === 'string' && logo.startsWith('data:image')) logoDataUrl = logo;
+
+      const injectionScript = buildQuickDappRuntimeConfigScript(activeDapp, { logo: logoDataUrl, title, details });
+      const graphRuntimeScript = await buildGraphRuntimeConfigScript(plugin, activeDapp, { includeApiKey: false, target: 'ipfs-deploy' });
+      const zkRuntimeScript = await buildZkRuntimeConfigScript(plugin, activeDapp, { includeApiKey: false, target: 'ipfs-deploy' });
+      const walletScript = generateWalletSelectionScript();
+
+      const escapeHtmlAttr = (str: string) => str
+        .replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+
+      // Use previous Amplify URL for OG image if available, else Remix logo
+      const prevUrl = activeDapp.deployment?.amplify?.deploymentUrl;
+      const ogImageUrl = prevUrl ? `${prevUrl}/screenshot.png` : 'https://remix.ethereum.org/assets/img/remix-logo-blue.png';
+      const twitterCardType = prevUrl ? 'summary_large_image' : 'summary';
+      const ogTags = [
+        `<meta property="og:title" content="${escapeHtmlAttr(title || 'DApp')}" />`,
+        `<meta property="og:description" content="${escapeHtmlAttr(details || 'Built with Remix QuickDApp')}" />`,
+        `<meta property="og:type" content="website" />`,
+        `<meta property="og:url" content="${prevUrl || ''}" />`,
+        `<meta name="twitter:card" content="${twitterCardType}" />`,
+        `<meta name="twitter:title" content="${escapeHtmlAttr(title || 'DApp')}" />`,
+        `<meta property="og:image" content="${ogImageUrl}" />`,
+        `<meta name="twitter:image" content="${ogImageUrl}" />`,
+      ].join('\n    ');
+
+      let modifiedHtml = indexHtmlContent;
+      if (modifiedHtml.includes('</head>')) {
+        modifiedHtml = modifiedHtml.replace('</head>', `${walletScript}\n${injectionScript}\n${graphRuntimeScript}\n${zkRuntimeScript}\n    ${ogTags}\n</head>`);
+      } else {
+        modifiedHtml = `<html><head>${injectionScript}\n${graphRuntimeScript}\n${zkRuntimeScript}\n${ogTags}</head>${modifiedHtml}</html>`;
+      }
+      const inlineScript = `<script type="module">\n${jsResult.js}\n</script>`;
+      modifiedHtml = modifiedHtml.replace(/<script type="module"[^>]*src="(?:\/|\.\/)?src\/main\.jsx"[^>]*><\/script>/, inlineScript);
+      modifiedHtml = modifiedHtml.replace(/<link rel="stylesheet"[^>]*href="(?:\/|\.\/)?src\/index\.css"[^>]*>/, '');
+
+      // Capture screenshot for inclusion in the deployment
+      let screenshotBytes: Uint8Array | null = null;
+      try {
+        const iframe = document.querySelector('[data-id="dapp-preview-iframe"]') as HTMLIFrameElement;
+        if (iframe?.contentDocument?.body) {
+          const dataUrl = await toPng(iframe.contentDocument.body, {
+            quality: 0.8, width: 1200, height: 630, backgroundColor: '#ffffff',
+            cacheBust: true, skipAutoScale: true, pixelRatio: 1,
+            style: { width: '1200px', overflow: 'hidden', display: 'flex', justifyContent: 'center', alignItems: 'flex-start' },
+          });
+          screenshotBytes = new Uint8Array(await (await fetch(dataUrl)).arrayBuffer());
+        }
+      } catch (e) {
+        console.warn('[Amplify Deploy] Screenshot capture failed', e);
+      }
+
+      const enc = new TextEncoder();
+      const amplifyFiles = new Map<string, Uint8Array>();
+      amplifyFiles.set('index.html', enc.encode(modifiedHtml));
+      if (screenshotBytes) amplifyFiles.set('screenshot.png', screenshotBytes);
+
+      // ZK artifacts
+      if (hasZkCircuit(activeDapp)) {
+        const zkArtifacts = activeDapp.zkCircuit?.zkArtifacts;
+        const defaultFolder = isInlineMode ? 'frontend/zk' : 'zk';
+        const paths = {
+          wasm: zkArtifacts?.wasmPath || `${defaultFolder}/circuit.wasm`,
+          zkey: zkArtifacts?.zkeyPath || `${defaultFolder}/circuit.zkey`,
+          vkey: zkArtifacts?.vkeyPath || `${defaultFolder}/verification_key.json`,
+        };
+        const readBinary = async (path: string): Promise<Uint8Array> => {
+          const data = await plugin.call('fileManager', 'readFile', path, { encoding: null });
+          return data instanceof Uint8Array ? data : enc.encode(data as string);
+        };
+        try { amplifyFiles.set('circuit.wasm', await readBinary(paths.wasm)); } catch (e) { console.error('[Amplify Deploy] circuit.wasm', e); }
+        try { amplifyFiles.set('circuit.zkey', await readBinary(paths.zkey)); } catch (e) { console.error('[Amplify Deploy] circuit.zkey', e); }
+        try {
+          const vkey = await plugin.call('fileManager', 'readFile', paths.vkey);
+          amplifyFiles.set('verification_key.json', enc.encode(vkey));
+        } catch (e) { console.error('[Amplify Deploy] verification_key.json', e); }
+      }
+
+      const result = await deployToAmplify(
+        awsCreds,
+        `quickdapp-${activeDapp.slug}`,
+        amplifyFiles,
+        activeDapp.deployment?.amplify?.appId
+      );
+
+      trackMatomoEvent(plugin as any, { category: 'quick-dapp-v2', action: 'deploy_amplify', name: 'success', isClick: false } as any);
+
+      if (dappManager) {
+        const newConfig = await dappManager.updateDappConfig(activeDapp.slug, {
+          status: 'deployed',
+          lastDeployedAt: Date.now(),
+          deployment: {
+            amplify: {
+              appId: result.appId,
+              branchName: result.branchName,
+              defaultDomain: result.defaultDomain,
+              deploymentUrl: result.deploymentUrl,
+              hasUnpublishedChanges: false,
+            },
+          },
+          config: { ...activeDapp.config, title: title || '', details: details || '', logo: logoDataUrl || undefined },
+        });
+        if (newConfig) dispatch({ type: 'SET_ACTIVE_DAPP', payload: newConfig });
+      }
+    } catch (e: any) {
+      console.error(e);
+      setAmplifyError(`Deployment failed: ${e.message}`);
+    } finally {
+      clearQuickDappWorkspaceLock(activeDapp.workspaceName, opId);
+      setIsAmplifyDeploying(false);
+    }
+  };
+
   const renderInfoRow = (label: string, value: React.ReactNode, monospace = false) => {
     const displayValue = value === undefined || value === null || value === '' ? 'Not configured' : value;
     return (
@@ -909,6 +1124,135 @@ function DeployPanel({ isDeleteInFlight, publishRequestId = 0 }: DeployPanelProp
               </Alert>
             )}
             {deployResult.error && <Alert variant="danger" className="mt-3 small">{deployResult.error}</Alert>}
+          </Card.Body>
+        </Collapse>
+      </Card>
+
+      <Card className="mb-2">
+        <Card.Header
+          onClick={() => setIsAmplifyOpen(!isAmplifyOpen)}
+          onKeyDown={(event) => handleAccordionKeyDown(event, () => setIsAmplifyOpen(!isAmplifyOpen))}
+          role="button"
+          tabIndex={0}
+          aria-expanded={isAmplifyOpen}
+          style={{ cursor: 'pointer' }}
+          className="d-flex justify-content-between bg-transparent border-0"
+        >
+          <span><i className="fas fa-cloud-upload-alt me-2" style={{ color: '#FF9900' }}></i>Deploy to AWS Amplify</span>
+          <i className={`fas ${isAmplifyOpen ? 'fa-chevron-up' : 'fa-chevron-down'}`}></i>
+        </Card.Header>
+        <Collapse in={isAmplifyOpen}>
+          <Card.Body>
+            {awsCredsLoaded && (!awsCreds.accessKeyId || !awsCreds.secretAccessKey || awsCredsEditing) ? (
+              <div className="mb-3">
+                <div className="fw-semibold small mb-2 text-muted">
+                  <i className="fas fa-key me-1"></i>AWS Credentials
+                </div>
+                <Form.Group className="mb-2">
+                  <Form.Label className="small text-muted mb-1">Access Key ID</Form.Label>
+                  <Form.Control size="sm" type="text" placeholder="AKIAIOSFODNN7EXAMPLE" value={awsCreds.accessKeyId}
+                    onChange={(e) => setAwsCreds({ ...awsCreds, accessKeyId: e.target.value })} />
+                </Form.Group>
+                <Form.Group className="mb-2">
+                  <Form.Label className="small text-muted mb-1">Secret Access Key</Form.Label>
+                  <Form.Control size="sm" type="password" placeholder="••••••••••••••••••••••••••••••••••••••••" value={awsCreds.secretAccessKey}
+                    onChange={(e) => setAwsCreds({ ...awsCreds, secretAccessKey: e.target.value })} />
+                </Form.Group>
+                <Form.Group className="mb-2">
+                  <Form.Label className="small text-muted mb-1">Region</Form.Label>
+                  <Form.Select size="sm" value={awsCreds.region} onChange={(e) => setAwsCreds({ ...awsCreds, region: e.target.value })}>
+                    <optgroup label="US">
+                      <option value="us-east-1">US East (N. Virginia) — us-east-1</option>
+                      <option value="us-east-2">US East (Ohio) — us-east-2</option>
+                      <option value="us-west-1">US West (N. California) — us-west-1</option>
+                      <option value="us-west-2">US West (Oregon) — us-west-2</option>
+                    </optgroup>
+                    <optgroup label="Canada">
+                      <option value="ca-central-1">Canada (Central) — ca-central-1</option>
+                    </optgroup>
+                    <optgroup label="Europe">
+                      <option value="eu-west-1">Europe (Ireland) — eu-west-1</option>
+                      <option value="eu-west-2">Europe (London) — eu-west-2</option>
+                      <option value="eu-west-3">Europe (Paris) — eu-west-3</option>
+                      <option value="eu-central-1">Europe (Frankfurt) — eu-central-1</option>
+                      <option value="eu-north-1">Europe (Stockholm) — eu-north-1</option>
+                      <option value="eu-south-1">Europe (Milan) — eu-south-1</option>
+                    </optgroup>
+                    <optgroup label="Asia Pacific">
+                      <option value="ap-east-1">Asia Pacific (Hong Kong) — ap-east-1</option>
+                      <option value="ap-south-1">Asia Pacific (Mumbai) — ap-south-1</option>
+                      <option value="ap-northeast-1">Asia Pacific (Tokyo) — ap-northeast-1</option>
+                      <option value="ap-northeast-2">Asia Pacific (Seoul) — ap-northeast-2</option>
+                      <option value="ap-northeast-3">Asia Pacific (Osaka) — ap-northeast-3</option>
+                      <option value="ap-southeast-1">Asia Pacific (Singapore) — ap-southeast-1</option>
+                      <option value="ap-southeast-2">Asia Pacific (Sydney) — ap-southeast-2</option>
+                    </optgroup>
+                    <optgroup label="Middle East">
+                      <option value="me-south-1">Middle East (Bahrain) — me-south-1</option>
+                    </optgroup>
+                    <optgroup label="South America">
+                      <option value="sa-east-1">South America (São Paulo) — sa-east-1</option>
+                    </optgroup>
+                  </Form.Select>
+                </Form.Group>
+                <div className="d-flex gap-2">
+                  <Button variant="secondary" size="sm" onClick={handleSaveAwsCreds}
+                    disabled={!awsCreds.accessKeyId || !awsCreds.secretAccessKey}>
+                    Save Credentials
+                  </Button>
+                  {awsCredsEditing && (
+                    <Button variant="outline-secondary" size="sm" onClick={() => setAwsCredsEditing(false)}>
+                      Cancel
+                    </Button>
+                  )}
+                </div>
+              </div>
+            ) : awsCredsLoaded && (
+              <div className="d-flex justify-content-between align-items-center mb-2 small">
+                <span className="text-muted">
+                  <i className="fas fa-check-circle text-success me-1"></i>AWS credentials configured ({awsCreds.region})
+                </span>
+                <button className="btn btn-link p-0 small text-muted" onClick={() => setAwsCredsEditing(true)}>Edit</button>
+              </div>
+            )}
+            {awsCredsLoaded && awsCreds.accessKeyId && awsCreds.secretAccessKey && !awsCredsEditing && (
+              <Button variant="warning" className="w-100 text-dark fw-semibold" onClick={handleAmplifyDeploy}
+                disabled={isAmplifyDeploying || isVM || isAiUpdating} data-id="deploy-amplify-btn">
+                {isAmplifyDeploying
+                  ? <><i className="fas fa-spinner fa-spin me-1"></i> Deploying...</>
+                  : <><i className="fas fa-cloud-upload-alt me-1"></i> Deploy to Amplify</>
+                }
+              </Button>
+            )}
+            {isVM && (
+              <Alert variant="warning" className="mt-2 small mb-0">
+                <i className="fas fa-exclamation-triangle me-1"></i>
+                AWS Amplify deployment is not available for Remix VM contracts. Deploy your contract to a public network first.
+              </Alert>
+            )}
+            {activeDapp?.deployment?.amplify?.deploymentUrl && !amplifyError && (
+              <Alert
+                variant={activeDapp.deployment.amplify.hasUnpublishedChanges ? 'warning' : 'success'}
+                className="mt-3"
+                style={{ wordBreak: 'break-all' }}
+                data-id="deploy-amplify-success"
+              >
+                <div className="fw-bold">
+                  {activeDapp.deployment.amplify.hasUnpublishedChanges ? 'Deployed · Unpublished changes' : 'Deployed on Amplify'}
+                </div>
+                <div className="mt-1">
+                  <a href={activeDapp.deployment.amplify.deploymentUrl} target="_blank" rel="noopener noreferrer"
+                    className="text-decoration-underline fw-bold">
+                    View DApp
+                  </a>
+                  <span className="text-muted ms-2 small">{activeDapp.deployment.amplify.deploymentUrl}</span>
+                </div>
+                {activeDapp.deployment.amplify.hasUnpublishedChanges && (
+                  <div className="mt-1 small">Deploy again to update the live Amplify deployment.</div>
+                )}
+              </Alert>
+            )}
+            {amplifyError && <Alert variant="danger" className="mt-3 small">{amplifyError}</Alert>}
           </Card.Body>
         </Collapse>
       </Card>
