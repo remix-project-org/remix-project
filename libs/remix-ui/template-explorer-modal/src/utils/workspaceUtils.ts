@@ -175,18 +175,9 @@ export class TemplateExplorerModalFacade {
       return
     }
 
-    // Legacy check for file-only categories (for backward compatibility)
-    if (template.name.toLowerCase().includes('github actions') || template.name.toLowerCase().includes('contract verification') || template.name.toLowerCase().includes('solidity create2') || template.name.toLowerCase().includes('generic zkp') || template.name.toLowerCase().includes('arkiv')) {
-      templateCategoryStrategy.setStrategy(new ScriptsStrategy())
-      templateCategoryStrategy.switchScreen(dispatch)
-      await this.plugin.call('templateexplorermodal', 'addArtefactsToWorkspace', item.value, {}, false, (err: Error) => {
-        if (err) {
-          console.error(err)
-        }
-      })
-      this.closeWizard()
-      return
-    }
+    // When creating a new workspace, script-only templates (like GitHub Actions, Arkiv, etc.)
+    // should still go through the workspace creation flow, not be added to existing workspace
+    // These templates will be handled by the GenericStrategy which creates a workspace and then populates it
 
     if (template.name.toLowerCase().includes('cookbook')) {
       templateCategoryStrategy.setStrategy(new CookbookStrategy())
@@ -194,7 +185,19 @@ export class TemplateExplorerModalFacade {
       this.closeWizard()
       return
     }
-    if (template.name.toLowerCase() !== 'generic' && template.name.toLowerCase() !== 'openzeppelin' && template.name.toLowerCase() !== 'cookbook' && template.name.toLowerCase() !== 'github actions' && template.name.toLowerCase() !== 'contract verification') {
+
+    // Script-only template categories should use GenericStrategy to create workspace
+    if (template.name.toLowerCase().includes('github actions') ||
+        template.name.toLowerCase().includes('contract verification') ||
+        template.name.toLowerCase().includes('arkiv') ||
+        template.name.toLowerCase().includes('generic zkp') ||
+        template.name.toLowerCase().includes('solidity create2')) {
+      templateCategoryStrategy.setStrategy(new GenericStrategy())
+      templateCategoryStrategy.switchScreen(dispatch)
+      return
+    }
+
+    if (template.name.toLowerCase() !== 'generic' && template.name.toLowerCase() !== 'openzeppelin' && template.name.toLowerCase() !== 'cookbook') {
       templateCategoryStrategy.setStrategy(new GenericStrategy())
       templateCategoryStrategy.switchScreen(dispatch)
       return
