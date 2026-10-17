@@ -20,7 +20,10 @@ function trackTokenUsage(usage: any, provider?: string, modelId?: string) {
       if (!userId) {
         let sessionId = window.sessionStorage.getItem('remix_random_session_id');
         if (!sessionId) {
-          sessionId = `random_${Math.random().toString(36).substring(2, 15)}${Math.random().toString(36).substring(2, 15)}`;
+          const randomBytes = new Uint8Array(16);
+          window.crypto.getRandomValues(randomBytes);
+          const randomHex = Array.from(randomBytes, (b) => b.toString(16).padStart(2, '0')).join('');
+          sessionId = `random_${randomHex}`;
           window.sessionStorage.setItem('remix_random_session_id', sessionId);
         }
         userId = sessionId;
