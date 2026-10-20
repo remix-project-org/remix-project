@@ -1,12 +1,13 @@
 /* Pre-deploy Checks panel. Theme variables only (--bs-*, --custom-*).
    Type scale: 14 title / 13 body / 12 secondary / 11 meta. Spacing on a 4px grid. */
-.pdc { display: flex; flex-direction: column; gap: 16px; padding: 12px 12px 24px; font-size: 13px; color: var(--bs-body-color); }
+.pdc { display: flex; flex-direction: column; gap: 16px; min-height: 100%; padding: 12px 12px 24px; font-size: 13px; color: var(--bs-body-color); }
 .pdc .min-w-0 { min-width: 0; }
 
 /* severity colours per theme quality: the theme files only give a readable dark-mode text colour under
    [data-bs-theme=dark], which Remix doesn't set, so the panel carries its own tones */
-.pdc-dark { --pdc-high: #f1948a; --pdc-medium: #f5c26b; --pdc-low: #85c1e9; --pdc-info: #a2a3bd; --pdc-ok: #66d7ba; }
-.pdc-light { --pdc-high: #c0392b; --pdc-medium: #b9770e; --pdc-low: #2471a3; --pdc-info: #6c757d; --pdc-ok: #138d75; }
+.pdc-dark { --pdc-layer-3: var(--custom-onsurface-layer-3); --pdc-high: #f1948a; --pdc-medium: #f5c26b; --pdc-low: #85c1e9; --pdc-info: #a2a3bd; --pdc-ok: #66d7ba; }
+/* the light theme has no --custom-onsurface-layer-3: raised surfaces (tags, hovers) use the panel's own */
+.pdc-light { --pdc-layer-3: #e8ebf2; --pdc-high: #c0392b; --pdc-medium: #b9770e; --pdc-low: #2471a3; --pdc-info: #6c757d; --pdc-ok: #138d75; }
 .pdc-sev-high { color: var(--pdc-high); }
 .pdc-sev-medium { color: var(--pdc-medium); }
 .pdc-sev-low { color: var(--pdc-low); }
@@ -21,7 +22,7 @@
 .pdc-dim { opacity: .5; }
 
 .pdc-icon-btn { background: none; border: 0; padding: 2px 4px; color: var(--bs-secondary-color); border-radius: 4px; }
-.pdc-icon-btn:hover { background: var(--custom-onsurface-layer-3); color: var(--bs-emphasis-color); }
+.pdc-icon-btn:hover { background: var(--pdc-layer-3); color: var(--bs-emphasis-color); }
 .pdc-info-btn { font-size: 13px; cursor: help; }
 .pdc-link-btn { background: none; border: 0; padding: 0; font-size: 12px; color: var(--custom-primary); }
 .pdc-link-btn:hover { text-decoration: underline; }
@@ -30,7 +31,7 @@
 .pdc-btn { flex: 1; font-size: 13px; font-weight: 500; padding: 8px 12px; border-radius: 6px; line-height: 16px; white-space: nowrap; }
 .pdc-btn-icon { font-size: 11px; }
 .pdc-btn-quiet { background: var(--custom-onsurface-layer-2); border: 1px solid var(--bs-border-color); color: var(--bs-emphasis-color); }
-.pdc-btn-quiet:hover { background: var(--custom-onsurface-layer-3); color: var(--bs-emphasis-color); }
+.pdc-btn-quiet:hover { background: var(--pdc-layer-3); color: var(--bs-emphasis-color); }
 .pdc-btn-danger-outline { background: transparent; color: var(--pdc-high); border: 1px solid rgba(var(--bs-danger-rgb), .5); }
 .pdc-btn-danger-outline:hover { background: rgba(var(--bs-danger-rgb), .12); color: var(--pdc-high); border-color: var(--bs-danger); }
 .pdc-actions { display: flex; gap: 8px; margin-top: 16px; }
@@ -64,7 +65,14 @@
 .pdc-note > i { width: 14px; text-align: center; flex-shrink: 0; }
 
 /* issues */
-.pdc-list-card { padding: 4px 0; overflow: hidden; }
+/* no vertical padding, so a row's hover reaches the card's edge; the card doesn't clip, so the Ignore menu can open past
+   its bottom, and the first and last rows carry the corners */
+.pdc-list-card { padding: 0; }
+.pdc-list-card > .pdc-issues:first-child > .pdc-issue:first-child > .pdc-issue-row,
+.pdc-list-card > .pdc-issues:first-child > .pdc-issue:first-child.pdc-just-ignored { border-radius: 8px 8px 0 0; }
+.pdc-list-card > .pdc-issues:last-child > .pdc-issue:last-child:not(.open) > .pdc-issue-row,
+.pdc-list-card > .pdc-issues:last-child > .pdc-issue:last-child > .pdc-issue-body,
+.pdc-list-card > .pdc-issues:last-child > .pdc-issue:last-child.pdc-just-ignored { border-radius: 0 0 8px 8px; }
 .pdc-issues { list-style: none; margin: 0; padding: 0; }
 .pdc-issue + .pdc-issue .pdc-issue-row::before { content: ''; position: absolute; top: 0; left: 36px; right: 12px; border-top: 1px solid var(--bs-border-color); opacity: .6; }
 .pdc-issue-row { position: relative; width: 100%; display: flex; align-items: flex-start; gap: 10px; background: none; border: 0; padding: 8px 12px; text-align: left; color: var(--bs-body-color); cursor: pointer; }
@@ -79,16 +87,36 @@
 .pdc-issue-body { padding: 0 12px 12px 36px; background: var(--custom-onsurface-layer-2); font-size: 12px; line-height: 16px; }
 .pdc-issue-body p { margin: 0 0 8px; color: var(--bs-body-color); white-space: pre-wrap; word-break: break-word; }
 .pdc-tags { display: flex; flex-wrap: wrap; gap: 4px; }
-.pdc-tag { font-size: 11px; line-height: 16px; padding: 0 6px; border-radius: 4px; background: var(--custom-onsurface-layer-3); color: var(--bs-secondary-color); }
+.pdc-tag { font-size: 11px; line-height: 16px; padding: 0 6px; border-radius: 4px; background: var(--pdc-layer-3); color: var(--bs-secondary-color); }
 .pdc-issue-actions { display: flex; align-items: center; gap: 8px; margin-top: 8px; font-size: 11px; color: var(--bs-secondary-color); }
-.pdc-reason { font-size: 11px; line-height: 16px; padding: 2px 8px; border-radius: 4px; border: 1px solid var(--bs-border-color); background: var(--custom-onsurface-layer-1); color: var(--bs-body-color); }
-.pdc-reason:hover { border-color: var(--custom-primary); }
+
+/* ignore: "Ignore ▾" menu, the Undo line, ignored rows */
+.pdc-ignore { position: relative; }
+.pdc-ignore-btn { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; line-height: 16px; padding: 4px 10px; border-radius: 4px; border: 1px solid var(--bs-border-color); background: var(--custom-onsurface-layer-1); color: var(--bs-body-color); }
+.pdc-ignore-btn:hover, .pdc-ignore-btn.active { background: var(--pdc-layer-3); color: var(--bs-emphasis-color); }
+.pdc-ignore-btn i { font-size: 11px; }
+.pdc-ignore-btn .pdc-ignore-caret { font-size: 8px; margin-left: 2px; }
+.pdc-ignore-menu { position: absolute; right: 0; top: calc(100% + 4px); z-index: 5; min-width: 180px; padding: 0 0 4px; border-radius: 6px; background: var(--custom-onsurface-layer-1); border: 1px solid var(--bs-border-color); box-shadow: 0 6px 16px rgba(0, 0, 0, .35); }
+.pdc-ignore-menu-head { font-size: 10px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--bs-secondary-color); padding: 8px 12px 6px; margin-bottom: 4px; border-bottom: 1px solid var(--bs-border-color); cursor: default; }
+.pdc-ignore-menu-item { display: flex; align-items: center; gap: 8px; width: 100%; background: none; border: 0; padding: 6px 12px; font-size: 12px; text-align: left; color: var(--bs-emphasis-color); }
+.pdc-ignore-menu-item i { width: 14px; text-align: center; font-size: 11px; color: var(--bs-secondary-color); }
+.pdc-ignore-menu-item:hover { background: var(--pdc-layer-3); }
+.pdc-ignore-menu-item:hover i { color: var(--custom-primary); }
+.pdc-just-ignored { display: flex; align-items: center; gap: 10px; padding: 10px 12px; font-size: 12px; color: var(--bs-secondary-color); background: var(--custom-onsurface-layer-2); }
+.pdc-just-ignored > i { width: 14px; text-align: center; }
+.pdc-just-ignored b { font-weight: 600; color: var(--bs-emphasis-color); }
+.pdc-ignored-row { position: relative; display: flex; align-items: flex-start; gap: 10px; padding: 8px 12px; }
+.pdc-ignored-row .pdc-issue-icon, .pdc-ignored-row .pdc-issue-text { opacity: .55; }
+.pdc-ignored-row .pdc-link-btn { line-height: 18px; flex-shrink: 0; }
+.pdc-issue + .pdc-ignored-row::before { content: ''; position: absolute; top: 0; left: 36px; right: 12px; border-top: 1px solid var(--bs-border-color); opacity: .6; }
 .pdc-ignored-toggle { width: 100%; display: flex; align-items: center; gap: 8px; background: none; border: 0; border-top: 1px solid var(--bs-border-color); padding: 8px 12px; font-size: 12px; color: var(--bs-secondary-color); text-align: left; }
 .pdc-ignored-toggle i { font-size: 9px; width: 14px; text-align: center; }
 .pdc-ignored-toggle:hover { color: var(--bs-emphasis-color); }
 .pdc-empty-list { display: flex; align-items: center; gap: 8px; padding: 12px; font-size: 12px; color: var(--bs-secondary-color); }
 
-/* outputs and deployment */
+/* outputs and deployment. Outputs (at most the flattened file and the report) stay pinned to the bottom of the
+   panel so a long issue list doesn't hide them; the background is the side panel's */
+.pdc-outputs { position: sticky; bottom: 0; z-index: 1; margin: auto -12px -24px; padding: 12px 12px 16px; background: var(--bs-light); border-top: 1px solid var(--bs-border-color); }
 .pdc-output { display: flex; align-items: center; gap: 10px; padding: 8px 12px; }
 .pdc-output + .pdc-output { border-top: 1px solid var(--bs-border-color); }
 .pdc-output > i { width: 14px; text-align: center; color: var(--bs-secondary-color); }

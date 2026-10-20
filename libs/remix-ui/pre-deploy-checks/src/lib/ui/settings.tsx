@@ -1,5 +1,6 @@
 import React from 'react'
 import { FormattedMessage, IntlShape, useIntl } from 'react-intl'
+import { ToggleSwitch } from '@remix-ui/toggle'
 import { CHECK_STEPS, CheckStepId, StepToggles } from '../types'
 import { CompilerSummary, PreDeployChecksActions } from './types'
 
@@ -42,17 +43,12 @@ export function Settings ({ toggles, compiler, disabled, onBack, plugin }: Setti
               <span className="pdc-toggle-name"><FormattedMessage id={`preDeployChecks.step.${id}`} /></span>
               <small><FormattedMessage id={`preDeployChecks.stepHint.${id}`} /></small>
             </span>
-            <span className="form-check form-switch m-0">
-              <input
-                className="form-check-input"
-                type="checkbox"
-                id={`preDeployChecks-toggle-${id}`}
-                data-id={`preDeployChecks-toggle-${id}`}
-                checked={toggles[id]}
-                disabled={disabled}
-                onChange={(e) => plugin.setToggle(id, e.target.checked)}
-              />
-            </span>
+            <ToggleSwitch
+              id={`preDeployChecks-toggle-${id}`}
+              isOn={toggles[id]}
+              disabled={disabled}
+              onClick={() => plugin.setToggle(id, !toggles[id])}
+            />
           </label>
         ))}
       </section>

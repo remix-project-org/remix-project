@@ -24,7 +24,8 @@ module.exports = {
       .addFile('Counter.sol', sources[0]['Counter.sol'])
       .clickLaunchIcon('preDeployChecks')
       .waitForElementContainsText('*[data-id="preDeployChecks-file"]', 'Counter.sol')
-      .assert.attributeContains('*[data-id="preDeployChecks-info"]', 'title', 'not a security audit')
+      // E2E runs disable tooltips: the button carries the disclaimer the tooltip shows
+      .assert.attributeContains('*[data-id="preDeployChecks-info"]', 'aria-label', 'not a security audit')
       .waitForElementVisible('*[data-id="preDeployChecks-intro"]')
   },
 
@@ -32,8 +33,8 @@ module.exports = {
     browser
       .click('*[data-id="preDeployChecks-openSettings"]')
       .waitForElementVisible('*[data-id="preDeployChecks-settings"]')
-      .assert.not.elementPresent('*[data-id="preDeployChecks-toggle-ai"]:checked')
-      .assert.elementPresent('*[data-id="preDeployChecks-toggle-analysis"]:checked')
+      .assert.elementPresent('*[data-id="preDeployChecks-toggle-aiSwitch"] .fa-toggle-off')
+      .assert.elementPresent('*[data-id="preDeployChecks-toggle-analysisSwitch"] .fa-toggle-on')
       .click('*[data-id="preDeployChecks-back"]')
       .waitForElementVisible('*[data-id="preDeployChecks-intro"]')
   },
@@ -92,6 +93,27 @@ module.exports = {
       .end()
   },
 
+  'Should leave out imported packages and stay on the contract while showing an issue in an imported file #group3': function (browser: NightwatchBrowser) {
+    const libIssue = '*[data-id^="preDeployChecks-issue-"][data-severity="high"]'
+    browser.waitForElementVisible('*[data-id="remixIdeSidePanel"]')
+      .clickLaunchIcon('filePanel')
+      .addFile('Lib.sol', sources[0]['Lib.sol'])
+      .addFile('Main.sol', sources[0]['Main.sol'])
+      .clickLaunchIcon('preDeployChecks')
+      .waitForElementContainsText('*[data-id="preDeployChecks-file"]', 'Main.sol')
+      .click('*[data-id="preDeployChecks-run"]')
+      .waitForElementVisible(status('gate'), 120000)
+      // hardhat/console.sol is an imported package: none of its issues are listed
+      .assert.not.elementPresent('*[data-id="preDeployChecks-issues"] [title="hardhat/console.sol"]')
+      // the issue in the local import names its file
+      .assert.containsText(`${libIssue} .pdc-issue-line`, 'Lib.sol')
+      .click(`${libIssue} button`)
+      .pause(1000)
+      .waitForElementContainsText('*[data-id="preDeployChecks-file"]', 'Main.sol')
+      .waitForElementVisible(`${libIssue} [data-id$="-ignore"]`)
+      .end()
+  },
+
   'Should hold a contract with a high-severity issue until it is ignored #group2': function (browser: NightwatchBrowser) {
     browser.waitForElementVisible('*[data-id="remixIdeSidePanel"]')
       .clickLaunchIcon('filePanel')
@@ -108,14 +130,23 @@ module.exports = {
       .waitForElementVisible('*[data-id="preDeployChecks-issue-0-ignore"]')
       .assert.containsText(firstHigh, 'Remix analyzer')
       .click('*[data-id="preDeployChecks-issue-0-ignore"]')
+      .waitForElementVisible('*[data-id="preDeployChecks-issue-0-reason-false-positive"]')
       .click('*[data-id="preDeployChecks-issue-0-reason-false-positive"]')
       .waitForElementVisible(status('clear'))
       .assert.containsText('*[data-id="preDeployChecks-status-sub"]', '1 ignored')
-      // restore brings the gate back
+      // the issue keeps its place for a moment with an Undo
+      .waitForElementVisible('*[data-id="preDeployChecks-issue-0-justIgnored"]')
+      .click('*[data-id="preDeployChecks-issue-0-undo"]')
+      .waitForElementVisible(status('gate'))
+      // ignored again, it moves under "1 ignored" with its reason and a Restore
+      .click(`${firstHigh} button`)
+      .click('*[data-id="preDeployChecks-issue-0-ignore"]')
+      .click('*[data-id="preDeployChecks-issue-0-reason-false-positive"]')
+      .waitForElementVisible('*[data-id="preDeployChecks-ignoredToggle"]', 10000)
       .click('*[data-id="preDeployChecks-ignoredToggle"]')
       .waitForElementVisible('*[data-id="preDeployChecks-ignored"]')
-      .click('*[data-id="preDeployChecks-ignored"] li button')
-      .click('*[data-id$="-restore"]')
+      .assert.containsText('*[data-id="preDeployChecks-ignored"]', 'False positive')
+      .click('*[data-id="preDeployChecks-ignored"] *[data-id$="-restore"]')
       .waitForElementVisible(status('gate'))
   },
 
@@ -156,6 +187,38 @@ contract Counter {
 
     function increment() public {
         count += 1;
+    }
+}
+`
+    },
+    'Lib.sol': {
+      content: `// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.20;
+
+library Lib {
+    function isOwner(address owner) internal view returns (bool) {
+        return tx.origin == owner;
+    }
+}
+`
+    },
+    'Main.sol': {
+      content: `// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.20;
+
+import "hardhat/console.sol";
+import "./Lib.sol";
+
+contract Main {
+    address public owner;
+
+    constructor() {
+        owner = msg.sender;
+        console.log("deployed");
+    }
+
+    function isOwner() public view returns (bool) {
+        return Lib.isOwner(owner);
     }
 }
 `

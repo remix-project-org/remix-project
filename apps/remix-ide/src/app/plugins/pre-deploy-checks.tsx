@@ -5,7 +5,7 @@ import { PluginViewWrapper } from '@remix-ui/helper'
 import {
   PreDeployChecksUI, PreDeployChecksViewState, CheckStore, CheckHost, Compilation, CompilerSummary, FileCheckState,
   Finding, IgnoreReason, Range, CheckStepId, StepToggles, DEFAULT_TOGGLES, collectFindings, contentHash, compilerMessages, compilerSettingsKey,
-  withIssueKeys, withoutDependencies, runPipeline, blockingFindings, buildReport, reportFileName, summarize, ChecksSummary
+  withIssueKeys, ownFindings, runPipeline, blockingFindings, buildReport, reportFileName, summarize, ChecksSummary
 } from '@remix-ui/pre-deploy-checks'
 import * as packageJson from '../../../../../package.json'
 
@@ -58,6 +58,8 @@ export class PreDeployChecksPlugin extends ViewPlugin implements CheckHost {
   private compiler: CompilerSummary | null = null
   private themeQuality: 'dark' | 'light' = 'dark'
   private highlighted = false
+  /** another file the panel opened to show an issue: the panel stays on the checked file meanwhile */
+  private showingIssueIn: string | null = null
 
   private summaries = new Map<string, string>()
 
@@ -192,7 +194,7 @@ export class PreDeployChecksPlugin extends ViewPlugin implements CheckHost {
     const origin = this.pendingCompile?.file === file ? 'panel' : 'manual'
     const content = source?.sources?.[file]?.content
     const { warnings } = compilerMessages(data?.errors, source?.sources)
-    const { own } = withoutDependencies(warnings)
+    const { own } = await ownFindings(this, file, warnings)
     let settingsKey = ''
     try {
       const state = await this.call('solidity', 'getCompilerState')
@@ -232,6 +234,8 @@ export class PreDeployChecksPlugin extends ViewPlugin implements CheckHost {
   /** Follows the editor's Solidity file. Other files (the saved report, a README) keep the last one in view. */
   private async setCurrentFile (file: string | null) {
     if (file && !file.endsWith('.sol')) return
+    if (file && file === this.showingIssueIn) return
+    this.showingIssueIn = null
     this.currentFile = file
     if (this.currentFile) await this.refreshHash(this.currentFile)
     this.refreshCompiler()
@@ -367,6 +371,7 @@ export class PreDeployChecksPlugin extends ViewPlugin implements CheckHost {
 
   async openFinding (finding: { file?: string, range?: Range }) {
     if (!finding.file) return
+    if (finding.file !== this.currentFile) this.showingIssueIn = finding.file
     try {
       if (this.highlighted) await this.call('editor', 'discardHighlight')
       if (finding.range) {
@@ -394,6 +399,24 @@ export class PreDeployChecksPlugin extends ViewPlugin implements CheckHost {
 
   async openPlugin (name: string) {
     await this.call('menuicons', 'select', name)
+  }
+
+  /** Same audit as the Solidity compiler's Security Audit button, in RemixAI chat. */
+  async securityAudit () {
+    const file = this.currentFile
+    if (!file) return
+    const hasAuditor = await this.call('assistantState', 'hasFeature', 'ai:auditor').catch(() => false)
+    const upsell = hasAuditor ? '' : ' At the end, mention that a more thorough and complete security audit with deeper analysis and detailed reporting is available in the Remix Pro plan.'
+    const fileRef = ` File to analyze: ${file}.`
+    const prompt = `Perform a security audit of the following smart contract.${fileRef} Identify vulnerabilities, potential attack vectors, reentrancy issues, access control problems, and any other security risks.${upsell}`
+    await this.call('manager', 'activatePlugin', 'remixaiassistant')
+    await this.call('menuicons', 'select', 'remixaiassistant')
+    await this.call('remixaiassistant', 'newConversation')
+    // the chat needs a moment after a new conversation, as in the compiler
+    setTimeout(() => {
+      this.call('remixaiassistant', 'chatPipe', prompt, false, { displayText: 'audit security' + fileRef, source: 'preDeployChecks', presetId: 'security-audit' })
+        .catch((e) => console.warn('Pre-deploy checks: could not start the security audit', e))
+    }, 500)
   }
 
   async saveReport () {

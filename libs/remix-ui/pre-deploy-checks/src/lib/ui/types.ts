@@ -35,4 +35,6 @@ export interface PreDeployChecksActions {
   openFile: (file: string) => Promise<void>
   openPlugin: (name: string) => Promise<void>
   saveReport: () => Promise<void>
+  /** opens RemixAI chat with a full security audit of the file */
+  securityAudit: () => Promise<void>
 }

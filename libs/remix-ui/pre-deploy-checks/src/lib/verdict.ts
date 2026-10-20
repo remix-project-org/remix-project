@@ -36,7 +36,8 @@ export interface VerdictInput {
 /** A tool without a usable result, shown as one plain line above the issues. */
 export interface ToolLine {
   tools: ToolId[]
-  kind: 'running' | 'waiting' | 'stale' | 'failed' | 'skipped'
+  /** clear: the AI security check found no major vulnerability (other tools show it as an empty list) */
+  kind: 'running' | 'waiting' | 'stale' | 'failed' | 'skipped' | 'clear'
   note?: string
   /** why it was skipped, when the panel can help: remixd missing, RemixAI sign-in */
   reason?: 'unavailable' | 'sign-in'
@@ -120,6 +121,8 @@ export function toolLines ({ state, toggles, runningStep }: VerdictInput): ToolL
       lines.push({ tools, kind: 'skipped', note: step.note, reason: step.data?.reason })
     } else if (id === 'analysis' && step.data?.solhintError) {
       lines.push({ tools: ['solhint'], kind: 'failed', note: step.data.solhintError })
+    } else if (id === 'ai' && step.status === 'passed') {
+      lines.push({ tools, kind: 'clear' })
     }
   }
   return lines

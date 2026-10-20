@@ -170,13 +170,17 @@ export interface AiSecurityAnswer {
 
 export function aiFindings (answer: AiSecurityAnswer, file: string): RawFinding[] {
   if (!answer || !aiIsVulnerable(answer.Answer)) return []
-  const reasons = (answer.Reason || []).join('\n')
-  const suggestions = Array.isArray(answer.Suggestion) ? answer.Suggestion.join('\n') : (answer.Suggestion || '')
+  const list = (items: string[]) => items.filter(Boolean).map((item) => `• ${item}`).join('\n')
+  const reasons = list(answer.Reason || [])
+  const suggestions = list(Array.isArray(answer.Suggestion) ? answer.Suggestion : [answer.Suggestion])
   return [{
     source: 'ai',
     severity: 'high',
-    title: 'RemixAI security review',
-    message: [reasons, suggestions && `Suggestion: ${suggestions}`].filter(Boolean).join('\n'),
+    title: 'RemixAI flagged a possible major vulnerability',
+    message: [
+      reasons || 'RemixAI gave no details. Run a full security audit to see what it found.',
+      suggestions && `Suggestions:\n${suggestions}`
+    ].filter(Boolean).join('\n\n'),
     file,
     nativeSeverity: answer.Answer
   }]

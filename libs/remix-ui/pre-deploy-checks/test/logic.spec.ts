@@ -4,7 +4,7 @@ import { remixSeverity, slitherSeverity, solhintSeverity, canonicalRule } from '
 import { CheckStore, contentHash, isStale, needsRun, deployedFromOlderVersion, PlanContext } from '../src/lib/store'
 import { offsetToPosition, remixFindings, slitherFindings, solhintFindings, aiFindings, compilerMessages, withoutDependencies } from '../src/lib/converters'
 import { buildReport, reportFileName } from '../src/lib/report'
-import { CheckHost, runPipeline } from '../src/lib/runner'
+import { CheckHost, ownFindings, runPipeline } from '../src/lib/runner'
 import { deriveVerdict, summarize, toolLines, VerdictInput } from '../src/lib/verdict'
 import { DEFAULT_TOGGLES, FileCheckState, RawFinding } from '../src/lib/types'
 
@@ -434,5 +434,36 @@ describe('report', () => {
     const md = buildReport(state, { date: new Date(0) })
     assert.ok(md.includes('an earlier version of the file'))
     assert.ok(!md.includes('Deployed with'))
+  })
+})
+
+describe('own findings', () => {
+  it('keeps the checked file and workspace imports, drops imported packages', async () => {
+    const workspace = ['contracts/Lib.sol']
+    const host = { call: async (_plugin: string, method: string, path: string) => method === 'exists' && workspace.includes(path) } as unknown as CheckHost
+    const at = (file: string): RawFinding => ({ source: 'remix', severity: 'low', title: 'Gas costs', message: '', file })
+    const { own, dependencyCount } = await ownFindings(host, FILE, [
+      at(FILE), at('contracts/Lib.sol'), at('hardhat/console.sol'), at('hardhat/console.sol'), at('.deps/npm/x/A.sol')
+    ])
+    assert.deepStrictEqual(own.map((f) => f.file), [FILE, 'contracts/Lib.sol'])
+    assert.strictEqual(dependencyCount, 3)
+  })
+})
+
+describe('AI security check', () => {
+  it('lists the reasons and suggestions, or says there are none', () => {
+    const [flagged] = aiFindings({ Answer: 'Yes', Reason: ['reentrancy in withdraw', 'no access control'], Suggestion: ['use a guard']}, FILE)
+    assert.strictEqual(flagged.message, '• reentrancy in withdraw\n• no access control\n\nSuggestions:\n• use a guard')
+    const [bare] = aiFindings({ Answer: 'Yes', Reason: []}, FILE)
+    assert.ok(bare.message.startsWith('RemixAI gave no details'))
+  })
+
+  it('shows a line when RemixAI found no major vulnerability', () => {
+    const state: FileCheckState = { file: FILE, currentHash: 'h1', ignored: {}, steps: {
+      compile: { status: 'passed', at: 1, origin: 'panel', contentHash: 'h1' },
+      ai: { status: 'passed', at: 2, origin: 'panel', contentHash: 'h1' }
+    } } as any
+    const lines = toolLines({ state, findings: [], toggles: { ...DEFAULT_TOGGLES, analysis: false, slither: false, ai: true, flatten: false }, runningStep: null })
+    assert.deepStrictEqual(lines, [{ tools: ['ai'], kind: 'clear' }])
   })
 })

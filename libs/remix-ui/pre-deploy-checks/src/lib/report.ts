@@ -8,13 +8,13 @@ export interface ReportContext {
   contractName?: string
 }
 
-export const DISCLAIMER = 'Automated checks, not a security audit. They run existing tools (compiler, Remix analyzer, Solhint, Slither, optional AI review). Passing them does not mean the contract is safe.'
+export const DISCLAIMER = 'Automated checks, not a security audit. They run existing tools (compiler, Remix analyzer, Solhint, Slither, optional AI security check). Passing them does not mean the contract is safe.'
 
 export const STEP_LABELS: Record<StepId, string> = {
   compile: 'Compile',
   analysis: 'Static analysis',
   slither: 'Slither',
-  ai: 'AI review',
+  ai: 'AI security check',
   flatten: 'Flatten',
   deploy: 'Deploy',
   verify: 'Verify'

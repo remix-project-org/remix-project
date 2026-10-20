@@ -18,7 +18,7 @@ export function Outputs ({ state, flattenEnabled, reportPath, plugin }: OutputsP
   const flatPath: string | undefined = flattenEnabled && flatten?.status === 'passed' ? flatten.data?.path : undefined
   const flatStale = isStale(state, 'flatten')
   return (
-    <section data-id="preDeployChecks-outputs">
+    <section className="pdc-outputs" data-id="preDeployChecks-outputs">
       <div className="pdc-section-head"><span className="pdc-section-title"><FormattedMessage id="preDeployChecks.outputs" /></span></div>
       <div className="pdc-card pdc-list-card">
         {flatPath && (

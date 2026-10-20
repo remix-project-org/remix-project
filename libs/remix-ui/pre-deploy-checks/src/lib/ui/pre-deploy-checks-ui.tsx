@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import { FormattedMessage, useIntl } from 'react-intl'
+import { CustomTooltip } from '@remix-ui/helper'
 import { aggregateFindings } from '../findings'
 import { isStale } from '../store'
 import { CHECK_STEPS, Finding } from '../types'
@@ -36,14 +37,15 @@ function Header ({ file, onSettings }: { file: string, onSettings: () => void })
         <div className="pdc-file text-truncate" data-id="preDeployChecks-file" title={file}>{name}</div>
         <div className="pdc-folder text-truncate">{folder || <FormattedMessage id="preDeployChecks.workspaceRoot" />}</div>
       </div>
-      <button
-        className="pdc-icon-btn pdc-info-btn"
-        data-id="preDeployChecks-info"
-        aria-label={intl.formatMessage({ id: 'preDeployChecks.about' })}
-        title={intl.formatMessage({ id: 'preDeployChecks.disclaimer' })}
-      >
-        <i className="fas fa-info-circle" aria-hidden="true"></i>
-      </button>
+      <CustomTooltip placement="bottom" tooltipId="preDeployChecks-infoTooltip" tooltipText={<FormattedMessage id="preDeployChecks.disclaimer" />}>
+        <button
+          className="pdc-icon-btn pdc-info-btn"
+          data-id="preDeployChecks-info"
+          aria-label={intl.formatMessage({ id: 'preDeployChecks.disclaimer' })}
+        >
+          <i className="fas fa-info-circle" aria-hidden="true"></i>
+        </button>
+      </CustomTooltip>
       <button className="pdc-icon-btn" data-id="preDeployChecks-openSettings" onClick={onSettings} aria-label={intl.formatMessage({ id: 'preDeployChecks.settings' })} title={intl.formatMessage({ id: 'preDeployChecks.settings' })}>
         <i className="fas fa-cog" aria-hidden="true"></i>
       </button>
@@ -119,7 +121,7 @@ export function PreDeployChecksUI ({ plugin, view }: PreDeployChecksUIProps) {
         <>
           <StatusCard file={file} verdict={verdict} actions={actions} cancelling={view.cancelling} now={now} plugin={plugin} />
           <Deployment state={state} />
-          <Issues findings={findings} compileErrors={compileErrors} lines={lines} running={running} plugin={plugin} />
+          <Issues file={file} findings={findings} compileErrors={compileErrors} lines={lines} running={running} plugin={plugin} />
           {!running && state.steps.compile && <Outputs state={state} flattenEnabled={toggles.flatten} reportPath={view.reportPath} plugin={plugin} />}
         </>
       )}

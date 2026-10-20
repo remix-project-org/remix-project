@@ -2,7 +2,7 @@ import { CodeAnalysis } from '@remix-project/remix-analyzer'
 import { aiFindings, remixFindings, slitherFindings, solhintFindings, withoutDependencies } from './converters'
 import { withIssueKeys } from './findings'
 import { CheckStore, compilerSettingsKey, needsRun, PlanContext } from './store'
-import { CHECK_STEPS, CheckStepId, StepResult, StepToggles } from './types'
+import { CHECK_STEPS, CheckStepId, RawFinding, StepResult, StepToggles } from './types'
 
 /** Last compilation of a file, as received from `solidity.compilationFinished`. */
 export interface Compilation {
@@ -58,6 +58,20 @@ export async function getSettingsKey (host: CheckHost): Promise<string> {
   }
 }
 
+/**
+ * Findings in the user's own code: the checked file and the workspace files it imports. Imported packages
+ * keep their import path in the compilation ("hardhat/console.sol"), which isn't a file in the workspace.
+ */
+export async function ownFindings (host: CheckHost, file: string, findings: RawFinding[]): Promise<{ own: RawFinding[], dependencyCount: number }> {
+  const { own } = withoutDependencies(findings)
+  const inWorkspace = new Map<string, boolean>()
+  for (const path of new Set(own.map((f) => f.file).filter((path) => path && path !== file))) {
+    inWorkspace.set(path, !!(await host.call('fileManager', 'exists', path).catch(() => false)))
+  }
+  const kept = own.filter((f) => !f.file || f.file === file || inWorkspace.get(f.file))
+  return { own: kept, dependencyCount: findings.length - kept.length }
+}
+
 async function runAnalysis (host: CheckHost, file: string, compilation: Compilation): Promise<StepResult> {
   const analyzer = new CodeAnalysis()
   const modules = analyzer.modules().map((_m, index) => index)
@@ -72,7 +86,7 @@ async function runAnalysis (host: CheckHost, file: string, compilation: Compilat
     solhintError = errorMessage(e)
     notes.push(`Solhint unavailable: ${solhintError}`)
   }
-  const { own, dependencyCount } = withoutDependencies(findings)
+  const { own, dependencyCount } = await ownFindings(host, file, findings)
   if (dependencyCount) notes.push(`${dependencyCount} finding${dependencyCount === 1 ? '' : 's'} in imported libraries not shown`)
   return result(own.length ? 'findings' : 'passed', { findings: own, note: notes.join(' · ') || undefined, data: solhintError ? { solhintError } : undefined })
 }
@@ -92,7 +106,7 @@ async function runSlither (host: CheckHost, file: string): Promise<StepResult> {
   if (!response) return result('skipped', { note: 'Slither is not reachable: check the remixd connection', data: { reason: 'unavailable' } })
   if (!response.status) return result('failed', { note: 'Slither did not complete' })
   const resolveFile = (path: string) => (path === file || file.endsWith('/' + path) || path.endsWith('/' + file)) ? file : path
-  const { own, dependencyCount } = withoutDependencies(slitherFindings(response, resolveFile))
+  const { own, dependencyCount } = await ownFindings(host, file, slitherFindings(response, resolveFile))
   const note = dependencyCount ? `${dependencyCount} finding${dependencyCount === 1 ? '' : 's'} in imported libraries not shown` : undefined
   return result(own.length ? 'findings' : 'passed', { findings: own, note })
 }
