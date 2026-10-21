@@ -55,6 +55,8 @@
   "solidity._comment_contract-selection.tsx": "libs/remix-ui/solidity-compiler/src/lib/contract-selection.tsx",
   "solidity.publishOn": "Publish on",
   "solidity.runStaticAnalysis": "Run Remix Analysis",
+  "solidity.openPreDeployChecks": "Open in Pre-deploy Checks",
+  "solidity.openPreDeployChecks.tooltip": "Compile, analyze and flatten this contract before deploying it",
   "solidity.runStaticAnalysis.iconTooltip": "Click to analyze this contract for vulnerabilities using Remix, Solhint and Slither analyzers",
 
 

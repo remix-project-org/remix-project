@@ -444,6 +444,17 @@ export class RemixAppManager extends BaseRemixAppManager {
       group: 5,
     })
     await this.call('filePanel', 'registerContextMenuItem', {
+      id: 'preDeployChecks',
+      name: 'openFromContextMenu',
+      label: 'Open in Pre-deploy Checks',
+      type: [],
+      extension: ['.sol'],
+      path: [],
+      pattern: [],
+      sticky: true,
+      group: 5,
+    })
+    await this.call('filePanel', 'registerContextMenuItem', {
       id: 'nahmii-compiler',
       name: 'compileCustomAction',
       label: 'Compile for Nahmii',

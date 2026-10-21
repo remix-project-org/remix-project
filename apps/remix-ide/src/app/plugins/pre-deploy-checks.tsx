@@ -1,5 +1,6 @@
 import React from 'react'
 import { ViewPlugin } from '@remixproject/engine-web'
+import { customAction } from '@remixproject/plugin-api'
 import { PluginViewWrapper } from '@remix-ui/helper'
 import { endpointUrls } from '@remix-endpoints-helper'
 import {
@@ -13,7 +14,7 @@ const profile = {
   name: 'preDeployChecks',
   displayName: 'Pre-deploy Checks',
   description: 'Compile, analyze and flatten the current Solidity file in one run before deploying it.',
-  methods: ['open', 'run', 'getState', 'getSummary'],
+  methods: ['open', 'openFromContextMenu', 'run', 'getState', 'getSummary'],
   events: ['stateChanged', 'summaryChanged'],
   icon: 'assets/img/preDeployChecks.svg',
   location: 'sidePanel',
@@ -125,7 +126,16 @@ export class PreDeployChecksPlugin extends ViewPlugin implements CheckHost {
 
   async open (file?: string) {
     await this.call('menuicons', 'select', 'preDeployChecks')
-    if (file) await this.call('fileManager', 'open', file)
+    if (!file) return
+    await this.call('fileManager', 'open', file)
+    // the file may already be in the editor (no change event) while the panel shows another one
+    this.showingIssueIn = null
+    await this.setCurrentFile(file)
+  }
+
+  /** File explorer right-click on a .sol file. */
+  async openFromContextMenu (action: customAction) {
+    await this.open(action.path[0])
   }
 
   async run (file?: string, opts: { force?: boolean } = {}): Promise<FileCheckState> {

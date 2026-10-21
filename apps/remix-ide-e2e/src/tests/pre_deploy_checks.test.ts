@@ -111,6 +111,25 @@ module.exports = {
       .pause(1000)
       .waitForElementContainsText('*[data-id="preDeployChecks-file"]', 'Main.sol')
       .waitForElementVisible(`${libIssue} [data-id$="-ignore"]`)
+  },
+
+  'Should open the panel on the compiled contract from the Solidity compiler #group3': function (browser: NightwatchBrowser) {
+    // the panel still shows Main.sol; Lib.sol, opened from the issue, was auto-compiled
+    browser
+      .clickLaunchIcon('solidity')
+      .waitForElementPresent('select[id="compiledContracts"] option[value=Lib]', 60000)
+      .click('*[data-id="compilerOpenPreDeployChecks"]')
+      .waitForElementVisible('*[data-id="preDeployChecks-file"]')
+      .waitForElementContainsText('*[data-id="preDeployChecks-file"]', 'Lib.sol')
+  },
+
+  'Should open the panel on a file from the file explorer menu #group3': function (browser: NightwatchBrowser) {
+    browser
+      .clickLaunchIcon('filePanel')
+      .rightClick('*[data-id="treeViewLitreeViewItemMain.sol"]')
+      .click('*[data-id="contextMenuItempreDeployChecks"]')
+      .waitForElementVisible('*[data-id="preDeployChecks-file"]')
+      .waitForElementContainsText('*[data-id="preDeployChecks-file"]', 'Main.sol')
       .end()
   },
 
