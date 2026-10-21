@@ -2,7 +2,7 @@ import * as assert from 'assert'
 import { aggregateFindings, blockingFindings, collectFindings, countBySeverity, issueKey, withIssueKeys } from '../src/lib/findings'
 import { remixSeverity, slitherSeverity, solhintSeverity, canonicalRule } from '../src/lib/severity'
 import { CheckStore, contentHash, isStale, needsRun, deployedFromOlderVersion, PlanContext } from '../src/lib/store'
-import { offsetToPosition, remixFindings, SlitherReport, slitherFindings, solhintFindings, aiFindings, compilerMessages, withoutDependencies } from '../src/lib/converters'
+import { offsetToPosition, remixFindings, SLITHER_KEY_LENGTH, SlitherReport, slitherFindings, solhintFindings, aiFindings, compilerMessages, withoutDependencies, withSlitherCacheKeys } from '../src/lib/converters'
 import { buildReport, reportFileName } from '../src/lib/report'
 import { CheckHost, ownFindings, runPipeline } from '../src/lib/runner'
 import { deriveVerdict, summarize, toolLines, VerdictInput } from '../src/lib/verdict'
@@ -79,6 +79,27 @@ describe('converters', () => {
     assert.strictEqual(finding.nativeSeverity, 'Medium · Medium confidence')
     assert.strictEqual(finding.file, FILE)
     assert.deepStrictEqual(finding.range, { start: { line: 1, column: 4 }, end: { line: 2, column: 8 } })
+  })
+
+  it('gives each content and compiler version its own Slither cache key without moving lines', () => {
+    const content = '// SPDX-License-Identifier: MIT\npragma solidity ^0.8.20;\n'
+    const key = (c: string, v: string) => withSlitherCacheKeys({ [FILE]: { content: c } }, v)[FILE].content
+    const keyed = key(content, '0.8.26')
+    assert.strictEqual(keyed.length, content.length + SLITHER_KEY_LENGTH)
+    assert.ok(keyed.endsWith(content))
+    assert.strictEqual(keyed.split('\n').length, content.split('\n').length)
+    // the service keys on the first 12 bytes only: they must change with the content and the version
+    const head = (c: string) => c.slice(0, 12)
+    assert.strictEqual(head(keyed), head(key(content, '0.8.26')))
+    assert.notStrictEqual(head(keyed), head(key(content + '// edit\n', '0.8.26')))
+    assert.notStrictEqual(head(keyed), head(key(content, '0.8.25')))
+  })
+
+  it('takes the cache key off columns on line 1', () => {
+    const detector = (lines: number[]) => ({ check: 'solc-version', description: '', impact: 'Informational', confidence: 'High', elements: [{ source_mapping: { start: 0, length: 1, filename_relative: 'src/' + FILE, lines, starting_column: 15 + 2, ending_column: 15 + 10 } }]})
+    const [first, second] = slitherFindings({ success: true, results: { detectors: [detector([1]), detector([2])]} }, SLITHER_KEY_LENGTH)
+    assert.deepStrictEqual(first.range, { start: { line: 0, column: 2 }, end: { line: 0, column: 10 } })
+    assert.deepStrictEqual(second.range, { start: { line: 1, column: 16 }, end: { line: 1, column: 24 } })
   })
 
   it('maps Solhint, AI and compiler output', () => {

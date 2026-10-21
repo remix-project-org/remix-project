@@ -234,9 +234,9 @@ contract Wallet {
         owner = msg.sender;
     }
 
-    function withdraw() public {
+    function setOwner(address next) public {
         require(tx.origin == owner, "not owner");
-        payable(msg.sender).transfer(address(this).balance);
+        owner = next;
     }
 
     receive() external payable {}
