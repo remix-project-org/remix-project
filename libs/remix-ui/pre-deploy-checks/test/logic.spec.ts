@@ -2,7 +2,7 @@ import * as assert from 'assert'
 import { aggregateFindings, blockingFindings, collectFindings, countBySeverity, issueKey, withIssueKeys } from '../src/lib/findings'
 import { remixSeverity, slitherSeverity, solhintSeverity, canonicalRule } from '../src/lib/severity'
 import { CheckStore, contentHash, isStale, needsRun, deployedFromOlderVersion, PlanContext } from '../src/lib/store'
-import { offsetToPosition, remixFindings, slitherFindings, solhintFindings, aiFindings, compilerMessages, withoutDependencies } from '../src/lib/converters'
+import { offsetToPosition, remixFindings, SlitherReport, slitherFindings, solhintFindings, aiFindings, compilerMessages, withoutDependencies } from '../src/lib/converters'
 import { buildReport, reportFileName } from '../src/lib/report'
 import { CheckHost, ownFindings, runPipeline } from '../src/lib/runner'
 import { deriveVerdict, summarize, toolLines, VerdictInput } from '../src/lib/verdict'
@@ -65,18 +65,19 @@ describe('converters', () => {
     assert.strictEqual(findings[0].range.start.line, 1)
   })
 
-  it('handles a clean Slither run without data', () => {
-    assert.deepStrictEqual(slitherFindings({ status: true, count: 0 }), [])
+  it('handles a clean Slither run without detectors', () => {
+    assert.deepStrictEqual(slitherFindings({ success: true, error: null, results: {} }), [])
   })
 
-  it('keeps Slither impact and confidence', () => {
+  it('keeps Slither impact and confidence and strips the service path prefix', () => {
     const [finding] = slitherFindings({
-      status: true,
-      count: 1,
-      data: [{ title: 'tx-origin', description: 'Dangerous use of tx.origin\n', severity: 'Medium', confidence: 'Medium', sourceMap: [{ source_mapping: { start: 0, length: 1, filename_relative: FILE, lines: [2, 3], starting_column: 5, ending_column: 9 } }]}]
+      success: true,
+      results: { detectors: [{ check: 'tx-origin', description: 'Dangerous use of tx.origin\n', impact: 'Medium', confidence: 'Medium', elements: [{ type: 'function', name: 'kill', source_mapping: { start: 0, length: 1, filename_relative: 'src/' + FILE, lines: [2, 3], starting_column: 5, ending_column: 9 } }]}]}
     })
+    assert.strictEqual(finding.rule, 'tx-origin')
     assert.strictEqual(finding.severity, 'medium')
     assert.strictEqual(finding.nativeSeverity, 'Medium · Medium confidence')
+    assert.strictEqual(finding.file, FILE)
     assert.deepStrictEqual(finding.range, { start: { line: 1, column: 4 }, end: { line: 2, column: 8 } })
   })
 
@@ -263,12 +264,15 @@ describe('runner', () => {
     version: '0.8.26'
   }
 
-  function fakeHost (compileStatus: 'passed' | 'failed') {
+  function fakeHost (compileStatus: 'passed' | 'failed', slither: () => Promise<SlitherReport> = async () => ({ success: true, results: { detectors: []} })) {
     const calls: string[] = []
     const store = new CheckStore()
     const host: CheckHost = {
       store,
-      isDesktop: false,
+      runSlither: async (sources, version) => {
+        calls.push(`slither:${Object.keys(sources).join(',')}@${version}`)
+        return slither()
+      },
       call: async (plugin, method) => {
         calls.push(`${plugin}.${method}`)
         if (method === 'getCompilerState') return { currentVersion: '0.8.26' }
@@ -288,7 +292,8 @@ describe('runner', () => {
     const outcome = await runPipeline(host, { file: FILE, toggles: { ...DEFAULT_TOGGLES }, isCancelled: () => false })
     assert.deepStrictEqual(outcome, { kind: 'done' })
     assert.deepStrictEqual(Object.keys(store.get(FILE).steps), ['compile', 'analysis', 'slither', 'flatten'])
-    assert.strictEqual(store.get(FILE).steps.slither.status, 'skipped') // no remixd
+    assert.strictEqual(store.get(FILE).steps.slither.status, 'passed')
+    assert.ok(calls.includes(`slither:${FILE}@0.8.26`)) // the compiled sources, not a flattened copy
     assert.strictEqual(store.get(FILE).steps.flatten.contentHash, 'h1')
     assert.ok(!calls.some((c) => c.startsWith('udapp') || c.startsWith('contract-verification')))
   })
@@ -298,6 +303,16 @@ describe('runner', () => {
     const outcome = await runPipeline(host, { file: FILE, toggles: { ...DEFAULT_TOGGLES }, isCancelled: () => false })
     assert.deepStrictEqual(outcome, { kind: 'compile-failed' })
     assert.deepStrictEqual(Object.keys(store.get(FILE).steps), ['compile'])
+  })
+
+  it('fails the Slither step when the service is down or the run did not complete', async () => {
+    const down = fakeHost('passed', async () => { throw new Error('HTTP 502') })
+    await runPipeline(down.host, { file: FILE, toggles: { ...DEFAULT_TOGGLES }, isCancelled: () => false })
+    assert.strictEqual(down.store.get(FILE).steps.slither.status, 'failed')
+    assert.strictEqual(down.store.get(FILE).steps.slither.note, 'Slither service unavailable: HTTP 502')
+    const broken = fakeHost('passed', async () => ({ success: false, error: 'compilation failed' }))
+    await runPipeline(broken.host, { file: FILE, toggles: { ...DEFAULT_TOGGLES }, isCancelled: () => false })
+    assert.strictEqual(broken.store.get(FILE).steps.slither.note, 'compilation failed')
   })
 })
 
@@ -335,7 +350,7 @@ describe('verdict', () => {
   })
 
   it('gates on open high issues and names the tools that did not run', () => {
-    const skipped: FileCheckState = { ...checked, steps: { ...checked.steps, slither: done({ status: 'skipped', data: { reason: 'unavailable' } }) } }
+    const skipped: FileCheckState = { ...checked, steps: { ...checked.steps, slither: done({ status: 'failed', note: 'Slither service unavailable' }) } }
     assert.deepStrictEqual(deriveVerdict(input(skipped)), { verdict: { kind: 'gate', high: 1, notRun: ['slither']}, actions: ['rerun', 'deploy-anyway']})
   })
 
@@ -371,14 +386,14 @@ describe('verdict', () => {
       steps: {
         compile: done(),
         analysis: done({ data: { solhintError: 'Solhint is not active' } }),
-        slither: done({ status: 'skipped', note: 'Connect remixd', data: { reason: 'unavailable' } }),
+        slither: done({ status: 'failed', note: 'Slither service unavailable' }),
         ai: done({ status: 'failed', note: 'timeout' }),
         flatten: done({ contentHash: 'h0' })
       }
     }
     assert.deepStrictEqual(toolLines(input(state, { toggles: { ...DEFAULT_TOGGLES, ai: true } })), [
       { tools: ['solhint'], kind: 'failed', note: 'Solhint is not active' },
-      { tools: ['slither'], kind: 'skipped', note: 'Connect remixd', reason: 'unavailable' },
+      { tools: ['slither'], kind: 'failed', note: 'Slither service unavailable' },
       { tools: ['ai'], kind: 'failed', note: 'timeout' }
     ])
     const stale = { ...checked, currentHash: 'h2' }

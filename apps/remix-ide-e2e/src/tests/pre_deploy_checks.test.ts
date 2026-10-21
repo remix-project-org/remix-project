@@ -44,8 +44,8 @@ module.exports = {
       .click('*[data-id="preDeployChecks-run"]')
       .waitForElementVisible(status('clear'), 120000)
       .assert.containsText('*[data-id="preDeployChecks-status-title"]', 'No high-severity issues')
-      // Slither needs remixd: it says so instead of failing
-      .waitForElementVisible('*[data-id="preDeployChecks-toolLine-slither"][data-kind="skipped"]')
+      // Slither runs on the hosted service: no skipped or failed line
+      .assert.not.elementPresent('*[data-id="preDeployChecks-toolLine-slither"]')
       .waitForElementVisible('*[data-id="preDeployChecks-openFlattened"]')
       .waitForElementVisible('*[data-id="preDeployChecks-goToDeploy"]')
   },

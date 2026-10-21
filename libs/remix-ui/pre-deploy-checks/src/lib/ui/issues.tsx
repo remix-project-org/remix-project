@@ -158,10 +158,9 @@ function IgnoredIssue ({ finding, index, plugin }: { finding: Finding, index: nu
 function ToolLineRow ({ line, plugin }: { line: ToolLine, plugin: PreDeployChecksActions }) {
   const intl = useIntl()
   const tools = toolList(intl, line.tools)
-  const action = line.reason === 'unavailable'
-    ? { id: 'preDeployChecks.action.connectRemixd', run: () => plugin.openPlugin('filePanel') }
-    : line.reason === 'sign-in' ? { id: 'preDeployChecks.action.openRemixAI', run: () => plugin.openPlugin('remixaiassistant') }
-      : line.kind === 'clear' ? { id: 'preDeployChecks.action.fullSecurityAudit', run: () => plugin.securityAudit() } : null
+  const action = line.reason === 'sign-in'
+    ? { id: 'preDeployChecks.action.openRemixAI', run: () => plugin.openPlugin('remixaiassistant') }
+    : line.kind === 'clear' ? { id: 'preDeployChecks.action.fullSecurityAudit', run: () => plugin.securityAudit() } : null
   return (
     <div className="pdc-note" data-id={`preDeployChecks-toolLine-${line.tools.join('-')}`} data-kind={line.kind}>
       <i className={LINE_ICON[line.kind]} aria-hidden="true"></i>

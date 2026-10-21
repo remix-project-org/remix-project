@@ -1,5 +1,5 @@
 import { CodeAnalysis } from '@remix-project/remix-analyzer'
-import { aiFindings, remixFindings, slitherFindings, solhintFindings, withoutDependencies } from './converters'
+import { aiFindings, remixFindings, SlitherReport, slitherFindings, solhintFindings, withoutDependencies } from './converters'
 import { withIssueKeys } from './findings'
 import { CheckStore, compilerSettingsKey, needsRun, PlanContext } from './store'
 import { CHECK_STEPS, CheckStepId, RawFinding, StepResult, StepToggles } from './types'
@@ -17,7 +17,8 @@ export interface Compilation {
 export interface CheckHost {
   call: (plugin: string, method: string, ...args: any[]) => Promise<any>
   store: CheckStore
-  isDesktop: boolean
+  /** runs Slither on the hosted service; rejects when the service can't be reached */
+  runSlither: (sources: Compilation['source']['sources'], version: string) => Promise<SlitherReport>
   /** compiles the file through the Solidity compiler; resolves once the compile step is recorded */
   compile: (file: string) => Promise<void>
   getCompilation: (file: string) => Compilation | undefined
@@ -91,22 +92,15 @@ async function runAnalysis (host: CheckHost, file: string, compilation: Compilat
   return result(own.length ? 'findings' : 'passed', { findings: own, note: notes.join(' · ') || undefined, data: solhintError ? { solhintError } : undefined })
 }
 
-async function runSlither (host: CheckHost, file: string): Promise<StepResult> {
-  const remixdActive = await host.call('manager', 'isActive', 'remixd').catch(() => false)
-  if (!remixdActive && !host.isDesktop) {
-    return result('skipped', { note: 'Connect remixd or use Remix Desktop to run Slither', data: { reason: 'unavailable' } })
-  }
-  const { currentVersion, optimize, evmVersion } = await host.call('solidity', 'getCompilerState')
-  let response: any
+async function runSlither (host: CheckHost, file: string, compilation: Compilation): Promise<StepResult> {
+  let report: SlitherReport
   try {
-    response = await host.call('slither', 'analyse', file, { currentVersion, optimize, evmVersion })
+    report = await host.runSlither(compilation.source.sources, compilation.version)
   } catch (e) {
-    return result('failed', { note: errorMessage(e) })
+    return result('failed', { note: `Slither service unavailable: ${errorMessage(e)}` })
   }
-  if (!response) return result('skipped', { note: 'Slither is not reachable: check the remixd connection', data: { reason: 'unavailable' } })
-  if (!response.status) return result('failed', { note: 'Slither did not complete' })
-  const resolveFile = (path: string) => (path === file || file.endsWith('/' + path) || path.endsWith('/' + file)) ? file : path
-  const { own, dependencyCount } = await ownFindings(host, file, slitherFindings(response, resolveFile))
+  if (!report?.success) return result('failed', { note: report?.error || 'Slither did not complete' })
+  const { own, dependencyCount } = await ownFindings(host, file, slitherFindings(report))
   const note = dependencyCount ? `${dependencyCount} finding${dependencyCount === 1 ? '' : 's'} in imported libraries not shown` : undefined
   return result(own.length ? 'findings' : 'passed', { findings: own, note })
 }
@@ -186,7 +180,7 @@ export async function runPipeline (host: CheckHost, opts: RunOptions): Promise<R
       try {
         switch (stepId) {
         case 'analysis': stepResult = await runAnalysis(host, file, compilation); break
-        case 'slither': stepResult = await runSlither(host, file); break
+        case 'slither': stepResult = await runSlither(host, file, compilation); break
         case 'ai': stepResult = await runAiReview(host, file); break
         case 'flatten': stepResult = await runFlatten(host, file, compilation); break
         }

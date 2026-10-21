@@ -39,8 +39,8 @@ export interface ToolLine {
   /** clear: the AI security check found no major vulnerability (other tools show it as an empty list) */
   kind: 'running' | 'waiting' | 'stale' | 'failed' | 'skipped' | 'clear'
   note?: string
-  /** why it was skipped, when the panel can help: remixd missing, RemixAI sign-in */
-  reason?: 'unavailable' | 'sign-in'
+  /** why it was skipped, when the panel can help: RemixAI sign-in */
+  reason?: 'sign-in'
 }
 
 const usable = (status?: string) => status === 'passed' || status === 'findings'

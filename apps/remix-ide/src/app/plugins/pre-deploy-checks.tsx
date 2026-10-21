@@ -1,9 +1,9 @@
 import React from 'react'
 import { ViewPlugin } from '@remixproject/engine-web'
-import isElectron from 'is-electron'
 import { PluginViewWrapper } from '@remix-ui/helper'
+import { endpointUrls } from '@remix-endpoints-helper'
 import {
-  PreDeployChecksUI, PreDeployChecksViewState, CheckStore, CheckHost, Compilation, CompilerSummary, FileCheckState,
+  PreDeployChecksUI, PreDeployChecksViewState, CheckStore, CheckHost, Compilation, CompilerSummary, FileCheckState, SlitherReport,
   Finding, IgnoreReason, Range, CheckStepId, StepToggles, DEFAULT_TOGGLES, collectFindings, contentHash, compilerMessages, compilerSettingsKey,
   withIssueKeys, ownFindings, runPipeline, blockingFindings, buildReport, reportFileName, summarize, ChecksSummary
 } from '@remix-ui/pre-deploy-checks'
@@ -48,7 +48,6 @@ function loadToggles (): StepToggles {
 export class PreDeployChecksPlugin extends ViewPlugin implements CheckHost {
   dispatch: React.Dispatch<PreDeployChecksViewState> | null = null
   store = new CheckStore()
-  isDesktop = isElectron()
   private compilations = new Map<string, Compilation>()
   private toggles: StepToggles = loadToggles()
   private currentFile: string | null = null
@@ -184,6 +183,17 @@ export class PreDeployChecksPlugin extends ViewPlugin implements CheckHost {
 
   getCompilation (file: string) {
     return this.compilations.get(file)
+  }
+
+  async runSlither (sources: Compilation['source']['sources'], version: string): Promise<SlitherReport> {
+    const response = await fetch(endpointUrls.mcpCorsProxy + '/slither/analyze', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ sources, version })
+    })
+    if (!response.ok) throw new Error(`HTTP ${response.status}`)
+    const { analysis } = await response.json()
+    return typeof analysis === 'string' ? JSON.parse(analysis) : analysis
   }
 
   // ---------------------------------------------------------------- events

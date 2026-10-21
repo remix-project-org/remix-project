@@ -121,25 +121,32 @@ export function solhintFindings (hints: SolhintHint[], file: string): RawFinding
   })
 }
 
-export interface SlitherItem {
-  title: string
-  description: string
-  severity: string
+export interface SlitherDetector {
+  check: string
+  impact: string
   confidence: string
-  sourceMap?: {
+  description: string
+  elements?: {
     type?: string
     name?: string
-    source_mapping: { start: number, length: number, filename_relative: string, lines?: number[], starting_column?: number, ending_column?: number }
+    source_mapping?: { start: number, length: number, filename_relative: string, lines?: number[], starting_column?: number, ending_column?: number }
   }[]
 }
 
+/** Slither's own JSON report (`slither --json`), as returned by the hosted Slither service. */
+export interface SlitherReport {
+  success: boolean
+  error?: string | null
+  results?: { detectors?: SlitherDetector[] }
+}
+
 /**
- * Slither results as returned by remixd / desktop `slither.analyse`.
- * `count: 0` comes without `data` on a clean run.
+ * Findings of a Slither report. The service compiles the sources under `src/`, so that prefix is
+ * removed to get back the workspace path. A clean run has no `detectors`.
  */
-export function slitherFindings (result: { status?: boolean, count?: number, data?: SlitherItem[] }, resolveFile: (path: string) => string = (p) => p): RawFinding[] {
-  return (result?.data || []).map((item) => {
-    const mapping = item.sourceMap?.[0]?.source_mapping
+export function slitherFindings (report: SlitherReport): RawFinding[] {
+  return (report?.results?.detectors || []).map((item) => {
+    const mapping = item.elements?.find((e) => e.source_mapping)?.source_mapping
     let range: Range | undefined
     if (mapping?.lines?.length) {
       const first = mapping.lines[0] - 1
@@ -151,13 +158,13 @@ export function slitherFindings (result: { status?: boolean, count?: number, dat
     }
     return {
       source: 'slither',
-      severity: slitherSeverity(item.severity),
-      rule: item.title,
-      title: item.title,
+      severity: slitherSeverity(item.impact),
+      rule: item.check,
+      title: item.check,
       message: (item.description || '').trim(),
-      file: mapping ? resolveFile(mapping.filename_relative) : undefined,
+      file: mapping ? mapping.filename_relative.replace(/^src\//, '') : undefined,
       range,
-      nativeSeverity: slitherNativeSeverity(item.severity, item.confidence)
+      nativeSeverity: slitherNativeSeverity(item.impact, item.confidence)
     }
   })
 }
