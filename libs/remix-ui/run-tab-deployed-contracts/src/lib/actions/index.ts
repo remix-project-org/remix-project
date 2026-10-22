@@ -75,6 +75,24 @@ export async function checkCrossChainProxy(plugin: DeployedContractsPlugin, addr
   }
 }
 
+export interface CrossChainDestination {
+  id: string
+  label: string
+}
+
+export async function getCrossChainDestinations(plugin: DeployedContractsPlugin): Promise<CrossChainDestination[]> {
+  try {
+    const ctx = await getEezContext(plugin)
+    if (!ctx) return []
+    // Cross-chain actions only work when the wallet sends through the composer.
+    const walletRpc = await plugin.call('udappEez', 'getWalletRpc')
+    if (!walletRpc?.isComposer) return []
+    return ctx.networks.filter((n) => n.id !== ctx.currentNetwork.id).map((n) => ({ id: n.id, label: n.label }))
+  } catch (e) {
+    return []
+  }
+}
+
 export interface TraceProxyInfo {
   address: string
   hops: CrossChainProxyInfo[]

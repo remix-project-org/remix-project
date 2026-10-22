@@ -117,10 +117,10 @@ function EezPortraitView() {
           data-id="eezWalletRpcWarning"
           style={{ borderLeft: '4px solid var(--bs-warning)' }}
         >
-          <i className="fas fa-exclamation-triangle mt-1" style={{ fontSize: '1rem' }}></i>
           <div className="flex-grow-1" style={{ minWidth: 0 }}>
-            <p className="mb-1 fw-bold" style={{ fontSize: '0.85rem' }}>
-              Wrong RPC for {currentNetworkLabel}
+            <p className="mb-1 fw-bold d-flex align-items-center gap-2" style={{ fontSize: '0.85rem' }}>
+              <i className="fas fa-exclamation-triangle"></i>
+              Wrong Composer RPC for {currentNetworkLabel}
             </p>
             <p className="mb-2">
               Your wallet is connected to {currentNetworkLabel} through an RPC that isn't the EEZ composer, so cross-chain transactions sent from your wallet will fail. Proxy lookups still work.
@@ -135,7 +135,7 @@ function EezPortraitView() {
                 {isSwitchingWalletRpc ? (
                   <><i className="fas fa-spinner fa-spin me-2"></i>Confirm in your wallet...</>
                 ) : (
-                  <><i className="fas fa-plug me-2"></i>Use EEZ RPC</>
+                  <>Use EEZ RPC</>
                 )}
               </button>
             ) : (

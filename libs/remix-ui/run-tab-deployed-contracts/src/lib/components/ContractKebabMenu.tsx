@@ -11,6 +11,9 @@ interface ContractKebabMenuProps {
   onHide: () => void
   contract: DeployedContract
   onCreateDapp?: (contract: DeployedContract) => void
+  crossChainDestinations?: { id: string; label: string }[]
+  onCreateCrossChainProxy?: (contract: DeployedContract, destinationId: string) => void
+  onInteractThroughProxy?: (contract: DeployedContract, destinationId: string) => void
   onNameContract?: (contract: DeployedContract) => void
   onCopyABI?: (contract: DeployedContract) => void
   onSaveABI?: (contract: DeployedContract) => void
@@ -44,6 +47,9 @@ export const ContractKebabMenu: React.FC<ContractKebabMenuProps> = ({
   onHide,
   contract,
   onCreateDapp,
+  crossChainDestinations = [],
+  onCreateCrossChainProxy,
+  onInteractThroughProxy,
   onNameContract,
   onCopyABI,
   onSaveABI,
@@ -69,6 +75,24 @@ export const ContractKebabMenu: React.FC<ContractKebabMenuProps> = ({
       action: 'deployedContractCreateDapp' as const,
       onClick: () => onCreateDapp(contract)
     },
+    ...crossChainDestinations.flatMap((destination) => [
+      onCreateCrossChainProxy && {
+        id: `createCrossChainProxy-${destination.id}`,
+        label: `Create a proxy on ${destination.label}`,
+        icon: 'fa-solid fa-plus',
+        color: 'var(--bs-body-color)',
+        action: 'deployedContractCreateCrossChainProxy' as const,
+        onClick: () => onCreateCrossChainProxy(contract, destination.id)
+      },
+      onInteractThroughProxy && {
+        id: `interactThroughProxy-${destination.id}`,
+        label: `Interact through a proxy on ${destination.label}`,
+        icon: 'fa-solid fa-shuffle',
+        color: 'var(--bs-body-color)',
+        action: 'deployedContractInteractThroughProxy' as const,
+        onClick: () => onInteractThroughProxy(contract, destination.id)
+      }
+    ]),
     onNameContract && {
       id: 'nameContract',
       label: 'Name Contract (ENS)',

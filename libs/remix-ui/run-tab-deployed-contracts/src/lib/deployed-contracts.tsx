@@ -96,9 +96,13 @@ function DeployedContractsWidget({ plugin }: DeployedContractsWidgetProps) {
     plugin.on('udappEez', 'networksChanged', () => {
       setEezNetworksVersion((version) => version + 1)
     })
+    plugin.on('udappEez', 'walletRpcChanged', () => {
+      setEezNetworksVersion((version) => version + 1)
+    })
 
     return () => {
       plugin.off('udappEez', 'networksChanged')
+      plugin.off('udappEez', 'walletRpcChanged')
     }
   }, [])
 

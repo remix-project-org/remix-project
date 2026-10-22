@@ -157,18 +157,28 @@ export async function switchWalletToComposerRpc(plugin: EezPlugin, dispatch: Rea
   if (!composer?.nativeCurrency) return
   dispatch({ type: 'START_WALLET_RPC_SWITCH' })
   try {
-    await plugin.call('blockchain', 'sendRpc', 'wallet_addEthereumChain', [{
-      chainId: '0x' + Number(chainId).toString(16),
-      chainName: composer.label,
-      rpcUrls: [composer.rpcUrl],
-      nativeCurrency: composer.nativeCurrency
-    }])
+    await plugin.call('blockchain', 'sendRpc', 'wallet_addEthereumChain', [addEthereumChainParams(chainId)])
     const isComposer = await plugin.checkWalletRpc()
     if (!isComposer) showWalletRpcSwitchFailed(plugin, `Your wallet is still not using ${composer.rpcUrl}. Select it as the RPC for ${composer.label} in your wallet's network settings.`)
   } catch (e) {
     showWalletRpcSwitchFailed(plugin, e?.message || 'Failed to update the wallet RPC')
   } finally {
     dispatch({ type: 'WALLET_RPC_SWITCH_DONE' })
+  }
+}
+
+function addEthereumChainParams(chainId: string) {
+  const composer = EEZ_COMPOSER_RPC_URLS[chainId]
+  return { chainId: '0x' + Number(chainId).toString(16), chainName: composer.label, rpcUrls: [composer.rpcUrl], nativeCurrency: composer.nativeCurrency }
+}
+
+export async function switchWalletChain(plugin: EezPlugin, chainId: string) {
+  try {
+    await plugin.call('blockchain', 'sendRpc', 'wallet_switchEthereumChain', [{ chainId: '0x' + Number(chainId).toString(16) }])
+  } catch (e) {
+    const isUnknownChain = e?.error?.code === 4902 || e?.info?.error?.code === 4902 || /4902|unrecognized chain/i.test(e?.message || '')
+    if (!isUnknownChain || !EEZ_COMPOSER_RPC_URLS[chainId]?.nativeCurrency) throw e
+    await plugin.call('blockchain', 'sendRpc', 'wallet_addEthereumChain', [addEthereumChainParams(chainId)])
   }
 }
 
@@ -203,7 +213,7 @@ function contractFor(network: EezNetworkEntry, abi: InterfaceAbi = EEZ_ABI) {
   return { provider, contract: new Contract(network.eezContractAddress, abi, provider) }
 }
 
-async function assertOriginDeployed(network: EezNetworkEntry, address: string) {
+export async function assertOriginDeployed(network: EezNetworkEntry, address: string) {
   const { provider } = contractFor(network)
   try {
     const code = await provider.getCode(address)
@@ -216,6 +226,17 @@ async function assertOriginDeployed(network: EezNetworkEntry, address: string) {
 function rollupIdOf(network: EezNetworkEntry): bigint {
   if (!network.rollupId) throw new Error(`The rollup id of ${network.label} is unknown.`)
   return BigInt(network.rollupId)
+}
+
+export async function findCrossChainProxy(originNetwork: EezNetworkEntry, destinationNetwork: EezNetworkEntry, originAddress: string): Promise<{ proxyAddress: string; isDeployed: boolean }> {
+  const { provider, contract } = contractFor(destinationNetwork)
+  try {
+    const proxyAddress: string = await contract.computeCrossChainProxyAddress(originAddress, rollupIdOf(originNetwork))
+    const code = await provider.getCode(proxyAddress)
+    return { proxyAddress, isDeployed: code !== '0x' }
+  } finally {
+    provider.destroy()
+  }
 }
 
 export async function resolveProxyAddresses(
@@ -311,15 +332,11 @@ export async function previewProxyCreation(
     return
   }
 
-  const { provider, contract } = contractFor(destinationNetwork)
   try {
-    const proxyAddress: string = await contract.computeCrossChainProxyAddress(originAddress, rollupIdOf(originNetwork))
-    const code = await provider.getCode(proxyAddress)
-    dispatch({ type: 'PREVIEW_SUCCESS', payload: { previewAddress: proxyAddress, previewIsDeployed: code !== '0x' } })
+    const { proxyAddress, isDeployed } = await findCrossChainProxy(originNetwork, destinationNetwork, originAddress)
+    dispatch({ type: 'PREVIEW_SUCCESS', payload: { previewAddress: proxyAddress, previewIsDeployed: isDeployed } })
   } catch (e) {
     dispatch({ type: 'PREVIEW_ERROR', payload: e?.message || 'Failed to preview proxy address' })
-  } finally {
-    provider.destroy()
   }
 }
 

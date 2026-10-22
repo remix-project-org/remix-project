@@ -9,7 +9,7 @@ import { checksumAddressesInValue } from '@remix-ui/utils'
 import { FuncABI } from '@remix-project/core-plugin'
 import { DeployedContractsAppContext } from '../contexts'
 import { DeployedContract } from '../types'
-import { runTransactions, checkCrossChainProxy, traceCrossChainCall, CrossChainProxyInfo, CrossChainTraceResult } from '../actions'
+import { runTransactions, checkCrossChainProxy, getCrossChainDestinations, traceCrossChainCall, CrossChainDestination, CrossChainProxyInfo, CrossChainTraceResult } from '../actions'
 import { ContractKebabMenu } from './ContractKebabMenu'
 import { EnsNaming } from './EnsNaming'
 import { QuickDappContractSelector, QuickDappFigmaPreparationResult, QuickDappSetupOptions, QuickDappModelChoice } from '@remix-ui/quick-dapp-v2'
@@ -69,6 +69,7 @@ export function DeployedContractItem({ contract, index, collapseSignal, register
   const [quickDappEnvironmentId, setQuickDappEnvironmentId] = useState<string>()
   const [quickDappModelChoices, setQuickDappModelChoices] = useState<QuickDappModelChoice[]>([])
   const [crossChainProxyInfo, setCrossChainProxyInfo] = useState<CrossChainProxyInfo | null>(null)
+  const [crossChainDestinations, setCrossChainDestinations] = useState<CrossChainDestination[]>([])
   const [tracePreview, setTracePreview] = useState<{
     key: string
     onConfirm: () => void
@@ -103,6 +104,9 @@ export function DeployedContractItem({ contract, index, collapseSignal, register
       if (cancelled) return
       setCrossChainProxyInfo(info)
       if (info) setGasLimit((current) => (current === 0 ? 5000000 : current))
+    })
+    getCrossChainDestinations(plugin).then((destinations) => {
+      if (!cancelled) setCrossChainDestinations(destinations)
     })
     return () => {
       cancelled = true
@@ -832,6 +836,20 @@ For Inline mode, preserve the existing /frontend overwrite confirmation flow. Co
     }
   }
 
+  const handleCreateCrossChainProxy = (contract: DeployedContract, destinationId: string) => {
+    if (onKebabMenuToggle) {
+      onKebabMenuToggle(false)
+    }
+    plugin.call('udappEez', 'createProxyFor', contract.address, destinationId, contract.abi || contract.contractData?.abi, contract.name)
+  }
+
+  const handleInteractThroughProxy = (contract: DeployedContract, destinationId: string) => {
+    if (onKebabMenuToggle) {
+      onKebabMenuToggle(false)
+    }
+    plugin.call('udappEez', 'interactThroughProxy', contract.address, destinationId, contract.abi || contract.contractData?.abi, contract.name)
+  }
+
   const handleSaveABI = async (contract: DeployedContract) => {
     if (onKebabMenuToggle) {
       onKebabMenuToggle(false)
@@ -1091,6 +1109,9 @@ For Inline mode, preserve the existing /frontend overwrite confirmation flow. Co
               }}
               contract={contract}
               onCreateDapp={handleCreateDapp}
+              crossChainDestinations={crossChainProxyInfo ? [] : crossChainDestinations}
+              onCreateCrossChainProxy={handleCreateCrossChainProxy}
+              onInteractThroughProxy={handleInteractThroughProxy}
               onNameContract={networkName !== 'Remix VM' ? handleNameContract : undefined}
               onCopyABI={handleCopyABI}
               onSaveABI={handleSaveABI}

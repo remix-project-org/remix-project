@@ -100,16 +100,20 @@ export class ExecutionContext {
           name = networkDetails[id].name
           networkNativeCurrency = networkDetails[id].nativeCurrency
         } else {
-          const response = await fetch('https://chainid.network/chains.json')
-          if (response.ok) {
-            const networks = await response.json()
-            const connectedNetwork = networks.find((n) => n.chainId === id)
-            if (connectedNetwork) {
-              name = connectedNetwork.name
-              networkNativeCurrency = connectedNetwork.nativeCurrency
-              networkDetails[id] = { name, nativeCurrency:  networkNativeCurrency}
-              localStorage.setItem('networkDetails', JSON.stringify(networkDetails))
+          try {
+            const response = await fetch('https://chainid.network/chains.json', { signal: AbortSignal.timeout(5000) })
+            if (response.ok) {
+              const networks = await response.json()
+              const connectedNetwork = networks.find((n) => n.chainId === id)
+              if (connectedNetwork) {
+                name = connectedNetwork.name
+                networkNativeCurrency = connectedNetwork.nativeCurrency
+                networkDetails[id] = { name, nativeCurrency:  networkNativeCurrency}
+                localStorage.setItem('networkDetails', JSON.stringify(networkDetails))
+              }
             }
+          } catch (e) {
+            console.warn(`Unable to fetch the name of chain ${id} from chainid.network`, e)
           }
         }
       }
