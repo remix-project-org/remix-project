@@ -9,7 +9,7 @@ import { checksumAddressesInValue } from '@remix-ui/utils'
 import { FuncABI } from '@remix-project/core-plugin'
 import { DeployedContractsAppContext } from '../contexts'
 import { DeployedContract } from '../types'
-import { runTransactions, checkCrossChainProxy, getCrossChainDestinations, traceCrossChainCall, CrossChainDestination, CrossChainProxyInfo, CrossChainTraceResult } from '../actions'
+import { runTransactions, checkCrossChainProxy, getCrossChainDestinations, quoteCrossChainFee, traceCrossChainCall, CrossChainDestination, CrossChainProxyInfo, CrossChainTraceResult } from '../actions'
 import { ContractKebabMenu } from './ContractKebabMenu'
 import { EnsNaming } from './EnsNaming'
 import { QuickDappContractSelector, QuickDappFigmaPreparationResult, QuickDappSetupOptions, QuickDappModelChoice } from '@remix-ui/quick-dapp-v2'
@@ -103,7 +103,6 @@ export function DeployedContractItem({ contract, index, collapseSignal, register
     checkCrossChainProxy(plugin, contract.address).then((info) => {
       if (cancelled) return
       setCrossChainProxyInfo(info)
-      if (info) setGasLimit((current) => (current === 0 ? 5000000 : current))
     })
     getCrossChainDestinations(plugin).then((destinations) => {
       if (!cancelled) setCrossChainDestinations(destinations)
@@ -371,6 +370,13 @@ export function DeployedContractItem({ contract, index, collapseSignal, register
     }
   }
 
+  const quoteFeeIfCrossChain = async (calldata: string | null, sendValue: bigint) => {
+    if (!crossChainProxyInfo) return undefined
+    if (calldata === null) throw new Error('Unable to encode the call data to quote the cross-chain fee.')
+    const from = await plugin.call('udappEnv', 'getSelectedAccount')
+    return await quoteCrossChainFee(plugin, contract.address, is0XPrefixed(calldata) ? calldata : `0x${calldata}`, from, sendValue)
+  }
+
   const confirmTracePreview = () => {
     const onConfirm = tracePreview?.onConfirm
     setTracePreview(null)
@@ -500,6 +506,7 @@ export function DeployedContractItem({ contract, index, collapseSignal, register
         await plugin.call('terminal', 'log', { type: 'error', value: `Cannot continue the execution, no code found at address ${contract.address}` })
         return
       }
+      const quotedFee = lookupOnly ? undefined : await quoteFeeIfCrossChain(buildCalldataForPreview(funcIndex), sendValue)
       await runTransactions(
         plugin,
         dispatch,
@@ -509,7 +516,7 @@ export function DeployedContractItem({ contract, index, collapseSignal, register
         inputsValues,
         contract,
         funcIndex,
-        { value: sendValue, gasLimit: gasLimitValue }
+        { value: sendValue, gasLimit: gasLimitValue, quotedFee }
       )
     } catch (error) {
       const functionName =
@@ -568,6 +575,7 @@ export function DeployedContractItem({ contract, index, collapseSignal, register
 
     const doSend = async () => {
       try {
+        const quotedFee = await quoteFeeIfCrossChain(calldataForSend || '0x', sendValue)
         await runTransactions(
           plugin,
           dispatch,
@@ -577,7 +585,7 @@ export function DeployedContractItem({ contract, index, collapseSignal, register
           calldataForSend,
           contract,
           -1, // Use -1 for low level interactions
-          { value: sendValue, gasLimit: gasLimitValue }
+          { value: sendValue, gasLimit: gasLimitValue, quotedFee }
         )
       } catch (error) {
         const functionName =
@@ -1072,7 +1080,7 @@ For Inline mode, preserve the existing /frontend overwrite confirmation flow. Co
                       placement="top"
                       tooltipClasses="text-nowrap"
                       tooltipId={`udapp_crossChainProxyTooltip-${index}`}
-                      tooltipText={`Cross-chain proxy for ${crossChainProxyInfo.originalAddress} on ${crossChainProxyInfo.originNetworkLabel || `rollup ${crossChainProxyInfo.originalRollupId}`} — interacting with it sends a cross-chain call. Gas limit was auto-set to custom since it can't be estimated.`}
+                      tooltipText={`Cross-chain proxy for ${crossChainProxyInfo.originalAddress} on ${crossChainProxyInfo.originNetworkLabel || `rollup ${crossChainProxyInfo.originalRollupId}`} — interacting with it sends a cross-chain call, which includes a small cross-chain fee.`}
                     >
                       <span
                         className="badge d-inline-flex align-items-center gap-1"
