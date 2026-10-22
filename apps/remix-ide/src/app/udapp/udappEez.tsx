@@ -5,7 +5,11 @@ import {
   Actions,
   EezWidgetState,
   EezNetworkEntry,
+  EezWalletRpc,
   discoverEezNetworks,
+  isWalletOnComposerRpc,
+  eezInitialWalletRpc,
+  EEZ_COMPOSER_RPC_URLS,
   EEZ_SETTINGS_KEY,
   resolveProxyAddresses as resolveProxyAddressesAction,
   createProxy as createProxyAction,
@@ -25,6 +29,7 @@ export class EezPlugin extends Plugin {
   private _getDispatch: (() => React.Dispatch<Actions>) | null = null
   networks: EezNetworkEntry[] = []
   isDiscovering = false
+  walletRpc: EezWalletRpc = eezInitialWalletRpc
   private networkKey: string | null = null
   private discoveryRun = 0
 
@@ -61,6 +66,7 @@ export class EezPlugin extends Plugin {
 
     this.getDispatch()?.({ type: 'NETWORK_CHANGED' })
     this.setNetworks([])
+    this.setWalletRpc(eezInitialWalletRpc)
     this.setDiscovering(true)
     const isVM = await this.call('blockchain', 'isVM')
 
@@ -68,11 +74,18 @@ export class EezPlugin extends Plugin {
       if (run === this.discoveryRun) this.setDiscovering(false)
       return
     }
-    const networks = await discoverEezNetworks(this, String(chainId).trim())
+    const currentChainId = String(chainId).trim()
+    const networks = await discoverEezNetworks(this, currentChainId)
+    const isComposer = networks.length > 0 ? await isWalletOnComposerRpc(this, currentChainId) : null
 
     if (run !== this.discoveryRun) {
       return
     }
+    this.setWalletRpc({
+      chainId: currentChainId,
+      isComposer,
+      canSwitch: !!providerName?.startsWith('injected') && !!EEZ_COMPOSER_RPC_URLS[currentChainId]?.nativeCurrency
+    })
     this.setNetworks(networks)
     this.setDiscovering(false)
   }
@@ -80,6 +93,18 @@ export class EezPlugin extends Plugin {
   private setDiscovering(isDiscovering: boolean) {
     this.isDiscovering = isDiscovering
     this.getDispatch()?.({ type: 'SET_DISCOVERING', payload: isDiscovering })
+  }
+
+  async checkWalletRpc(): Promise<boolean> {
+    const run = this.discoveryRun
+    const isComposer = await isWalletOnComposerRpc(this, this.walletRpc.chainId)
+    if (run === this.discoveryRun) this.setWalletRpc({ ...this.walletRpc, isComposer })
+    return isComposer
+  }
+
+  private setWalletRpc(walletRpc: EezWalletRpc) {
+    this.walletRpc = walletRpc
+    this.getDispatch()?.({ type: 'SET_WALLET_RPC', payload: walletRpc })
   }
 
   private setNetworks(networks: EezNetworkEntry[]) {

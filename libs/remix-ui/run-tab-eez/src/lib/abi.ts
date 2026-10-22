@@ -11,3 +11,8 @@ export const EEZ_ROLLUP_ID_ABI = [
   'function ROLLUP_ID() view returns (uint64)',
   'function MAINNET_ROLLUP_ID() view returns (uint64)'
 ]
+
+// `eth_call` to EEZ_COMPOSER_PROBE_ADDRESS; a plain RPC returns `0x`.
+export const EEZ_COMPOSER_PROBE_ABI = [
+  'function composerInfo(bytes32 nonce) view returns (bytes32, uint256, bytes32, uint256, bytes)'
+]

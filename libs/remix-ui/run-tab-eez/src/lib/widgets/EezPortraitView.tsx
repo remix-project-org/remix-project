@@ -1,7 +1,8 @@
 import React, { useContext } from 'react'
 import { Dropdown } from 'react-bootstrap'
 import { EezAppContext } from '../contexts'
-import { resolveProxyAddresses, previewProxyCreation, createProxy, traceTransactionByHash } from '../actions'
+import { resolveProxyAddresses, previewProxyCreation, createProxy, traceTransactionByHash, switchWalletToComposerRpc } from '../actions'
+import { EEZ_COMPOSER_RPC_URLS } from '../constants'
 import { FormattedMessage } from 'react-intl'
 import { CopyToClipboard } from '@remix-ui/clipboard'
 import { CustomMenu, CustomToggle, getTimeAgo } from '@remix-ui/helper'
@@ -15,8 +16,10 @@ function EezPortraitView() {
   const { plugin, widgetState, dispatch, themeQuality } = useContext(EezAppContext)
   const {
     networks, isDiscovering, addressInput, isResolving, resolutionRows, resolutionError, showCreateDialog, createdProxies, creator,
-    traceTxHash, isTracing, traceResult, traceError
+    traceTxHash, isTracing, traceResult, traceError, walletRpc, isSwitchingWalletRpc
   } = widgetState
+  const isWalletOffComposer = walletRpc.isComposer === false
+  const currentNetworkLabel = networks.find((n) => n.chainId === walletRpc.chainId)?.label || 'this network'
 
   const handleResolve = () => {
     resolveProxyAddresses(plugin, dispatch, networks, addressInput.trim())
@@ -40,6 +43,10 @@ function EezPortraitView() {
 
   const handleCreate = () => {
     createProxy(plugin, dispatch, networks, creator.originNetworkId, creator.originAddress.trim())
+  }
+
+  const handleSwitchWalletRpc = () => {
+    switchWalletToComposerRpc(plugin, dispatch, walletRpc.chainId)
   }
 
   const handleLoadResolvedProxy = async (proxyAddress: string) => {
@@ -103,6 +110,52 @@ function EezPortraitView() {
           </button>
         </div>
       </div>
+      {isWalletOffComposer && (
+        <div
+          className="alert alert-warning mx-3 mt-0 mb-0 d-flex gap-2 small"
+          role="alert"
+          data-id="eezWalletRpcWarning"
+          style={{ borderLeft: '4px solid var(--bs-warning)' }}
+        >
+          <i className="fas fa-exclamation-triangle mt-1" style={{ fontSize: '1rem' }}></i>
+          <div className="flex-grow-1" style={{ minWidth: 0 }}>
+            <p className="mb-1 fw-bold" style={{ fontSize: '0.85rem' }}>
+              Wrong RPC for {currentNetworkLabel}
+            </p>
+            <p className="mb-2">
+              Your wallet is connected to {currentNetworkLabel} through an RPC that isn't the EEZ composer, so cross-chain transactions sent from your wallet will fail. Proxy lookups still work.
+            </p>
+            {walletRpc.canSwitch ? (
+              <button
+                className="btn btn-sm btn-warning w-100 fw-bold d-flex align-items-center justify-content-center"
+                data-id="eezSwitchWalletRpcButton"
+                disabled={isSwitchingWalletRpc}
+                onClick={handleSwitchWalletRpc}
+              >
+                {isSwitchingWalletRpc ? (
+                  <><i className="fas fa-spinner fa-spin me-2"></i>Confirm in your wallet...</>
+                ) : (
+                  <><i className="fas fa-plug me-2"></i>Use EEZ RPC</>
+                )}
+              </button>
+            ) : (
+              <>
+                <p className="mb-1">Set this as the RPC for {currentNetworkLabel} in your wallet:</p>
+                <div className="d-flex align-items-center gap-2 p-1 px-2 rounded" style={{ backgroundColor: 'var(--custom-onsurface-layer-2)' }}>
+                  <code className="text-break flex-grow-1" data-id="eezComposerRpcUrl">
+                    {EEZ_COMPOSER_RPC_URLS[walletRpc.chainId]?.rpcUrl || 'the EEZ composer RPC'}
+                  </code>
+                  {EEZ_COMPOSER_RPC_URLS[walletRpc.chainId] && (
+                    <CopyToClipboard tip="Copy RPC URL" icon="fa-copy" direction="top" getContent={() => EEZ_COMPOSER_RPC_URLS[walletRpc.chainId].rpcUrl}>
+                      <i className="fa-solid fa-copy" style={{ cursor: 'pointer' }}></i>
+                    </CopyToClipboard>
+                  )}
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      )}
       {showCreateDialog && (
         <div className="m-3 mt-0 p-3 rounded" data-id="eezCreateDialog" style={{ backgroundColor: 'var(--custom-onsurface-layer-2)' }}>
           <div className="d-flex justify-content-between align-items-center mb-2">
@@ -222,7 +275,7 @@ function EezPortraitView() {
             </div>
           )}
           {creator.previewAddress && !creator.previewIsDeployed && (
-            <button className="btn btn-sm btn-primary w-100" data-id="eezCreateButton" disabled={creator.isCreating} onClick={handleCreate}>
+            <button className="btn btn-sm btn-primary w-100" data-id="eezCreateButton" disabled={creator.isCreating || isWalletOffComposer} onClick={handleCreate}>
               {creator.isCreating ? 'Creating...' : 'Create proxy'}
             </button>
           )}

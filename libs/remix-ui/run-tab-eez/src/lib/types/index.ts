@@ -62,6 +62,12 @@ export interface TransactionTraceResult {
   proxyCount: number
 }
 
+export interface EezWalletRpc {
+  chainId: string | null
+  isComposer: boolean | null
+  canSwitch: boolean
+}
+
 export interface EezWidgetState {
   networks: EezNetworkEntry[]
   isDiscovering: boolean
@@ -87,6 +93,8 @@ export interface EezWidgetState {
   isTracing: boolean
   traceResult: TransactionTraceResult | null
   traceError: string | null
+  walletRpc: EezWalletRpc
+  isSwitchingWalletRpc: boolean
 }
 
 export interface EezAppContextType {
@@ -119,3 +127,6 @@ export type Actions =
   | { type: 'START_TRACE' }
   | { type: 'TRACE_SUCCESS'; payload: TransactionTraceResult }
   | { type: 'TRACE_ERROR'; payload: string }
+  | { type: 'SET_WALLET_RPC'; payload: EezWalletRpc }
+  | { type: 'START_WALLET_RPC_SWITCH' }
+  | { type: 'WALLET_RPC_SWITCH_DONE' }

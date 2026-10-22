@@ -1,10 +1,10 @@
 import React from 'react'
-import { JsonRpcProvider, Contract, Interface, InterfaceAbi, isAddress, isHexString } from 'ethers'
+import { JsonRpcProvider, Contract, Interface, InterfaceAbi, isAddress, isHexString, hexlify, randomBytes, toUtf8String } from 'ethers'
 import { decodeEezRevertData } from '@remix-ui/helper'
 // eslint-disable-next-line @nrwl/nx/enforce-module-boundaries
 import type { EezPlugin } from 'apps/remix-ide/src/app/udapp/udappEez'
-import { EEZ_ABI, EEZ_ROLLUP_ID_ABI } from '../abi'
-import { EEZ_COMPOSER_RPC_URLS } from '../constants'
+import { EEZ_ABI, EEZ_COMPOSER_PROBE_ABI, EEZ_ROLLUP_ID_ABI } from '../abi'
+import { EEZ_COMPOSER_PROBE_ADDRESS, EEZ_COMPOSER_RPC_URLS } from '../constants'
 import { Actions, EezComposerInfo, EezComposerNetwork, EezNetworkEntry, ResolutionRow, ResolvedProxyInfo, TraceProxyInfo, TransactionTraceResult } from '../types'
 
 const NOT_EEZ_NETWORK = 'The currently connected network is not part of an EEZ network.'
@@ -41,7 +41,8 @@ async function loadSettingsRpcUrls(plugin: EezPlugin): Promise<Record<string, st
 }
 
 async function resolveRpcUrls(plugin: EezPlugin): Promise<Record<string, string>> {
-  return { ...(await loadSettingsRpcUrls(plugin)), ...EEZ_COMPOSER_RPC_URLS }
+  const composerUrls = Object.fromEntries(Object.entries(EEZ_COMPOSER_RPC_URLS).map(([chainId, { rpcUrl }]) => [chainId, rpcUrl]))
+  return { ...(await loadSettingsRpcUrls(plugin)), ...composerUrls }
 }
 
 async function fetchComposerInfo(url: string, chainId: string): Promise<EezComposerInfo> {
@@ -100,7 +101,7 @@ export async function discoverEezNetworks(plugin: EezPlugin, currentChainId: str
     }
     networks.push({
       id: key,
-      label: key.replace(/^eez/, 'EEZ '),
+      label: EEZ_COMPOSER_RPC_URLS[chainId]?.label,
       rpcUrl: rpcUrls[chainId] || null,
       eezContractAddress,
       rollupId: '',
@@ -126,6 +127,60 @@ export async function discoverEezNetworks(plugin: EezPlugin, currentChainId: str
   return networks
 }
 
+export async function isWalletOnComposerRpc(plugin: EezPlugin, chainId: string): Promise<boolean> {
+  const providerName = await plugin.call('blockchain', 'getProvider').catch((): null => null)
+  const iface = new Interface(EEZ_COMPOSER_PROBE_ABI)
+  const nonce = hexlify(randomBytes(32))
+  try {
+    const raw: string = await plugin.call('blockchain', 'sendRpc', 'eth_call', [{ to: EEZ_COMPOSER_PROBE_ADDRESS, data: iface.encodeFunctionData('composerInfo', [nonce]) }, 'latest'])
+    if (!raw || raw === '0x') {
+      console.warn(`EEZ: the RPC of ${providerName} did not answer the composer probe, so it is treated as a non-composer RPC`)
+      return false
+    }
+    const [, , echoedNonce, servedChainId, infoJson] = iface.decodeFunctionResult('composerInfo', raw)
+    if (echoedNonce !== nonce) {
+      console.warn(`EEZ: the RPC of ${providerName} returned an unexpected composer probe response`, raw)
+      return false
+    }
+    const info: EezComposerInfo = JSON.parse(toUtf8String(infoJson))
+    if (servedChainId.toString() === chainId && composerSupportsChain(info, chainId)) return true
+    console.warn(`EEZ: the RPC of ${providerName} is a composer for chain ${servedChainId} (${JSON.stringify(info?.supportedNetworks)}), not chain ${chainId}`)
+    return false
+  } catch (e) {
+    console.warn(`EEZ: the composer probe through ${providerName} failed, so it is treated as a non-composer RPC`, e)
+    return false
+  }
+}
+
+export async function switchWalletToComposerRpc(plugin: EezPlugin, dispatch: React.Dispatch<Actions>, chainId: string) {
+  const composer = EEZ_COMPOSER_RPC_URLS[chainId]
+  if (!composer?.nativeCurrency) return
+  dispatch({ type: 'START_WALLET_RPC_SWITCH' })
+  try {
+    await plugin.call('blockchain', 'sendRpc', 'wallet_addEthereumChain', [{
+      chainId: '0x' + Number(chainId).toString(16),
+      chainName: composer.label,
+      rpcUrls: [composer.rpcUrl],
+      nativeCurrency: composer.nativeCurrency
+    }])
+    const isComposer = await plugin.checkWalletRpc()
+    if (!isComposer) showWalletRpcSwitchFailed(plugin, `Your wallet is still not using ${composer.rpcUrl}. Select it as the RPC for ${composer.label} in your wallet's network settings.`)
+  } catch (e) {
+    showWalletRpcSwitchFailed(plugin, e?.message || 'Failed to update the wallet RPC')
+  } finally {
+    dispatch({ type: 'WALLET_RPC_SWITCH_DONE' })
+  }
+}
+
+function showWalletRpcSwitchFailed(plugin: EezPlugin, message: string) {
+  plugin.call('notification', 'modal', {
+    id: 'eezWalletRpcSwitchFailed',
+    title: 'Switching to the EEZ RPC failed',
+    message,
+    okLabel: 'OK'
+  })
+}
+
 async function getCurrentChainId(plugin: EezPlugin): Promise<string | null> {
   try {
     const status = await plugin.call('blockchain', 'getCurrentNetworkStatus')
@@ -146,6 +201,16 @@ function contractFor(network: EezNetworkEntry, abi: InterfaceAbi = EEZ_ABI) {
   const provider = new JsonRpcProvider(network.rpcUrl, Number(network.chainId), { staticNetwork: true })
 
   return { provider, contract: new Contract(network.eezContractAddress, abi, provider) }
+}
+
+async function assertOriginDeployed(network: EezNetworkEntry, address: string) {
+  const { provider } = contractFor(network)
+  try {
+    const code = await provider.getCode(address)
+    if (code === '0x') throw new Error(`No contract is deployed at ${address} on ${network.label}. Check the origin network and address.`)
+  } finally {
+    provider.destroy()
+  }
 }
 
 function rollupIdOf(network: EezNetworkEntry): bigint {
@@ -239,6 +304,13 @@ export async function previewProxyCreation(
     return
   }
 
+  try {
+    await assertOriginDeployed(originNetwork, originAddress)
+  } catch (e) {
+    dispatch({ type: 'PREVIEW_ERROR', payload: e?.message || 'Failed to check the origin contract' })
+    return
+  }
+
   const { provider, contract } = contractFor(destinationNetwork)
   try {
     const proxyAddress: string = await contract.computeCrossChainProxyAddress(originAddress, rollupIdOf(originNetwork))
@@ -278,6 +350,8 @@ export async function createProxy(
   dispatch({ type: 'START_CREATE' })
 
   try {
+    await assertOriginDeployed(originNetwork, originAddress)
+
     const iface = new Interface(EEZ_ABI)
     const funArgs = [originAddress, rollupIdOf(originNetwork)]
     const dataHex = iface.encodeFunctionData('createCrossChainProxy', funArgs)

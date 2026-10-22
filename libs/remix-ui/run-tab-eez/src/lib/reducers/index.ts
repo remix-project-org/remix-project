@@ -1,4 +1,6 @@
-import { Actions, EezWidgetState } from '../types'
+import { Actions, EezWalletRpc, EezWidgetState } from '../types'
+
+export const eezInitialWalletRpc: EezWalletRpc = { chainId: null, isComposer: null, canSwitch: false }
 
 export const eezInitialState: EezWidgetState = {
   networks: [],
@@ -24,7 +26,9 @@ export const eezInitialState: EezWidgetState = {
   traceTxHash: '',
   isTracing: false,
   traceResult: null,
-  traceError: null
+  traceError: null,
+  walletRpc: eezInitialWalletRpc,
+  isSwitchingWalletRpc: false
 }
 
 export const eezReducer = (state: EezWidgetState, action: Actions): EezWidgetState => {
@@ -128,7 +132,8 @@ export const eezReducer = (state: EezWidgetState, action: Actions): EezWidgetSta
       traceTxHash: '',
       isTracing: false,
       traceResult: null,
-      traceError: null
+      traceError: null,
+      isSwitchingWalletRpc: false
     }
 
   case 'SET_TRACE_TX_HASH':
@@ -142,6 +147,15 @@ export const eezReducer = (state: EezWidgetState, action: Actions): EezWidgetSta
 
   case 'TRACE_ERROR':
     return { ...state, isTracing: false, traceResult: null, traceError: action.payload }
+
+  case 'SET_WALLET_RPC':
+    return { ...state, walletRpc: action.payload }
+
+  case 'START_WALLET_RPC_SWITCH':
+    return { ...state, isSwitchingWalletRpc: true }
+
+  case 'WALLET_RPC_SWITCH_DONE':
+    return { ...state, isSwitchingWalletRpc: false }
 
   default:
     return state
