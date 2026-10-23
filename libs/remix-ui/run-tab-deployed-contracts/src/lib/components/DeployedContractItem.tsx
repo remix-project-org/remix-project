@@ -27,6 +27,8 @@ const txFormat = remixLib.execution.txFormat
 const highlightedContracts = new Set<string>()
 
 const REMIX_VM_DAPP_WORKSPACE_MESSAGE = 'Creating another DApp from a DApp workspace is not supported with Remix VM. Switch to a persistent network, deploy the contract there, and try again.'
+// The cross-chain preview relies on debug_traceCall, which the EEZ composer does not support yet.
+const CROSS_CHAIN_PREVIEW_ENABLED = false
 interface DeployedContractItemProps {
   contract: DeployedContract
   index: number
@@ -355,7 +357,7 @@ export function DeployedContractItem({ contract, index, collapseSignal, register
   }
 
   const previewThenExecute = async (key: string, calldata: string | null, sendValue: bigint, onConfirm: () => void) => {
-    if (!crossChainProxyInfo || !calldata) {
+    if (!CROSS_CHAIN_PREVIEW_ENABLED || !crossChainProxyInfo || !calldata) {
       onConfirm()
       return
     }
@@ -1224,7 +1226,7 @@ For Inline mode, preserve the existing /frontend overwrite confirmation flow. Co
                                         style={{ fontSize: '11px', fontWeight: 600, padding: '3px 12px' }}
                                         onClick={executeHandler}
                                       >
-                                        {crossChainProxyInfo ? 'Preview' : intl.formatMessage({ id: 'udapp.transactButton' })}
+                                        {crossChainProxyInfo && CROSS_CHAIN_PREVIEW_ENABLED ? 'Preview' : intl.formatMessage({ id: 'udapp.transactButton' })}
                                       </button>
                                     )}
                                   </div>
@@ -1254,7 +1256,7 @@ For Inline mode, preserve the existing /frontend overwrite confirmation flow. Co
                                             style={{ fontSize: '11px', fontWeight: 600 }}
                                             onClick={executeHandler}
                                           >
-                                            {crossChainProxyInfo ? 'Preview' : intl.formatMessage({ id: 'udapp.transactButton' })}
+                                            {crossChainProxyInfo && CROSS_CHAIN_PREVIEW_ENABLED ? 'Preview' : intl.formatMessage({ id: 'udapp.transactButton' })}
                                           </button>
                                         </div>
                                       ) : (
@@ -1302,7 +1304,7 @@ For Inline mode, preserve the existing /frontend overwrite confirmation flow. Co
                                             style={{ fontSize: '11px', fontWeight: 600, padding: '3px 12px' }}
                                             onClick={executeHandler}
                                           >
-                                            {crossChainProxyInfo ? 'Preview' : intl.formatMessage({ id: 'udapp.transactButton' })}
+                                            {crossChainProxyInfo && CROSS_CHAIN_PREVIEW_ENABLED ? 'Preview' : intl.formatMessage({ id: 'udapp.transactButton' })}
                                           </button>
                                         )}
                                       </div>
@@ -1572,7 +1574,7 @@ For Inline mode, preserve the existing /frontend overwrite confirmation flow. Co
                       borderRadius: '4px'
                     }}
                   >
-                    {crossChainProxyInfo ? 'Preview' : intl.formatMessage({ id: 'udapp.transactButton' })}
+                    {crossChainProxyInfo && CROSS_CHAIN_PREVIEW_ENABLED ? 'Preview' : intl.formatMessage({ id: 'udapp.transactButton' })}
                   </button>
                 )}
                 {showLowLevel && renderTracePreview('lowLevel')}
