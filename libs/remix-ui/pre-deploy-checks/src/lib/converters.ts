@@ -1,5 +1,4 @@
 import { aiIsVulnerable, remixModuleKey, remixSeverity, slitherNativeSeverity, slitherSeverity, solhintSeverity } from './severity'
-import { keccak256, toUtf8Bytes } from 'ethers'
 import { Position, Range, RawFinding } from './types'
 
 /** Converts a solc byte offset into a 0-based line/column in `content`. */
@@ -141,31 +140,11 @@ export interface SlitherReport {
   results?: { detectors?: SlitherDetector[] }
 }
 
-/** Length of the comment `withSlitherCacheKeys` puts at the start of each file. */
-export const SLITHER_KEY_LENGTH = 14
-
-/**
- * The hosted Slither service caches results under the file paths and only the first 12 bytes of each
- * file, which are the same for nearly every file ("// SPDX-Lice"): an edited file gets the results of its
- * earlier content. Starting each file with a hash of its content and the compiler version gives every
- * version its own cache entry. The comment stays on line 1, so line numbers don't move.
- */
-export function withSlitherCacheKeys (sources: Record<string, { content: string }>, version: string): Record<string, { content: string }> {
-  const keyed: Record<string, { content: string }> = {}
-  for (const [path, { content }] of Object.entries(sources)) {
-    const hash = keccak256(toUtf8Bytes(`${version}\n${content}`)).slice(2, 12)
-    keyed[path] = { content: `/*${hash}*/${content}` }
-  }
-  return keyed
-}
-
 /**
  * Findings of a Slither report. The service compiles the sources under `src/`, so that prefix is
- * removed to get back the workspace path. A clean run has no `detectors`. `firstLineShift` is the
- * length of text added at the start of each file, taken off columns on line 1.
+ * removed to get back the workspace path. A clean run has no `detectors`.
  */
-export function slitherFindings (report: SlitherReport, firstLineShift = 0): RawFinding[] {
-  const column = (line: number, col: number | undefined) => Math.max((col || 1) - 1 - (line === 0 ? firstLineShift : 0), 0)
+export function slitherFindings (report: SlitherReport): RawFinding[] {
   return (report?.results?.detectors || []).map((item) => {
     const mapping = item.elements?.find((e) => e.source_mapping)?.source_mapping
     let range: Range | undefined
@@ -173,8 +152,8 @@ export function slitherFindings (report: SlitherReport, firstLineShift = 0): Raw
       const first = mapping.lines[0] - 1
       const last = mapping.lines[mapping.lines.length - 1] - 1
       range = {
-        start: { line: first, column: column(first, mapping.starting_column) },
-        end: { line: last, column: column(last, mapping.ending_column) }
+        start: { line: first, column: Math.max((mapping.starting_column || 1) - 1, 0) },
+        end: { line: last, column: Math.max((mapping.ending_column || 1) - 1, 0) }
       }
     }
     return {

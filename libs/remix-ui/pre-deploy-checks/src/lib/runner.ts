@@ -1,5 +1,5 @@
 import { CodeAnalysis } from '@remix-project/remix-analyzer'
-import { aiFindings, remixFindings, SLITHER_KEY_LENGTH, SlitherReport, slitherFindings, solhintFindings, withoutDependencies, withSlitherCacheKeys } from './converters'
+import { aiFindings, remixFindings, SlitherReport, slitherFindings, solhintFindings, withoutDependencies } from './converters'
 import { withIssueKeys } from './findings'
 import { CheckStore, compilerSettingsKey, needsRun, PlanContext } from './store'
 import { CHECK_STEPS, CheckStepId, RawFinding, StepResult, StepToggles } from './types'
@@ -95,12 +95,12 @@ async function runAnalysis (host: CheckHost, file: string, compilation: Compilat
 async function runSlither (host: CheckHost, file: string, compilation: Compilation): Promise<StepResult> {
   let report: SlitherReport
   try {
-    report = await host.runSlither(withSlitherCacheKeys(compilation.source.sources, compilation.version), compilation.version)
+    report = await host.runSlither(compilation.source.sources, compilation.version)
   } catch (e) {
     return result('failed', { note: `Slither service unavailable: ${errorMessage(e)}` })
   }
   if (!report?.success) return result('failed', { note: report?.error || 'Slither did not complete' })
-  const { own, dependencyCount } = await ownFindings(host, file, slitherFindings(report, SLITHER_KEY_LENGTH))
+  const { own, dependencyCount } = await ownFindings(host, file, slitherFindings(report))
   const note = dependencyCount ? `${dependencyCount} finding${dependencyCount === 1 ? '' : 's'} in imported libraries not shown` : undefined
   return result(own.length ? 'findings' : 'passed', { findings: own, note })
 }
