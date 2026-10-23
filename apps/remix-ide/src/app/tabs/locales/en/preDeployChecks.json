@@ -80,6 +80,7 @@
   "preDeployChecks.flattenedFile": "Flattened file",
   "preDeployChecks.outOfDate": "out of date",
   "preDeployChecks.open": "Open",
+  "preDeployChecks.view": "View",
   "preDeployChecks.report": "Report",
   "preDeployChecks.reportContents": "checks, issues, deployment",
   "preDeployChecks.save": "Save",

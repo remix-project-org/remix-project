@@ -4,7 +4,8 @@ import { remixSeverity, slitherSeverity, solhintSeverity, canonicalRule } from '
 import { CheckStore, contentHash, isStale, needsRun, deployedFromOlderVersion, PlanContext } from '../src/lib/store'
 import { offsetToPosition, remixFindings, SlitherReport, slitherFindings, solhintFindings, aiFindings, compilerMessages, withoutDependencies } from '../src/lib/converters'
 import { buildReport, reportFileName } from '../src/lib/report'
-import { CheckHost, ownFindings, runPipeline } from '../src/lib/runner'
+import { CheckHost, ownFindings, recordManualAnalysis, recordManualFlatten, runPipeline } from '../src/lib/runner'
+import { isRecordedDeployment, receiptOutcome, VerificationEvent, verificationStep } from '../src/lib/verification'
 import { deriveVerdict, summarize, toolLines, VerdictInput } from '../src/lib/verdict'
 import { DEFAULT_TOGGLES, FileCheckState, RawFinding } from '../src/lib/types'
 
@@ -313,6 +314,73 @@ describe('runner', () => {
     const broken = fakeHost('passed', async () => ({ success: false, error: 'compilation failed' }))
     await runPipeline(broken.host, { file: FILE, toggles: { ...DEFAULT_TOGGLES }, isCancelled: () => false })
     assert.strictEqual(broken.store.get(FILE).steps.slither.note, 'compilation failed')
+  })
+
+  it('records an analysis run in the Solidity Analyzers panel', async () => {
+    const { host, store } = fakeHost('passed')
+    await recordManualAnalysis(host, {
+      file: FILE,
+      remix: [{ name: 'Transaction origin: ', report: [{ warning: 'Use of tx.origin', location: '0:8:0' }] }],
+      solhint: null
+    })
+    const step = store.get(FILE).steps.analysis
+    assert.strictEqual(step.origin, 'manual')
+    assert.strictEqual(step.status, 'findings')
+    assert.strictEqual(step.contentHash, contentHash('contract A {}'))
+    assert.deepStrictEqual(step.findings.map((f) => [f.source, f.severity]), [['remix', 'high']])
+    assert.ok(step.findings[0].key)
+    assert.strictEqual(step.note, 'Solhint was off')
+  })
+
+  it('ignores an analysis of a file it has no compilation for, or with every tool off', async () => {
+    const { host, store } = fakeHost('passed')
+    await recordManualAnalysis({ ...host, getCompilation: () => undefined }, { file: FILE, remix: [], solhint: []})
+    await recordManualAnalysis(host, { file: FILE, remix: null, solhint: null })
+    assert.strictEqual(store.get(FILE).steps.analysis, undefined)
+  })
+
+  it('records a flattened file written by the Contract Flattener', () => {
+    const { host, store } = fakeHost('passed')
+    recordManualFlatten(host, FILE, 'contracts/Wallet_flattened.sol')
+    const step = store.get(FILE).steps.flatten
+    assert.strictEqual(step.status, 'passed')
+    assert.strictEqual(step.origin, 'manual')
+    assert.strictEqual(step.data.path, 'contracts/Wallet_flattened.sol')
+    assert.strictEqual(step.contentHash, contentHash('contract A {}'))
+  })
+})
+
+describe('verification', () => {
+  const ADDRESS = '0xAbC0000000000000000000000000000000000001'
+  const deploy = { status: 'passed' as const, at: 1, origin: 'manual' as const, data: { address: ADDRESS, chainId: '11155111' } }
+  const event = (receipts: VerificationEvent['receipts'], done: boolean): VerificationEvent =>
+    ({ id: 'x', filePath: FILE, contractName: 'Wallet', chainId: '11155111', address: ADDRESS.toLowerCase(), receipts, done })
+
+  it('maps verifier statuses to outcomes', () => {
+    assert.strictEqual(receiptOutcome('exactly verified'), 'verified')
+    assert.strictEqual(receiptOutcome('already verified'), 'verified')
+    assert.strictEqual(receiptOutcome('awaiting implementation verification'), 'pending')
+    assert.strictEqual(receiptOutcome('not verified'), 'failed')
+    assert.strictEqual(receiptOutcome('lookup failed'), 'failed')
+  })
+
+  it('applies only to the deployment recorded for the file', () => {
+    const e = event([], true)
+    assert.ok(isRecordedDeployment(deploy, e)) // address case does not matter
+    assert.ok(!isRecordedDeployment({ ...deploy, data: { ...deploy.data, address: '0x01' } }, e))
+    assert.ok(!isRecordedDeployment({ ...deploy, data: { ...deploy.data, chainId: '1' } }, e))
+    assert.ok(!isRecordedDeployment(undefined, e))
+  })
+
+  it('stays submitted while receipts wait, then is verified when any verifier verified it', () => {
+    const waiting = verificationStep(event([{ verifier: 'Sourcify', status: 'exactly verified' }, { verifier: 'Etherscan', status: 'pending' }], false), 2)
+    assert.strictEqual(waiting.status, 'submitted')
+    assert.deepStrictEqual(waiting.data.receipts.map((r) => r.outcome), ['verified', 'pending'])
+    const done = verificationStep(event([{ verifier: 'Sourcify', status: 'exactly verified', lookupUrl: 'https://sourcify' }, { verifier: 'Etherscan', status: 'failed', message: 'Invalid API key' }], true), 3)
+    assert.strictEqual(done.status, 'passed')
+    assert.strictEqual(done.note, 'Sourcify: exactly verified, Etherscan: failed (Invalid API key)')
+    const failed = verificationStep(event([{ verifier: 'Blockscout', status: 'failed' }], true), 4)
+    assert.strictEqual(failed.status, 'failed')
   })
 })
 

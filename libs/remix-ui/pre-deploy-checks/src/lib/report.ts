@@ -20,6 +20,12 @@ export const STEP_LABELS: Record<StepId, string> = {
   verify: 'Verify'
 }
 
+const VERIFY_LABELS: Partial<Record<StepResult['status'], string>> = {
+  submitted: 'submitted',
+  passed: 'verified',
+  failed: 'failed'
+}
+
 export const SOURCE_LABELS: Record<FindingSource, string> = {
   compiler: 'Compiler',
   remix: 'Remix analyzer',
@@ -136,7 +142,7 @@ export function buildReport (state: FileCheckState, ctx: ReportContext): string 
     if (d.txHash) lines.push(`- **Transaction:** \`${d.txHash}\``)
     lines.push(`- **Time:** ${new Date(deploy.at).toISOString()}, from Deploy & Run`)
     lines.push(`- **Version:** ${deployedFromOlderVersion(state) ? 'an earlier version of the file' : 'the version checked above'}`)
-    if (verify) lines.push(`- **Verification:** ${verify.status}${verify.note ? ` — ${cell(verify.note)}` : ''}`)
+    if (verify) lines.push(`- **Verification:** ${VERIFY_LABELS[verify.status] || verify.status}${verify.note ? ` — ${cell(verify.note)}` : ''}`)
   } else {
     lines.push('Not deployed from Deploy & Run in this session.')
   }

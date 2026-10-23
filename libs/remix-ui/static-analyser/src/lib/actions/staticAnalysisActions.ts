@@ -56,10 +56,13 @@ export async function run (lastCompilationResult, lastCompilationSource, current
       const warningMessage = []
       const warningErrors = []
       props.analysisModule.hints = []
+      // what ran, announced as analysisFinished for other plugins (Pre-deploy Checks); null when a tool was off
+      let hintsResult = null
+      let results = null
       // Run solhint
       if (solhintEnabled) {
         trackMatomoEvent?.({ category: 'solidityStaticAnalyzer', action: 'analyze', name: 'solHint', isClick: true })
-        const hintsResult = await props.analysisModule.call('solhint', 'lint', state.file)
+        hintsResult = await props.analysisModule.call('solhint', 'lint', state.file)
         props.analysisModule.hints = hintsResult
         setHints(hintsResult)
       } else {
@@ -69,7 +72,7 @@ export async function run (lastCompilationResult, lastCompilationSource, current
       // Remix Analysis
       if (basicEnabled) {
         trackMatomoEvent?.({ category: 'solidityStaticAnalyzer', action: 'analyze', name: 'remixAnalyzer', isClick: true })
-        const results = runner.run(lastCompilationResult, categoryIndex)
+        results = runner.run(lastCompilationResult, categoryIndex)
         for (const result of results) {
           let moduleName
           Object.keys(groupedModules).map(key => {
@@ -133,6 +136,7 @@ export async function run (lastCompilationResult, lastCompilationSource, current
       } else {
         setSsaWarnings([])
       }
+      props.analysisModule.emit('analysisFinished', { file: state.file, remix: results, solhint: hintsResult })
       // Slither Analysis
       if (showSlither && slitherEnabled) {
         setSlitherWarnings([])

@@ -6,7 +6,8 @@ import { endpointUrls } from '@remix-endpoints-helper'
 import {
   PreDeployChecksUI, PreDeployChecksViewState, CheckStore, CheckHost, Compilation, CompilerSummary, FileCheckState, SlitherReport,
   Finding, IgnoreReason, Range, CheckStepId, StepToggles, DEFAULT_TOGGLES, collectFindings, contentHash, compilerMessages, compilerSettingsKey,
-  withIssueKeys, ownFindings, runPipeline, blockingFindings, buildReport, reportFileName, summarize, ChecksSummary
+  withIssueKeys, ownFindings, runPipeline, blockingFindings, buildReport, reportFileName, summarize, ChecksSummary,
+  AnalysisEvent, recordManualAnalysis, recordManualFlatten, VerificationEvent, isRecordedDeployment, verificationStep
 } from '@remix-ui/pre-deploy-checks'
 import * as packageJson from '../../../../../package.json'
 
@@ -98,6 +99,15 @@ export class PreDeployChecksPlugin extends ViewPlugin implements CheckHost {
       if (file && file.endsWith('.sol') && typeof content === 'string') this.store.setCurrentHash(file, contentHash(content))
     })
     this.on('udappDeploy', 'contractDeployed', (deployment: Deployment) => this.onDeployed(deployment))
+    // checks run by hand in their own panels
+    this.on('solidityStaticAnalysis', 'analysisFinished', (event: AnalysisEvent) => {
+      recordManualAnalysis(this, event).catch((e) => console.warn('Pre-deploy checks: could not record the analysis', e))
+    })
+    this.on('contractflattener', 'contractFlattened', (file: string, path: string) => {
+      // the panel's own flatten step records itself
+      if (this.running?.file !== file) recordManualFlatten(this, file, path)
+    })
+    this.on('contract-verification', 'verificationFinished', (event: VerificationEvent) => this.onVerification(event))
     this.on('theme', 'themeChanged', (theme: { quality?: string }) => this.setThemeQuality(theme?.quality))
     this.call('theme', 'currentTheme').then((theme) => this.setThemeQuality(theme?.quality)).catch(() => { /* theme plugin not ready */ })
 
@@ -120,6 +130,9 @@ export class PreDeployChecksPlugin extends ViewPlugin implements CheckHost {
     this.off('editor', 'contentChanged')
     this.off('theme', 'themeChanged')
     this.off('udappDeploy', 'contractDeployed')
+    this.off('solidityStaticAnalysis', 'analysisFinished')
+    this.off('contractflattener', 'contractFlattened')
+    this.off('contract-verification', 'verificationFinished')
   }
 
   // ---------------------------------------------------------------- public API
@@ -385,6 +398,14 @@ export class PreDeployChecksPlugin extends ViewPlugin implements CheckHost {
     if (verify && chainId) steps.verify = { status: 'submitted', at, origin: 'manual', data: { address, chainId } }
     else delete steps.verify
     this.store.patch(filePath, { steps })
+  }
+
+  /** Verification receipts from Contract Verification, for the deployment recorded for the file (Deploy & Run's Verify or a manual one). */
+  private onVerification (event: VerificationEvent) {
+    const file = event?.filePath
+    if (!file || !this.store.has(file)) return
+    if (!isRecordedDeployment(this.store.get(file).steps.deploy, event)) return
+    this.store.setStep(file, 'verify', verificationStep(event, Date.now()))
   }
 
   // ---------------------------------------------------------------- findings and report

@@ -1,7 +1,7 @@
 import { CodeAnalysis } from '@remix-project/remix-analyzer'
-import { aiFindings, remixFindings, SlitherReport, slitherFindings, solhintFindings, withoutDependencies } from './converters'
+import { aiFindings, RemixAnalysisReport, remixFindings, SlitherReport, slitherFindings, SolhintHint, solhintFindings, withoutDependencies } from './converters'
 import { withIssueKeys } from './findings'
-import { CheckStore, compilerSettingsKey, needsRun, PlanContext } from './store'
+import { CheckStore, compilerSettingsKey, contentHash, needsRun, PlanContext } from './store'
 import { CHECK_STEPS, CheckStepId, RawFinding, StepResult, StepToggles } from './types'
 
 /** Last compilation of a file, as received from `solidity.compilationFinished`. */
@@ -73,6 +73,13 @@ export async function ownFindings (host: CheckHost, file: string, findings: RawF
   return { own: kept, dependencyCount: findings.length - kept.length }
 }
 
+/** The analysis step from the Remix analyzer's and Solhint's findings, keeping only the user's own code. */
+async function analysisResult (host: CheckHost, file: string, findings: RawFinding[], notes: string[], extra: Partial<StepResult> = {}): Promise<StepResult> {
+  const { own, dependencyCount } = await ownFindings(host, file, findings)
+  if (dependencyCount) notes.push(`${dependencyCount} finding${dependencyCount === 1 ? '' : 's'} in imported libraries not shown`)
+  return result(own.length ? 'findings' : 'passed', { findings: own, note: notes.join(' · ') || undefined, ...extra })
+}
+
 async function runAnalysis (host: CheckHost, file: string, compilation: Compilation): Promise<StepResult> {
   const analyzer = new CodeAnalysis()
   const modules = analyzer.modules().map((_m, index) => index)
@@ -87,9 +94,51 @@ async function runAnalysis (host: CheckHost, file: string, compilation: Compilat
     solhintError = errorMessage(e)
     notes.push(`Solhint unavailable: ${solhintError}`)
   }
-  const { own, dependencyCount } = await ownFindings(host, file, findings)
-  if (dependencyCount) notes.push(`${dependencyCount} finding${dependencyCount === 1 ? '' : 's'} in imported libraries not shown`)
-  return result(own.length ? 'findings' : 'passed', { findings: own, note: notes.join(' · ') || undefined, data: solhintError ? { solhintError } : undefined })
+  return analysisResult(host, file, findings, notes, { data: solhintError ? { solhintError } : undefined })
+}
+
+/** Payload of the Solidity Analyzers' analysisFinished event; a tool that was turned off there is null. */
+export interface AnalysisEvent {
+  file: string
+  remix: RemixAnalysisReport[] | null
+  solhint: SolhintHint[] | null
+}
+
+/** The content hash of the file in its last compilation, which manual analyses and flattening work from. */
+function compiledHash (compilation: Compilation): string | undefined {
+  const content = compilation?.source?.sources?.[compilation.file]?.content
+  return content !== undefined ? contentHash(content) : undefined
+}
+
+/** Records an analysis run from the Solidity Analyzers panel, made on the file's last compilation. */
+export async function recordManualAnalysis (host: CheckHost, event: AnalysisEvent): Promise<void> {
+  const compilation = event && host.getCompilation(event.file)
+  if (!compilation || (!event.remix && !event.solhint)) return
+  const file = event.file
+  const findings: RawFinding[] = event.remix ? remixFindings(event.remix, compilation.source.sources, compilation.data.sources) : []
+  if (event.solhint) findings.push(...solhintFindings(event.solhint, file))
+  const notes: string[] = []
+  if (!event.remix) notes.push('Remix analyzer was off')
+  if (!event.solhint) notes.push('Solhint was off')
+  const step = await analysisResult(host, file, findings, notes, { origin: 'manual' })
+  host.store.setStep(file, 'analysis', {
+    ...step,
+    findings: withIssueKeys(step.findings, compilation.source.sources),
+    contentHash: compiledHash(compilation),
+    settingsKey: host.store.get(file).steps.compile?.settingsKey
+  })
+}
+
+/** Records a flattened file written by the Contract Flattener (compiler button or file explorer). */
+export function recordManualFlatten (host: CheckHost, file: string, path: string): void {
+  const compilation = host.getCompilation(file)
+  if (!compilation || !path) return
+  host.store.setStep(file, 'flatten', result('passed', {
+    origin: 'manual',
+    data: { path },
+    contentHash: compiledHash(compilation),
+    settingsKey: host.store.get(file).steps.compile?.settingsKey
+  }))
 }
 
 async function runSlither (host: CheckHost, file: string, compilation: Compilation): Promise<StepResult> {

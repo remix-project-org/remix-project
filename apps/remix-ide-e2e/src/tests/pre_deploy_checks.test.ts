@@ -133,6 +133,40 @@ module.exports = {
       .end()
   },
 
+  'Should pick up an analysis run in the Solidity Analyzers panel #group4': function (browser: NightwatchBrowser) {
+    browser.waitForElementVisible('*[data-id="remixIdeSidePanel"]')
+      // the analyzer takes the compilation made while it is open
+      .clickLaunchIcon('solidityStaticAnalysis')
+      .clickLaunchIcon('filePanel')
+      .addFile('Lib.sol', sources[0]['Lib.sol'])
+      .addFile('Main.sol', sources[0]['Main.sol'])
+      .clickLaunchIcon('solidity')
+      .click('*[id="compileBtn"]')
+      .waitForElementPresent('select[id="compiledContracts"] option[value=Main]', 60000)
+      .clickLaunchIcon('solidityStaticAnalysis')
+      .waitForElementPresent('#staticAnalysisRunBtn:enabled', 30000)
+      .click('#staticAnalysisRunBtn')
+      .waitForElementVisible('span#ssaRemixtab', 30000)
+      .clickLaunchIcon('preDeployChecks')
+      .waitForElementContainsText('*[data-id="preDeployChecks-file"]', 'Main.sol')
+      // the tx.origin issue the analyzer found in Lib.sol holds the contract, without a run from the panel
+      .waitForElementVisible(status('gate'), 30000)
+      .assert.containsText(`${firstHigh} .pdc-issue-line`, 'Lib.sol')
+      .assert.not.elementPresent('*[data-id="preDeployChecks-openFlattened"]')
+  },
+
+  'Should pick up a file flattened from the file explorer #group4': function (browser: NightwatchBrowser) {
+    browser
+      .clickLaunchIcon('filePanel')
+      .rightClick('*[data-id="treeViewLitreeViewItemMain.sol"]')
+      .click('*[id="menuitemflattenacontract"]')
+      .waitForElementVisible('*[data-id="treeViewLitreeViewItemMain_flattened.sol"]', 60000)
+      .clickLaunchIcon('preDeployChecks')
+      .waitForElementVisible('*[data-id="preDeployChecks-openFlattened"]', 30000)
+      .assert.containsText('*[data-id="preDeployChecks-outputs"]', 'Main_flattened.sol')
+      .end()
+  },
+
   'Should hold a contract with a high-severity issue until it is ignored #group2': function (browser: NightwatchBrowser) {
     browser.waitForElementVisible('*[data-id="remixIdeSidePanel"]')
       .clickLaunchIcon('filePanel')

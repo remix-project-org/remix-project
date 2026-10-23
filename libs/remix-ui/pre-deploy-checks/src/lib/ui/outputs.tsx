@@ -3,6 +3,7 @@ import { FormattedMessage } from 'react-intl'
 import { CopyToClipboard } from '@remix-ui/clipboard'
 import { isStale } from '../store'
 import { FileCheckState } from '../types'
+import { VerificationReceipt } from '../verification'
 import { splitPath } from './format'
 import { PreDeployChecksActions } from './types'
 
@@ -54,6 +55,7 @@ export function Deployment ({ state }: { state: FileCheckState }) {
   if (deploy?.status !== 'passed' || !deploy.data?.address) return null
   const { address, txHash, contractName } = deploy.data
   const verify = state.steps.verify
+  const receipts: VerificationReceipt[] = verify?.data?.receipts || []
   return (
     <section className="pdc-card pdc-deployment" data-id="preDeployChecks-deployment">
       <div className="pdc-section-title">{contractName || <FormattedMessage id="preDeployChecks.deployment" />}</div>
@@ -66,6 +68,22 @@ export function Deployment ({ state }: { state: FileCheckState }) {
         <div className="pdc-meta" data-id="preDeployChecks-verification">
           <FormattedMessage id="preDeployChecks.verification" />: <FormattedMessage id={`preDeployChecks.verification.${verify.status}`} defaultMessage={verify.status} />
         </div>
+      )}
+      {receipts.length > 0 && (
+        <ul className="pdc-receipts" data-id="preDeployChecks-receipts">
+          {receipts.map((r) => (
+            <li key={r.verifier} className="pdc-receipt" data-id={`preDeployChecks-receipt-${r.verifier}`} data-outcome={r.outcome}>
+              <div className="d-flex gap-2 align-items-baseline">
+                <span className="pdc-receipt-name">{r.verifier}</span>
+                <span className={`pdc-receipt-status pdc-receipt-${r.outcome}`}>{r.status}</span>
+                {r.lookupUrl && (
+                  <a className="pdc-link-btn ms-auto" href={r.lookupUrl} target="_blank" rel="noopener noreferrer"><FormattedMessage id="preDeployChecks.view" /></a>
+                )}
+              </div>
+              {r.outcome === 'failed' && r.message && <div className="pdc-receipt-message text-truncate" title={r.message}>{r.message}</div>}
+            </li>
+          ))}
+        </ul>
       )}
     </section>
   )

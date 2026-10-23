@@ -12,7 +12,7 @@ const profile = {
   name: 'solidityStaticAnalysis',
   displayName: 'Solidity Analyzers',
   methods: ['analyze'],
-  events: [],
+  events: ['analysisFinished'],
   icon: 'assets/img/staticAnalysis.webp',
   description: 'Analyze your code using Remix, Solhint and Slither.',
   kind: 'analysis',
