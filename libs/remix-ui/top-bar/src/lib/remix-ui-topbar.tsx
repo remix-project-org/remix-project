@@ -1149,16 +1149,23 @@ export function RemixUiTopbar() {
                 await plugin.call('remixaiassistant', 'focusChatInput')
                 return
               }
+
               const pState = await plugin.call('menuicons', 'getPluginState', 'remixaiassistant')
-              if (pState && pState.pinned) {
-                // When the AI panel is already open, clicking the icon closes it; otherwise open it.
-                if (aiPanelActive) {
-                  await plugin.call('rightSidePanel', 'togglePanel')
-                } else {
-                  await plugin.call('rightSidePanel', 'highlight')
-                }
+              if (pState && pState.pinned && aiPanelActive) {
+                // Already showing, toggle to hide
+                await plugin.call('rightSidePanel', 'togglePanel')
               } else {
-                await plugin.call('menuicons', 'toggle', 'remixaiassistant')
+                // Check if AI is registered in the right panel (even if inactive)
+                const rightPanelPlugin = await plugin.call('rightSidePanel', 'getPlugin', 'remixaiassistant')
+
+                if (rightPanelPlugin) {
+                  // AI is already registered - use showPlugin to switch focus
+                  await plugin.call('rightSidePanel', 'showPlugin', 'remixaiassistant')
+                } else {
+                  // AI is not registered in right panel - activate it
+                  // AI's onActivation will pin it to right panel automatically
+                  await plugin.call('manager', 'activatePlugin', 'remixaiassistant')
+                }
               }
               refreshAiPanelState()
             }}

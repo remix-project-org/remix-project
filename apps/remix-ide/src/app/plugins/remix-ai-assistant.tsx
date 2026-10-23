@@ -77,11 +77,14 @@ export class RemixAIAssistant extends ViewPlugin {
   }
 
   async onActivation() {
+    // Always pin to right side panel on activation (not just first load)
+    // This ensures AI always opens on the right, whether first time or reactivation
+    await this.call('rightSidePanel', 'pinView', this.profile, this.render())
+
     if (!localStorage.getItem('remixaiassistant_firstload_flag')) {
-      this.call('sidePanel', 'pinView', this.profile)
       await this.call('layout', 'maximiseSidePanel')
+      localStorage.setItem('remixaiassistant_firstload_flag', '1')
     }
-    localStorage.setItem('remixaiassistant_firstload_flag', '1')
 
     // Permanent placeholder host in the center/main panel that the chat's
     // maximized view portals into (see maximizePanel()). Registered once,

@@ -13,7 +13,7 @@ const rightSidePanel = {
   description: 'Remix IDE right side panel',
   version: packageJson.version,
   methods: ['addView', 'removeView', 'currentFocus', 'pinView', 'unPinView', 'highlight',
-    'getHiddenPlugin', 'togglePanel', 'isPanelHidden', 'maximizePanel', 'isRightSidePanelMaximized'
+    'getHiddenPlugin', 'togglePanel', 'isPanelHidden', 'maximizePanel', 'isRightSidePanelMaximized', 'getPlugin', 'showPlugin'
   ],
   events: []
 }
@@ -178,6 +178,11 @@ export class RightSidePanel extends AbstractPanel {
       this.plugins[activePlugin].active = false
       this.plugins[activePlugin].pinned = false
       this.aiModeHidPanel = false
+    } else if (activePlugin === 'remixaiassistant') {
+      // AI assistant should never move to left panel - just hide it when another plugin is pinned
+      this.plugins[activePlugin].active = false
+      this.plugins[activePlugin].pinned = false
+      // Keep the plugin registered but inactive, so it can be shown again later
     } else if (activePlugin) {
       await this.call('sidePanel', 'unPinView', this.plugins[activePlugin].profile, this.plugins[activePlugin].view)
       this.remove(activePlugin)
@@ -251,6 +256,66 @@ export class RightSidePanel extends AbstractPanel {
 
   getHiddenPlugin() {
     return this.hiddenPlugin
+  }
+
+  getPlugin(name: string) {
+    return this.plugins[name]
+  }
+
+  async showPlugin (name: string) {
+    // Switch focus to an already-registered plugin without removing/adding
+    // This is used when both AI and another plugin are registered, and we want to swap between them
+    if (!this.plugins[name]) {
+      throw new Error(`Plugin ${name} is not registered in right panel`)
+    }
+
+    const currentPlugin = this.currentFocus()
+    if (currentPlugin === name) {
+      // Already focused, just show panel if hidden
+      if (this.isHidden) {
+        await this.togglePanel()
+      }
+      return
+    }
+
+    // Deactivate current plugin
+    if (currentPlugin) {
+      if (currentPlugin === 'remixaiassistant') {
+        // AI should stay registered but inactive
+        this.plugins[currentPlugin].active = false
+        this.plugins[currentPlugin].pinned = false
+      } else {
+        // Other plugins: move to left panel
+        await this.call('sidePanel', 'unPinView', this.plugins[currentPlugin].profile, this.plugins[currentPlugin].view)
+        this.remove(currentPlugin)
+      }
+    }
+
+    // Activate the requested plugin
+    this.plugins[name].active = true
+    this.plugins[name].pinned = true
+
+    // Show panel if hidden
+    if (this.isHidden) {
+      this.isHidden = false
+      const pinnedPanel = document.querySelector('#right-side-panel')
+      pinnedPanel?.classList.remove('d-none')
+      this.emit('rightSidePanelShown')
+      this.events.emit('rightSidePanelShown')
+    }
+
+    // Update localStorage
+    const panelStates = JSON.parse(window.localStorage.getItem('panelStates') || '{}')
+    panelStates.rightSidePanel = {
+      isHidden: this.isHidden,
+      pluginProfile: this.plugins[name].profile
+    }
+    window.localStorage.setItem('panelStates', JSON.stringify(panelStates))
+
+    this.renderComponent()
+    this.events.emit('pinnedPlugin', this.plugins[name].profile, this.isHidden)
+    this.emit('pinnedPlugin', this.plugins[name].profile, this.isHidden)
+    trackMatomoEvent(this, { category: 'topbar', action: 'rightSidePanel', name: 'showPlugin', isClick: false })
   }
 
   async togglePanel () {
