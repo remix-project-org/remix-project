@@ -50,7 +50,26 @@ export interface ResolvedProxyInfo {
 
 export interface TraceProxyInfo {
   address: string
+  networkLabel: string
   hops: ResolvedProxyInfo[]
+}
+
+export type TraceLegRole = 'origin' | 'settlement' | 'execution'
+
+export interface TraceLeg {
+  role: TraceLegRole
+  networkLabel: string
+  txHash: string
+  blockNumber: number | null
+  success: boolean | null
+  error: string | null
+  decodedError: string | null
+}
+
+export interface TraceSettlement {
+  l1TransactionHash: string
+  l1BlockNumber: number
+  l2Finalized: boolean
 }
 
 export interface TransactionTraceResult {
@@ -60,6 +79,11 @@ export interface TransactionTraceResult {
   decodedError: string | null
   proxies: TraceProxyInfo[]
   proxyCount: number
+  legs: TraceLeg[]
+  settlement: TraceSettlement | null
+  isL2Origin: boolean
+  omittedLegs: number
+  correlationError: string | null
 }
 
 export interface EezWalletRpc {

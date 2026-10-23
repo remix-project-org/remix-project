@@ -1,22 +1,13 @@
 import React from 'react'
 import { JsonRpcProvider, Contract, Interface, InterfaceAbi, isAddress, isHexString, hexlify, randomBytes, toUtf8String } from 'ethers'
-import { decodeEezRevertData } from '@remix-ui/helper'
 // eslint-disable-next-line @nrwl/nx/enforce-module-boundaries
 import type { EezPlugin } from 'apps/remix-ide/src/app/udapp/udappEez'
 import { EEZ_ABI, EEZ_COMPOSER_PROBE_ABI, EEZ_ROLLUP_ID_ABI } from '../abi'
 import { EEZ_COMPOSER_PROBE_ADDRESS, EEZ_COMPOSER_RPC_URLS } from '../constants'
-import { Actions, EezComposerInfo, EezComposerNetwork, EezNetworkEntry, ResolutionRow, ResolvedProxyInfo, TraceProxyInfo, TransactionTraceResult } from '../types'
+import { Actions, EezComposerInfo, EezComposerNetwork, EezNetworkEntry, ResolutionRow, ResolvedProxyInfo, TraceLeg, TraceLegRole, TraceProxyInfo, TraceSettlement, TransactionTraceResult } from '../types'
 
 const NOT_EEZ_NETWORK = 'The currently connected network is not part of an EEZ network.'
 export const EEZ_SETTINGS_KEY = 'eez-networks'
-
-function collectCallAddresses(frame: any, into: Set<string>) {
-  if (!frame) return
-  if (typeof frame.to === 'string') into.add(frame.to.toLowerCase())
-  if (Array.isArray(frame.calls)) {
-    for (const child of frame.calls) collectCallAddresses(child, into)
-  }
-}
 
 function parseChainId(network: EezComposerNetwork): string | null {
   if (network === undefined || network === null) return null
@@ -436,6 +427,72 @@ function resolveProxyInfo(networks: EezNetworkEntry[], result: any): ResolvedPro
   return { originalAddress, originalRollupId, originNetworkLabel: originNetwork?.label || null }
 }
 
+const MAX_EXECUTION_LEGS = 10
+
+function isL1Network(network: EezNetworkEntry) {
+  return network.rollupId === '0'
+}
+
+function isL2Network(network: EezNetworkEntry) {
+  return network.rollupId !== '' && network.rollupId !== '0'
+}
+
+function receiptAddresses(receipt: any): string[] {
+  const addresses = new Set<string>()
+  if (typeof receipt?.to === 'string') addresses.add(receipt.to.toLowerCase())
+  for (const log of receipt?.logs || []) {
+    if (typeof log?.address === 'string') addresses.add(log.address.toLowerCase())
+  }
+  return Array.from(addresses)
+}
+
+function receiptSucceeded(receipt: any): boolean {
+  return Number(receipt?.status) === 1
+}
+
+async function findReceipt(provider: JsonRpcProvider, txHash: string): Promise<{ receipt: any } | { status: any }> {
+  const receipt = await provider.send('eth_getTransactionReceipt', [txHash])
+  if (receipt) return { receipt }
+
+  const status = await provider.send('eez_getCrossChainTransaction', [txHash]).catch((): null => null)
+  const blockHash: string | undefined = status?.ownership?.canonical?.hash
+  if (blockHash) {
+    const receipts: any[] = await provider.send('eth_getBlockReceipts', [blockHash]).catch((): null => null)
+    const match = receipts?.find((r) => r?.transactionHash?.toLowerCase() === txHash.toLowerCase())
+    if (match) return { receipt: match }
+  }
+  return { status }
+}
+
+function describeComposerStatus(status: any): string {
+  if (!status) return 'Transaction not found on the currently connected network.'
+  const ownership = status.ownership || {}
+  if (status.lifecycle === 'terminal' || ownership.state === 'terminal') {
+    const reason = ownership.reason ? ` (${ownership.reason})` : ''
+    const detail = ownership.rejection?.error ? `: ${ownership.rejection.error}` : '.'
+    return `The composer rejected this transaction${reason}${detail}`
+  }
+  return `This transaction is still pending in the composer (${ownership.state || status.lifecycle || 'unknown state'}). Trace it again once it is mined.`
+}
+
+async function findEezExecutions(
+  l2Networks: EezNetworkEntry[],
+  providerOf: (network: EezNetworkEntry) => JsonRpcProvider,
+  blockHashes: string[]
+): Promise<{ network: EezNetworkEntry; receipt: any }[]> {
+  const found: { network: EezNetworkEntry; receipt: any }[] = []
+  for (const network of l2Networks) {
+    const eezAddress = network.eezContractAddress.toLowerCase()
+    const blocks: any[][] = await Promise.all(blockHashes.map((hash) => providerOf(network).send('eth_getBlockReceipts', [hash]).catch((): null => null)))
+    for (const receipts of blocks) {
+      for (const receipt of receipts || []) {
+        if (receipt?.to?.toLowerCase() === eezAddress) found.push({ network, receipt })
+      }
+    }
+  }
+  return found.sort((a, b) => Number(a.receipt.blockNumber) - Number(b.receipt.blockNumber))
+}
+
 export async function traceTransactionByHash(
   plugin: EezPlugin,
   dispatch: React.Dispatch<Actions>,
@@ -474,54 +531,106 @@ export async function traceTransactionByHash(
     }
   }
 
-  const resolveHops = async (first: ResolvedProxyInfo, address: string): Promise<ResolvedProxyInfo[]> => {
-    const seen = new Set([`${currentNetwork.rollupId}:${address}`.toLowerCase()])
+  const resolveHops = async (network: EezNetworkEntry, first: ResolvedProxyInfo, address: string): Promise<ResolvedProxyInfo[]> => {
+    const seen = new Set([`${network.rollupId}:${address}`.toLowerCase()])
     const follow = async (hop: ResolvedProxyInfo): Promise<ResolvedProxyInfo[]> => {
       const key = `${hop.originalRollupId}:${hop.originalAddress}`.toLowerCase()
       if (seen.has(key)) return [hop]
       seen.add(key)
-      const network = networks.find((n) => String(n.rollupId) === hop.originalRollupId)
-      if (!network?.rpcUrl || !network.eezContractAddress) return [hop]
-      const next = await lookupProxy(network, hop.originalAddress)
+      const hopNetwork = networks.find((n) => String(n.rollupId) === hop.originalRollupId)
+      if (!hopNetwork?.rpcUrl || !hopNetwork.eezContractAddress) return [hop]
+      const next = await lookupProxy(hopNetwork, hop.originalAddress)
       return next ? [hop, ...await follow(next)] : [hop]
     }
     return follow(first)
   }
 
+  const toLeg = (network: EezNetworkEntry, role: TraceLegRole, hash: string, receipt: any): { network: EezNetworkEntry; leg: TraceLeg; receipt: any } => ({
+    network,
+    receipt,
+    leg: {
+      role,
+      networkLabel: network.label,
+      txHash: hash,
+      blockNumber: receipt ? Number(receipt.blockNumber) : null,
+      success: receipt ? receiptSucceeded(receipt) : null,
+      error: receipt ? null : 'Receipt unavailable',
+      decodedError: null
+    }
+  })
+
   try {
     const provider = providerOf(currentNetwork)
-    const receipt = await provider.getTransactionReceipt(txHash)
-    if (!receipt) {
-      dispatch({ type: 'TRACE_ERROR', payload: 'Transaction not found on the currently connected network.' })
+    const found = await findReceipt(provider, txHash)
+    if ('status' in found) {
+      dispatch({ type: 'TRACE_ERROR', payload: describeComposerStatus(found.status) })
       return
     }
-
-    const trace = await provider.send('debug_traceTransaction', [txHash, { tracer: 'callTracer' }])
-    const addressSet = new Set<string>()
-    collectCallAddresses(trace, addressSet)
-
-    const touched = (await Promise.all(
-      Array.from(addressSet).map(async (addr): Promise<TraceProxyInfo | null> => {
-        const proxyInfo = await lookupProxy(currentNetwork, addr)
-        return proxyInfo ? { address: addr, hops: await resolveHops(proxyInfo, addr) } : null
-      })
-    )).filter((p): p is TraceProxyInfo => p !== null)
-
-    const proxyKeys = new Set<string>()
-    for (const p of touched) {
-      proxyKeys.add(`${currentNetwork.rollupId}:${p.address}`.toLowerCase())
-      p.hops.slice(0, -1).forEach((hop) => proxyKeys.add(`${hop.originalRollupId}:${hop.originalAddress}`.toLowerCase()))
+    const originReceipt = found.receipt
+    const traced = [toLeg(currentNetwork, 'origin', txHash, originReceipt)]
+    const isL2Origin = isL2Network(currentNetwork)
+    let settlement: TraceSettlement | null = null
+    let correlationError: string | null = null
+    let omittedLegs = 0
+    try {
+      if (isL2Origin) {
+        const l1Network = networks.find(isL1Network)
+        const record = await provider.send('eez_getSettlementByL2Block', [{ blockHash: originReceipt.blockHash }])
+        if (record?.canonicalL2 && l1Network) {
+          settlement = { l1TransactionHash: record.l1TransactionHash, l1BlockNumber: Number(record.l1BlockNumber), l2Finalized: !!record.l2Finalized }
+          const receipt = await providerOf(l1Network).send('eth_getTransactionReceipt', [settlement.l1TransactionHash]).catch((): null => null)
+          traced.push(toLeg(l1Network, 'settlement', settlement.l1TransactionHash, receipt))
+        }
+      } else if (isL1Network(currentNetwork)) {
+        const records: any[] = ((await provider.send('eez_getSettledL2RangesByL1Block', [{ blockHash: originReceipt.blockHash }])) || []).filter((r: any) => r?.canonicalL2)
+        const postings = Array.from(new Set<string>(records.map((r) => r.l1TransactionHash).filter((hash) => hash && hash.toLowerCase() !== txHash.toLowerCase())))
+        for (const hash of postings) {
+          const receipt = await provider.send('eth_getTransactionReceipt', [hash]).catch((): null => null)
+          traced.push(toLeg(currentNetwork, 'settlement', hash, receipt))
+        }
+        const l2BlockHashes = Array.from(new Set<string>(records.flatMap((r) => (r.l2Blocks || []).map((b: any) => b.hash))))
+        const executions = await findEezExecutions(networks.filter(isL2Network), providerOf, l2BlockHashes)
+        omittedLegs = Math.max(0, executions.length - MAX_EXECUTION_LEGS)
+        for (const { network, receipt } of executions.slice(0, MAX_EXECUTION_LEGS)) {
+          traced.push(toLeg(network, 'execution', receipt.transactionHash, receipt))
+        }
+      }
+    } catch (e) {
+      correlationError = e?.message || 'Failed to look up the settlement of this transaction.'
     }
 
-    const decodedError = trace.error ? (trace.revertReason || decodeEezRevertData(trace.output)) : null
+    const proxySeen = new Set<string>()
+    const lookups: Promise<{ rollupId: string; proxy: TraceProxyInfo } | null>[] = []
+    for (const { network, receipt } of traced) {
+      for (const addr of receiptAddresses(receipt)) {
+        const key = `${network.rollupId}:${addr}`
+        if (proxySeen.has(key)) continue
+        proxySeen.add(key)
+        lookups.push(lookupProxy(network, addr).then(async (proxyInfo) => (
+          proxyInfo ? { rollupId: network.rollupId, proxy: { address: addr, networkLabel: network.label, hops: await resolveHops(network, proxyInfo, addr) } } : null
+        )))
+      }
+    }
+    const resolved = (await Promise.all(lookups)).filter((p) => p !== null)
+
+    const proxyKeys = new Set<string>()
+    for (const { rollupId, proxy } of resolved) {
+      proxyKeys.add(`${rollupId}:${proxy.address}`.toLowerCase())
+      proxy.hops.slice(0, -1).forEach((hop) => proxyKeys.add(`${hop.originalRollupId}:${hop.originalAddress}`.toLowerCase()))
+    }
 
     const result: TransactionTraceResult = {
       txHash,
-      success: !trace.error,
-      error: trace.error || null,
-      decodedError,
-      proxies: touched,
-      proxyCount: proxyKeys.size
+      success: receiptSucceeded(originReceipt),
+      error: null,
+      decodedError: null,
+      proxies: resolved.map(({ proxy }) => proxy),
+      proxyCount: proxyKeys.size,
+      legs: traced.map(({ leg }) => leg),
+      settlement,
+      isL2Origin,
+      omittedLegs,
+      correlationError
     }
     dispatch({ type: 'TRACE_SUCCESS', payload: result })
   } catch (e: any) {
