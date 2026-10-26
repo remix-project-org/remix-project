@@ -143,30 +143,23 @@ const Icon = ({ iconRecord, verticalIconPlugin, contextMenuAction, theme, showLa
               <div
                 className={`remixui_icon_ai py-1 ${showLabel ? 'remixui_icon_labeled' : ''} ${isHighlighted ? 'remixui_icon--active' : ''}`}
                 onClick={async () => {
-                  // AI mode: the chat is already in the center panel (focuses its input instead)
+                  // AI mode: focus the input instead of showing/hiding the panel
                   if ((verticalIconPlugin as any).interceptAIModeClick?.(name)) return
 
-                  // Check if AI is already active on right panel
+                  // Already showing on right panel: toggle to hide
                   if (iconRecord.pinned && iconRecord.active) {
-                    // Already showing, toggle to hide
                     await verticalIconPlugin.call('rightSidePanel', 'togglePanel')
                     return
                   }
 
-                  // Check if AI is registered in the right panel (even if inactive)
+                  // Check if registered in right panel
                   const rightPanelPlugin = await verticalIconPlugin.call('rightSidePanel', 'getPlugin', name)
 
-                  console.log('[AI Click] rightPanelPlugin:', rightPanelPlugin, 'iconRecord.pinned:', iconRecord.pinned)
-
                   if (rightPanelPlugin) {
-                    // AI is already registered in rightSidePanel
-                    // Use showPlugin to switch focus without removing/adding (preserves icon)
-                    console.log('[AI Click] AI registered, calling showPlugin')
+                    // Registered but inactive: show it
                     await verticalIconPlugin.call('rightSidePanel', 'showPlugin', name)
                   } else {
-                    // AI is not registered in right panel - activate it
-                    // AI's onActivation will pin it to right panel automatically
-                    console.log('[AI Click] AI not in right panel, activating')
+                    // Not registered: activate (onActivation will pin to right panel)
                     await verticalIconPlugin.call('manager', 'activatePlugin', name)
                   }
                 }}

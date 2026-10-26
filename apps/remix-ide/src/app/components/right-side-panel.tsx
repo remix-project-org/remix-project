@@ -450,26 +450,27 @@ export class RightSidePanel extends AbstractPanel {
     }
 
     const otherActive = Object.keys(this.plugins).some((name) => name !== 'remixaiassistant' && this.plugins[name].active)
+
     if (!ai.active && otherActive) {
-      // Another plugin was pinned here during AI mode: it keeps this panel and
-      // the chat docks into the left panel (registered without taking focus).
-      super.remove('remixaiassistant')
+      // Another plugin is active: keep it and mark AI as inactive
+      ai.active = false
+      ai.pinned = false
       this.renderComponent()
-      await this.call('sidePanel', 'addView', ai.profile, ai.view)
       return
     }
 
     if (!ai.active) {
-      // A plugin pinned during AI mode was moved away again: the chat takes
-      // this panel back.
+      // No other plugin active: reactivate AI
       ai.active = true
       ai.pinned = true
       this.hiddenPlugin = null
       this.isHidden = false
       document.querySelector('#right-side-panel')?.classList.remove('d-none')
+
       const panelStates = JSON.parse(window.localStorage.getItem('panelStates') || '{}')
       panelStates.rightSidePanel = { isHidden: false, pluginProfile: ai.profile }
       window.localStorage.setItem('panelStates', JSON.stringify(panelStates))
+
       this.renderComponent()
       this.events.emit('pinnedPlugin', ai.profile, false)
       this.emit('pinnedPlugin', ai.profile, false)
@@ -478,6 +479,7 @@ export class RightSidePanel extends AbstractPanel {
       return
     }
 
+    // Restore panel visibility if it was hidden by entering AI mode
     if (hidPanel && this.isHidden) {
       await this.togglePanel()
     }

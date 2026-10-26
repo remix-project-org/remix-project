@@ -99,11 +99,13 @@ const RemixUIPanelHeader = (props: RemixPanelProps) => {
                 <>
                   <RenderIf condition={plugin.pinned}>
                     <>
-                      <div className='d-flex' data-id="movePluginToLeft" data-pinnedplugin={`movePluginToLeft-${plugin.profile.name}`} onClick={unPinPlugin}>
-                        <CustomTooltip placement="auto-end" tooltipId="unPinnedMsg" tooltipClasses="text-nowrap" tooltipText={<FormattedMessage id="panel.unPinnedMsg" />}>
-                          <div className="codicon codicon-layout-sidebar-left-dock ms-2 fs-6 fw-bold lh-1" style={{ marginTop: '2px' }}></div>
-                        </CustomTooltip>
-                      </div>
+                      {plugin.profile.name !== 'remixaiassistant' && (
+                        <div className='d-flex' data-id="movePluginToLeft" data-pinnedplugin={`movePluginToLeft-${plugin.profile.name}`} onClick={unPinPlugin}>
+                          <CustomTooltip placement="auto-end" tooltipId="unPinnedMsg" tooltipClasses="text-nowrap" tooltipText={<FormattedMessage id="panel.unPinnedMsg" />}>
+                            <div className="codicon codicon-layout-sidebar-left-dock ms-2 fs-6 fw-bold lh-1" style={{ marginTop: '2px' }}></div>
+                          </CustomTooltip>
+                        </div>
+                      )}
                       <CustomTooltip placement="bottom-end" tooltipText={props.isMaximized
                         ? intl.formatMessage({ id: 'panel.minimizePanel' })
                         : intl.formatMessage({ id: 'panel.maximizePanel' })}>
