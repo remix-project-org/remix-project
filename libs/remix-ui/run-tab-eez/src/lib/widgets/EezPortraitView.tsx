@@ -23,7 +23,7 @@ function EezPortraitView() {
   const { plugin, widgetState, dispatch, themeQuality } = useContext(EezAppContext)
   const {
     networks, isDiscovering, addressInput, isResolving, resolutionRows, resolutionError, showCreateDialog, createdProxies, creator,
-    traceTxHash, isTracing, traceResult, traceError, walletRpc, isSwitchingWalletRpc
+    traceTxHash, isTracing, traceResult, traceError, walletRpc, isSwitchingWalletRpc, isWalletRpcAdded
   } = widgetState
   const isWalletOffComposer = walletRpc.isComposer === false
   const currentNetworkLabel = networks.find((n) => n.chainId === walletRpc.chainId)?.label || 'this network'
@@ -54,6 +54,15 @@ function EezPortraitView() {
 
   const handleSwitchWalletRpc = () => {
     switchWalletToComposerRpc(plugin, dispatch, walletRpc.chainId)
+  }
+
+  const handleCheckWalletRpc = async () => {
+    dispatch({ type: 'START_WALLET_RPC_SWITCH' })
+    try {
+      await plugin.checkWalletRpc()
+    } finally {
+      dispatch({ type: 'WALLET_RPC_SWITCH_DONE' })
+    }
   }
 
   const handleLoadResolvedProxy = async (proxyAddress: string) => {
@@ -117,7 +126,43 @@ function EezPortraitView() {
           </button>
         </div>
       </div>
-      {isWalletOffComposer && (
+      {isWalletOffComposer && isWalletRpcAdded && (
+        <div
+          className="alert alert-info mx-3 mt-0 mb-0 d-flex gap-2 small"
+          role="alert"
+          data-id="eezWalletRpcSelectInfo"
+          style={{ borderLeft: '4px solid var(--bs-info)' }}
+        >
+          <div className="flex-grow-1" style={{ minWidth: 0 }}>
+            <p className="mb-1 fw-bold d-flex align-items-center gap-2" style={{ fontSize: '0.85rem' }}>
+              <i className="fas fa-info-circle"></i>
+              Select the EEZ RPC in your wallet
+            </p>
+            <p className="mb-1">
+              The EEZ composer RPC was added to {currentNetworkLabel}, but your wallet is still using its previous RPC. To switch in MetaMask:
+            </p>
+            <ol className="mb-2 ps-3">
+              <li>Open the MetaMask network menu.</li>
+              <li>Click {currentNetworkLabel} to show its RPC list.</li>
+              <li>Select <code className="text-break">{EEZ_COMPOSER_RPC_URLS[walletRpc.chainId]?.rpcUrl}</code>.</li>
+              <li>Click "Check again" below.</li>
+            </ol>
+            <button
+              className="btn btn-sm btn-info w-100 fw-bold d-flex align-items-center justify-content-center"
+              data-id="eezCheckWalletRpcButton"
+              disabled={isSwitchingWalletRpc}
+              onClick={handleCheckWalletRpc}
+            >
+              {isSwitchingWalletRpc ? (
+                <><i className="fas fa-spinner fa-spin me-2"></i>Checking...</>
+              ) : (
+                <>Check again</>
+              )}
+            </button>
+          </div>
+        </div>
+      )}
+      {isWalletOffComposer && !isWalletRpcAdded && (
         <div
           className="alert alert-warning mx-3 mt-0 mb-0 d-flex gap-2 small"
           role="alert"

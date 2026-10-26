@@ -119,6 +119,7 @@ export interface EezWidgetState {
   traceError: string | null
   walletRpc: EezWalletRpc
   isSwitchingWalletRpc: boolean
+  isWalletRpcAdded: boolean
 }
 
 export interface EezAppContextType {
@@ -154,3 +155,4 @@ export type Actions =
   | { type: 'SET_WALLET_RPC'; payload: EezWalletRpc }
   | { type: 'START_WALLET_RPC_SWITCH' }
   | { type: 'WALLET_RPC_SWITCH_DONE' }
+  | { type: 'WALLET_RPC_ADDED' }

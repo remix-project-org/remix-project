@@ -28,7 +28,8 @@ export const eezInitialState: EezWidgetState = {
   traceResult: null,
   traceError: null,
   walletRpc: eezInitialWalletRpc,
-  isSwitchingWalletRpc: false
+  isSwitchingWalletRpc: false,
+  isWalletRpcAdded: false
 }
 
 export const eezReducer = (state: EezWidgetState, action: Actions): EezWidgetState => {
@@ -133,7 +134,8 @@ export const eezReducer = (state: EezWidgetState, action: Actions): EezWidgetSta
       isTracing: false,
       traceResult: null,
       traceError: null,
-      isSwitchingWalletRpc: false
+      isSwitchingWalletRpc: false,
+      isWalletRpcAdded: false
     }
 
   case 'SET_TRACE_TX_HASH':
@@ -148,14 +150,19 @@ export const eezReducer = (state: EezWidgetState, action: Actions): EezWidgetSta
   case 'TRACE_ERROR':
     return { ...state, isTracing: false, traceResult: null, traceError: action.payload }
 
-  case 'SET_WALLET_RPC':
-    return { ...state, walletRpc: action.payload }
+  case 'SET_WALLET_RPC': {
+    const isSameChain = action.payload.chainId === state.walletRpc.chainId
+    return { ...state, walletRpc: action.payload, isWalletRpcAdded: state.isWalletRpcAdded && isSameChain && !action.payload.isComposer }
+  }
 
   case 'START_WALLET_RPC_SWITCH':
     return { ...state, isSwitchingWalletRpc: true }
 
   case 'WALLET_RPC_SWITCH_DONE':
     return { ...state, isSwitchingWalletRpc: false }
+
+  case 'WALLET_RPC_ADDED':
+    return { ...state, isWalletRpcAdded: true }
 
   default:
     return state

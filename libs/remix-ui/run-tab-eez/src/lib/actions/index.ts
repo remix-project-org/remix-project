@@ -149,8 +149,7 @@ export async function switchWalletToComposerRpc(plugin: EezPlugin, dispatch: Rea
   dispatch({ type: 'START_WALLET_RPC_SWITCH' })
   try {
     await plugin.call('blockchain', 'sendRpc', 'wallet_addEthereumChain', [addEthereumChainParams(chainId)])
-    const isComposer = await plugin.checkWalletRpc()
-    if (!isComposer) showWalletRpcSwitchFailed(plugin, `Your wallet is still not using ${composer.rpcUrl}. Select it as the RPC for ${composer.label} in your wallet's network settings.`)
+    if (!isComposer) dispatch({ type: 'WALLET_RPC_ADDED' })
   } catch (e) {
     showWalletRpcSwitchFailed(plugin, e?.message || 'Failed to update the wallet RPC')
   } finally {
