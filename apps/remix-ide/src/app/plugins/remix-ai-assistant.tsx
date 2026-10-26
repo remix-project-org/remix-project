@@ -77,9 +77,18 @@ export class RemixAIAssistant extends ViewPlugin {
   }
 
   async onActivation() {
-    // Always pin to right side panel on activation (not just first load)
-    // This ensures AI always opens on the right, whether first time or reactivation
-    await this.call('rightSidePanel', 'pinView', this.profile, this.render())
+    // Check if another plugin should be pinned based on saved state
+    const panelStates = JSON.parse(localStorage.getItem('panelStates') || '{}')
+    const savedPluginName = panelStates.rightSidePanel?.pluginProfile?.name
+
+    // Only pin RemixAI if no other plugin is saved, or RemixAI itself was saved
+    // This prevents RemixAI from replacing other pinned plugins (like Solidity) on reload
+    if (!savedPluginName || savedPluginName === this.profile.name) {
+      const currentFocus = await this.call('rightSidePanel', 'currentFocus')
+      if (currentFocus !== this.profile.name) {
+        await this.call('rightSidePanel', 'pinView', this.profile, this.render())
+      }
+    }
 
     if (!localStorage.getItem('remixaiassistant_firstload_flag')) {
       await this.call('layout', 'maximiseSidePanel')
