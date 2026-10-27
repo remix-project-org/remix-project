@@ -455,6 +455,14 @@ export class RightSidePanel extends AbstractPanel {
       // Another plugin is active: keep it and mark AI as inactive
       ai.active = false
       ai.pinned = false
+      // Restore panel visibility if it was hidden by entering AI mode
+      if (hidPanel && this.isHidden) {
+        this.isHidden = false
+        const pinnedPanel = document.querySelector('#right-side-panel')
+        pinnedPanel?.classList.remove('d-none')
+        this.emit('rightSidePanelShown')
+        this.events.emit('rightSidePanelShown')
+      }
       this.renderComponent()
       return
     }

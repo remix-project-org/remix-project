@@ -147,7 +147,7 @@ test('panel-header maximize enters AI mode and the chat header exit button leave
   await expect(page.locator(`${sel.rightPanel} ${sel.chatReady}`)).toBeAttached()
 })
 
-test('pinning a plugin in AI mode keeps the chat in the center; leaving AI mode docks the chat left', async ({ page }) => {
+test('pinning a plugin in AI mode keeps the chat in the center; leaving AI mode shows the pinned plugin', async ({ page }) => {
   await loadIde(page)
   await enterAiMode(page)
 
@@ -158,11 +158,11 @@ test('pinning a plugin in AI mode keeps the chat in the center; leaving AI mode 
 
   await click(page, sel.codeBtn)
   await expectCodeMode(page)
-  // The pinned plugin keeps the right panel; the chat moved to the left panel
+  // The pinned plugin keeps the right panel; the chat stays registered but inactive (not moved to left)
   await expect(page.locator(`${sel.rightPanel} ${sel.panelTitle}`)).toHaveText(/Solidity compiler/i)
-  await expect(page.locator(`${sel.leftPanel} ${sel.chatReady}`)).toBeAttached()
+  await expect(page.locator(`${sel.leftPanel} ${sel.chatReady}`)).toHaveCount(0)
 
-  // AI mode can be re-entered from the left-docked state
+  // AI mode can be re-entered, showing the chat in center again
   await enterAiMode(page)
 })
 
