@@ -2373,7 +2373,8 @@ export class PlanManagerPlugin extends ViewPlugin {
             internalId: p.id,
             name: p.name,
             description: p.description ?? '',
-            creditsPerMonth: p.credits_per_month,
+            creditsPerMonth: p.display?.monthly_credits ?? p.credits_per_month,
+            maxBalance: typeof p.display?.max_balance === 'number' ? p.display.max_balance : null,
             priceUsd: headlinePriceCents,
             currency: headlineCurrency,
             billingInterval: headlineInterval,
@@ -4668,7 +4669,7 @@ const CartUpsellStep: React.FC<{
   )
 }
 
-/** Balance caps (max spendable balance) per paid plan slug. */
+/** Fallback balance caps when the API's display.max_balance is absent. */
 const PAID_PLAN_BALANCE_CAPS: Record<string, number> = {
   lite: 160_000,
   starter: 300_000,
@@ -4746,7 +4747,7 @@ const PaidPlansPanel: React.FC<{
   }
 
   const creditsPerMonth = Number(selectedPlan.creditsPerMonth) || 0
-  const balanceCap = PAID_PLAN_BALANCE_CAPS[selectedPlan.id] ?? null
+  const balanceCap = typeof selectedPlan.maxBalance === 'number' ? selectedPlan.maxBalance : (PAID_PLAN_BALANCE_CAPS[selectedPlan.id] ?? null)
   const features: string[] = selectedPlan.features ?? []
 
   const isSubscriptionCurrent = selectedPlan.id === currentPlanId
