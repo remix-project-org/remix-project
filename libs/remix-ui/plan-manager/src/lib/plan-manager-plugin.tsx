@@ -4224,18 +4224,6 @@ const DevSwitchers: React.FC<{ plugin: PlanManagerPlugin; snap: PlanManagerSnaps
    ───────────────────────────────────────────────────────────────────────── */
 
 // Pure helper — discount per plan = 1 − (yearly / (monthly × 12)).
-function computeYearlySavings(p: any): { percent: number; monthsFree: number } | null {
-  const prices: any[] = Array.isArray(p?.prices) ? p.prices : []
-  const m = prices.find((pr: any) => pr.billing_interval === 'month' && pr.is_active !== false)
-  const y = prices.find((pr: any) => pr.billing_interval === 'year' && pr.is_active !== false)
-  if (!m || !y || !m.price_cents || !y.price_cents) return null
-  const monthlyTotal = m.price_cents * 12
-  if (monthlyTotal <= 0) return null
-  const pct = Math.max(0, Math.round((1 - y.price_cents / monthlyTotal) * 100))
-  const monthsFree = Math.max(0, Math.round((monthlyTotal - y.price_cents) / m.price_cents))
-  return { percent: pct, monthsFree }
-}
-
 function normalizePlanKey(value: unknown): string {
   return String(value ?? '').trim().toLowerCase()
 }
@@ -4248,283 +4236,6 @@ function findAccessGroupForPlan(plan: any, groups: FeatureGroup[]): FeatureGroup
   return [...matches].sort((a, b) => (b.priority ?? 0) - (a.priority ?? 0))[0]
 }
 
-function formatFeatureGroupSource(sourceType: string | null | undefined): string {
-  if (sourceType === 'subscription') return 'subscription'
-  if (sourceType === 'admin_grant') return 'admin grant'
-  if (!sourceType) return 'access grant'
-  return sourceType.replace(/_/g, ' ')
-}
-
-const PlanCard: React.FC<{
-  plan: any
-  isSubscriptionCurrent: boolean
-  accessGroup: FeatureGroup | null
-  isRecommended: boolean
-  isPurchasing: boolean
-  anyPurchasing: boolean
-  isTrialEligible: boolean
-  cancelledNotice: { expiresOn: string | null } | null
-  onSubscribe: (planId: string, priceId?: number) => void
-  onCancel: () => void
-  onReactivate: () => void
-  /** Localized list prices keyed by Paddle price id; null = USD fallback. */
-  localizedPrices: Record<string, LocalizedCatalogPrice> | null
-  /** Catalog preview for signed-out visitors — prices only, no purchase affordances. */
-  readOnly?: boolean
-}> = ({ plan, isSubscriptionCurrent, accessGroup, isRecommended, isPurchasing, anyPurchasing, isTrialEligible, cancelledNotice, onSubscribe, onCancel, onReactivate, localizedPrices, readOnly }) => {
-  const pricesArr: any[] = Array.isArray(plan.prices) ? plan.prices : []
-  const activePrices = pricesArr.filter((pr: any) => pr.is_active !== false)
-  const hasMonthly = activePrices.some((pr: any) => pr.billing_interval === 'month')
-  const hasYearly = activePrices.some((pr: any) => pr.billing_interval === 'year')
-  const hasBothCadences = hasMonthly && hasYearly
-  const [cadence, setCadence] = React.useState<'month' | 'year'>('month')
-  const cadencePrice = activePrices.find((pr: any) => pr.billing_interval === cadence)
-  const defaultPrice = activePrices.find((pr: any) => pr.is_default) || activePrices[0]
-  const selectedPrice = cadencePrice || defaultPrice || null
-  const selectedPriceCents: number = selectedPrice?.price_cents ?? plan.priceUsd ?? 0
-  const selectedInterval: string = selectedPrice?.billing_interval ?? plan.billingInterval ?? 'month'
-  const selectedPriceId: number | undefined = typeof selectedPrice?.id === 'number' ? selectedPrice.id : undefined
-
-  // Localized list price for the selected cadence (from the batched Paddle
-  // PricePreview). When absent we fall back to the static USD `price_cents`.
-  const selectedPaddleId = paddlePriceIdOf(selectedPrice, plan)
-  const localized = selectedPaddleId ? localizedPrices?.[selectedPaddleId] ?? null : null
-
-  const planSavings = computeYearlySavings(plan)
-  const monthlyPrice = activePrices.find((pr: any) => pr.billing_interval === 'month')
-  const yearlyPrice = activePrices.find((pr: any) => pr.billing_interval === 'year')
-  let savingsBadge: string | null = null
-  if (planSavings && planSavings.percent > 0 && monthlyPrice && yearlyPrice && cadence === 'year') {
-    // Prefer localized savings (both cadences localized) for currency
-    // consistency; otherwise fall back to the USD computation.
-    const mLoc = localizedPrices?.[paddlePriceIdOf(monthlyPrice, plan) ?? ''] ?? null
-    const yLoc = localizedPrices?.[paddlePriceIdOf(yearlyPrice, plan) ?? ''] ?? null
-    let dollarLabel: string | null = null
-    if (mLoc && yLoc) {
-      const savedMinor = Math.max(0, mLoc.rawMinor * 12 - yLoc.rawMinor)
-      if (savedMinor > 0) dollarLabel = formatPaddleMinor(savedMinor, mLoc.currencyCode)
-    } else {
-      const dollarsSaved = Math.max(0, (monthlyPrice.price_cents * 12 - yearlyPrice.price_cents) / 100)
-      if (dollarsSaved >= 1) dollarLabel = `$${dollarsSaved.toFixed(dollarsSaved % 1 === 0 ? 0 : 2)}`
-    }
-    const parts: string[] = []
-    if (dollarLabel) parts.push(`Save ${dollarLabel} / yr`)
-    else parts.push(`Save ${planSavings.percent}%`)
-    if (planSavings.monthsFree > 0) parts.push(`${planSavings.monthsFree} months free`)
-    savingsBadge = parts.join(' · ')
-  }
-
-  const priceLabel = selectedPriceCents === 0
-    ? 'Free'
-    : localized
-      ? localized.formatted
-      : `$${(selectedPriceCents / 100).toFixed(2)}`
-  const cadenceLabel = selectedPriceCents === 0
-    ? 'forever'
-    : selectedInterval === 'year' ? 'per year' : 'per month'
-  const isFree = selectedPriceCents === 0
-
-  // Intro discount — launch promo (e.g. "60% off your first 3 months").
-  // We compute the discounted headline price to entice, and surface the
-  // offer name as a badge. The actual discount is applied by Paddle at
-  // checkout via the prefilled discount code.
-  const introDiscount = (plan.introDiscounts ?? [])[0] ?? null
-  let discountedPriceLabel: string | null = null
-  let introOfferLabel: string | null = null
-  if (introDiscount && !isFree && selectedPriceCents > 0) {
-    const isPct = introDiscount.discountType === 'percentage'
-    // Localize the crossed price only for percentage discounts (exact off the
-    // localized base). Fixed-amount discounts are USD-denominated, so when a
-    // localized currency is in play we keep the base price localized and skip
-    // the crossed price rather than mixing currencies.
-    if (localized) {
-      if (isPct) {
-        const discountedMinor = Math.max(0, Math.floor(localized.rawMinor * (1 - introDiscount.amount / 100)))
-        if (discountedMinor < localized.rawMinor) discountedPriceLabel = formatPaddleMinor(discountedMinor, localized.currencyCode)
-      }
-    } else {
-      const discountedCents = isPct
-        ? Math.max(0, Math.floor(selectedPriceCents * (1 - introDiscount.amount / 100)))
-        : Math.max(0, selectedPriceCents - Math.round(introDiscount.amount * 100))
-      if (discountedCents < selectedPriceCents) discountedPriceLabel = `$${(discountedCents / 100).toFixed(2)}`
-    }
-    if (discountedPriceLabel) {
-      const intervals = introDiscount.maxRecurringIntervals
-      const unit = selectedInterval === 'year' ? 'year' : 'month'
-      const duration = !introDiscount.recur || !intervals
-        ? `first ${unit}`
-        : intervals === 1
-          ? `first ${unit}`
-          : `first ${intervals} ${unit}s`
-      introOfferLabel = isPct
-        ? `${Math.round(introDiscount.amount)}% off ${duration}`
-        : `${discountedPriceLabel} off ${duration}`
-    }
-  }
-
-  const isAccessActive = accessGroup !== null
-  const isSubscriptionAccess = isAccessActive && accessGroup.source_type === 'subscription'
-  const showUnifiedCurrent = isSubscriptionCurrent && isSubscriptionAccess
-  const isPlanActive = isSubscriptionCurrent || isAccessActive
-  const trialDays = Number(plan.trialPeriodDays) || 0
-  const showTrial = trialDays > 0 && isTrialEligible && !isPlanActive && !isFree
-  const trialCredits = Number(plan.trialCredits) || 0
-  const disabled = isPlanActive || isFree || anyPurchasing
-
-  return (
-    <article
-      className={`pm-plan ${isPlanActive ? 'is-current' : ''} ${isFree ? 'is-free' : ''} ${isSubscriptionCurrent ? 'is-subscription-current' : ''} ${isAccessActive ? 'is-access-current' : ''} ${isRecommended ? 'is-recommended' : ''} ${isPurchasing ? 'is-purchasing' : ''}`}
-    >
-      <div className="pm-plan__badges">
-        {showUnifiedCurrent && <div className="pm-plan__current">Current</div>}
-        {!showUnifiedCurrent && isSubscriptionCurrent && <div className="pm-plan__current pm-plan__current--subscription">Subscription</div>}
-        {!showUnifiedCurrent && isAccessActive && (
-          <div className="pm-plan__current pm-plan__current--access" title={`Access from ${formatFeatureGroupSource(accessGroup.source_type)}`}>
-            {`You have access`}
-          </div>
-        )}
-      </div>
-      {showTrial && (
-        <div className="pm-plan__trial-badge" title={trialCredits ? `${trialCredits} credits included` : undefined}>
-          <i className="fas fa-gift"></i>
-          <span>{trialDays}-day free trial</span>
-        </div>
-      )}
-
-      {isRecommended && !isPlanActive && (
-        <div className="pm-plan__ribbon">
-          <i className="fas fa-star" aria-hidden></i> Recommended
-        </div>
-      )}
-
-      <header className="pm-plan__head">
-        <div className="pm-plan__name">{plan.name}</div>
-        <div className="pm-plan__tag">{plan.description}</div>
-      </header>
-
-      {hasBothCadences && (
-        <div className="pm-plans__cadence" role="tablist" aria-label="Billing cadence">
-          <button
-            type="button"
-            role="tab"
-            aria-selected={cadence === 'month'}
-            className={`pm-plans__cadence-btn ${cadence === 'month' ? 'is-active' : ''}`}
-            onClick={() => setCadence('month')}
-          >Monthly</button>
-          <button
-            type="button"
-            role="tab"
-            aria-selected={cadence === 'year'}
-            className={`pm-plans__cadence-btn ${cadence === 'year' ? 'is-active' : ''}`}
-            onClick={() => setCadence('year')}
-          >
-            Yearly
-            {planSavings && planSavings.percent > 0 && (
-              <span className="pm-plans__cadence-hint">save {planSavings.percent}%</span>
-            )}
-          </button>
-        </div>
-      )}
-
-      <div className="pm-plan__price">
-        {discountedPriceLabel ? (
-          <>
-            <span className="pm-plan__price-was">{priceLabel}</span>
-            <span className="pm-plan__price-num">{discountedPriceLabel}</span>
-            <span className="pm-plan__price-cad">{cadenceLabel}</span>
-          </>
-        ) : (
-          <>
-            <span className="pm-plan__price-num">{priceLabel}</span>
-            <span className="pm-plan__price-cad">{cadenceLabel}</span>
-          </>
-        )}
-      </div>
-      {introOfferLabel && (
-        <div className="pm-plan__intro-offer" title={introDiscount?.name ?? undefined}>
-          <i className="fas fa-tags" aria-hidden></i>
-          <span>{introDiscount?.name ? `${introDiscount.name}` : introOfferLabel}</span>
-        </div>
-      )}
-      {(plan.introCreditPackages ?? []).length > 0 && (
-        <div className="pm-plan__intro-credits">
-          <i className="fas fa-gift" aria-hidden></i>
-          <span>
-            {(plan.introCreditPackages ?? []).map((cp: any) =>
-              `${(cp.credits * (cp.quantity || 1)).toLocaleString()} free AI credits`
-            ).join(' + ')}
-          </span>
-        </div>
-      )}
-      {savingsBadge && (
-        <div className="pm-plan__savings" title="Compared to paying month-to-month">
-          <i className="fas fa-sparkles" aria-hidden></i>
-          <span>{savingsBadge}</span>
-        </div>
-      )}
-
-      <ul className="pm-plan__features">
-        {(plan.features ?? []).map((f: string) => (
-          <li key={f}>
-            <i className="fas fa-check"></i>
-            <span>{f}</span>
-          </li>
-        ))}
-      </ul>
-
-      {!readOnly && (
-        <button
-          className={`pm-plan__btn ${disabled ? 'is-disabled' : ''} ${showTrial ? 'is-trial' : ''}`}
-          disabled={disabled}
-          onClick={() => { if (!disabled) onSubscribe(plan.id, selectedPriceId) }}
-        >
-          {isSubscriptionCurrent ? 'Active'
-            : isPurchasing ? <><i className="fas fa-spinner fa-spin"></i> Opening checkout…</>
-              : isAccessActive ? 'Access active'
-                : isFree ? 'Always free'
-                  : showTrial
-                    ? <><i className="fas fa-flask"></i> Start {trialDays}-day free trial</>
-                    : `Switch to ${plan.name}`}
-        </button>
-      )}
-      {/* Cancel affordance — only on the active *paid* plan. Free /
-          beta have no subscription row to cancel. */}
-      {!readOnly && isSubscriptionCurrent && !isFree && (
-        <>
-          {cancelledNotice && (
-            <div className="pm-plan__cancel-notice" role="status">
-              <i className="fas fa-circle-exclamation"></i>
-              <span>
-                {cancelledNotice.expiresOn
-                  ? <>Active until {formatDate(cancelledNotice.expiresOn)} · will not renew</>
-                  : <>Will not renew</>}
-              </span>
-            </div>
-          )}
-          {cancelledNotice ? (
-            <button
-              type="button"
-              className="pm-plan__reactivate-link"
-              onClick={() => onReactivate()}
-              title="Remove the scheduled cancellation and keep your subscription"
-            >
-              <i className="fas fa-rotate-left" aria-hidden></i> Reactivate subscription
-            </button>
-          ) : (
-            <button
-              type="button"
-              className="pm-plan__cancel-link"
-              onClick={() => onCancel()}
-              title="Cancel your subscription"
-            >
-              Cancel subscription
-            </button>
-          )}
-        </>
-      )}
-    </article>
-  )
-}
 
 /**
  * One line of a localized cart price preview (per Paddle line item).
@@ -4957,6 +4668,223 @@ const CartUpsellStep: React.FC<{
   )
 }
 
+/** Balance caps (max spendable balance) per paid plan slug. */
+const PAID_PLAN_BALANCE_CAPS: Record<string, number> = {
+  lite: 160_000,
+  starter: 300_000,
+  pro: 600_000,
+}
+
+const FreePlanCard: React.FC<{
+  plan: any
+  readOnly?: boolean
+}> = ({ plan, readOnly }) => (
+  <div className="pm-free-plan" data-id="pm-free-plan">
+    <div className="pm-free-plan__label">Free</div>
+    <div className="pm-free-plan__price">
+      <span className="pm-free-plan__price-num">$0</span>
+      <span className="pm-free-plan__price-cad">forever</span>
+    </div>
+    <ul className="pm-free-plan__features">
+      {(plan.features ?? []).map((f: string) => (
+        <li key={f}>
+          <i className="fas fa-check" aria-hidden></i>
+          <span>{f}</span>
+        </li>
+      ))}
+    </ul>
+    {!readOnly && (
+      <button className="pm-free-plan__btn" disabled>
+        Always free
+      </button>
+    )}
+  </div>
+)
+
+const PaidPlansPanel: React.FC<{
+  plans: any[]
+  currentPlanId: string | null
+  userFeatureGroups: FeatureGroup[]
+  isTrialEligible: boolean
+  purchasingId: string | null
+  cancelledNotice: { expiresOn: string | null } | null
+  localizedPrices: Record<string, LocalizedCatalogPrice> | null
+  readOnly?: boolean
+  onSubscribe: (planId: string, priceId?: number) => void
+  onCancel: () => void
+  onReactivate: () => void
+}> = ({ plans, currentPlanId, userFeatureGroups, isTrialEligible, purchasingId, cancelledNotice, localizedPrices, readOnly, onSubscribe, onCancel, onReactivate }) => {
+  const defaultId = (currentPlanId && plans.some(p => p.id === currentPlanId))
+    ? currentPlanId
+    : plans.find(p => p.id === 'lite')?.id ?? plans[0]?.id ?? null
+  const [selectedId, setSelectedId] = React.useState<string | null>(defaultId)
+  const selectedPlan = plans.find(p => p.id === selectedId) ?? plans[0] ?? null
+  if (!selectedPlan) return null
+
+  const pricesArr: any[] = Array.isArray(selectedPlan.prices) ? selectedPlan.prices : []
+  const activePrices = pricesArr.filter((pr: any) => pr.is_active !== false)
+  const defaultPrice = activePrices.find((pr: any) => pr.is_default) ?? activePrices[0] ?? null
+  const selectedPaddleId = paddlePriceIdOf(defaultPrice, selectedPlan)
+  const localized = selectedPaddleId ? localizedPrices?.[selectedPaddleId] ?? null : null
+  const priceCents = defaultPrice?.price_cents ?? selectedPlan.priceUsd ?? 0
+  const priceLabel = localized ? localized.formatted : (priceCents > 0 ? `$${(priceCents / 100).toFixed(2)}` : '$0')
+  const selectedPriceId: number | undefined = typeof defaultPrice?.id === 'number' ? defaultPrice.id : undefined
+
+  const introDiscount = (selectedPlan.introDiscounts ?? [])[0] ?? null
+  let discountedPriceLabel: string | null = null
+  if (introDiscount && priceCents > 0) {
+    const isPct = introDiscount.discountType === 'percentage'
+    if (localized && isPct) {
+      const dm = Math.max(0, Math.floor(localized.rawMinor * (1 - introDiscount.amount / 100)))
+      if (dm < localized.rawMinor) discountedPriceLabel = formatPaddleMinor(dm, localized.currencyCode)
+    } else {
+      const dc = isPct
+        ? Math.max(0, Math.floor(priceCents * (1 - introDiscount.amount / 100)))
+        : Math.max(0, priceCents - Math.round(introDiscount.amount * 100))
+      if (dc < priceCents) discountedPriceLabel = `$${(dc / 100).toFixed(2)}`
+    }
+  }
+
+  const creditsPerMonth = Number(selectedPlan.creditsPerMonth) || 0
+  const balanceCap = PAID_PLAN_BALANCE_CAPS[selectedPlan.id] ?? null
+  const features: string[] = selectedPlan.features ?? []
+
+  const isSubscriptionCurrent = selectedPlan.id === currentPlanId
+  const accessGroup = findAccessGroupForPlan(selectedPlan, userFeatureGroups)
+  const isAccessActive = accessGroup !== null
+  const isPlanActive = isSubscriptionCurrent || isAccessActive
+  const isPurchasing = purchasingId === selectedPlan.id
+  const anyPurchasing = purchasingId !== null
+  const disabled = isPlanActive || anyPurchasing
+  const trialDays = Number(selectedPlan.trialPeriodDays) || 0
+  const showTrial = trialDays > 0 && isTrialEligible && !isPlanActive
+  const currentPlanIsInThisList = plans.some(p => p.id === currentPlanId)
+
+  const btnLabel = isPlanActive
+    ? (isSubscriptionCurrent ? 'Active' : 'Access active')
+    : showTrial
+      ? `Start ${trialDays}-day free trial`
+      : currentPlanIsInThisList
+        ? `Switch to ${selectedPlan.name}`
+        : 'Subscribe'
+
+  return (
+    <div className="pm-paid-panel" data-id="pm-paid-panel">
+      <div className="pm-paid-panel__header">
+        <span className="pm-paid-panel__title">Paid plans</span>
+        <span className="pm-paid-panel__header-hint">Monthly credits added to your balance</span>
+      </div>
+
+      <div className="pm-paid-panel__tabs" role="tablist">
+        {plans.map(plan => {
+          const planPricesArr: any[] = Array.isArray(plan.prices) ? plan.prices : []
+          const planActivePrices = planPricesArr.filter((pr: any) => pr.is_active !== false)
+          const planDefaultPrice = planActivePrices.find((pr: any) => pr.is_default) ?? planActivePrices[0] ?? null
+          const planPaddleId = paddlePriceIdOf(planDefaultPrice, plan)
+          const planLocalized = planPaddleId ? localizedPrices?.[planPaddleId] ?? null : null
+          const planCents = planDefaultPrice?.price_cents ?? plan.priceUsd ?? 0
+          const planPriceStr = planLocalized ? planLocalized.formatted : (planCents > 0 ? `$${(planCents / 100).toFixed(2)}` : '$0')
+          const isSelected = plan.id === selectedId
+          const isCurrent = plan.id === currentPlanId
+          const planCredits = Number(plan.creditsPerMonth) || 0
+          return (
+            <button
+              key={plan.id}
+              type="button"
+              role="tab"
+              aria-selected={isSelected}
+              className={`pm-paid-panel__tab ${isSelected ? 'is-active' : ''}`}
+              onClick={() => setSelectedId(plan.id)}
+            >
+              <span className="pm-paid-panel__tab-row">
+                <span className="pm-paid-panel__tab-name">{plan.name}</span>
+                {isCurrent && <span className="pm-paid-panel__tab-badge">CURRENT</span>}
+              </span>
+              <span className="pm-paid-panel__tab-price">{planPriceStr}/mo</span>
+              {planCredits > 0 && (
+                <span className="pm-paid-panel__tab-credits">+{formatCompactNumber(planCredits)} credits / month</span>
+              )}
+            </button>
+          )
+        })}
+      </div>
+
+      <div className="pm-paid-panel__body">
+        <div className="pm-paid-panel__price-col">
+          <div className="pm-paid-panel__price">
+            {discountedPriceLabel && (
+              <span className="pm-paid-panel__price-was">{priceLabel}</span>
+            )}
+            <span className="pm-paid-panel__price-num">{discountedPriceLabel ?? priceLabel}</span>
+            <span className="pm-paid-panel__price-per">per month</span>
+          </div>
+          {creditsPerMonth > 0 && (
+            <div className="pm-paid-panel__stat">
+              <span className="pm-paid-panel__stat-label">Added every month</span>
+              <span className="pm-paid-panel__stat-value pm-paid-panel__stat-value--accent">+{formatCompactNumber(creditsPerMonth)}</span>
+            </div>
+          )}
+          {balanceCap !== null && (
+            <div className="pm-paid-panel__stat">
+              <span className="pm-paid-panel__stat-label">Monthly credits cap</span>
+              <span className="pm-paid-panel__stat-value">{formatCompactNumber(balanceCap)}</span>
+              <span className="pm-paid-panel__stat-note">Purchased credits are unlimited</span>
+            </div>
+          )}
+        </div>
+
+        {features.length > 0 && (
+          <div className="pm-paid-panel__features-col">
+            <div className="pm-paid-panel__features-label">Included in every paid plan</div>
+            <ul className="pm-paid-panel__features">
+              {features.map((f: string) => (
+                <li key={f}>
+                  <i className="fas fa-check" aria-hidden></i>
+                  <span>{f}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+      </div>
+
+      {!readOnly && (
+        <div className="pm-paid-panel__actions">
+          <button
+            className={`pm-paid-panel__btn ${disabled ? 'is-disabled' : ''} ${showTrial ? 'is-trial' : ''}`}
+            disabled={disabled}
+            onClick={() => { if (!disabled) onSubscribe(selectedPlan.id, selectedPriceId) }}
+          >
+            {isPurchasing
+              ? <><i className="fas fa-spinner fa-spin"></i> Opening checkout…</>
+              : btnLabel}
+          </button>
+          {isSubscriptionCurrent && cancelledNotice && (
+            <div className="pm-paid-panel__cancel-notice" role="status">
+              <i className="fas fa-circle-exclamation" aria-hidden></i>
+              <span>
+                {cancelledNotice.expiresOn
+                  ? <>Active until {formatDate(cancelledNotice.expiresOn)} · will not renew</>
+                  : <>Will not renew</>}
+              </span>
+            </div>
+          )}
+          {isSubscriptionCurrent && !cancelledNotice && (
+            <button type="button" className="pm-paid-panel__cancel-link" onClick={() => onCancel()}>
+              Cancel subscription
+            </button>
+          )}
+          {isSubscriptionCurrent && cancelledNotice && (
+            <button type="button" className="pm-paid-panel__reactivate-link" onClick={() => onReactivate()}>
+              <i className="fas fa-rotate-left" aria-hidden></i> Reactivate subscription
+            </button>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
+
 const PlansSection: React.FC<{
   plans: any[]
   currentPlanId: string | null
@@ -4986,18 +4914,12 @@ const PlansSection: React.FC<{
       </div>
     )
   }
-  // Render in the order the API returned them — the backend curates the
-  // sort (free → entry → pro …), so respecting it keeps merchandising in
-  // one place. "Recommended" is now backend-driven via `is_popular`; we
-  // fall back to the middle card only when no plan is flagged.
-  const sorted = plans
-  const popularPlan = sorted.find((p: any) => p.isPopular === true)
-  const recommendedId = popularPlan
-    ? popularPlan.id
-    : (sorted.length >= 3 ? sorted[1].id : null)
-  const anyPurchasing = purchasingId !== null
-  const currentPlan = sorted.find(plan => plan.id === currentPlanId) ?? null
-  const accessMatches = sorted
+
+  const freePlan = plans.find((p: any) => (p.priceUsd ?? 0) === 0) ?? null
+  const paidPlans = plans.filter((p: any) => (p.priceUsd ?? 0) > 0)
+
+  const currentPlan = plans.find(plan => plan.id === currentPlanId) ?? null
+  const accessMatches = plans
     .map(plan => ({ plan, group: findAccessGroupForPlan(plan, userFeatureGroups) }))
     .filter((entry): entry is { plan: any; group: FeatureGroup } => entry.group !== null)
   const primaryAccess = [...accessMatches].sort((a, b) => (b.group.priority ?? 0) - (a.group.priority ?? 0))[0] ?? null
@@ -5006,7 +4928,7 @@ const PlansSection: React.FC<{
   )
 
   return (
-    <div className="pm-plans" data-id="pm-plans-view">
+    <div className="pm-plans pm-plans--redesign" data-id="pm-plans-view">
       {requiredFeature && (
         <div className="pm-plans__required" role="status" data-id="pm-plans-required-feature" data-required-feature={requiredFeature}>
           <i className="fas fa-bolt" aria-hidden></i>
@@ -5024,21 +4946,26 @@ const PlansSection: React.FC<{
           </span>
         </div>
       )}
-      {sorted.map(plan => {
-        const isSubscriptionCurrent = plan.id === currentPlanId
-        const accessGroup = findAccessGroupForPlan(plan, userFeatureGroups)
-        const isRecommended = plan.id === recommendedId
-        const isPurchasing = purchasingId === plan.id
-        return (
-          <PlanCard
-            key={plan.id}
-            plan={plan}
-            isSubscriptionCurrent={isSubscriptionCurrent}
-            accessGroup={accessGroup}
-            isRecommended={isRecommended}
-            isPurchasing={isPurchasing}
-            anyPurchasing={anyPurchasing}
+
+      <div className="pm-plans__choose-heading">
+        <h2 className="pm-plans__choose-title">Choose your monthly credits</h2>
+        <p className="pm-plans__choose-sub">Every paid plan includes the same features. The only difference is how many credits are added to your account each month.</p>
+      </div>
+
+      <div className="pm-plans__split">
+        {freePlan && (
+          <FreePlanCard
+            plan={freePlan}
+            readOnly={readOnly}
+          />
+        )}
+        {paidPlans.length > 0 && (
+          <PaidPlansPanel
+            plans={paidPlans}
+            currentPlanId={currentPlanId}
+            userFeatureGroups={userFeatureGroups}
             isTrialEligible={isTrialEligible}
+            purchasingId={purchasingId}
             cancelledNotice={cancelledNotice}
             localizedPrices={localizedPrices}
             readOnly={readOnly}
@@ -5046,10 +4973,9 @@ const PlansSection: React.FC<{
             onCancel={onCancel}
             onReactivate={onReactivate}
           />
-        )
-      })}
-      {/* Team / Enterprise contact strip — compact one-liner so it doesn't
-          compete visually with the priced cards. */}
+        )}
+      </div>
+
       <a
         className="pm-enterprise-strip"
         href="https://remix.live/contact"
