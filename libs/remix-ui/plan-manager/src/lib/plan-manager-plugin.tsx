@@ -4772,8 +4772,8 @@ const PaidPlansPanel: React.FC<{
   return (
     <div className="pm-paid-panel" data-id="pm-paid-panel">
       <div className="pm-paid-panel__header">
-        <span className="pm-paid-panel__title">Paid plans</span>
-        <span className="pm-paid-panel__header-hint">Monthly credits added to your balance</span>
+        <div className="pm-paid-panel__title">Paid plans</div>
+        <div className="pm-paid-panel__header-hint">Monthly credits added to your balance</div>
       </div>
 
       <div className="pm-paid-panel__tabs" role="tablist">

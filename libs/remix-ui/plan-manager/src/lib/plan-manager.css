@@ -810,9 +810,8 @@
 
 .pm-paid-panel__header {
   display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 8px;
+  flex-direction: column;
+  gap: 3px;
 }
 .pm-paid-panel__title {
   font-size: 14px;
@@ -822,7 +821,6 @@
 .pm-paid-panel__header-hint {
   font-size: 11px;
   color: var(--bs-secondary-color);
-  text-align: right;
 }
 
 /* Tabs */
