@@ -119,7 +119,8 @@ test.describe.serial('Circom hashchecker: trusted setup, zk dapp button, and zkV
     const runSetupBtn = circuitFrame.locator('[data-id="runSetupBtn"]')
     await runSetupBtn.click()
     await expect(runSetupBtn.locator('.fa-spin')).toBeVisible({ timeout: 10_000 })
-    await expect(runSetupBtn.locator('.fa-spin')).toHaveCount(0, { timeout: 120_000 })
+    // Trusted setup can take a long time, especially on slower machines
+    await expect(runSetupBtn.locator('.fa-spin')).toHaveCount(0, { timeout: 240_000 })
   }
 
   async function ensureSetupSectionExpanded () {
