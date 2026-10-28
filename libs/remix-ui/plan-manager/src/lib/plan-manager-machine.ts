@@ -107,6 +107,8 @@ export interface CheckoutBreakdown {
 export interface CheckoutNotice {
   level: 'warning' | 'error'
   message: string
+  /** Optional recovery action rendered as a button inside the notice. */
+  action?: 'open_hosted'
 }
 
 /** Snapshot the UI consumes — purely derived, never mutated outside the machine. */
@@ -308,7 +310,7 @@ export type PlanManagerEvent =
   | { type: 'CHECKOUT_CLOSED' }
   | { type: 'CHECKOUT_ERROR'; message?: string; transactionId?: string; meta?: Record<string, string> }
   // Recoverable, non-destructive in-frame message — checkout stays open.
-  | { type: 'CHECKOUT_NOTICE'; level: 'warning' | 'error'; message: string }
+  | { type: 'CHECKOUT_NOTICE'; level: 'warning' | 'error'; message: string; action?: CheckoutNotice['action'] }
   | { type: 'CHECKOUT_NOTICE_DISMISS' }
   | { type: 'CHECKOUT_RESULT_DISMISS' }
   // Cart
@@ -428,7 +430,7 @@ export const planManagerMachine = setup({
     },
     setCheckoutNotice: ({ context, event }) => {
       if (event.type !== 'CHECKOUT_NOTICE') return
-      context.checkoutNotice = { level: event.level, message: event.message }
+      context.checkoutNotice = { level: event.level, message: event.message, ...(event.action && { action: event.action }) }
     },
     clearCheckoutNotice: ({ context }) => {
       context.checkoutNotice = null
