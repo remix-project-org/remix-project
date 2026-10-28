@@ -1091,7 +1091,7 @@ export class RemixAIPlugin extends Plugin {
       if (pipeMessage) this.call('remixaiassistant', 'chatPipe', pipeMessage, false, promptMeta)
       else {
         if (fn === "code_explaining") this.call('remixaiassistant', 'chatPipe',"Explain the current code", false, promptMeta)
-        else if (fn === "error_explaining") this.call('remixaiassistant', 'chatPipe', "Explain the error", false, promptMeta)
+        else if (fn === "error_explaining") this.call('remixaiassistant', 'chatPipe', "Fix the error", false, promptMeta)
         else if (fn === "answer") this.call('remixaiassistant', 'chatPipe', "Answer the following question", false, promptMeta)
         else if (fn === "vulnerability_check") this.call('remixaiassistant', 'chatPipe',"Is there any vulnerability in the pasted code?", false, promptMeta)
         else remixAILogger.log("chatRequestBuffer function name not recognized.")
@@ -1106,7 +1106,11 @@ export class RemixAIPlugin extends Plugin {
 
   async ProcessChatRequestBuffer(params:IParams=GenerationParams){
     if (this.chatRequestBuffer != null){
-      const result = this[this.chatRequestBuffer.fn_name](this.chatRequestBuffer.prompt, this.chatRequestBuffer.context, params)
+      const { fn_name, prompt, context } = this.chatRequestBuffer
+      // Only code_explaining takes a context; the others are (prompt, params)
+      const result = fn_name === 'code_explaining'
+        ? this.code_explaining(prompt, context, params)
+        : this[fn_name](prompt, params)
       this.chatRequestBuffer = null
       return result
     }

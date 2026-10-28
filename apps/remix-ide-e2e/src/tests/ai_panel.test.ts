@@ -32,7 +32,7 @@ const tests = {
       })
 
   },
-  'Should add a bad contract and explain using RemixAI #group1': function (browser: NightwatchBrowser) {
+  'Should add a bad contract and fix it with RemixAI #group1': function (browser: NightwatchBrowser) {
     browser
       .assistantClearChat()
       .waitForCompilerLoaded()
@@ -43,7 +43,7 @@ const tests = {
       .assistantWaitForReady()
       .waitForElementVisible({
         locateStrategy: 'xpath',
-        selector: '//div[contains(@class,"chat-bubble") and contains(.,"Explain the error")]'
+        selector: '//div[contains(@class,"chat-bubble") and contains(.,"Fix the error")]'
       })
       .waitForElementPresent({
         locateStrategy: 'xpath',

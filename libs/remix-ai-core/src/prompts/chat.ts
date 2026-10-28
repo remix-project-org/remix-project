@@ -78,7 +78,7 @@ export abstract class ChatHistory{
     await this.storage.touchConversation(id)
   }
 
-  public static pushHistory(prompt, result, displayContent?: string, assistantExtras?: Pick<ChatMessage, 'fileChanges'>): Promise<void> | undefined {
+  public static pushHistory(prompt, result, displayContent?: string, assistantExtras?: Pick<ChatMessage, 'fileChanges' | 'attachments'>, userExtras?: Pick<ChatMessage, 'attachments'>): Promise<void> | undefined {
     if (result === "" || !result) return // do not allow empty assistant message due to nested stream handles on toolcalls
 
     const lastEntry = this.chatEntries[this.chatEntries.length - 1]
@@ -90,7 +90,7 @@ export abstract class ChatHistory{
     this.chatEntries.push(chat)
 
     if (this.storage && this.currentConversationId) {
-      return this.persistMessages(prompt, result, displayContent, assistantExtras).catch(err => {
+      return this.persistMessages(prompt, result, displayContent, assistantExtras, userExtras).catch(err => {
         remixAILogger.error('Failed to persist chat history:', err)
       })
     }
@@ -99,7 +99,7 @@ export abstract class ChatHistory{
   /**
    * Persist user and assistant messages to storage
    */
-  private static async persistMessages(prompt: string, result: string, displayContent?: string, assistantExtras?: Pick<ChatMessage, 'fileChanges'>): Promise<void> {
+  private static async persistMessages(prompt: string, result: string, displayContent?: string, assistantExtras?: Pick<ChatMessage, 'fileChanges' | 'attachments'>, userExtras?: Pick<ChatMessage, 'attachments'>): Promise<void> {
     if (!this.storage || !this.currentConversationId) return
 
     const now = Date.now()
@@ -110,6 +110,8 @@ export abstract class ChatHistory{
       role: 'user' as const,
       content: prompt,
       ...(displayContent ? { displayContent } : {}),
+      // saveBatch keeps only each image's thumbnail
+      ...(userExtras?.attachments?.length ? { attachments: userExtras.attachments } : {}),
       timestamp: now,
       conversationId: this.currentConversationId
     }
@@ -121,7 +123,8 @@ export abstract class ChatHistory{
       content: result,
       timestamp: now + 1, // Slightly later timestamp
       conversationId: this.currentConversationId,
-      ...(assistantExtras?.fileChanges?.length ? { fileChanges: assistantExtras.fileChanges } : {})
+      ...(assistantExtras?.fileChanges?.length ? { fileChanges: assistantExtras.fileChanges } : {}),
+      ...(assistantExtras?.attachments?.length ? { attachments: assistantExtras.attachments } : {})
     }
 
     await this.storage.saveBatch(this.currentConversationId, [userMessage, assistantMessage])

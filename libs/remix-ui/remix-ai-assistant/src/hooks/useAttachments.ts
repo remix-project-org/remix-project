@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { ChatAttachment } from '@remix/remix-ai-core'
 import { captureElementPng, defaultCaptureTarget, downscaleDataUrl, THUMB_EDGE } from '@remix/remix-ai-core'
 
@@ -154,23 +154,30 @@ export function useAttachments(): UseAttachments {
   const [attachments, setAttachments] = useState<ChatAttachment[]>([])
   const [errors, setErrors] = useState<AttachmentError[]>([])
 
+  // The overflow check must run before setErrors, and a state updater may run
+  // later than that — so the current count is read from a ref instead.
+  const attachmentsRef = useRef<ChatAttachment[]>([])
+  useEffect(() => { attachmentsRef.current = attachments }, [attachments])
+
   const dismissErrors = useCallback(() => setErrors([]), [])
   const clear = useCallback(() => {
+    attachmentsRef.current = []
     setAttachments([])
     setErrors([])
   }, [])
   const remove = useCallback((id: string) => {
+    attachmentsRef.current = attachmentsRef.current.filter(a => a.id !== id)
     setAttachments(prev => prev.filter(a => a.id !== id))
   }, [])
 
   const append = useCallback((next: ChatAttachment[], rejected: AttachmentError[]) => {
-    setAttachments(prev => {
-      const room = MAX_ATTACHMENTS - prev.length
-      if (next.length > room) {
-        rejected.push({ fileName: '', reason: `Only ${MAX_ATTACHMENTS} files can be attached to one message.` })
-      }
-      return [...prev, ...next.slice(0, Math.max(0, room))]
-    })
+    const room = Math.max(0, MAX_ATTACHMENTS - attachmentsRef.current.length)
+    if (next.length > room) {
+      rejected.push({ fileName: '', reason: `Only ${MAX_ATTACHMENTS} files can be attached to one message.` })
+    }
+    const kept = next.slice(0, room)
+    attachmentsRef.current = [...attachmentsRef.current, ...kept]
+    setAttachments(prev => [...prev, ...kept].slice(0, MAX_ATTACHMENTS))
     if (rejected.length) setErrors(rejected)
   }, [])
 

@@ -1,3 +1,3 @@
 {
-  "vyper.openaigptMessage": "vyper code: {content}\n error message: {messageText}\n explain why the error occurred and how to fix it."
+  "vyper.openaigptMessage": "Fix this Vyper compilation error in {filePath}.\nError: {messageText}\nCurrent content of {filePath}:\n{content}\nMake the smallest change that resolves the error and apply it to {filePath}; if you cannot edit files, reply with the corrected code instead. Then say in one or two sentences what was wrong and what you changed."
 }

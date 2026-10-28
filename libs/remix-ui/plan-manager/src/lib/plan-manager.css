@@ -678,6 +678,392 @@
   white-space: nowrap;
 }
 
+/* ── Redesigned Plans Section ──────────────────────────────────────────── */
+
+.pm-plans--redesign {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.pm-plans__choose-heading {
+  padding: 0 2px 2px;
+}
+.pm-plans__choose-title {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--bs-heading-color);
+  margin: 0 0 6px;
+  letter-spacing: -0.02em;
+}
+.pm-plans__choose-sub {
+  font-size: 13px;
+  color: var(--bs-secondary-color);
+  margin: 0;
+  line-height: 1.5;
+}
+
+.pm-plans__split {
+  display: grid;
+  grid-template-columns: minmax(180px, 240px) 1fr;
+  gap: 16px;
+  align-items: stretch;
+}
+
+@media (max-width: 600px) {
+  .pm-plans__split {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ── Free Plan Card ─────────────────────────────────────────────────────── */
+
+.pm-free-plan {
+  position: relative;
+  background: var(--bs-secondary-bg);
+  border: 0.5px solid var(--bs-border-color);
+  border-radius: var(--bs-border-radius-lg);
+  padding: 22px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.pm-free-plan__label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--bs-secondary-color);
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+}
+
+.pm-free-plan__price {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+.pm-free-plan__price-num {
+  font-size: 36px;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  color: var(--bs-heading-color);
+  line-height: 1;
+}
+.pm-free-plan__price-cad {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--bs-secondary-color);
+}
+
+.pm-free-plan__features {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+  flex: 1;
+}
+.pm-free-plan__features li {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--bs-body-color);
+  line-height: 1.4;
+}
+.pm-free-plan__features i {
+  color: var(--bs-success);
+  font-size: 11px;
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.pm-free-plan__btn {
+  width: 100%;
+  padding: 9px 16px;
+  border-radius: var(--bs-border-radius);
+  border: 0.5px solid var(--bs-border-color);
+  background: transparent;
+  color: var(--bs-secondary-color);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: default;
+  text-align: center;
+  margin-top: auto;
+}
+
+/* ── Paid Plans Panel ───────────────────────────────────────────────────── */
+
+.pm-paid-panel {
+  position: relative;
+  background: var(--bs-secondary-bg);
+  border: 0.5px solid var(--bs-border-color);
+  border-radius: var(--bs-border-radius-lg);
+  padding: 22px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.pm-paid-panel__header {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.pm-paid-panel__title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--bs-heading-color);
+}
+.pm-paid-panel__header-hint {
+  font-size: 11px;
+  color: var(--bs-secondary-color);
+}
+
+/* Tabs */
+.pm-paid-panel__tabs {
+  display: flex;
+  gap: 8px;
+}
+.pm-paid-panel__tab {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  padding: 10px 12px;
+  border-radius: var(--bs-border-radius);
+  border: 0.5px solid var(--bs-border-color);
+  background: transparent;
+  cursor: pointer;
+  text-align: left;
+  transition: background 120ms ease, border-color 120ms ease;
+  color: var(--bs-body-color);
+}
+.pm-paid-panel__tab:hover {
+  background: color-mix(in srgb, var(--custom-primary) 5%, transparent);
+  border-color: color-mix(in srgb, var(--custom-primary) 30%, transparent);
+}
+.pm-paid-panel__tab.is-active {
+  background: color-mix(in srgb, var(--custom-primary) 8%, transparent);
+  border-color: color-mix(in srgb, var(--custom-primary) 55%, transparent);
+}
+
+.pm-paid-panel__tab-row {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  flex-wrap: wrap;
+}
+.pm-paid-panel__tab-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--bs-heading-color);
+}
+.pm-paid-panel__tab-badge {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--custom-primary);
+  background: color-mix(in srgb, var(--custom-primary) 15%, transparent);
+  border: 0.5px solid color-mix(in srgb, var(--custom-primary) 40%, transparent);
+  border-radius: 4px;
+  padding: 2px 6px;
+}
+.pm-paid-panel__tab-price {
+  font-size: 12px;
+  color: var(--bs-body-color);
+}
+.pm-paid-panel__tab-credits {
+  font-size: 11px;
+  color: var(--bs-secondary-color);
+}
+
+/* Body: 2-column grid — price/stats left, features right */
+.pm-paid-panel__body {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 0 28px;
+  padding: 16px 0 4px;
+  border-top: 0.5px solid var(--bs-border-color);
+}
+
+.pm-paid-panel__price-col {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-width: 150px;
+}
+.pm-paid-panel__price {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.pm-paid-panel__price-was {
+  font-size: 13px;
+  color: var(--bs-secondary-color);
+  text-decoration: line-through;
+  line-height: 1;
+}
+.pm-paid-panel__price-num {
+  font-size: 32px;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  color: var(--bs-heading-color);
+  line-height: 1.1;
+}
+.pm-paid-panel__price-per {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--bs-secondary-color);
+}
+
+.pm-paid-panel__stat {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.pm-paid-panel__stat-label {
+  font-size: 11px;
+  color: var(--bs-secondary-color);
+  line-height: 1.3;
+}
+.pm-paid-panel__stat-value {
+  font-size: 24px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--bs-heading-color);
+  line-height: 1;
+}
+.pm-paid-panel__stat-value--accent {
+  color: var(--custom-primary);
+}
+.pm-paid-panel__stat-note {
+  font-size: 10px;
+  color: var(--bs-secondary-color);
+  line-height: 1.3;
+  margin-top: 3px;
+}
+
+.pm-paid-panel__features-col {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.pm-paid-panel__features-label {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--bs-secondary-color);
+}
+.pm-paid-panel__features {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+}
+.pm-paid-panel__features li {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--bs-body-color);
+  line-height: 1.4;
+}
+.pm-paid-panel__features i {
+  color: var(--bs-success);
+  font-size: 11px;
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+/* Actions */
+.pm-paid-panel__actions {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+}
+.pm-paid-panel__btn {
+  width: 100%;
+  padding: 11px 20px;
+  border-radius: var(--bs-border-radius);
+  border: none;
+  background: var(--custom-primary);
+  color: var(--bs-body-bg);
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  text-align: center;
+  transition: opacity 120ms ease;
+}
+.pm-paid-panel__btn:hover:not(.is-disabled) {
+  opacity: 0.88;
+}
+.pm-paid-panel__btn.is-disabled {
+  cursor: default;
+  opacity: 1;
+  background: color-mix(in srgb, var(--bs-secondary-bg) 60%, var(--custom-primary) 8%);
+  color: var(--bs-secondary-color);
+  border: 0.5px solid var(--bs-border-color);
+}
+.pm-paid-panel__btn.is-trial {
+  background: var(--bs-success);
+}
+.pm-paid-panel__cancel-link {
+  appearance: none;
+  border: none;
+  background: transparent;
+  color: var(--bs-secondary-color);
+  font-size: 12px;
+  cursor: pointer;
+  padding: 0;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  transition: color 120ms ease;
+}
+.pm-paid-panel__cancel-link:hover {
+  color: var(--bs-danger);
+}
+.pm-paid-panel__reactivate-link {
+  appearance: none;
+  border: none;
+  background: transparent;
+  color: var(--bs-secondary-color);
+  font-size: 12px;
+  cursor: pointer;
+  padding: 0;
+  transition: color 120ms ease;
+}
+.pm-paid-panel__reactivate-link:hover {
+  color: var(--bs-success);
+}
+.pm-paid-panel__reactivate-link i {
+  font-size: 11px;
+  margin-right: 4px;
+}
+.pm-paid-panel__cancel-notice {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--bs-warning);
+}
+.pm-paid-panel__cancel-notice i {
+  flex-shrink: 0;
+}
+
+/* ── end redesign ───────────────────────────────────────────────────────── */
+
 .pm-plan {
   position: relative;
   background: var(--bs-secondary-bg);

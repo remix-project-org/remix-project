@@ -376,6 +376,9 @@ export const settingReducer = (state: SettingsState, action: SettingsActions): S
     }
 
     return { ...state, [action.payload.name]: { ...(state as any)[action.payload.name], value: action.payload.value, isLoading: false } }
+  // A value already written to config elsewhere — reflect it without writing it back
+  case 'SYNC_VALUE':
+    return { ...state, [action.payload.name]: { ...(state as any)[action.payload.name], value: action.payload.value, isLoading: false } }
   case 'SET_LOADING':
     return { ...state, [action.payload.name]: { ...(state as any)[action.payload.name], isLoading: true } }
 

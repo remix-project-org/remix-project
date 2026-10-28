@@ -131,7 +131,9 @@ export function jsonSchemaToZod(schema: any): z.ZodObject<any> {
         if (prop.description) zodType = zodType.describe(prop.description)
         break
       case 'object':
-        zodType = z.record(z.string(), z.any())
+        zodType = prop.properties && Object.keys(prop.properties).length > 0
+          ? jsonSchemaToZod(prop).passthrough()
+          : z.record(z.string(), z.any())
         if (prop.description) zodType = zodType.describe(prop.description)
         break
       default:

@@ -11,6 +11,8 @@ import {
   CreateDeepAgentParams
 } from 'deepagents'
 import { ICompletions, IGeneration, IParams } from '../../types/types'
+import { AIModel, modelSupportsVision } from '../../types/models'
+import { lookupCatalogEntry } from './modelParams'
 import { Plugin } from '@remixproject/engine'
 import EventEmitter from 'events'
 import { RemixFilesystemBackend } from './RemixFilesystemBackend'
@@ -39,6 +41,7 @@ import { DriftMonitorMiddleware } from './driftMonitorMiddleware'
 import { RemixVisionMiddleware } from './visionMiddleware'
 import { screenshotBuffer } from './visionBuffer'
 import { screenshotConsent } from './screenshotConsent'
+import { turnAttachments } from './turnAttachments'
 
 import './AsyncLocalStorageInit'
 import { createModelInstance } from './ModelFactory'
@@ -149,6 +152,7 @@ export class DeepAgentInferencer implements ICompletions, IGeneration {
     remixAILogger.log('[DeepAgent-Thread] resetSessionThread:', this.sessionThreadId, '(was:', oldId, ')')
     screenshotBuffer.setThread(this.sessionThreadId)
     screenshotConsent.setThread(this.sessionThreadId)
+    turnAttachments.setThread(this.sessionThreadId)
   }
 
   setSessionThreadId(threadId: string): void {
@@ -156,6 +160,7 @@ export class DeepAgentInferencer implements ICompletions, IGeneration {
     this.sessionThreadId = threadId
     screenshotBuffer.setThread(threadId)
     screenshotConsent.setThread(threadId)
+    turnAttachments.setThread(threadId)
   }
 
   /**
@@ -208,6 +213,7 @@ export class DeepAgentInferencer implements ICompletions, IGeneration {
     // the markers those screenshots belonged to are gone with it.
     screenshotBuffer.setThread(this.sessionThreadId)
     screenshotConsent.setThread(this.sessionThreadId)
+    turnAttachments.setThread(this.sessionThreadId)
 
     // The OpenRouter transport reports the model that actually served each
     // request — the only way to know what `auto` picked.
@@ -459,6 +465,8 @@ export class DeepAgentInferencer implements ICompletions, IGeneration {
     // answer to something still rendered — that is exactly the case where a
     // re-invoked subagent would redraw the picker it was called to handle.
     generativeUiGuard.beginTurn(prompt)
+    // Subagents only see the user's attachments through this
+    turnAttachments.beginTurn(params?.attachments)
 
     try {
       if (!this.agent) {
@@ -695,7 +703,19 @@ export class DeepAgentInferencer implements ICompletions, IGeneration {
     return await generateStructured(this.model, schema, messages, { maxRepairs: 1, ...opts })
   }
 
+  private selectedModelSupportsVision(): boolean {
+    const { modelId, provider, routeProvider } = this.modelSelection
+    const entry = lookupCatalogEntry(this.modelSelection)
+    return modelSupportsVision({
+      id: modelId,
+      provider: routeProvider === 'ollama' ? 'ollama' : (entry?.provider ?? provider),
+      capabilities: entry?.capabilities
+    } as Pick<AIModel, 'capabilities' | 'id' | 'provider'>)
+  }
+
   private async runAgent(messages: any[]): Promise<string> {
+    // A "Don't allow" settles the request it answered, not every later one.
+    screenshotConsent.beginTurn()
     const thisRunControllers = new Set<AbortController>()
     const localAbortController = new AbortController()
     thisRunControllers.add(localAbortController)
@@ -1120,7 +1140,12 @@ export class DeepAgentInferencer implements ICompletions, IGeneration {
       const checkpointer = this.checkpointer
       const hasSkillsPermission = this.hasSkillsPermission
       const harnessProfile = resolveHarnessProfile(this.modelSelection)
-      const shapedTools = applyHarnessToolRules(this.tools, harnessProfile)
+      let shapedTools = applyHarnessToolRules(this.tools, harnessProfile)
+
+      if (!this.selectedModelSupportsVision()) {
+        remixAILogger.log(`[DeepAgentInferencer] ${this.modelSelection.modelId} cannot read images — hiding capture_ui_screenshot`)
+        shapedTools = shapedTools.filter(t => t.name !== 'capture_ui_screenshot')
+      }
 
       // The main agent holds no Remix tools of its own: every capability is
       // reached by delegating to a subagent, and the roster appended to the

@@ -223,10 +223,13 @@ export const PromptArea: React.FC<PromptAreaProps> = ({
   // Text and source files are sent as plain text, so they work on any model.
   // Only images and PDFs need a vision-capable one — the button stays enabled
   // either way and the send path reports what could not be included.
-  const attachHint = supportsVision
-    ? 'Attach a file — image, PDF, or source/text file'
-    : `Attach a text or source file. ${selectedModel?.displayName || 'This model'} cannot read images or PDFs.`
-  const canAttach = Boolean(onAddFiles) && !isStreaming
+  // An anonymous user cannot send, so attaching would only stage files that can't go anywhere.
+  const attachHint = !isAuthenticated
+    ? 'Sign in to attach files'
+    : supportsVision
+      ? 'Attach a file — image, PDF, or source/text file'
+      : `Attach a text or source file. ${selectedModel?.displayName || 'This model'} cannot read images or PDFs.`
+  const canAttach = Boolean(onAddFiles) && !isStreaming && isAuthenticated
 
   const handlePaste = useCallback((e: React.ClipboardEvent) => {
     if (!canAttach) return
@@ -924,9 +927,11 @@ export const PromptArea: React.FC<PromptAreaProps> = ({
                   </>
                 )}
                 {onCaptureScreenshot && (
-                  <CustomTooltip tooltipText={supportsVision
-                    ? 'Attach a screenshot of the IDE'
-                    : `${selectedModel?.displayName || 'This model'} cannot read images. Pick a vision-capable model.`}>
+                  <CustomTooltip tooltipText={!isAuthenticated
+                    ? 'Sign in to attach a screenshot'
+                    : supportsVision
+                      ? 'Attach a screenshot of the IDE'
+                      : `${selectedModel?.displayName || 'This model'} cannot read images. Pick a vision-capable model.`}>
                     <span className="d-inline-block align-self-end">
                       <button
                         type="button"

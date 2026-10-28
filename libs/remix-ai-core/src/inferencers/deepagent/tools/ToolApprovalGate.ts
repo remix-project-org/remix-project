@@ -368,7 +368,7 @@ export class ToolApprovalGate {
       : 'REJECTED: The user declined to share a picture of their screen.'
     return JSON.stringify({
       cancelled: true,
-      reason: `${reason} Do NOT call capture_ui_screenshot again in this conversation. Use inspect_ui or get_ui_state to read the interface structure and labels instead, and tell the user what you can and cannot see.`
+      reason: `${reason} Do NOT call capture_ui_screenshot again for this request. Use inspect_ui or get_ui_state to read the interface structure and labels instead, and tell the user what you can and cannot see.`
     })
   }
 

@@ -359,7 +359,8 @@ export const SettingsSectionUI: React.FC<SettingsSectionUIProps> = ({ plugin, se
                           )}
                           <div className="ms-auto">
                             {option.type === 'toggle' && <ToggleSwitch id={option.name} isOn={toggleValue} onClick={() => handleToggle(option.name)} disabled = {option.name === "matomo-analytics" ? true : false}/>}
-                            {option.type === 'select' && <div style={{ minWidth: '110px' }}><SelectDropdown value={selectValue} options={option.selectOptions} name={option.name} dispatch={dispatch as any} onChanged={(value) => handleSelectChanged(option.name, value)} /></div>}
+                            {/* The screen-sharing policy is the user's decision; the AI's UI tools must not change it */}
+                            {option.type === 'select' && <div style={{ minWidth: '110px' }} data-ai-user-only={option.name === 'ai-screen-capture-consent' ? true : undefined}><SelectDropdown value={selectValue} options={option.selectOptions} name={option.name} dispatch={dispatch as any} onChanged={(value) => handleSelectChanged(option.name, value)} /></div>}
                             {option.type === 'button' && <button className="btn btn-secondary btn-sm" onClick={() => handleButtonClick(option.buttonOptions)}><FormattedMessage id={option.buttonOptions?.label} /></button>}
                             {option.type === 'custom' && option.customComponent === 'mcpServerManager' && <span></span>}
                             {option.type === 'custom' && option.customComponent === 'profileSection' && <span></span>}

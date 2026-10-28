@@ -1,17 +1,10 @@
 .swarm-collab-root {
-  /* Zero-height anchor, so the controls take no layout space. */
-  position: relative;
-  flex: none;
-  height: 0;
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
   z-index: 20;
 }
 
-.swarm-collab-toolbar {
-  position: absolute;
-  top: 6px;
-  right: 24px;
-  z-index: 20;
-}
 
 .swarm-collab-dot {
   display: inline-block;
@@ -27,41 +20,74 @@
 }
 
 .swarm-collab-panel {
-  position: absolute;
-  top: 40px;
-  right: 24px;
-  z-index: 20;
   width: 340px;
 }
 
-.swarm-collab-error {
-  position: absolute;
-  top: 40px;
-  left: 50%;
-  transform: translateX(-50%);
-  z-index: 21;
-  max-width: 60%;
+.swarm-collab-panel .card-body {
+  overflow-x: hidden;
 }
 
-.swarm-collab-backdrop {
-  position: fixed;
-  inset: 0;
-  z-index: 1050;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: rgba(0, 0, 0, 0.4);
+.swarm-collab-invite-input {
+  min-width: 0;
 }
 
-.swarm-collab-dialog {
-  width: 420px;
-  max-width: calc(100vw - 32px);
+.swarm-collab-close-sm {
+  font-size: 0.65em;
+}
+
+.swarm-collab-panel details {
+  max-width: 100%;
+}
+
+
+@keyframes swarm-collab-blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.15; }
+}
+
+.swarm-collab-icon-connecting {
+  animation: swarm-collab-blink 1s ease-in-out infinite;
+}
+
+@keyframes swarm-collab-spin {
+  to { transform: rotate(360deg); }
+}
+
+.swarm-collab-spinner {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  margin-right: 6px;
+  border: 1.5px solid var(--bs-secondary-color, #888);
+  border-top-color: transparent;
+  border-radius: 50%;
+  animation: swarm-collab-spin 0.75s linear infinite;
+  vertical-align: middle;
+  flex-shrink: 0;
+}
+
+.swarm-collab-dot-host {
+  background: var(--bs-success, #2e7d32);
 }
 
 .swarm-collab-caret {
   position: relative;
   border-left: 2px solid var(--swarm-collab-color);
   margin-left: -1px;
+}
+
+.swarm-collab-label-widget {
+  font-size: 0.7rem;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-weight: 600;
+  padding: 1px 6px;
+  border-radius: 3px 3px 3px 0;
+  background: var(--swarm-collab-color);
+  color: #fff;
+  white-space: nowrap;
+  pointer-events: none;
+  line-height: 1.5;
+  margin-bottom: 2px;
 }
 
 .swarm-collab-selection {

@@ -10,7 +10,8 @@ import { CustomTooltip } from '@remix-ui/helper'
 import { normalizeMarkdown } from 'libs/remix-ui/helper/src/lib/components/remix-md-renderer'
 import { QueryParams } from '@remix-project/remix-lib'
 import { DAppUpdateReviewCard } from './DAppUpdateReviewCard'
-import { GenerativeUIRenderer } from './GenerativeUIRenderer'
+import { GenerativeUIRenderer, describeUIAnswer } from './GenerativeUIRenderer'
+import type { ChatPromptMetadata } from '@remix-api'
 import { FileChangeGroup, splitAnswerAtChanges } from './fileChangeLines'
 import { AIFileChangeRecord } from '@remix/remix-ai-core'
 
@@ -55,7 +56,7 @@ const openImageAttachment = (dataUrl?: string) => {
 export interface ChatHistoryComponentProps {
   messages: ChatMessage[]
   isStreaming: boolean
-  sendPrompt: (prompt: string) => void
+  sendPrompt: (prompt: string, isEditorCodeAnalysis?: boolean, metadata?: ChatPromptMetadata) => void
   recordFeedback: (msgId: string, next: 'like' | 'dislike' | 'none') => void
   historyRef: React.RefObject<HTMLDivElement>
   theme: any
@@ -237,7 +238,7 @@ export const ChatHistoryComponent: React.FC<ChatHistoryComponentProps> = ({
                       ) : msg.role === 'assistant' || msg.role === 'editor_code_analysis' ? (
                         RemixMarkdownViewer(theme, normalizeTurnSeparators(displayContent), btnColor, setBtnColor)
                       ) : (
-                        <div className="ai-paragraph pb-0">
+                        <div className="ai-paragraph pb-0" style={hasCollapsiblePrompt ? { whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' } : undefined}>
                           {visibleUserContent}
                         </div>
                       )}
@@ -372,7 +373,8 @@ export const ChatHistoryComponent: React.FC<ChatHistoryComponentProps> = ({
                           ? `[ui:${action}]\n${JSON.stringify(data, null, 2)}`
                           : `[ui:${action}]`
                         onUiComponentAnswered?.(msg.id)
-                        sendPrompt(text)
+                        // The model needs the raw action; the user sees what they picked
+                        sendPrompt(text, false, { source: 'user', displayText: describeUIAnswer(msg.uiComponent, action, data) })
                       }}
                     />
                   </div>

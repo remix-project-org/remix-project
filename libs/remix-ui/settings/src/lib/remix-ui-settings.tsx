@@ -535,8 +535,20 @@ export const RemixUiSettings = (props: RemixUiSettingsProps) => {
 
     props.plugin.on('settings', 'openSection', onOpenSection)
 
+    // The assistant's consent card writes "Always allow" straight to config
+    const onConfigChanged = ({ key, content }: { key: string, content: any }) => {
+      if (key === 'settings/ai-screen-capture-consent') {
+        dispatch({ type: 'SYNC_VALUE', payload: { name: 'ai-screen-capture-consent', value: content } })
+      }
+    }
+    props.plugin.on('settings', 'configChanged', onConfigChanged)
+    // initialState is read once at load, which may predate a choice made in the chat
+    const currentScreenCapture = props.config?.get('settings/ai-screen-capture-consent')
+    if (currentScreenCapture) dispatch({ type: 'SYNC_VALUE', payload: { name: 'ai-screen-capture-consent', value: currentScreenCapture } })
+
     return () => {
       try {
+        props.plugin.off('settings', 'configChanged')
         props.plugin.off('settings', 'openSection')
       } catch (e) {
         console.log(e)

@@ -39,6 +39,49 @@ function parseKey(key: string): { threadId: string; ns: string; cpId: string } {
   return { threadId, ns, cpId }
 }
 
+const PAYLOAD_PLACEHOLDER = '[attachment sent earlier in this conversation — not kept after a reload]'
+
+/** Replaces inline image / file blocks with a text note. Returns true when anything changed. */
+function stripPayloadBlocks(node: any): boolean {
+  if (!node || typeof node !== 'object') return false
+  let changed = false
+  if (Array.isArray(node)) {
+    for (let i = 0; i < node.length; i++) {
+      const block = node[i]
+      const isInlineImage = block?.type === 'image_url' && typeof block.image_url?.url === 'string' && block.image_url.url.startsWith('data:')
+      const isInlineFile = block?.type === 'file' && typeof block.file?.file_data === 'string' && block.file.file_data.startsWith('data:')
+      if (isInlineImage || isInlineFile) {
+        node[i] = { type: 'text', text: PAYLOAD_PLACEHOLDER }
+        changed = true
+      } else if (stripPayloadBlocks(block)) {
+        changed = true
+      }
+    }
+    return changed
+  }
+  for (const key of Object.keys(node)) {
+    if (stripPayloadBlocks(node[key])) changed = true
+  }
+  return changed
+}
+
+/**
+ * Every checkpoint holds the whole message history, so one attached PDF or
+ * screenshot would otherwise be written to IndexedDB again at every agent
+ * step. Payloads are dropped from what is persisted; the live session keeps
+ * them through `liveCheckpoints`.
+ */
+function stripInlinePayloads(serialized: Uint8Array): Uint8Array {
+  const text = new TextDecoder().decode(serialized)
+  if (!text.includes('data:')) return serialized
+  try {
+    const parsed = JSON.parse(text)
+    return stripPayloadBlocks(parsed) ? new TextEncoder().encode(JSON.stringify(parsed)) : serialized
+  } catch {
+    return serialized
+  }
+}
+
 /** Promise wrapper around IDBRequest */
 function idbRequest<T>(req: IDBRequest<T>): Promise<T> {
   return new Promise((resolve, reject) => {
@@ -53,6 +96,8 @@ function idbRequest<T>(req: IDBRequest<T>): Promise<T> {
 export class IndexedDBCheckpointSaver extends BaseCheckpointSaver {
   private db: IDBDatabase | null = null
   private initPromise: Promise<void> | null = null
+  /** Latest unstripped checkpoint per "<threadId>|<ns>", for checkpoints that carried attachments. */
+  private liveCheckpoints = new Map<string, { cpId: string; checkpoint: Uint8Array }>()
 
   constructor(serde?: SerializerProtocol) {
     super(serde)
@@ -188,7 +233,9 @@ export class IndexedDBCheckpointSaver extends BaseCheckpointSaver {
     saved: { checkpoint: Uint8Array; metadata: Uint8Array; parentCpId: string | undefined },
     config?: RunnableConfig
   ): Promise<CheckpointTuple> {
-    const deserializedCheckpoint = (await this.serde.loadsTyped('json', saved.checkpoint)) as Checkpoint
+    const live = this.liveCheckpoints.get(`${threadId}|${ns}`)
+    const checkpointBytes = live?.cpId === cpId ? live.checkpoint : saved.checkpoint
+    const deserializedCheckpoint = (await this.serde.loadsTyped('json', checkpointBytes)) as Checkpoint
     const key = generateKey(threadId, ns, cpId)
     const rawWrites = await this._getWrites(key)
     const pendingWrites: CheckpointPendingWrite[] = await Promise.all(
@@ -297,6 +344,13 @@ export class IndexedDBCheckpointSaver extends BaseCheckpointSaver {
         this.serde.dumpsTyped(metadata),
       ])
 
+      const persistedCp = stripInlinePayloads(serializedCp)
+      if (persistedCp !== serializedCp) {
+        this.liveCheckpoints.set(`${threadId}|${ns}`, { cpId: checkpoint.id, checkpoint: serializedCp })
+      } else {
+        this.liveCheckpoints.delete(`${threadId}|${ns}`)
+      }
+
       const tx = await this.beginTx(CHECKPOINTS_STORE, 'readwrite')
       const store = tx.objectStore(CHECKPOINTS_STORE)
 
@@ -307,7 +361,7 @@ export class IndexedDBCheckpointSaver extends BaseCheckpointSaver {
           threadId,
           ns,
           cpId: checkpoint.id,
-          checkpoint: serializedCp,
+          checkpoint: persistedCp,
           metadata: serializedMeta,
           parentCpId: config.configurable?.checkpoint_id,
         })
@@ -345,7 +399,8 @@ export class IndexedDBCheckpointSaver extends BaseCheckpointSaver {
     // the transaction inactive and the write threw instead of landing.
     const records = (await Promise.all(
       writes.map(async ([channel, value], idx) => {
-        const [, serializedValue] = await this.serde.dumpsTyped(value)
+        const [, serialized] = await this.serde.dumpsTyped(value)
+        const serializedValue = stripInlinePayloads(serialized)
         const innerIdx = WRITES_IDX_MAP[channel as string] ?? idx
         const innerKey = `${taskId},${innerIdx}`
         const fullKey = `${outerKey}|${innerKey}`
@@ -373,6 +428,9 @@ export class IndexedDBCheckpointSaver extends BaseCheckpointSaver {
   }
 
   async deleteThread(threadId: string): Promise<void> {
+    for (const key of Array.from(this.liveCheckpoints.keys())) {
+      if (key.startsWith(`${threadId}|`)) this.liveCheckpoints.delete(key)
+    }
     // Delete checkpoints
     const cpTx = await this.beginTx(CHECKPOINTS_STORE, 'readwrite')
     const cpStore = cpTx.objectStore(CHECKPOINTS_STORE)

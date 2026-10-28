@@ -153,6 +153,7 @@ export interface SettingsState {
 }
 export interface SettingsActionPayloadTypes {
   SET_VALUE: { name: string, value: boolean | string },
+  SYNC_VALUE: { name: string, value: boolean | string },
   SET_LOADING: { name: string },
   SET_TOAST_MESSAGE: { value: string }
 }

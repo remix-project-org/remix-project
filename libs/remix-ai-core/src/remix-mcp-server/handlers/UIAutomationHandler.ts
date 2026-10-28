@@ -5,7 +5,7 @@ import { BaseToolHandler } from '../registry/RemixToolRegistry'
 import { remixAILogger } from '../../helpers/logger'
 import { screenshotBuffer, screenshotMarker } from '../../inferencers/deepagent/visionBuffer'
 import { screenshotConsent } from '../../inferencers/deepagent/screenshotConsent'
-import { captureElementPng, defaultCaptureTarget, annotatePngWithMarks, ElementMark, thumbnailDataUrl, previewDataUrl, downscaleDataUrl, MODEL_MAX_EDGE } from '../../helpers/domCapture'
+import { captureElementPng, defaultCaptureTarget, findOpenOverlay, annotatePngWithMarks, ElementMark, thumbnailDataUrl, previewDataUrl, downscaleDataUrl, MODEL_MAX_EDGE } from '../../helpers/domCapture'
 import remixUiMap from '../context/remixUiMap.json'
 
 /**
@@ -48,9 +48,26 @@ function registerRef(el: Element): string {
   return ref
 }
 
+const USER_ONLY_SELECTOR = [
+  '[data-ai-user-only]',
+  '.tool-approval-card',
+  '.tool-approval-card__btn',
+  '.hitl-pending-summary',
+  '[data-id="ai-diff-actions"]',
+  '[data-id="hitl-auto-accept-banner"]'
+].join(',')
+
+function isUserOnly(el: Element): boolean {
+  try {
+    return !!el.closest(USER_ONLY_SELECTOR)
+  } catch {
+    return true
+  }
+}
+
 function resolveRef(ref: string): Element | null {
   const el = elementRefs.get(ref)
-  if (!el || !el.isConnected) {
+  if (!el || !el.isConnected || isUserOnly(el)) {
     elementRefs.delete(ref)
     return null
   }
@@ -178,6 +195,14 @@ interface SnapshotLine {
   text: string
 }
 
+const SENSITIVE_FIELD_RE = /key|token|secret|passw|private|mnemonic|seed|credential/i
+
+function isSensitiveField(el: HTMLInputElement | HTMLTextAreaElement): boolean {
+  if (el instanceof HTMLInputElement && el.type === 'password') return true
+  const hints = [el.name, el.id, el.getAttribute('data-id'), el.getAttribute('aria-label'), el.getAttribute('placeholder'), el.getAttribute('autocomplete')]
+  return hints.some((hint) => !!hint && SENSITIVE_FIELD_RE.test(hint))
+}
+
 function describe(el: Element, interactive: boolean): string {
   const parts: string[] = [roleOf(el)]
 
@@ -190,7 +215,7 @@ function describe(el: Element, interactive: boolean): string {
   name = name.slice(0, MAX_TEXT_LEN)
   if (name) parts.push(JSON.stringify(name))
 
-  if (interactive) parts.push(`[ref=${registerRef(el)}]`)
+  if (interactive) parts.push(isUserOnly(el) ? '(user-only control — cannot be clicked or typed into)' : `[ref=${registerRef(el)}]`)
 
   const dataId = el.getAttribute('data-id')
   if (dataId) parts.push(`data-id=${dataId}`)
@@ -201,7 +226,7 @@ function describe(el: Element, interactive: boolean): string {
   if (dataPath) parts.push(`path=${JSON.stringify(dataPath)}`)
 
   if (el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement) {
-    if (el.value) parts.push(`value=${JSON.stringify(el.value.slice(0, MAX_TEXT_LEN))}`)
+    if (el.value) parts.push(isSensitiveField(el) ? 'value=<redacted>' : `value=${JSON.stringify(el.value.slice(0, MAX_TEXT_LEN))}`)
     if (el.disabled) parts.push('disabled')
   }
   if (el instanceof HTMLInputElement && (el.type === 'checkbox' || el.type === 'radio')) {
@@ -280,7 +305,19 @@ function requireDom(): string | null {
   return null
 }
 
+/** ` "Title"` of an open dialog, for labels; empty when it has none. */
+function overlayTitle(overlay: Element): string {
+  const titleEl = overlay.querySelector('.modal-title, [id$="-title"], h1, h2, h3, h4, h5, h6')
+  const title = (titleEl?.textContent || overlay.getAttribute('aria-label') || '').replace(/\s+/g, ' ').trim()
+  return title ? ` "${title.slice(0, MAX_TEXT_LEN)}"` : ''
+}
+
 function ideRoot(): Element {
+  // Modals are portalled onto <body>, outside the shell, and block the IDE
+  // behind them — while one is open it is the only thing that can be used.
+  const overlay = findOpenOverlay()
+  if (overlay) return overlay
+
   // The app shell rendered by remix-app.tsx — top bar, icon bar, both side
   // panels, the main panel and the status bar, without the document-level
   // portals hanging off <body>.
@@ -349,7 +386,11 @@ export class InspectUIHandler extends BaseToolHandler {
       }
 
       const body = lines.map((l) => `${'  '.repeat(l.depth)}- ${l.text}`).join('\n')
-      const header = `UI snapshot (${lines.length} nodes, ${elementRefs.size} interactive refs)${truncated ? ' — TRUNCATED, narrow the scope with `selector`' : ''}. ` +
+      const overlay = !args?.selector && findOpenOverlay()
+      const overlayNote = overlay
+        ? `An open dialog${overlayTitle(overlay)} covers the IDE, so this snapshot shows only the dialog. Fill it in, confirm or close it to reach the rest of the interface. `
+        : ''
+      const header = `${overlayNote}UI snapshot (${lines.length} nodes, ${elementRefs.size} interactive refs)${truncated ? ' — TRUNCATED, narrow the scope with `selector`' : ''}. ` +
         'A capture_ui_screenshot taken now will badge these refs onto the image:'
       return this.createSuccessResult(`${header}\n${body}`)
     } catch (e: any) {
@@ -437,7 +478,11 @@ export class GetUIStateHandler extends BaseToolHandler {
     }
     state.layout = await safeCall('layout', 'getLayoutState')
     state.currentFile = await safeCall('fileManager', 'getCurrentFile')
-    state.openFiles = await safeCall('fileManager', 'getOpenedFiles')
+    // fileManager only records files opened through it; one the editor switched
+    // to by itself (an accepted RemixAI diff) is current yet missing from the map
+    const opened = Object.keys((await safeCall('fileManager', 'getOpenedFiles')) || {})
+    if (state.currentFile && !opened.includes(state.currentFile)) opened.unshift(state.currentFile)
+    state.openFiles = opened
 
     const iconState = await safeCall('menuicons', 'getPluginState')
     if (iconState) state.iconBar = iconState
@@ -558,7 +603,8 @@ export class CaptureUIScreenshotHandler extends BaseToolHandler {
         const { root, error } = args?.selector ? resolveScope(args.selector) : { root: defaultCaptureTarget(), error: undefined }
         if (error) return this.createErrorResult(error)
         target = root as HTMLElement
-        label = args?.selector || 'the Remix IDE'
+        const overlay = !args?.selector && findOpenOverlay()
+        label = args?.selector || (overlay ? `the open dialog${overlayTitle(overlay)}` : 'the Remix IDE')
       }
 
       const origin = target.getBoundingClientRect()

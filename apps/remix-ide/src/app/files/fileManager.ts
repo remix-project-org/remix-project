@@ -753,7 +753,12 @@ export default class FileManager extends Plugin {
       file = resolved.file
       await this.saveCurrentFile()
       // we always open the file in the editor, even if it's the same as the current one if the editor is in diff mode
-      if (this.currentFile() === file && !this.editor.isDiff) return
+      if (this.currentFile() === file && !this.editor.isDiff) {
+        // The editor can switch to a file on its own (e.g. accepting a RemixAI
+        // diff), so it may be on screen without ever being recorded here
+        this.openedFiles[file] = file
+        return
+      }
 
       const provider = resolved.provider
       this._deps.config.set('currentFile', file)

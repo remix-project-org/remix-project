@@ -140,16 +140,20 @@ export const Renderer = ({ message, opt, plugin, context }: RendererProps) => {
   const askGtp = async () => {
     try {
       let content;
+      // The path tells the agent which file to edit
+      let filePath = editorOptions.errFile
       try {
         content = await plugin.call('fileManager', 'readFile', editorOptions.errFile)
       } catch (error) {
-        content = await plugin.call('fileManager', 'readFile', await plugin.call('config', 'getAppParameter', 'currentFile'));
+        filePath = await plugin.call('config', 'getAppParameter', 'currentFile')
+        content = await plugin.call('fileManager', 'readFile', filePath);
       }
-      const message = intl.formatMessage({ id: `${context || 'solidity' }.openaigptMessage` }, { content, messageText })
+      const message = intl.formatMessage({ id: `${context || 'solidity' }.openaigptMessage` }, { content, messageText, filePath })
 
       await plugin.call('menuicons' as any, 'select', 'remixaiassistant')
       setTimeout(async () => {
-        await (plugin as any).call('remixAI', 'chatPipe', 'error_explaining', message, undefined, undefined, { source: 'compiler-error', presetId: 'error-explain' })
+        // The bubble reads "Fix the error"; the error itself sits behind its details toggle
+        await (plugin as any).call('remixAI', 'chatPipe', 'error_explaining', message, undefined, `Fix the error\n\n${messageText}`, { source: 'compiler-error', presetId: 'error-explain', displayText: 'Fix the error' })
       }, 500)
       trackMatomoEvent?.({ category: 'ai', action: 'remixAI', name: 'error_explaining_SolidityError', isClick: true })
     } catch (err) {
@@ -187,7 +191,7 @@ export const Renderer = ({ message, opt, plugin, context }: RendererProps) => {
               onClick={(event) => { event.preventDefault(); askGtp() }}
             >
               <img src="assets/img/remixAI_small.svg" alt="Remix AI" className="explain-icon" />
-              <span>Ask RemixAI</span>
+              <span>Fix with RemixAI</span>
             </button>
 
           </div>

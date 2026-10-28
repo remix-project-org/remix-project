@@ -117,9 +117,36 @@ export interface RemoteCursor {
 
 export const CURSOR_COLORS = 6
 
-/** Renders other participants' carets and selections in one editor. */
+class CursorLabelWidget {
+  private line = 1
+  private column = 1
+  readonly node: HTMLElement
+
+  constructor(readonly widgetId: string, username: string, colorIndex: number) {
+    this.node = document.createElement('div')
+    this.node.className = `swarm-collab-label-widget swarm-collab-color-${colorIndex}`
+    this.node.textContent = username
+  }
+
+  getId(): string { return this.widgetId }
+  getDomNode(): HTMLElement { return this.node }
+  getPosition(): editor.IContentWidgetPosition {
+    return {
+      position: { lineNumber: this.line, column: this.column },
+      preference: [1 as editor.ContentWidgetPositionPreference, 2 as editor.ContentWidgetPositionPreference]
+    }
+  }
+
+  moveTo(line: number, column: number): void {
+    this.line = line
+    this.column = column
+  }
+}
+
+/** Renders other participants' carets, selections and always-visible name labels in one editor. */
 export class RemoteCursorDecorations {
   private readonly collection: editor.IEditorDecorationsCollection
+  private readonly widgets = new Map<string, CursorLabelWidget>()
 
   constructor(private readonly codeEditor: editor.ICodeEditor) {
     this.collection = codeEditor.createDecorationsCollection()
@@ -127,9 +154,15 @@ export class RemoteCursorDecorations {
 
   render(cursors: RemoteCursor[]): void {
     const model = this.codeEditor.getModel()
-    if (!model) return this.collection.clear()
+    if (!model) {
+      this.collection.clear()
+      this.removeAllWidgets()
+      return
+    }
 
     const decorations: editor.IModelDeltaDecoration[] = []
+    const seen = new Set<string>()
+
     for (const cursor of cursors) {
       const start = model.getPositionAt(Math.min(cursor.anchor, cursor.head))
       const end = model.getPositionAt(Math.max(cursor.anchor, cursor.head))
@@ -144,13 +177,39 @@ export class RemoteCursorDecorations {
       }
       decorations.push({
         range: { startLineNumber: head.lineNumber, startColumn: head.column, endLineNumber: head.lineNumber, endColumn: head.column },
-        options: { beforeContentClassName: `swarm-collab-caret swarm-collab-color-${color}`, hoverMessage: { value: cursor.username }, stickiness: 1 }
+        options: { beforeContentClassName: `swarm-collab-caret swarm-collab-color-${color}`, stickiness: 1 }
       })
+
+      // Always-visible name label via ContentWidget.
+      const id = `swarm-collab-label-${cursor.username}`
+      seen.add(id)
+      let widget = this.widgets.get(id)
+      if (!widget) {
+        widget = new CursorLabelWidget(id, cursor.username, color)
+        this.widgets.set(id, widget)
+        this.codeEditor.addContentWidget(widget)
+      }
+      widget.moveTo(head.lineNumber, head.column)
+      this.codeEditor.layoutContentWidget(widget)
     }
+
+    for (const [id, widget] of this.widgets) {
+      if (!seen.has(id)) {
+        this.codeEditor.removeContentWidget(widget)
+        this.widgets.delete(id)
+      }
+    }
+
     this.collection.set(decorations)
   }
 
   dispose(): void {
     this.collection.clear()
+    this.removeAllWidgets()
+  }
+
+  private removeAllWidgets(): void {
+    for (const widget of this.widgets.values()) this.codeEditor.removeContentWidget(widget)
+    this.widgets.clear()
   }
 }

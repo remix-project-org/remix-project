@@ -39,6 +39,8 @@ import {
 } from './helpers/subagentToolFilters'
 import { Features } from '@remix-api'
 import { remixAILogger } from '../../helpers/logger'
+import { RemixVisionMiddleware } from './visionMiddleware'
+import { RemixTurnAttachmentsMiddleware } from './turnAttachments'
 
 export interface SubagentConfigItem {
   name: string
@@ -244,6 +246,15 @@ export async function buildSubagentConfigs(
         description: 'Specializes in writing solidity code using openzeppelin libraries. Always pass the current solidity configuration to this subagent. When asked to generate solidity code, always start with the Advanced_Solidity_Developer subagent.'
       }
     )
+  }
+
+  // deepagents gives a custom subagent only its own middleware, never the main
+  // agent's. Without these a subagent sees neither the user's attachments nor
+  // the screenshots it takes itself (those arrive as markers in tool results).
+  const multimodalMiddleware = [new RemixTurnAttachmentsMiddleware(), new RemixVisionMiddleware()]
+  for (const agent of agents) {
+    if ('runnable' in agent) continue
+    agent.middleware = [...(agent.middleware ?? []), ...multimodalMiddleware]
   }
 
   remixAILogger.log('[SubagentConfig] ' + agents.map((a: any) => `${a.name}=${a.model?.model ?? '?'}`).join(' '))

@@ -31,7 +31,7 @@ export const DEFAULT_SETTINGS: CollabSettings = {
   beeUrl: 'http://localhost:1633',
   stamp: '',
   transport: 'signaling-server',
-  signalingUrl: 'ws://localhost:4444',
+  signalingUrl: 'wss://harmonize-empirical-vaporizer.ngrok-free.dev', // remix webrtc signaling server
   iceUrls: 'stun:stun.l.google.com:19302'
 }
 

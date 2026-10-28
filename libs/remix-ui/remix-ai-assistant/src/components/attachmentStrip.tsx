@@ -21,15 +21,23 @@ export const AttachmentStrip: React.FC<AttachmentStripProps> = ({ attachments, e
       {attachments.length > 0 && (
         <div className="d-flex flex-row flex-wrap gap-2 align-items-center">
           {attachments.map(att => {
-            const removeBtn = (
+            // Fixed square with no border/line-height from .btn, so the icon sits dead centre;
+            // margin 0 undoes the composer's `.prompt-area .btn i { margin-left }` caret spacing
+            const removeBtn = (onThumbnail: boolean) => (
               <button
                 type="button"
-                className="btn btn-sm p-0 d-flex align-items-center justify-content-center"
+                className={`btn p-0 border-0 rounded-circle d-flex align-items-center justify-content-center flex-shrink-0 ${onThumbnail ? 'position-absolute' : ''}`}
+                style={{
+                  width: 16,
+                  height: 16,
+                  lineHeight: 1,
+                  ...(onThumbnail ? { top: 2, right: 2, background: 'var(--bs-body-bg)', opacity: 0.9 } : {})
+                }}
                 onClick={() => onRemove(att.id)}
                 aria-label={`Remove ${att.name}`}
                 data-id={`remix-ai-attachment-remove-${att.id}`}
               >
-                <i className="fas fa-times" style={{ fontSize: 9 }} />
+                <i className="fas fa-times" style={{ fontSize: 9, lineHeight: 1, margin: 0 }} />
               </button>
             )
 
@@ -49,15 +57,7 @@ export const AttachmentStrip: React.FC<AttachmentStripProps> = ({ attachments, e
                     alt={att.name}
                     style={{ width: '100%', height: '100%', objectFit: 'cover' }}
                   />
-                  <span
-                    className="position-absolute"
-                    style={{
-                      top: 1, right: 1, width: 16, height: 16, lineHeight: 1,
-                      borderRadius: '50%', background: 'var(--bs-body-bg)', opacity: 0.9
-                    }}
-                  >
-                    {removeBtn}
-                  </span>
+                  {removeBtn(true)}
                 </div>
               )
             }
@@ -73,7 +73,7 @@ export const AttachmentStrip: React.FC<AttachmentStripProps> = ({ attachments, e
                 <i className={`fas ${att.kind === 'document' ? 'fa-file-pdf' : 'fa-file-lines'} text-secondary`} style={{ fontSize: '0.8rem' }} />
                 <span className="text-truncate small">{att.name}</span>
                 {att.truncated && <span className="badge bg-warning text-dark" style={{ fontSize: '0.6rem' }}>cut</span>}
-                {removeBtn}
+                {removeBtn(false)}
               </div>
             )
           })}

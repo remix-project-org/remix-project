@@ -396,6 +396,8 @@ export class RemixAIAssistant extends ViewPlugin {
   }
 
   private async generateConversationTitle(conversationId: string, prompt: string) {
+    // Asked to title nothing, the model answers "Empty Message"
+    if (!prompt || !prompt.trim()) return
     try {
       const titlePrompt =
         `Generate a title of at most ${MAX_TITLE_WORDS} words for a chat that begins with the following user message. ` +

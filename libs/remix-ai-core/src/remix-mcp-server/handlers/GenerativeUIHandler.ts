@@ -162,6 +162,7 @@ const UI_NODE_SCHEMA = {
     // container children — typed as array of objects to allow recursion
     children: {
       type: 'array',
+      description: 'Child UINodes (stack, card, form). Each child has the same shape as this node: a "type" field (never "tag"), plus "content" for text nodes.',
       items: { type: 'object' }
     }
   },

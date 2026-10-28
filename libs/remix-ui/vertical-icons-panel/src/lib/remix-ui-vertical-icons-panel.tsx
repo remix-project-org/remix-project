@@ -3,6 +3,7 @@ import { Plugin } from '@remixproject/engine'
 //@ts-ignore
 import './remix-ui-vertical-icons-panel.css'
 import IconList from './components/IconList'
+import { CollabIcon } from './components/CollabIcon'
 import Home from './components/Home'
 import { HelpMenu } from './components/HelpMenu'
 import { verticalScrollReducer } from './reducers/verticalScrollReducer'
@@ -29,6 +30,7 @@ const initialState = {
 
 // pinned at the very bottom of the rail, above the Help & Resources button
 const bottomPinned = ['planManager', 'helpPlugin']
+const COLLAB_ENABLED = true // new URLSearchParams(window.location.hash.slice(1)).has('collab')
 
 const RemixUiVerticalIconsPanel = ({ verticalIconsPlugin, icons, rightPanelHidden, leftPanelHidden }: RemixUiVerticalIconsPanelProps) => {
   const scrollableRef = useRef<any>()
@@ -97,6 +99,7 @@ const RemixUiVerticalIconsPanel = ({ verticalIconsPlugin, icons, rightPanelHidde
           <IconList theme={theme} icons={icons.filter((p) => p.profile.name === 'remixaiassistant')} verticalIconsPlugin={verticalIconsPlugin} itemContextAction={itemContextAction} showLabels rightPanelHidden={rightPanelHidden} leftPanelHidden={leftPanelHidden} />
           <div className="remixui_ai-divider"></div>
           <IconList theme={theme} icons={icons.filter((p) => p.isRequired && p.profile.name !== 'pluginManager' && p.profile.name !== 'remixaiassistant')} verticalIconsPlugin={verticalIconsPlugin} itemContextAction={itemContextAction} showLabels leftPanelHidden={leftPanelHidden} />
+          {COLLAB_ENABLED && <CollabIcon />}
           {scrollableRef.current && scrollableRef.current.scrollHeight > scrollableRef.current.clientHeight ? <Chevron direction="up" divElementRef={scrollableRef} cssRule={'fa fa-chevron-up remixui_icon-chevron my-0'} /> : null}
         </div>
         <div id="remixuiScrollable" className={scrollableRef.current && scrollableRef.current.scrollHeight > scrollableRef.current.clientHeight ? 'remixui_default-icons-container remixui_scrollable-container remixui_scrollbar remixui_hide-scroll' : activateScroll && activateScroll.scrollState ? 'remixui_default-icons-container remixui_scrollable-container remixui_scrollbar remixui_hide-scroll' : 'remixui_scrollable-container remixui_scrollbar remixui_hide-scroll'} ref={scrollableRef}>

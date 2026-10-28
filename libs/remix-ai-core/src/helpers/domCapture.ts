@@ -314,12 +314,54 @@ export async function captureElementPng(target: HTMLElement): Promise<CaptureRes
   }
 }
 
+// Remix's own ModalDialog is a `.modal` shown with an inline `display: block`
+// and kept in the DOM with `display: none` when closed — it never gets `.show`.
+// react-bootstrap modals do get `.show`. Other blocking overlays (plan manager,
+// desktop redirect) mark themselves aria-modal. A bare role="dialog" is not
+// enough: the nudge callout uses it for a non-blocking bubble.
+const OVERLAY_SELECTOR = '.modal, [role="dialog"][aria-modal="true"], [role="alertdialog"]'
+
+function isDisplayed(el: HTMLElement): boolean {
+  const style = window.getComputedStyle(el)
+  if (style.display === 'none' || style.visibility === 'hidden' || style.opacity === '0') return false
+  const rect = el.getBoundingClientRect()
+  return rect.width > 0 && rect.height > 0
+}
+
 /**
- * The element to capture when no selector is given: the IDE shell, not the raw
+ * The topmost open modal or dialog, if any. Later portals stack on top of
+ * earlier ones, so the last displayed match in document order wins. A match
+ * nested inside another one counts as part of it.
+ */
+export function findOpenOverlay(): HTMLElement | null {
+  if (typeof document === 'undefined') return null
+  const open = Array.from(document.querySelectorAll<HTMLElement>(OVERLAY_SELECTOR))
+    .filter((el) => !el.parentElement?.closest(OVERLAY_SELECTOR) && isDisplayed(el))
+  return open.length > 0 ? open[open.length - 1] : null
+}
+
+/**
+ * The part of an overlay worth photographing: the dialog box itself rather
+ * than the full-viewport backdrop around it.
+ */
+export function overlayCaptureTarget(overlay: HTMLElement): HTMLElement {
+  const content = overlay.querySelector<HTMLElement>('.modal-content') || overlay.querySelector<HTMLElement>('.modal-dialog')
+  return content && isDisplayed(content) ? content : overlay
+}
+
+/**
+ * The element to capture when no selector is given: an open modal if there is
+ * one, otherwise the IDE shell, not the raw
  * `<body>`. Serializing the whole document drags in overlays and portals and
  * makes the payload far more likely to blow past what an SVG data URL can hold.
  */
 export function defaultCaptureTarget(): HTMLElement {
+  // Modals are portalled onto <body>, outside the shell. While one is open it
+  // is what the user is looking at, so it is captured instead — on its own it
+  // is a small subtree, well inside the payload limit.
+  const overlay = findOpenOverlay()
+  if (overlay) return overlayCaptureTarget(overlay)
+
   // `[data-id="remixIdeShell"]` is the full app column rendered by
   // remix-app.tsx: top bar, the IDE row (icon bar, both side panels, main
   // panel) and the status bar, without the document-level portals and overlays

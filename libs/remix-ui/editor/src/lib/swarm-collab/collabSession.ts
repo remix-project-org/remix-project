@@ -19,6 +19,7 @@ export interface CollabPerson {
   username: string
   sessions: number
   connected: boolean
+  isCreator: boolean
 }
 
 export interface CollabState {
@@ -31,9 +32,10 @@ export interface CollabState {
   pendingPeers: number
   saving: boolean
   error: string | null
+  nickname: string | null
 }
 
-const IDLE: CollabState = { phase: 'idle', roomId: null, inviteLink: null, isCreator: false, workspace: null, people: [], pendingPeers: 0, saving: false, error: null }
+const IDLE: CollabState = { phase: 'idle', roomId: null, inviteLink: null, isCreator: false, workspace: null, people: [], pendingPeers: 0, saving: false, error: null, nickname: null }
 const WORKSPACE_SWITCH_TIMEOUT_MS = 15000
 const FILE_EVENTS = ['fileAdded', 'fileRemoved', 'fileRenamed', 'fileSaved', 'fileChanged'] as const
 const DOC_TYPE = 'remix'
@@ -64,6 +66,7 @@ export class CollabSession {
   private peerStates = new Map<string, PeerConnectionState>()
   private cursors = new Map<string, AwarenessUpdate>()
   private readonly colors = new Map<string, number>()
+  private creatorAddress = ''
   private starting = false
   private listening = false
   private generation = 0
@@ -185,13 +188,14 @@ export class CollabSession {
     const settings = isTransport(invite.transport) ? { ...chosen, transport: invite.transport } : chosen
     const identity = loadIdentity()
     const isCreator = invite.creator === identity.address.toLowerCase()
+    this.creatorAddress = invite.creator.toLowerCase()
     const stamp = normalizeStamp(settings.stamp)
     // Empty is allowed: a gateway attaches its own stamp.
     if (stamp && !/^[0-9a-f]{64}$/.test(stamp)) throw new Error('A postage stamp must be 64 hex characters, or left empty when the Bee URL is a gateway.')
     if (!settings.nickname.trim()) throw new Error('Pick a name to show to the others.')
 
     const generation = this.generation
-    this.setState({ ...IDLE, phase: 'connecting', roomId: new Room(invite.key).id, inviteLink: inviteLink(invite), isCreator, workspace })
+    this.setState({ ...IDLE, phase: 'connecting', roomId: new Room(invite.key).id, inviteLink: inviteLink(invite), isCreator, workspace, nickname: chosen.nickname.trim() })
     this.host.setForceReadOnly(true)
     await this.enterWorkspace(workspace, isJoinedWorkspace(workspace))
     // Left while the workspace was switching.
@@ -238,6 +242,9 @@ export class CollabSession {
     emitter.on(DOC_EVENTS.WRITE_DONE, () => this.setState({ ...this.state, saving: false }))
 
     window.addEventListener('beforeunload', this.onBeforeUnload)
+    await this.ensureBeeReachable(settings.beeUrl.trim())
+    // Left while waiting for the browser permission.
+    if (generation !== this.generation) return
     doc.start()
   }
 
@@ -261,7 +268,7 @@ export class CollabSession {
     sync.goLive()
 
     this.host.setForceReadOnly(false)
-    this.setState({ ...this.state, phase: 'live' })
+    this.setState({ ...this.state, phase: 'live', error: null })
     this.refreshBinding()
   }
 
@@ -285,6 +292,29 @@ export class CollabSession {
     this.binding = null
     this.sync?.setBoundPath(null)
     this.doc?.updateCursor(null)
+  }
+
+  /**
+   * Polls the Bee URL until the browser grants local-network access permission.
+   * The first fetch triggers Chrome's permission prompt; we retry until it resolves
+   * (any HTTP response = permission granted) before starting the SwarmDoc.
+   */
+  private async ensureBeeReachable(beeUrl: string): Promise<void> {
+    const TIMEOUT_MS = 15000
+    const POLL_MS = 750
+    const deadline = Date.now() + TIMEOUT_MS
+
+    while (Date.now() < deadline) {
+      try {
+        const controller = new AbortController()
+        const id = setTimeout(() => controller.abort(), 4000)
+        try { await fetch(beeUrl, { signal: controller.signal }) } finally { clearTimeout(id) }
+        return
+      } catch { /* permission not yet granted or node not reachable — retry */ }
+      await new Promise<void>((r) => setTimeout(r, POLL_MS))
+    }
+
+    throw new Error('Could not reach your Bee node. Make sure it is running and approve the browser connection prompt if one appeared.')
   }
 
   private transportFor(settings: CollabSettings): DocTransportFactory {
@@ -333,9 +363,10 @@ export class CollabSession {
     this.members.forEach((entry, address) => {
       if (!entry.live) return
 
-      const person = people.get(entry.identity) ?? { identity: entry.identity, username: entry.username, sessions: 0, connected: false }
+      const person = people.get(entry.identity) ?? { identity: entry.identity, username: entry.username, sessions: 0, connected: false, isCreator: false }
       person.sessions++
       person.connected = person.connected || this.peerStates.get(address) === PeerConnectionState.Connected
+      if (address.toLowerCase() === this.creatorAddress) person.isCreator = true
       people.set(entry.identity, person)
     })
     this.setState({ ...this.state, people: [...people.values()]})

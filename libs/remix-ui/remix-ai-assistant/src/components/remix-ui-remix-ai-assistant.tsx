@@ -47,6 +47,17 @@ function isValidUIPayload(payload: any): payload is { tree: Record<string, any>;
   return typeof tree.type === 'string' && VALID_UI_NODE_TYPES.has(tree.type)
 }
 
+/** A chat-title seed for a message that carries only attachments, e.g. "Screenshot of the Remix IDE". */
+function describeAttachmentsForTitle(attachments: ChatAttachment[]): string {
+  if (attachments.length === 0) return ''
+  const first = attachments[0]
+  const more = attachments.length > 1 ? ` and ${attachments.length - 1} more` : ''
+  if (first.source === 'screenshot' || first.source === 'ai-capture') return `Screenshot of the Remix IDE${more}`
+  const name = (first.name || '').replace(/\.[^.]+$/, '').replace(/[_-]+/g, ' ').trim()
+  const kind = first.kind === 'image' ? 'Image' : first.kind === 'document' ? 'PDF' : 'File'
+  return name ? `${kind} ${name}${more}` : `${kind} attachment${more}`
+}
+
 export interface RemixUiRemixAiAssistantProps {
   plugin: RemixAIAssistant
   isInitializing?: boolean
@@ -332,6 +343,11 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
   const [chatNotice, setChatNotice] = useState<ChatNoticeDisplay | null>(null)
   // Images staged on the composer for the next prompt.
   const attachmentState = useAttachments()
+  // Files staged before signing out could never be sent
+  const clearAttachments = attachmentState.clear
+  useEffect(() => {
+    if (!isAuthenticated) clearAttachments()
+  }, [isAuthenticated, clearAttachments])
 
   const dismissChatNotice = useCallback(() => {
     setChatNotice(null)
@@ -860,7 +876,9 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
         setMessages(prev => {
           const userMsg = prev[prev.length - 2]
           if (userMsg && userMsg.role === 'user' && finalText) {
-            Promise.resolve(ChatHistory.pushHistory(userMsg.content, finalText, userMsg.displayContent, { fileChanges })).then(() => props.plugin.loadConversations())
+            // Screenshots the AI took ride on the assistant message
+            const captures = prev.find(m => m.id === assistantId)?.attachments
+            Promise.resolve(ChatHistory.pushHistory(userMsg.content, finalText, userMsg.displayContent, { fileChanges, attachments: captures }, { attachments: userMsg.attachments })).then(() => props.plugin.loadConversations())
           }
           // Clear streaming states but preserve subagent name for persistent styling
           return prev.map(m =>
@@ -1517,14 +1535,12 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
     const node = historyRef.current
     if (!node || messages.length === 0) return
 
-    const isAtBottom = node.scrollHeight - node.scrollTop - node.clientHeight < 100
     const userSentNewMessage = messages.length > lastMessageCountRef.current &&
                                 messages[messages.length - 1]?.role === 'user'
     // Auto-scroll conditions:
     // - User sent a new message (always scroll)
-    // - User hasn't manually scrolled up (userHasScrolledRef is false)
-    // - Currently streaming and user is near bottom
-    if (userSentNewMessage || !userHasScrolledRef.current || (isStreaming && isAtBottom)) {
+    // - User hasn't scrolled up (scrolling back to the bottom clears userHasScrolledRef)
+    if (userSentNewMessage || !userHasScrolledRef.current) {
       node.scrollTop = node.scrollHeight
       userHasScrolledRef.current = false
     }
@@ -2183,7 +2199,7 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
       const streamedContent = (idx >= 0 ? messages[idx].content || '' : '').trim()
       const userMsg = idx > 0 ? messages[idx - 1] : null
       if (userMsg && userMsg.role === 'user' && streamedContent) {
-        Promise.resolve(ChatHistory.pushHistory(userMsg.content, streamedContent, userMsg.displayContent, { fileChanges: stoppedFileChanges }))
+        Promise.resolve(ChatHistory.pushHistory(userMsg.content, streamedContent, userMsg.displayContent, { fileChanges: stoppedFileChanges, attachments: messages[idx].attachments }, { attachments: userMsg.attachments }))
           .then(() => props.plugin.loadConversations())
           .catch((err) => remixAILogger.warn('[RemixAI Assistant] failed to persist stopped stream:', err))
       }
@@ -2256,10 +2272,11 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
         if (!ready) return
       } catch { /* assistantState not active — fall through to legacy behaviour */ }
 
-      // Navigate back to chat view if the history sidebar is open
+      // Navigate back to chat view if the history sidebar or the changes list replaced it
       if (props.showHistorySidebar && !props.isMaximized) {
         props.onToggleHistorySidebar?.()
       }
+      if (!props.isMaximized) closeChangesPanel()
 
       // firstPromptStateRef holds the live message count — sendPrompt is
       // intentionally memoized without `messages`, so its closure value is stale.
@@ -2301,7 +2318,8 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
 
       const { count: priorMessageCount, conversationId: activeConversationId } = firstPromptStateRef.current
       if (priorMessageCount === 0 && activeConversationId) {
-        props.plugin.onFirstPromptSent(activeConversationId, metadata?.displayText?.trim() || trimmed)
+        // An attachment-only first message has no text to title the chat from
+        props.plugin.onFirstPromptSent(activeConversationId, metadata?.displayText?.trim() || trimmed || describeAttachmentsForTitle(attachments))
       }
 
       /** append streaming chunks helper - clears tool status when content arrives */
@@ -2444,7 +2462,7 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
             ...prev,
             { id: assistantId, role: 'assistant', content: response, timestamp: Date.now(), sentiment: 'none' }
           ])
-          Promise.resolve(ChatHistory.pushHistory(trimmed, response, metadata?.displayText?.trim())).then(() => props.plugin.loadConversations())
+          Promise.resolve(ChatHistory.pushHistory(trimmed, response, metadata?.displayText?.trim(), undefined, { attachments: userMsg.attachments })).then(() => props.plugin.loadConversations())
           setIsStreaming(false)
           streamingAssistantIdRef.current = null
           return
@@ -2565,7 +2583,7 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
             (finalText: string, threadId) => {
               if (abortControllerRef.current?.signal.aborted) return
               setIsThinking(false)
-              Promise.resolve(ChatHistory.pushHistory(trimmed, finalText, metadata?.displayText?.trim())).then(() => props.plugin.loadConversations())
+              Promise.resolve(ChatHistory.pushHistory(trimmed, finalText, metadata?.displayText?.trim(), undefined, { attachments: userMsg.attachments })).then(() => props.plugin.loadConversations())
               setIsStreaming(false)
               props.plugin.call('remixAI', 'setAssistantThrId', threadId)
             },
@@ -2589,7 +2607,7 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
             (finalText: string) => {
               if (abortControllerRef.current?.signal.aborted) return
               setIsThinking(false)
-              Promise.resolve(ChatHistory.pushHistory(trimmed, finalText, metadata?.displayText?.trim())).then(() => props.plugin.loadConversations())
+              Promise.resolve(ChatHistory.pushHistory(trimmed, finalText, metadata?.displayText?.trim(), undefined, { attachments: userMsg.attachments })).then(() => props.plugin.loadConversations())
               setIsStreaming(false)
             },
             undefined,
@@ -2606,7 +2624,7 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
             },
             (finalText: string) => {
               if (abortControllerRef.current?.signal.aborted) return
-              Promise.resolve(ChatHistory.pushHistory(trimmed, finalText, metadata?.displayText?.trim())).then(() => props.plugin.loadConversations())
+              Promise.resolve(ChatHistory.pushHistory(trimmed, finalText, metadata?.displayText?.trim(), undefined, { attachments: userMsg.attachments })).then(() => props.plugin.loadConversations())
               setIsStreaming(false)
             }
           )
@@ -2659,7 +2677,7 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
         } catch { /* cosmetic — never let a title failure surface to the user */ }
       }
     },
-    [isStreaming, props.plugin, selectedModel, assistantChoice, dismissChatNotice, props.showHistorySidebar, props.isMaximized, props.onToggleHistorySidebar]
+    [isStreaming, props.plugin, selectedModel, assistantChoice, dismissChatNotice, props.showHistorySidebar, props.isMaximized, props.onToggleHistorySidebar, closeChangesPanel]
   )
 
   const handleSend = useCallback(async () => {
@@ -3156,23 +3174,24 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
   )
   const chatHistoryRef = useRef<HTMLElement | null>(null)
 
-  // Detect manual user scrolling
+  // Detect manual user scrolling. The history list is re-mounted when AI mode,
   useEffect(() => {
-    const node = historyRef.current
-    if (!node) return
-
-    const handleScroll = () => {
-      const isAtBottom = node.scrollHeight - node.scrollTop - node.clientHeight < 100
-
-      if (!isAtBottom) {
+    let lastScrollTop = 0
+    const handleScroll = (event: Event) => {
+      const node = historyRef.current
+      if (!node || event.target !== node) return
+      const distanceFromBottom = node.scrollHeight - node.scrollTop - node.clientHeight
+      // Any upward move stops following the stream; reaching the bottom resumes it
+      if (node.scrollTop < lastScrollTop - 2 && distanceFromBottom > 8) {
         userHasScrolledRef.current = true
-      } else {
+      } else if (distanceFromBottom < 30) {
         userHasScrolledRef.current = false
       }
+      lastScrollTop = node.scrollTop
     }
 
-    node.addEventListener('scroll', handleScroll)
-    return () => node.removeEventListener('scroll', handleScroll)
+    document.addEventListener('scroll', handleScroll, true)
+    return () => document.removeEventListener('scroll', handleScroll, true)
   }, [])
 
   const maximizePanel = async () => {
@@ -3637,17 +3656,10 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
                             request={approval}
                             onApprove={(options) => handleApproveToolAction(approval, options)}
                             onReject={() => handleRejectToolAction(approval)}
-                            onReviewChanges={() => handleReviewChanges(approval)}
+                            onReviewChanges={() => openChangesPanel({ kind: 'pending', requestId: approval.requestId })}
                             isReviewing={reviewingApprovals.has(approval.requestId)}
                           />
                         )}
-                        <ToolApprovalModal
-                          request={approval}
-                          onApprove={(options) => handleApproveToolAction(approval, options)}
-                          onReject={() => handleRejectToolAction(approval)}
-                          onReviewChanges={() => openChangesPanel({ kind: 'pending', requestId: approval.requestId })}
-                          isReviewing={reviewingApprovals.has(approval.requestId)}
-                        />
                       </div>
                     ))}
                   </section>

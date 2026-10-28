@@ -294,6 +294,61 @@ function FallbackSubmit({ node, onAction }: { node: UINode; onAction: (action: s
   )
 }
 
+// ─── Answer summary ───────────────────────────────────────────────────────────
+
+/** Every node of the tree, depth first. */
+function collectNodes(node: UINode | undefined, out: UINode[] = []): UINode[] {
+  if (!node || typeof node.type !== 'string') return out
+  out.push(node)
+  const children = (node as any).children as UINode[] | undefined
+  if (Array.isArray(children)) children.forEach(child => collectNodes(child, out))
+  return out
+}
+
+const humanize = (id: string): string => {
+  const text = id.replace(/[_-]+/g, ' ').trim()
+  return text.charAt(0).toUpperCase() + text.slice(1)
+}
+
+/**
+ * What the user chose, in the words the component showed them — the chat
+ * bubble shows this instead of the `[ui:action] {json}` sent to the model.
+ * Option values become their labels; empty fields and unticked boxes are left
+ * out. With no values, the clicked button's label is the answer.
+ */
+export function describeUIAnswer(payload: GenerativeUIPayload, action: string, data?: Record<string, any>): string {
+  const nodes = collectNodes(payload?.tree as UINode)
+  const fields = new Map<string, UINode>()
+  nodes.forEach(n => {
+    const name = (n as any).name
+    if (typeof name === 'string' && INPUT_TYPES.includes(n.type)) fields.set(name, n)
+  })
+
+  // A ticked checkbox is answered by its own label; other fields by their value.
+  const parts: { label: string; value?: string }[] = []
+  Object.entries(data ?? {}).forEach(([name, raw]) => {
+    if (raw === undefined || raw === null || raw === '' || raw === false) return
+    const field = fields.get(name) as any
+    const label = field?.label || humanize(name)
+    if (field?.type === 'checkbox') {
+      parts.push({ label })
+    } else if (field?.type === 'select' || field?.type === 'radio_group') {
+      const option = (field.options ?? []).find((opt: SelectOption) => optValue(opt) === String(raw))
+      parts.push({ label, value: option ? optLabel(option) : String(raw) })
+    } else {
+      parts.push({ label, value: typeof raw === 'object' ? JSON.stringify(raw) : String(raw) })
+    }
+  })
+
+  if (parts.length === 0) {
+    const button = nodes.find(n => (n.type === 'button' || n.type === 'form') && (n as any).action === action) as any
+    return button?.label || button?.submitLabel || humanize(action)
+  }
+  // A lone choice reads best as just the choice; several need their labels.
+  if (parts.length === 1) return parts[0].value ?? parts[0].label
+  return parts.map(p => (p.value === undefined ? p.label : `${p.label}: ${p.value}`)).join('\n')
+}
+
 // ─── Public component ─────────────────────────────────────────────────────────
 
 interface GenerativeUIRendererProps {

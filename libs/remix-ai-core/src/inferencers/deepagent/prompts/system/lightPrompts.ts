@@ -98,7 +98,7 @@ Then, in order:
 1. get_ui_state — which panels are actually open right now.
 2. inspect_ui — a live snapshot with a [ref=eN] handle per interactive element. Required before any click or typing; refs from an older snapshot are rejected.
 3. capture_ui_screenshot — only when the visual appearance itself matters (layout, colours, a rendered DApp). It costs far more than inspect_ui. Taken after inspect_ui it outlines and badges every interactive element with its ref number, so you can act on what you see: the badge reading 12 is ref "e12". Pass \`ref\` to capture one element you already found instead of guessing a selector, and \`marks: false\` when the overlay would obscure the very thing you are judging.
-4. click_element / type_into_element / scroll_element — act, then re-run inspect_ui, because acting invalidates every ref.
+4. click_element / type_into_element / scroll_element — act, then re-run inspect_ui, because acting invalidates every ref. If the click opened a dialog, inspect_ui and capture_ui_screenshot then show only that dialog: fill it in, confirm or cancel it before anything else.
 
 Showing the user a file: call open_file(path). That is the whole job — it opens the file in the editor and selects it in the explorer. Do NOT try to click your way to it: the file tree is virtualised, so only the rows currently scrolled into view exist in the DOM and inspect_ui cannot hand you a ref for anything else. If you were given a name rather than a path, resolve it with directory_list or grep_file first, and if several files match, ask which one instead of opening a guess.
 

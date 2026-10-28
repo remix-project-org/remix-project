@@ -36,14 +36,13 @@ import { GenerationParams } from '@remix/remix-ai-core';
 import { RemixInLineCompletionProvider } from './providers/inlineCompletionProvider'
 import { RemixTSCompletionProvider } from './providers/tsCompletionProvider'
 import { TooltipPopOver, openContextualTooltip } from './tooltipPopOver'
-import { FloatingActionButton } from './FloatingActionButton'
 import { QuickDappContractSelector, QuickDappSetupOptions, QuickDappFigmaPreparationResult } from '@remix-ui/quick-dapp-v2'
 import { DeployedContract } from '@remix-ui/run-tab-deployed-contracts'
 import { isQuickDappRemixVMIdentifier, normalizeQuickDappEnvironment } from '@remix-ui/helper'
 import isElectron from 'is-electron'
 import { SwarmCollab } from './swarm-collab/SwarmCollab'
 
-const COLLAB_ENABLED = new URLSearchParams(window.location.search).has('collab')
+const COLLAB_ENABLED = true //new URLSearchParams(window.location.hash.slice(1)).has('collab')
 
 const _paq = (window._paq = window._paq || []) // eslint-disable-line
 
@@ -2464,19 +2463,6 @@ For Inline mode, preserve the existing /frontend overwrite confirmation flow.`
           plugin={props.plugin}
           contextLines={tooltipData.contextLines}
           isSelectedText={tooltipData.isSelectedText}
-        />
-      )}
-
-      {/* Floating Action Button for AI Tools */}
-      {!props.isDiff && props.currentFile && (
-        <FloatingActionButton
-          onEditWithAI={handleEditWithAI}
-          onExplainContract={handleExplainContract}
-          onCreateDapp={handleCreateDapp}
-          onSecurityAudit={handleSecurityAudit}
-          onGasAudit={handleGasAudit}
-          currentFileExt={props.currentFile?.split('.').pop()?.toLowerCase()}
-          trackEvent={trackMatomoEvent}
         />
       )}
 

@@ -1,6 +1,6 @@
 {
   "solidity.displayName": "Solidity compiler",
-  "solidity.openaigptMessage": "solidity code: {content}\n error message: {messageText}\n explain why the error occurred and how to fix it.",
+  "solidity.openaigptMessage": "Fix this Solidity compilation error in {filePath}.\nError: {messageText}\nCurrent content of {filePath}:\n{content}\nMake the smallest change that resolves the error and apply it to {filePath}; if you cannot edit files, reply with the corrected code instead. Then say in one or two sentences what was wrong and what you changed.",
 
   "solidity._comment_compiler-container.tsx": "libs/remix-ui/solidity-compiler/src/lib/compiler-container.tsx",
   "solidity.compiler": "Compiler",

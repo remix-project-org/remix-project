@@ -115,6 +115,16 @@ export default class TabProxy extends Plugin {
       }
     })
 
+    // Clicking the current file doesn't fire currentFileChanged, so bring its
+    // tab back when another tab (e.g. Home) is in front. .md files open in doc-viewer.
+    this.on('filePanel', 'fileClickedFromExplorer', (file) => {
+      if (file.endsWith('.md') || file !== this.fileManager.currentFile()) return
+      const name = this.fileManager.mode === 'browser'
+        ? this.fileManager.currentWorkspace() + '/' + file
+        : file.startsWith(this.fileManager.mode + '/') ? file : this.fileManager.mode + '/' + file
+      if (this._handlers[name] && this.tabsApi.active() !== name) this.switchTab(name)
+    })
+
     this.on('fileManager', 'currentFileChanged', async (file) => {
       const workspace = this.fileManager.currentWorkspace()
 
