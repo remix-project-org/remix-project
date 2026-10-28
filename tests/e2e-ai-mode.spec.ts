@@ -166,16 +166,18 @@ test('pinning a plugin in AI mode keeps the chat in the center; leaving AI mode 
   await enterAiMode(page)
 })
 
-test('moving the pinned plugin back left during AI mode hands the right panel back to the chat', async ({ page }) => {
+test('moving the pinned plugin back left during AI mode hides the panel; leaving AI mode shows the chat', async ({ page }) => {
   await loadIde(page)
   await enterAiMode(page)
   await pinToRight(page, 'solidity')
   await expect(page.locator(`${sel.rightPanel} ${sel.panelTitle}`)).toHaveText(/Solidity compiler/i)
 
+  // Move the solidity plugin back to left (AI assistant stays registered but inactive, right panel hides)
   await click(page, `${sel.rightPanel} [data-pinnedplugin="movePluginToLeft-solidity"]`)
   await expectAiMode(page)
   await expect(page.locator(sel.rightPanel)).toBeHidden()
 
+  // Leaving AI mode shows the chat in the right panel (AI assistant was never moved to left)
   await click(page, sel.codeBtn)
   await expectCodeMode(page)
   await expect(page.locator(`${sel.rightPanel} ${sel.chatReady}`)).toBeAttached()

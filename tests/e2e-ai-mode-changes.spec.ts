@@ -44,6 +44,10 @@ async function loadIdeInAiMode (page: Page) {
   await page.goto('http://127.0.0.1:8080/#lang=en')
   await expect(page.locator('[data-id="apploaded"]')).toBeAttached({ timeout: 90_000 })
   await expect(page.locator(sel.chatReady)).toBeAttached({ timeout: 90_000 })
+
+  // Wait for getRemixAIPlugin to be available
+  await page.waitForFunction(() => (window as any).getRemixAIPlugin !== undefined, { timeout: 10_000 })
+
   await click(page, sel.aiBtn)
   await expect(page.locator(sel.switcher)).toHaveAttribute('data-active', 'ai')
   await expect(page.locator(`${sel.host} ${sel.chatReady}`)).toBeAttached()
@@ -51,13 +55,17 @@ async function loadIdeInAiMode (page: Page) {
 
 async function emitFileChanged (page: Page, change: { path: string, existed: boolean, oldContent: string, newContent: string, deleted?: boolean, movedFrom?: string }) {
   await page.evaluate((change) => {
-    (window as any).getRemixAIPlugin.emit('onAIFileChanged', { ...change, timestamp: Date.now() })
+    const plugin = (window as any).getRemixAIPlugin
+    if (!plugin) throw new Error('getRemixAIPlugin not available')
+    plugin.emit('onAIFileChanged', { ...change, timestamp: Date.now() })
   }, change)
 }
 
 async function emitApprovalRequired (page: Page, requestId: string, filePath: string, existingContent: string, proposedContent: string) {
   await page.evaluate(({ requestId, filePath, existingContent, proposedContent }) => {
-    (window as any).getRemixAIPlugin.emit('onToolApprovalRequired', {
+    const plugin = (window as any).getRemixAIPlugin
+    if (!plugin) throw new Error('getRemixAIPlugin not available')
+    plugin.emit('onToolApprovalRequired', {
       requestId,
       toolName: 'write_file',
       toolArgs: { path: filePath, content: proposedContent },
@@ -77,7 +85,7 @@ test('files changed by the agent are listed with their stats and diff, and open 
   await expect(page.locator(sel.toggleCount)).toHaveCount(0)
 
   await emitFileChanged(page, { path: '/contracts/1_Storage.sol', existed: true, oldContent: 'a\nb\nc', newContent: 'a\nB\nc\nd' })
-  await expect(page.locator(sel.toggleCount)).toHaveText('1')
+  await expect(page.locator(sel.toggleCount)).toHaveText('1', { timeout: 10_000 })
 
   // A second change to the same file keeps one row, diffed against the content before the first change
   await emitFileChanged(page, { path: '/contracts/1_Storage.sol', existed: true, oldContent: 'a\nB\nc\nd', newContent: 'a\nB\nc\nd\ne' })

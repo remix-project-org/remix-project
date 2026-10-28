@@ -62,6 +62,10 @@ test.describe.serial('Circom hashchecker: trusted setup, zk dapp button, and zkV
     await expect(workspacesSelect).toBeVisible()
     await expect(workspacesSelect).not.toHaveAttribute('data-disabled', 'true')
     await workspacesSelect.click()
+    // Remove any overlays that might have reappeared
+    await page.evaluate(() => {
+      document.querySelectorAll('#nudge-widget-container, .nudge-widget, .nudge-modal-backdrop, .nudge-decoration, .modal-backdrop').forEach((el) => el.remove())
+    })
     await page.locator('[data-id="workspacecreate"]').click()
     await expect(page.locator('[data-id="template-explorer-template-container"]')).toBeVisible()
 

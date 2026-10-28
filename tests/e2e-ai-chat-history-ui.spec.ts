@@ -87,6 +87,8 @@ for (const theme of ['Dark', 'Light']) {
   test(`chat history shows hover, open conversation and menus clearly (${theme} theme)`, async ({ page }) => {
     await loadIde(page)
     await page.evaluate((theme) => (window as any).getRemixAIPlugin.call('theme', 'switchTheme', theme), theme)
+    // Wait for theme to be applied
+    await page.waitForTimeout(500)
     await seedConversations(page)
     await page.locator('[data-id="aiReviewModeBtn"]').click({ force: true })
     await expect(page.locator('.ai-mode-toggle-group')).toHaveAttribute('data-active', 'ai')
