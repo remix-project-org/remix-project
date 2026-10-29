@@ -17,6 +17,7 @@ interface ContractKebabMenuProps {
   onCopyBytecode?: (contract: DeployedContract) => void
   onOpenInExplorer?: (contract: DeployedContract) => void
   onClear?: (contract: DeployedContract) => void
+  onSaveToArkiv?: (contract: DeployedContract) => void
 }
 
 const MenuContent = React.forwardRef<HTMLElement, any>((props, ref) => {
@@ -49,7 +50,8 @@ export const ContractKebabMenu: React.FC<ContractKebabMenuProps> = ({
   onSaveABI,
   onCopyBytecode,
   onOpenInExplorer,
-  onClear
+  onClear,
+  onSaveToArkiv,
 }) => {
   const intl = useIntl()
   const { trackMatomoEvent } = useContext(TrackingContext)
@@ -108,6 +110,14 @@ export const ContractKebabMenu: React.FC<ContractKebabMenuProps> = ({
       color: 'var(--bs-body-color)',
       action: 'deployedContractOpenExplorer' as const,
       onClick: () => onOpenInExplorer(contract)
+    },
+    onSaveToArkiv && {
+      id: 'saveToArkiv',
+      label: 'Save to Arkiv',
+      icon: 'fas fa-cloud-upload-alt',
+      color: 'var(--bs-body-color)',
+      action: 'deployedContractSaveArkiv' as const,
+      onClick: () => onSaveToArkiv(contract)
     },
     onClear && {
       id: 'clear',

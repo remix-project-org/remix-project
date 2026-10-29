@@ -6,6 +6,7 @@ import { DeployedContractItem } from '../components/DeployedContractItem'
 import { checkSumWarning } from '@remix-ui/helper'
 import { loadAddress } from '../actions'
 import { TrackingContext } from '@remix-ide/tracking'
+import { ArkivRetrievePanel } from '../components/ArkivRetrievePanel'
 
 export default function DeployedContractsPortraitView() {
   const { widgetState, dispatch, plugin, themeQuality } = useContext(DeployedContractsAppContext)
@@ -16,6 +17,7 @@ export default function DeployedContractsPortraitView() {
   const [showScrollButton, setShowScrollButton] = useState(false)
   const [newInstancesCount, setNewInstancesCount] = useState(0)
   const [openKebabMenuAddress, setOpenKebabMenuAddress] = useState<string | null>(null)
+  const [showRetrievePanel, setShowRetrievePanel] = useState(false)
   const contractRefsMap = useRef<Map<string, HTMLDivElement>>(new Map())
   const previousContractsLength = useRef(deployedContracts.length)
   const currentObserverRef = useRef<IntersectionObserver | null>(null)
@@ -143,7 +145,7 @@ export default function DeployedContractsPortraitView() {
       trackMatomoEvent?.({ category: 'udapp', action: 'addContractSubmit', name: address, isClick: false })
     } catch (e) {
       console.error('Error adding contract:', e)
-      await plugin.call('notification', 'toast', `⚠️ Error adding contract: ${e.message}`)
+      await plugin.call('notification', 'toast', `⚠️ Error adding contract: ${(e as any).message}`)
     }
   }
 
@@ -185,10 +187,24 @@ export default function DeployedContractsPortraitView() {
           </h6>
           <span className="text-secondary" data-id="deployedContractsBadge">{deployedContracts.length}</span>
         </div>
-        <div className="ms-1 me-1 d-flex">
+        <div className="ms-1 me-1 d-flex align-items-center gap-1">
           <button className="btn btn-primary btn-sm small d-flex align-items-center justify-content-between flex-nowrap" style={{ fontSize: '0.7rem' }} onClick={handleAddClick} data-id="addDeployedContract">
             <i className="fa-solid fa-plus me-1"></i>
             <span className="text-nowrap">Add Contract</span>
+          </button>
+          <button
+            className="btn btn-sm btn-outline-secondary"
+            title="Retrieve contracts saved on Arkiv"
+            data-id="retrieveFromArkiv"
+            onClick={() => {
+              trackMatomoEvent?.({ category: 'udapp', action: 'deployedContractRetrieveArkiv', name: 'clicked', isClick: true })
+              setShowRetrievePanel(prev => !prev)
+              dispatch({ type: 'SHOW_ADD_DIALOG', payload: false })
+              dispatch({ type: 'SHOW_CLEAR_ALL_DIALOG', payload: false })
+            }}
+            style={{ background: 'none', border: 'none', padding: '2px 6px' }}
+          >
+            <i className="fas fa-cloud-download-alt" aria-hidden="true"></i>
           </button>
           {deployedContracts.length > 0 && (
             <button
@@ -203,6 +219,8 @@ export default function DeployedContractsPortraitView() {
         </div>
       </div>
       { !showClearAllDialog && deployedContracts.length > 0 && <p className='text-muted px-3 mb-0' style={{ fontSize: '0.8rem' }}>Interact with a deployed contract</p>}
+      {/* Arkiv Retrieve Panel */}
+      {showRetrievePanel && <ArkivRetrievePanel onClose={() => setShowRetrievePanel(false)} />}
       {/* Add Contract Dialog */}
       {showAddDialog && (
         <div
