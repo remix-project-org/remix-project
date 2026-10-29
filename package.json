@@ -99,6 +99,7 @@
   },
   "dependencies": {
     "@apollo/client": "^3.9.5",
+    "@arkiv-network/sdk": "^0.8.1",
     "@aws-sdk/client-s3": "^3.620.0",
     "@aws-sdk/credential-providers": "^3.620.0",
     "@babel/plugin-proposal-class-properties": "^7.16.0",

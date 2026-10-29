@@ -85,6 +85,13 @@
   dependencies:
     node-fetch "^2.6.1"
 
+"@arkiv-network/sdk@^0.8.1":
+  version "0.8.1"
+  resolved "https://registry.yarnpkg.com/@arkiv-network/sdk/-/sdk-0.8.1.tgz#70d5f08ce2f4379c1f7314beaa3c736802518447"
+  integrity sha512-J2Qn7OOPZet5qGtN2XwLkSEnzk70FZCYDNclS/a4vrYBmsW4xgblTXWrczZXAhD2x4unSgGQwqpGZkBta/x7ow==
+  dependencies:
+    brotli-wasm "^3.0.1"
+
 "@aws-crypto/crc32@5.2.0":
   version "5.2.0"
   resolved "https://registry.yarnpkg.com/@aws-crypto/crc32/-/crc32-5.2.0.tgz#cfcc22570949c98c6689cfcbd2d693d36cdae2e1"
@@ -14116,7 +14123,7 @@ brorand@^1.0.1, brorand@^1.1.0:
   resolved "https://registry.yarnpkg.com/brorand/-/brorand-1.1.0.tgz#12c25efe40a45e3c323eb8675a0a0ce57b22371f"
   integrity sha512-cKV8tMCEpQs4hK/ik71d6LrPOnpkpGBR0wzxqr68g2m/LB2GxVYQroAjMJZRVM1Y4BCjCKc3vAamxSzOY2RP+w==
 
-brotli-wasm@^3.0.0:
+brotli-wasm@^3.0.0, brotli-wasm@^3.0.1:
   version "3.0.1"
   resolved "https://registry.yarnpkg.com/brotli-wasm/-/brotli-wasm-3.0.1.tgz#eefe20f7368fef20d53314cffeaa44733dc2b259"
   integrity sha512-U3K72/JAi3jITpdhZBqzSUq+DUY697tLxOuFXB+FpAE/Ug+5C3VZrv4uA674EUZHxNAuQ9wETXNqQkxZD6oL4A==
