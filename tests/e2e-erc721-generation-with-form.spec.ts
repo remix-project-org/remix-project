@@ -29,6 +29,7 @@ test('e2e-erc721-generation-with-form', async ({ page }) => {
     await page.getByTitle('Dismiss').click();
   } catch { /* not present */ }
   await page.locator('[data-id="verticalIconsKindremixaiassistant"]').click();
+  await expect(page.locator('[data-id="ai-route-status"]')).toHaveAttribute('data-route', /agent|tools|chat/, { timeout: 30_000 });
   await page.getByRole('textbox', { name: 'Type "/" for more options or' }).click();
   await page.getByRole('textbox', { name: 'Type "/" for more options or' }).fill(prompt);
   await page.getByRole('textbox', { name: 'Type "/" for more options or' }).press('Enter');
