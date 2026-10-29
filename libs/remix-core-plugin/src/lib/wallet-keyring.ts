@@ -44,7 +44,7 @@ export function buildSignMessage(purpose: string, account: string): string {
     `Account: ${account}\n\n` +
     `This signature derives a purpose-specific cryptographic key.\n` +
     `It does NOT authorize any transaction or spend any gas.\n` +
-    `Only sign on https://remix.ethereum.org`
+    `Only sign on https://app.remix.live official Remix IDE or a trusted instance.`
   )
 }
 

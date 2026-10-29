@@ -35,6 +35,7 @@ import { WalkthroughService } from './walkthroughService'
 
 import { OffsetToLineColumnConverter, CompilerMetadata, CompilerArtefacts, FetchAndCompile, CompilerImports, GistHandler, AmpPlugin, ChartJsPlugin, WalletKeyringPlugin } from '@remix-project/core-plugin'
 import { ArkivPlugin } from './app/plugins/arkiv-plugin'
+import { ArkivNetworkPlugin } from './app/plugins/arkiv-network-plugin'
 
 import { Registry, AppLifecycle, LifecyclePlugin, all } from '@remix-project/remix-lib'
 import { ConfigPlugin } from './app/plugins/config'
@@ -442,6 +443,9 @@ class AppComponent {
     // ----------------- arkiv (on-chain entity storage using derived keys) ----
     const arkivPlugin = new ArkivPlugin()
 
+    // ----------------- arkiv network (Arkiv-specific product features) -------
+    const arkivNetworkPlugin = new ArkivNetworkPlugin()
+
     // ----------------- chart (generate visualization) ------------------------
     const chartjs = new ChartJsPlugin()
 
@@ -604,6 +608,7 @@ class AppComponent {
       walletConnect,
       walletKeyring,
       arkivPlugin,
+      arkivNetworkPlugin,
       amp,
       // vega,
       chartjs,
@@ -825,6 +830,7 @@ class AppComponent {
 
     await this.appManager.activatePlugin(['walletKeyring'])
     await this.appManager.activatePlugin(['arkiv'])
+    await this.appManager.activatePlugin(['arkivNetwork'])
     await this.appManager.activatePlugin(['storage', 'storageMonitor', 'search', 'compileAndRun', 'dgitApi', 'dgit', 'helpPlugin', 'planManager'])
     await this.appManager.activatePlugin(['solidity-script', 'remix-templates'])
 
