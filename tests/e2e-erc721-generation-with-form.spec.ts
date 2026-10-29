@@ -28,6 +28,7 @@ test('e2e-erc721-generation-with-form', async ({ page }) => {
     await page.getByTitle('Dismiss').waitFor({ state: 'visible', timeout: 3000 });
     await page.getByTitle('Dismiss').click();
   } catch { /* not present */ }
+  await page.locator('[data-id="verticalIconsKindremixaiassistant"]').click();
   await page.getByRole('textbox', { name: 'Type "/" for more options or' }).click();
   await page.getByRole('textbox', { name: 'Type "/" for more options or' }).fill(prompt);
   await page.getByRole('textbox', { name: 'Type "/" for more options or' }).press('Enter');
