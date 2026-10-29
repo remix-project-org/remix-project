@@ -11,6 +11,8 @@ interface SavedContractRecord {
   abi: any[]
 }
 
+type SourcifyVerification = 'perfect' | 'partial'
+
 const CHAIN_NAMES: Record<string, string> = {
   '1': 'Ethereum',
   '11155111': 'Sepolia',
@@ -20,6 +22,36 @@ const CHAIN_NAMES: Record<string, string> = {
   '8453': 'Base',
   '56': 'BNB Chain',
   '43114': 'Avalanche',
+}
+
+async function checkSourcify(
+  contracts: SavedContractRecord[],
+): Promise<Record<string, SourcifyVerification>> {
+  const results: Record<string, SourcifyVerification> = {}
+
+  const toCheck = contracts.filter(c => c.chainId && c.address && !isNaN(Number(c.chainId)))
+
+  await Promise.all(
+    toCheck.map(async (c) => {
+      try {
+        // Sourcify API v2 — one request per (chainId, address)
+        const url = `https://sourcify.dev/server/v2/contract/${c.chainId}/${c.address}`
+        const resp = await fetch(url, {
+          signal: AbortSignal.timeout(8000),
+          headers: { 'User-Agent': 'Remix IDE (https://remix.ethereum.org)' },
+        })
+        if (!resp.ok) return  // 404 = not verified; other errors ignored
+        const data = await resp.json()
+        const match: string = data?.match ?? data?.matchType ?? ''
+        results[`${c.chainId}:${c.address.toLowerCase()}`] =
+          (match === 'exact_match' || match === 'full_match') ? 'perfect' : 'partial'
+      } catch {
+        // Timeout or network error — fail silently
+      }
+    }),
+  )
+
+  return results
 }
 
 interface ArkivRetrievePanelProps {
@@ -32,6 +64,7 @@ export const ArkivRetrievePanel: React.FC<ArkivRetrievePanelProps> = ({ onClose 
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [loadingKey, setLoadingKey] = useState<string | null>(null)
+  const [sourcify, setSourcify] = useState<Record<string, SourcifyVerification>>({})
 
   useEffect(() => {
     const load = async () => {
@@ -44,7 +77,10 @@ export const ArkivRetrievePanel: React.FC<ArkivRetrievePanelProps> = ({ onClose 
           return
         }
         const result = await (plugin as any).call('arkivNetwork', 'retrieveDeployedContracts', { walletAddress: account })
-        setContracts(result.contracts || [])
+        const loaded: SavedContractRecord[] = result.contracts || []
+        setContracts(loaded)
+        // Fire Sourcify checks in the background — don't block the panel render
+        checkSourcify(loaded).then(setSourcify)
       } catch (e: any) {
         setError(`Failed to retrieve: ${e?.message || String(e)}`)
       } finally {
@@ -106,37 +142,59 @@ export const ArkivRetrievePanel: React.FC<ArkivRetrievePanelProps> = ({ onClose 
 
       {!isLoading && contracts.length > 0 && (
         <div className="d-flex flex-column gap-2">
-          {contracts.map(record => (
-            <div
-              key={record.entityKey}
-              className="d-flex align-items-center justify-content-between p-2 rounded"
-              style={{ backgroundColor: 'var(--custom-onsurface-layer-3)', fontSize: '0.8rem' }}
-            >
-              <div className="d-flex flex-column overflow-hidden me-2" style={{ minWidth: 0 }}>
-                <span className="fw-bold text-truncate">{record.name}</span>
-                <span className="text-muted" style={{ fontSize: '0.7rem', fontFamily: 'monospace' }}>
-                  {record.address.slice(0, 8)}…{record.address.slice(-6)}
-                </span>
-                <span className="text-secondary" style={{ fontSize: '0.7rem' }}>
-                  {chainLabel(record.chainId)}{record.savedAt ? ` · ${formatDate(record.savedAt)}` : ''}
-                  {record.expiryLabel && record.expiryLabel !== 'unknown'
-                    ? ` · ${record.expiryLabel === 'permanent' ? '🔒 permanent' : `⏳ ${record.expiryLabel}`}`
-                    : ''}
-                </span>
-              </div>
-              <button
-                className="btn btn-sm btn-outline-primary flex-shrink-0"
-                style={{ fontSize: '0.7rem' }}
-                disabled={loadingKey === record.entityKey}
-                onClick={() => handleLoad(record)}
-                data-id={`loadArkivContract-${record.entityKey}`}
+          {contracts.map(record => {
+            const sourcifyKey = `${record.chainId}:${record.address.toLowerCase()}`
+            const verified = sourcify[sourcifyKey]
+
+            return (
+              <div
+                key={record.entityKey}
+                className="d-flex align-items-center justify-content-between p-2 rounded"
+                style={{ backgroundColor: 'var(--custom-onsurface-layer-3)', fontSize: '0.8rem' }}
               >
-                {loadingKey === record.entityKey
-                  ? <i className="fa fa-spinner fa-spin"></i>
-                  : 'Load'}
-              </button>
-            </div>
-          ))}
+                <div className="d-flex flex-column overflow-hidden me-2" style={{ minWidth: 0 }}>
+                  <div className="d-flex align-items-center gap-1">
+                    <span className="fw-bold text-truncate">{record.name}</span>
+                    {verified && (
+                      <a
+                        href={`https://sourcify.dev/#/lookup/${record.address}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        title={`Verified on Sourcify (${verified} match)`}
+                        onClick={e => e.stopPropagation()}
+                        style={{ lineHeight: 1, flexShrink: 0 }}
+                      >
+                        <i
+                          className={`fas fa-check-circle ${verified === 'perfect' ? 'text-success' : 'text-warning'}`}
+                          style={{ fontSize: '0.75rem' }}
+                        />
+                      </a>
+                    )}
+                  </div>
+                  <span className="text-muted" style={{ fontSize: '0.7rem', fontFamily: 'monospace' }}>
+                    {record.address.slice(0, 8)}…{record.address.slice(-6)}
+                  </span>
+                  <span className="text-secondary" style={{ fontSize: '0.7rem' }}>
+                    {chainLabel(record.chainId)}{record.savedAt ? ` · ${formatDate(record.savedAt)}` : ''}
+                    {record.expiryLabel && record.expiryLabel !== 'unknown'
+                      ? ` · ${record.expiryLabel === 'permanent' ? '🔒 permanent' : `⏳ ${record.expiryLabel}`}`
+                      : ''}
+                  </span>
+                </div>
+                <button
+                  className="btn btn-sm btn-outline-primary flex-shrink-0"
+                  style={{ fontSize: '0.7rem' }}
+                  disabled={loadingKey === record.entityKey}
+                  onClick={() => handleLoad(record)}
+                  data-id={`loadArkivContract-${record.entityKey}`}
+                >
+                  {loadingKey === record.entityKey
+                    ? <i className="fa fa-spinner fa-spin"></i>
+                    : 'Load'}
+                </button>
+              </div>
+            )
+          })}
         </div>
       )}
     </div>
