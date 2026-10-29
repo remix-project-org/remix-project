@@ -201,6 +201,7 @@ export class ArkivNetworkPlugin extends Plugin {
         payload,
         contentType,
         attributes: {
+          app:  { type: 'str', value: 'remix' },
           name: { type: 'str', value: fileName },
           path: { type: 'str', value: filePath },
         },
@@ -301,6 +302,7 @@ export class ArkivNetworkPlugin extends Plugin {
         payload: payloadHex,
         contentType: 'application/json',
         attributes: {
+          app:            { type: 'str', value: 'remix' },
           type:           { type: 'str', value: 'remix-deployed-contract' },
           schema_version: { type: 'str', value: '1' },
           wallet_address: { type: 'addr', value: walletAddress },
