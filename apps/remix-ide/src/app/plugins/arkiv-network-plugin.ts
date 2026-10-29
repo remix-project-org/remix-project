@@ -43,37 +43,13 @@ export class ArkivNetworkPlugin extends Plugin {
     super(profile)
   }
 
-  async onActivation() {
-    // Log address + balance the moment a fresh arkiv signing session opens
-    this.on('arkiv', 'unlocked', async (address: string) => {
-      await this._logWalletInfo(address)
-    })
-  }
+  async onActivation() {}
 
   onDeactivation() {
-    this.off('arkiv', 'unlocked')
+    this.off('arkivBasic', 'unlocked')
   }
 
   // ── Internal helpers ──────────────────────────────────────────────────────
-
-  private async _logWalletInfo(address: string): Promise<void> {
-    let balanceGlm = '…'
-    try {
-      const pub = createPublicClient({ chain: tiramisu, transport: http() })
-      const wei = await pub.getBalance({ address: address as Hex })
-      balanceGlm = `${parseFloat(formatEther(wei)).toFixed(4)} GLM`
-    } catch {
-      balanceGlm = '(balance unavailable)'
-    }
-
-    const scanUrl = `${SCAN_BASE_URL}/address/${address}`
-    const html =
-      `[Arkiv] Derived wallet address: <b>${address}</b> &nbsp;|&nbsp; ` +
-      `Balance: ${balanceGlm} &nbsp;|&nbsp; ` +
-      `<a href="${scanUrl}" target="_blank" rel="noopener noreferrer">View on explorer ↗</a>`
-
-    await (this as any).call('terminal', 'logHtml', html)
-  }
 
   private async _logError(message: string): Promise<void> {
     await (this as any).call('terminal', 'log', { type: 'error', value: `[Arkiv] ${message}` })
@@ -111,9 +87,8 @@ export class ArkivNetworkPlugin extends Plugin {
     const payload = '0x' + Array.from(bytes).map(b => b.toString(16).padStart(2, '0')).join('')
 
     // ── 3. Ensure the arkiv signing session is open ─────────────────────────
-    // Triggers _logWalletInfo via the 'unlocked' event if freshly derived
     try {
-      await (this as any).call('arkiv', 'unlock')
+      await (this as any).call('arkivBasic', 'unlock')
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : String(e)
       await this._logError(`Could not unlock signing session: ${msg}`)
@@ -123,7 +98,7 @@ export class ArkivNetworkPlugin extends Plugin {
     // ── 4. Write the entity to the Arkiv chain ──────────────────────────────
     let result: { entityKey: string; txHash: string }
     try {
-      result = await (this as any).call('arkiv', 'createEntity', {
+      result = await (this as any).call('arkivBasic', 'createEntity', {
         payload,
         contentType,
         attributes: {
