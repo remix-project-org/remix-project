@@ -4,12 +4,7 @@ import { remixAILogger } from '../../helpers/logger'
  * Integrates LangChain DeepAgent with Remix's AI system
  */
 
-import {
-  createDeepAgent,
-  createPatchToolCallsMiddleware,
-  createUnsupportedContentMiddleware,
-  CreateDeepAgentParams
-} from 'deepagents'
+import { createDeepAgent, createPatchToolCallsMiddleware, CreateDeepAgentParams } from 'deepagents'
 import { ICompletions, IGeneration, IParams } from '../../types/types'
 import { AIModel, modelSupportsVision } from '../../types/models'
 import { lookupCatalogEntry } from './modelParams'
@@ -37,6 +32,7 @@ import { BaseChatModel } from '@langchain/core/language_models/chat_models'
 import { IndexedDBCheckpointSaver } from '../../storage/IndexedDBCheckpointSaver'
 import type { DeepAgent } from 'deepagents'
 import { RemixDeepAgentMiddleware } from './deepAgentMiddleWare'
+import { ContextLeakGuardMiddleware } from './contextLeakGuardMiddleware'
 import { DriftMonitorMiddleware } from './driftMonitorMiddleware'
 import { RemixVisionMiddleware } from './visionMiddleware'
 import { screenshotBuffer } from './visionBuffer'
@@ -1172,8 +1168,8 @@ export class DeepAgentInferencer implements ICompletions, IGeneration {
         checkpointer,
         middleware: [
           createPatchToolCallsMiddleware(),
-          createUnsupportedContentMiddleware(),
           new RemixDeepAgentMiddleware(this.plugin, this),
+          new ContextLeakGuardMiddleware(),
           new DriftMonitorMiddleware(this.plugin),
           new RemixVisionMiddleware()
         ],

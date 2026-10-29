@@ -3,6 +3,7 @@ import EventEmitter from 'events'
 import { InactivityTimeoutManager } from './InactivityTimeoutManager'
 import { INACTIVITY_TIMEOUT_MS } from './constants'
 import { resolveToolUIString } from './tools/toolUIStrings'
+import { LeakStreamGuard } from '../../helpers/driftMonitor'
 
 interface SubagentInfo {
   name: string
@@ -36,6 +37,7 @@ export class StreamEventHandler {
   /** Model the provider actually served this run — `auto` resolves per request. */
   private resolvedModel: string | null = null
   private hasEmittedVisibleContent = false
+  private leakGuard = new LeakStreamGuard()
   private tokenUsage: TokenUsageState = {
     totalInputTokens: 0,
     totalOutputTokens: 0,
@@ -99,6 +101,7 @@ export class StreamEventHandler {
     this.inThinking = false
     this.pendingTurnSeparator = false
     this.hasEmittedVisibleContent = false
+    this.leakGuard.reset()
     this.resolvedModel = null
     this.tokenUsage = {
       totalInputTokens: 0,
@@ -390,6 +393,13 @@ export class StreamEventHandler {
     }
     this.previousRunId = currentRunId
 
+    return this.emitDelta(this.leakGuard.push(currentRunId, deltaContent), event, is_subagent, agent_name)
+  }
+
+  /** Emits answer text to the UI; every visible chunk goes through here. */
+  private emitDelta(deltaContent: string, event: any, is_subagent: boolean, agent_name: string): string {
+    if (!deltaContent) return ''
+
     if (!deltaContent.trim()) {
       if (!this.hasEmittedVisibleContent) return ''
     } else {
@@ -426,12 +436,14 @@ export class StreamEventHandler {
   private handleChatModelEnd(event: any, is_subagent: boolean, agent_name: string): string {
     // The model spoke — whatever it was reasoning about is settled.
     this.setThinking(false)
+    // Whatever the leak guard was still holding back for this run is safe now.
+    const flushed = this.emitDelta(this.leakGuard.flush(event.run_id), event, is_subagent, agent_name)
 
     const output = event.data?.output
-    if (!output) return ''
+    if (!output) return flushed
 
     const usageMetadata = output.usage_metadata || output.response_metadata?.usage
-    if (!usageMetadata) return ''
+    if (!usageMetadata) return flushed
 
     const inputTokens = usageMetadata.input_tokens || usageMetadata.prompt_tokens || 0
     const outputTokens = usageMetadata.output_tokens || usageMetadata.completion_tokens || 0
@@ -478,7 +490,7 @@ export class StreamEventHandler {
       threadId: this.getThreadId()
     })
 
-    return ''
+    return flushed
   }
 
   private handleToolStart(event: any): string {

@@ -194,18 +194,85 @@ export const LEAK_MARKERS: { name: string; marker: string }[] = [
   { name: 'prompt_envelope', marker: 'Context:' }
 ]
 
+/**
+ * The markers that are verbatim system-prompt text, as opposed to the prompt
+ * envelope, which only counts in combination with `Question:`. These are the
+ * ones safe to act on: no answer has a reason to contain them.
+ */
+const SYSTEM_LEAK_MARKERS = LEAK_MARKERS.filter(({ name }) => name !== 'prompt_envelope')
+
+/** What the user sees, and what the thread keeps, in place of a leaked answer. */
+export const CONTEXT_LEAK_NOTICE =
+  '_Response withheld: it contained RemixAI\'s internal instructions. Please rephrase your request._'
+
+/** Name of the first system-prompt marker present in `text`, or null. */
+export function findSystemLeakMarker(text: string): string | null {
+  if (!text) return null
+  return SYSTEM_LEAK_MARKERS.find(({ marker }) => text.includes(marker))?.name ?? null
+}
+
 export function detectContextLeak(output: string): DriftFinding | null {
   if (!output) return null
   // The envelope marker alone is too common a word to trust; it only counts
   // when the matching `Question:` half is there too, which is the exact shape
   // `removePeviousContextFromMessages` strips out of the history.
-  const hit = LEAK_MARKERS.find(({ name, marker }) => {
-    if (!output.includes(marker)) return false
-    if (name === 'prompt_envelope') return output.includes('Question:')
-    return true
-  })
-  if (!hit) return null
-  return { signal: 'context_leak', detail: `internal marker surfaced: ${hit.name}` }
+  const name = findSystemLeakMarker(output) ??
+    (output.includes('Context:') && output.includes('Question:') ? 'prompt_envelope' : null)
+  if (!name) return null
+  return { signal: 'context_leak', detail: `internal marker surfaced: ${name}` }
+}
+
+/**
+ * Keeps system-prompt text off the screen while an answer streams.
+ *
+ * Each model run holds back the last few characters it has not yet released
+ * (one shorter than the longest marker), so a marker split across chunks is
+ * caught before any part of it is shown. Once a marker appears, the run is
+ * blocked: the text before the marker is released, followed by
+ * `CONTEXT_LEAK_NOTICE`, and every later chunk of that run is dropped.
+ */
+export class LeakStreamGuard {
+  private readonly holdback = Math.max(...SYSTEM_LEAK_MARKERS.map(({ marker }) => marker.length)) - 1
+  private readonly runs = new Map<string, { pending: string; released: string; blocked: boolean }>()
+
+  /** Text of this chunk that is safe to show now. */
+  push(runId: string, delta: string): string {
+    const run = this.runs.get(runId) ?? { pending: '', released: '', blocked: false }
+    this.runs.set(runId, run)
+    if (run.blocked) return ''
+
+    run.pending += delta
+    const tail = run.released.slice(-this.holdback)
+    const window = tail + run.pending
+    const hits = SYSTEM_LEAK_MARKERS
+      .map(({ marker }) => window.indexOf(marker))
+      .filter((index) => index !== -1)
+    if (hits.length > 0) {
+      const safe = run.pending.slice(0, Math.max(0, Math.min(...hits) - tail.length))
+      run.blocked = true
+      run.pending = ''
+      // Leaks usually arrive inside a code block; close it, or the notice
+      // renders as code.
+      const fences = (run.released + safe).split('```').length - 1
+      return `${safe}${fences % 2 === 1 ? '\n```' : ''}\n\n${CONTEXT_LEAK_NOTICE}`
+    }
+
+    const release = run.pending.slice(0, Math.max(0, run.pending.length - this.holdback))
+    run.pending = run.pending.slice(release.length)
+    run.released += release
+    return release
+  }
+
+  /** Releases whatever the run still holds back; call when the run ends. */
+  flush(runId: string): string {
+    const run = this.runs.get(runId)
+    this.runs.delete(runId)
+    return run && !run.blocked ? run.pending : ''
+  }
+
+  reset(): void {
+    this.runs.clear()
+  }
 }
 
 /* ------------------------------------------------------------------ */

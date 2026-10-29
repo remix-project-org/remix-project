@@ -64,7 +64,9 @@ export class DriftMonitorMiddleware implements AgentMiddleware {
     return result as AIMessage
   }
 
-  async wrapToolCall(request: ToolCallRequest, handler: ToolCallHandler): Promise<ToolMessage> {
+  // An arrow property, not a method: langchain copies `wrapToolCall` off the
+  // middleware before calling it (`agents/utils.js`), so a method loses `this`.
+  wrapToolCall = async (request: ToolCallRequest, handler: ToolCallHandler): Promise<ToolMessage> => {
     try {
       const fingerprint = fingerprintToolCall(request.toolCall?.name ?? 'unknown', request.toolCall?.args)
       const finding = this.toolRepeats.push(
