@@ -138,6 +138,8 @@ export interface UdappEvent extends MatomoEventBase {
     | 'deployedContractInteractThroughProxy'
     | 'deployedContractOpenExplorer'
     | 'deployedContractRemove'
+    | 'deployedContractSaveArkiv'
+    | 'deployedContractRetrieveArkiv'
     | 'transactionsAccordionToggle'
     | 'transactionsSaveButtonClick'
     | 'transactionsClearAllButtonClick'
