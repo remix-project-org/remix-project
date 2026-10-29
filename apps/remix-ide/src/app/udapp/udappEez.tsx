@@ -17,7 +17,8 @@ import {
   EEZ_SETTINGS_KEY,
   resolveProxyAddresses as resolveProxyAddressesAction,
   createProxy as createProxyAction,
-  traceTransactionByHash as traceTransactionByHashAction
+  traceTransactionByHash as traceTransactionByHashAction,
+  stopTracePolling
 } from '@remix-ui/run-tab-eez'
 
 const profile = {
@@ -74,6 +75,7 @@ export class EezPlugin extends Plugin {
     this.networkKey = key
     const run = ++this.discoveryRun
 
+    stopTracePolling()
     this.getDispatch()?.({ type: 'NETWORK_CHANGED' })
     this.setNetworks([])
     this.setWalletRpc(eezInitialWalletRpc)
@@ -121,7 +123,7 @@ export class EezPlugin extends Plugin {
     this.getDispatch()?.({ type: 'SET_DISCOVERING', payload: isDiscovering })
   }
 
-  async checkWalletRpc(): Promise<boolean> {
+  async checkWalletRpc(): Promise<boolean | null> {
     const run = this.discoveryRun
     const isComposer = await isWalletOnComposerRpc(this, this.walletRpc.chainId)
     if (run === this.discoveryRun) this.setWalletRpc({ ...this.walletRpc, isComposer })

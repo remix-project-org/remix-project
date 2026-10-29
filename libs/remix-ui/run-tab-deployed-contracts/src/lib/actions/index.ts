@@ -12,7 +12,7 @@ const txFormat = remixLib.execution.txFormat
 
 const AUTHORIZED_PROXIES_ABI = ['function authorizedProxies(address) view returns (bool isProxy, address originalAddress, uint64 originalRollupId)']
 
-interface EezNetworkEntry {
+export interface EezNetworkEntry {
   id: string
   label: string
   rpcUrl: string | null
@@ -106,9 +106,9 @@ export async function getCrossChainDestinations(plugin: DeployedContractsPlugin)
   try {
     const ctx = await getEezContext(plugin)
     if (!ctx) return []
-    // Cross-chain actions only work when the wallet sends through the composer.
+    // Cross-chain actions only work when the wallet sends through the composer;
     const walletRpc = await plugin.call('udappEez', 'getWalletRpc')
-    if (!walletRpc?.isComposer) return []
+    if (!walletRpc || walletRpc.isComposer === false) return []
     return ctx.networks.filter((n) => n.id !== ctx.currentNetwork.id).map((n) => ({ id: n.id, label: n.label }))
   } catch (e) {
     return []

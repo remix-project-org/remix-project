@@ -1,10 +1,11 @@
 import React from 'react'
-import { JsonRpcProvider, Contract, Interface, InterfaceAbi, isAddress, isHexString, hexlify, randomBytes, toUtf8String } from 'ethers'
+import { JsonRpcProvider, Contract, Interface, InterfaceAbi, isAddress, isHexString, hexlify, randomBytes, toUtf8String, formatUnits } from 'ethers'
 // eslint-disable-next-line @nrwl/nx/enforce-module-boundaries
 import type { EezPlugin } from 'apps/remix-ide/src/app/udapp/udappEez'
 import { EEZ_ABI, EEZ_COMPOSER_PROBE_ABI, EEZ_ROLLUP_ID_ABI } from '../abi'
 import { EEZ_COMPOSER_PROBE_ADDRESS, EEZ_COMPOSER_RPC_URLS } from '../constants'
-import { Actions, EezComposerInfo, EezComposerNetwork, EezNetworkEntry, ResolutionRow, ResolvedProxyInfo, TraceLeg, TraceLegRole, TraceProxyInfo, TraceSettlement, TransactionTraceResult } from '../types'
+import { Actions, EezComposerInfo, EezComposerNetwork, EezNetworkEntry, ResolutionRow, ResolvedProxyInfo, TraceCheck, TraceComposerRecord, TraceLeg, TraceLegRole, TraceSettlement, TraceTokenTransfer, TransactionTraceResult } from '../types'
+import { AnalyzedLeg, CalldataDecoder, analyzeCrossChainCalls, linkChecks, requestedCallData, requestedProxies, tokenTransfers } from './trace-analysis'
 
 const NOT_EEZ_NETWORK = 'The currently connected network is not part of an EEZ network.'
 export const EEZ_SETTINGS_KEY = 'eez-networks'
@@ -14,26 +15,24 @@ function parseChainId(network: EezComposerNetwork): string | null {
   return String(network)
 }
 
-async function loadSettingsRpcUrls(plugin: EezPlugin): Promise<Record<string, string>> {
+async function loadSettingsNetworks(plugin: EezPlugin): Promise<{ urls: Record<string, string>; labels: Record<string, string> }> {
   const urls: Record<string, string> = {}
+  const labels: Record<string, string> = {}
   try {
     const raw = await plugin.call('config', 'getAppParameter', EEZ_SETTINGS_KEY)
-    const entries: { chainId?: string | number; rpcUrl?: string }[] = raw ? JSON.parse(raw) : []
+    const entries: { chainId?: string | number; rpcUrl?: string; label?: string }[] = raw ? JSON.parse(raw) : []
 
     for (const entry of entries) {
       const chainId = String(entry?.chainId ?? '').trim()
       const rpcUrl = (entry?.rpcUrl || '').trim()
+      const label = (entry?.label || '').trim()
       if (chainId && rpcUrl) urls[chainId] = rpcUrl
+      if (chainId && label) labels[chainId] = label
     }
   } catch (e) {
     console.warn('EEZ: unable to read the EEZ networks configured in Settings', e)
   }
-  return urls
-}
-
-async function resolveRpcUrls(plugin: EezPlugin): Promise<Record<string, string>> {
-  const composerUrls = Object.fromEntries(Object.entries(EEZ_COMPOSER_RPC_URLS).map(([chainId, { rpcUrl }]) => [chainId, rpcUrl]))
-  return { ...(await loadSettingsRpcUrls(plugin)), ...composerUrls }
+  return { urls, labels }
 }
 
 async function fetchComposerInfo(url: string, chainId: string): Promise<EezComposerInfo> {
@@ -50,7 +49,9 @@ function composerSupportsChain(info: EezComposerInfo, chainId: string): boolean 
 }
 
 export async function discoverEezNetworks(plugin: EezPlugin, currentChainId: string): Promise<EezNetworkEntry[]> {
-  const rpcUrls = await resolveRpcUrls(plugin)
+  const settings = await loadSettingsNetworks(plugin)
+  const composerUrls = Object.fromEntries(Object.entries(EEZ_COMPOSER_RPC_URLS).map(([chainId, { rpcUrl }]) => [chainId, rpcUrl]))
+  const rpcUrls: Record<string, string> = { ...settings.urls, ...composerUrls }
   const composerUrl = rpcUrls[currentChainId]
   if (!composerUrl) {
     return []
@@ -92,7 +93,7 @@ export async function discoverEezNetworks(plugin: EezPlugin, currentChainId: str
     }
     networks.push({
       id: key,
-      label: EEZ_COMPOSER_RPC_URLS[chainId]?.label,
+      label: EEZ_COMPOSER_RPC_URLS[chainId]?.label || settings.labels[chainId] || key || `Chain ${chainId}`,
       rpcUrl: rpcUrls[chainId] || null,
       eezContractAddress,
       rollupId: '',
@@ -118,7 +119,8 @@ export async function discoverEezNetworks(plugin: EezPlugin, currentChainId: str
   return networks
 }
 
-export async function isWalletOnComposerRpc(plugin: EezPlugin, chainId: string): Promise<boolean> {
+export async function isWalletOnComposerRpc(plugin: EezPlugin, chainId: string): Promise<boolean | null> {
+  if (!EEZ_COMPOSER_RPC_URLS[chainId]) return null
   const providerName = await plugin.call('blockchain', 'getProvider').catch((): null => null)
   const iface = new Interface(EEZ_COMPOSER_PROBE_ABI)
   const nonce = hexlify(randomBytes(32))
@@ -149,6 +151,7 @@ export async function switchWalletToComposerRpc(plugin: EezPlugin, dispatch: Rea
   dispatch({ type: 'START_WALLET_RPC_SWITCH' })
   try {
     await plugin.call('blockchain', 'sendRpc', 'wallet_addEthereumChain', [addEthereumChainParams(chainId)])
+    const isComposer = await plugin.checkWalletRpc()
     if (!isComposer) dispatch({ type: 'WALLET_RPC_ADDED' })
   } catch (e) {
     showWalletRpcSwitchFailed(plugin, e?.message || 'Failed to update the wallet RPC')
@@ -426,34 +429,18 @@ function resolveProxyInfo(networks: EezNetworkEntry[], result: any): ResolvedPro
   return { originalAddress, originalRollupId, originNetworkLabel: originNetwork?.label || null }
 }
 
-const MAX_EXECUTION_LEGS = 10
-
-function isL1Network(network: EezNetworkEntry) {
-  return network.rollupId === '0'
-}
-
 function isL2Network(network: EezNetworkEntry) {
   return network.rollupId !== '' && network.rollupId !== '0'
-}
-
-function receiptAddresses(receipt: any): string[] {
-  const addresses = new Set<string>()
-  if (typeof receipt?.to === 'string') addresses.add(receipt.to.toLowerCase())
-  for (const log of receipt?.logs || []) {
-    if (typeof log?.address === 'string') addresses.add(log.address.toLowerCase())
-  }
-  return Array.from(addresses)
 }
 
 function receiptSucceeded(receipt: any): boolean {
   return Number(receipt?.status) === 1
 }
 
-async function findReceipt(provider: JsonRpcProvider, txHash: string): Promise<{ receipt: any } | { status: any }> {
+async function findReceipt(provider: JsonRpcProvider, txHash: string, status: any): Promise<{ receipt: any } | { status: any }> {
   const receipt = await provider.send('eth_getTransactionReceipt', [txHash])
   if (receipt) return { receipt }
 
-  const status = await provider.send('eez_getCrossChainTransaction', [txHash]).catch((): null => null)
   const blockHash: string | undefined = status?.ownership?.canonical?.hash
   if (blockHash) {
     const receipts: any[] = await provider.send('eth_getBlockReceipts', [blockHash]).catch((): null => null)
@@ -474,22 +461,111 @@ function describeComposerStatus(status: any): string {
   return `This transaction is still pending in the composer (${ownership.state || status.lifecycle || 'unknown state'}). Trace it again once it is mined.`
 }
 
-async function findEezExecutions(
-  l2Networks: EezNetworkEntry[],
-  providerOf: (network: EezNetworkEntry) => JsonRpcProvider,
-  blockHashes: string[]
-): Promise<{ network: EezNetworkEntry; receipt: any }[]> {
-  const found: { network: EezNetworkEntry; receipt: any }[] = []
-  for (const network of l2Networks) {
-    const eezAddress = network.eezContractAddress.toLowerCase()
-    const blocks: any[][] = await Promise.all(blockHashes.map((hash) => providerOf(network).send('eth_getBlockReceipts', [hash]).catch((): null => null)))
-    for (const receipts of blocks) {
-      for (const receipt of receipts || []) {
-        if (receipt?.to?.toLowerCase() === eezAddress) found.push({ network, receipt })
-      }
-    }
+interface LinkedReference {
+  network: EezNetworkEntry
+  hash: string
+  role: TraceLegRole
+}
+
+function linkedReferences(record: any, txHash: string, networks: EezNetworkEntry[]): LinkedReference[] | null {
+  const links = record?.transactions
+  if (!links?.complete || record.hash?.toLowerCase() !== txHash.toLowerCase()) return null
+  const reference = (ref: any, role: TraceLegRole): LinkedReference => {
+    const network = isHexString(ref?.hash, 32) && networks.find((n) => BigInt(n.chainId) === BigInt(ref.chainId))
+    if (!network) throw new Error(`The composer linked a transaction on chain ${ref?.chainId}, which is not a known EEZ network.`)
+    return { network, hash: ref.hash, role }
   }
-  return found.sort((a, b) => Number(a.receipt.blockNumber) - Number(b.receipt.blockNumber))
+  if (record.direction === 'inbound') {
+    return [reference(links.postBatch, 'batch-post'), ...(links.l2 || []).map((ref: any) => reference(ref, 'delivery'))]
+  }
+  const loaders = (links.l2 || []).filter((ref: any) => ref?.hash?.toLowerCase() !== txHash.toLowerCase())
+  return [...loaders.map((ref: any) => reference(ref, 'table-load')), reference(links.l1, 'l1-execution')]
+}
+
+function composerRecord(record: any): TraceComposerRecord | null {
+  if (!record) return null
+  const canonical = record.ownership?.canonical
+  return {
+    lifecycle: record.lifecycle ?? null,
+    reason: record.ownership?.reason ?? null,
+    canonicalL1Block: canonical?.number != null ? Number(canonical.number) : null
+  }
+}
+
+async function settlementOfL2Block(provider: JsonRpcProvider, blockHash: string): Promise<TraceSettlement | null> {
+  const record = await provider.send('eez_getSettlementByL2Block', [{ blockHash }])
+  return record?.canonicalL2 ? { l1TransactionHash: record.l1TransactionHash, l1BlockNumber: Number(record.l1BlockNumber), l2Finalized: !!record.l2Finalized } : null
+}
+
+async function compiledCalldataDecoder(plugin: EezPlugin): Promise<CalldataDecoder> {
+  const abis: InterfaceAbi[] = []
+  try {
+    const contractsByFile = await plugin.call('compilerArtefacts', 'getAllContractDatas')
+    for (const contracts of Object.values(contractsByFile || {})) {
+      for (const contract of Object.values(contracts as Record<string, any>)) if (contract?.abi) abis.push(contract.abi)
+    }
+  } catch (e) {
+    console.warn('EEZ: compiled contracts unavailable, cross-chain calldata stays undecoded', e)
+  }
+  return new CalldataDecoder(abis)
+}
+
+const SIGNATURE_LOOKUP_URL = 'https://api.4byte.sourcify.dev/signature-database/v1/lookup'
+
+async function lookupFunctionSignatures(selectors: string[]): Promise<string[]> {
+  if (!selectors.length) return []
+  try {
+    const response = await fetch(`${SIGNATURE_LOOKUP_URL}?function=${selectors.join(',')}&filter=true`, { signal: AbortSignal.timeout(5000) })
+    if (!response.ok) return []
+    const body = await response.json()
+    return Object.values(body?.result?.function || {}).flatMap((matches: any) => (matches || []).map((match: any) => match?.name).filter(Boolean))
+  } catch (e) {
+    return []
+  }
+}
+
+const MAX_TOKEN_TRANSFERS = 20
+const TOKEN_METADATA_ABI = ['function symbol() view returns (string)', 'function decimals() view returns (uint8)']
+
+async function describeTokenTransfers(transfers: ReturnType<typeof tokenTransfers>, networkOf: (leg: AnalyzedLeg) => EezNetworkEntry, providerOf: (network: EezNetworkEntry) => JsonRpcProvider): Promise<TraceTokenTransfer[]> {
+  const metadata = new Map<string, Promise<{ symbol: string | null; decimals: number | null }>>()
+  const metadataOf = (network: EezNetworkEntry, token: string) => {
+    const key = `${network.chainId}:${token}`
+    if (!metadata.has(key)) {
+      const contract = new Contract(token, TOKEN_METADATA_ABI, providerOf(network))
+      metadata.set(key, Promise.all([
+        contract.symbol().then((s: string) => (s && s.length <= 32 ? s : null)).catch((): null => null),
+        contract.decimals().then((d: bigint) => Number(d)).catch((): null => null)
+      ]).then(([symbol, decimals]) => ({ symbol, decimals })))
+    }
+    return metadata.get(key)
+  }
+  return Promise.all(transfers.slice(0, MAX_TOKEN_TRANSFERS).map(async (t) => {
+    const { symbol, decimals } = await metadataOf(networkOf(t.leg), t.token)
+    return {
+      networkLabel: t.leg.networkLabel,
+      txHash: t.leg.txHash,
+      token: t.token,
+      symbol,
+      amount: decimals === null ? `${t.amount} (raw units)` : formatUnits(t.amount, decimals),
+      from: t.from,
+      to: t.to,
+      kind: t.kind
+    }
+  }))
+}
+
+const TRACE_LINK_POLL_INTERVAL_MS = 5000
+const TRACE_LINK_POLL_TIMEOUT_MS = 10 * 60 * 1000
+let traceRun = 0
+
+export function stopTracePolling() {
+  traceRun++
+}
+
+function pendingRolesOf(record: any, isL2Origin: boolean): TraceLegRole[] {
+  if (!record || record.transactions?.complete || record.lifecycle === 'terminal' && record.ownership?.rejection) return []
+  return isL2Origin ? ['table-load', 'l1-execution'] : ['batch-post', 'delivery']
 }
 
 export async function traceTransactionByHash(
@@ -498,23 +574,59 @@ export async function traceTransactionByHash(
   networks: EezNetworkEntry[],
   txHash: string
 ) {
-  if (!isHexString(txHash, 32)) {
-    dispatch({ type: 'TRACE_ERROR', payload: 'Enter a valid transaction hash' })
-    return
-  }
-  if (networks.length === 0) {
-    dispatch({ type: 'TRACE_ERROR', payload: NOT_EEZ_NETWORK })
-    return
-  }
+  const run = ++traceRun
+  const traced = await runTrace(plugin, dispatch, networks, txHash, false)
 
-  dispatch({ type: 'START_TRACE' })
+  if (traced?.result.pendingRoles.length) pollTraceLinks(plugin, dispatch, networks, txHash, traced.network, run)
+}
+
+async function pollTraceLinks(plugin: EezPlugin, dispatch: React.Dispatch<Actions>, networks: EezNetworkEntry[], txHash: string, network: EezNetworkEntry, run: number) {
+  const deadline = Date.now() + TRACE_LINK_POLL_TIMEOUT_MS
+  while (run === traceRun) {
+    await new Promise((resolve) => setTimeout(resolve, TRACE_LINK_POLL_INTERVAL_MS))
+    if (run !== traceRun) return
+    if (Date.now() > deadline) {
+      dispatch({ type: 'TRACE_LINKS_TIMEOUT', payload: txHash })
+      return
+    }
+    let record: any = null
+    try {
+      const { provider } = contractFor(network)
+      try {
+        record = await provider.send('eez_getCrossChainTransaction', [txHash])
+      } finally {
+        provider.destroy()
+      }
+    } catch (e) {
+      continue // Transient RPC failure: keep waiting.
+    }
+    if (!record?.transactions?.complete && record?.lifecycle !== 'terminal') continue
+    const traced = await runTrace(plugin, dispatch, networks, txHash, true)
+    if (run !== traceRun || !traced) continue
+    dispatch({ type: 'TRACE_LINKS_UPDATED', payload: traced.result })
+    if (!traced.result.pendingRoles.length) return
+  }
+}
+
+async function runTrace(
+  plugin: EezPlugin,
+  dispatch: React.Dispatch<Actions>,
+  networks: EezNetworkEntry[],
+  txHash: string,
+  silent: boolean
+): Promise<{ result: TransactionTraceResult; network: EezNetworkEntry } | null> {
+  const fail = (message: string): null => {
+    if (!silent) dispatch({ type: 'TRACE_ERROR', payload: message })
+    return null
+  }
+  if (!isHexString(txHash, 32)) return fail('Enter a valid transaction hash')
+  if (networks.length === 0) return fail(NOT_EEZ_NETWORK)
+
+  if (!silent) dispatch({ type: 'START_TRACE' })
 
   const currentChainId = await getCurrentChainId(plugin)
   const currentNetwork = findByChainId(networks, currentChainId)
-  if (!currentNetwork) {
-    dispatch({ type: 'TRACE_ERROR', payload: NOT_EEZ_NETWORK })
-    return
-  }
+  if (!currentNetwork) return fail(NOT_EEZ_NETWORK)
 
   const providers = new Map<string, JsonRpcProvider>()
   const providerOf = (network: EezNetworkEntry) => {
@@ -522,28 +634,6 @@ export async function traceTransactionByHash(
     return providers.get(network.id)
   }
   const managerFor = (network: EezNetworkEntry) => new Contract(network.eezContractAddress, EEZ_ABI, providerOf(network))
-  const lookupProxy = async (network: EezNetworkEntry, address: string): Promise<ResolvedProxyInfo | null> => {
-    try {
-      return resolveProxyInfo(networks, await managerFor(network).authorizedProxies(address))
-    } catch (e) {
-      return null
-    }
-  }
-
-  const resolveHops = async (network: EezNetworkEntry, first: ResolvedProxyInfo, address: string): Promise<ResolvedProxyInfo[]> => {
-    const seen = new Set([`${network.rollupId}:${address}`.toLowerCase()])
-    const follow = async (hop: ResolvedProxyInfo): Promise<ResolvedProxyInfo[]> => {
-      const key = `${hop.originalRollupId}:${hop.originalAddress}`.toLowerCase()
-      if (seen.has(key)) return [hop]
-      seen.add(key)
-      const hopNetwork = networks.find((n) => String(n.rollupId) === hop.originalRollupId)
-      if (!hopNetwork?.rpcUrl || !hopNetwork.eezContractAddress) return [hop]
-      const next = await lookupProxy(hopNetwork, hop.originalAddress)
-      return next ? [hop, ...await follow(next)] : [hop]
-    }
-    return follow(first)
-  }
-
   const toLeg = (network: EezNetworkEntry, role: TraceLegRole, hash: string, receipt: any): { network: EezNetworkEntry; leg: TraceLeg; receipt: any } => ({
     network,
     receipt,
@@ -553,6 +643,7 @@ export async function traceTransactionByHash(
       txHash: hash,
       blockNumber: receipt ? Number(receipt.blockNumber) : null,
       success: receipt ? receiptSucceeded(receipt) : null,
+      gasUsed: receipt?.gasUsed != null ? BigInt(receipt.gasUsed).toString() : null,
       error: receipt ? null : 'Receipt unavailable',
       decodedError: null
     }
@@ -560,62 +651,71 @@ export async function traceTransactionByHash(
 
   try {
     const provider = providerOf(currentNetwork)
-    const found = await findReceipt(provider, txHash)
-    if ('status' in found) {
-      dispatch({ type: 'TRACE_ERROR', payload: describeComposerStatus(found.status) })
-      return
-    }
+    const record = await provider.send('eez_getCrossChainTransaction', [txHash]).catch((): null => null)
+    const found = await findReceipt(provider, txHash, record)
+    if ('status' in found) return fail(describeComposerStatus(found.status))
     const originReceipt = found.receipt
     const traced = [toLeg(currentNetwork, 'origin', txHash, originReceipt)]
     const isL2Origin = isL2Network(currentNetwork)
+    const checks: TraceCheck[] = []
     let settlement: TraceSettlement | null = null
     let correlationError: string | null = null
-    let omittedLegs = 0
+    let references: LinkedReference[] | null = null
     try {
-      if (isL2Origin) {
-        const l1Network = networks.find(isL1Network)
-        const record = await provider.send('eez_getSettlementByL2Block', [{ blockHash: originReceipt.blockHash }])
-        if (record?.canonicalL2 && l1Network) {
-          settlement = { l1TransactionHash: record.l1TransactionHash, l1BlockNumber: Number(record.l1BlockNumber), l2Finalized: !!record.l2Finalized }
-          const receipt = await providerOf(l1Network).send('eth_getTransactionReceipt', [settlement.l1TransactionHash]).catch((): null => null)
-          traced.push(toLeg(l1Network, 'settlement', settlement.l1TransactionHash, receipt))
-        }
-      } else if (isL1Network(currentNetwork)) {
-        const records: any[] = ((await provider.send('eez_getSettledL2RangesByL1Block', [{ blockHash: originReceipt.blockHash }])) || []).filter((r: any) => r?.canonicalL2)
-        const postings = Array.from(new Set<string>(records.map((r) => r.l1TransactionHash).filter((hash) => hash && hash.toLowerCase() !== txHash.toLowerCase())))
-        for (const hash of postings) {
-          const receipt = await provider.send('eth_getTransactionReceipt', [hash]).catch((): null => null)
-          traced.push(toLeg(currentNetwork, 'settlement', hash, receipt))
-        }
-        const l2BlockHashes = Array.from(new Set<string>(records.flatMap((r) => (r.l2Blocks || []).map((b: any) => b.hash))))
-        const executions = await findEezExecutions(networks.filter(isL2Network), providerOf, l2BlockHashes)
-        omittedLegs = Math.max(0, executions.length - MAX_EXECUTION_LEGS)
-        for (const { network, receipt } of executions.slice(0, MAX_EXECUTION_LEGS)) {
-          traced.push(toLeg(network, 'execution', receipt.transactionHash, receipt))
-        }
-      }
+      references = linkedReferences(record, txHash, networks)
     } catch (e) {
-      correlationError = e?.message || 'Failed to look up the settlement of this transaction.'
+      checks.push({ label: `The composer's transaction links were not usable: ${e.message}`, ok: false })
     }
-
-    const proxySeen = new Set<string>()
-    const lookups: Promise<{ rollupId: string; proxy: TraceProxyInfo } | null>[] = []
-    for (const { network, receipt } of traced) {
-      for (const addr of receiptAddresses(receipt)) {
-        const key = `${network.rollupId}:${addr}`
-        if (proxySeen.has(key)) continue
-        proxySeen.add(key)
-        lookups.push(lookupProxy(network, addr).then(async (proxyInfo) => (
-          proxyInfo ? { rollupId: network.rollupId, proxy: { address: addr, networkLabel: network.label, hops: await resolveHops(network, proxyInfo, addr) } } : null
-        )))
+    if (references) {
+      const receipts = await Promise.all(references.map((ref) => providerOf(ref.network).send('eth_getTransactionReceipt', [ref.hash]).catch((): null => null)))
+      references.forEach((ref, i) => traced.push(toLeg(ref.network, ref.role, ref.hash, receipts[i])))
+      if (isL2Origin) {
+        try {
+          settlement = await settlementOfL2Block(provider, originReceipt.blockHash)
+        } catch (e) {
+          correlationError = e?.message || 'Failed to look up the settlement of this transaction.'
+        }
       }
     }
-    const resolved = (await Promise.all(lookups)).filter((p) => p !== null)
 
-    const proxyKeys = new Set<string>()
-    for (const { rollupId, proxy } of resolved) {
-      proxyKeys.add(`${rollupId}:${proxy.address}`.toLowerCase())
-      proxy.hops.slice(0, -1).forEach((hop) => proxyKeys.add(`${hop.originalRollupId}:${hop.originalAddress}`.toLowerCase()))
+    const legNetworks = new Map<AnalyzedLeg, EezNetworkEntry>()
+    const analyzed: AnalyzedLeg[] = traced.map(({ network, leg, receipt }) => {
+      const item: AnalyzedLeg = { role: leg.role, networkLabel: network.label, rollupId: network.rollupId, managerAddress: network.eezContractAddress, txHash: leg.txHash, receipt }
+      legNetworks.set(item, network)
+      return item
+    })
+
+    const proxyTargets = new Map<string, ResolvedProxyInfo>()
+    await Promise.all(analyzed.filter((leg) => leg.role === 'origin' || leg.role === 'delivery').flatMap((leg) => (
+      [...new Set(requestedProxies(leg))].map(async (addr) => {
+        const target = await managerFor(legNetworks.get(leg)).authorizedProxies(addr).then((info) => resolveProxyInfo(networks, info)).catch((): null => null)
+        if (target) proxyTargets.set(`${leg.rollupId}:${addr}`, target)
+      })
+    )))
+
+    const decoder = await compiledCalldataDecoder(plugin)
+    const requestedCalls = analyzed.filter((leg) => leg.role === 'origin' || leg.role === 'delivery').flatMap(requestedCallData)
+    decoder.addSignatures(await lookupFunctionSignatures(decoder.unknownSelectors(requestedCalls)))
+
+    const l1Execution = isL2Origin ? references?.find((ref) => ref.role === 'l1-execution')?.hash : txHash
+    const calls = analyzeCrossChainCalls(analyzed, {
+      networkLabelOf: (rollupId) => networks.find((n) => n.rollupId === rollupId)?.label || `rollup ${rollupId}`,
+      proxyTargets,
+      l1ExecutionTxHash: l1Execution || null,
+      l1RollupId: '0',
+      decoder
+    })
+
+    const ownLegs = analyzed.filter((leg) => ['origin', 'delivery', 'table-load'].includes(leg.role))
+    const transfers = await describeTokenTransfers(tokenTransfers(ownLegs), (leg) => legNetworks.get(leg), providerOf)
+
+    if (references) {
+      checks.push(...linkChecks(analyzed, { isL2Origin, l2RollupIds: networks.filter(isL2Network).map((n) => n.rollupId) }))
+      const canonical = record.ownership?.canonical
+      const l1Leg = traced.find(({ leg }) => leg.role === (isL2Origin ? 'l1-execution' : 'origin'))
+      if (canonical?.hash && l1Leg?.receipt) {
+        checks.push({ label: `The composer's L1 inclusion matches block #${Number(l1Leg.receipt.blockNumber)}`, ok: canonical.hash.toLowerCase() === l1Leg.receipt.blockHash?.toLowerCase() })
+      }
     }
 
     const result: TransactionTraceResult = {
@@ -623,17 +723,22 @@ export async function traceTransactionByHash(
       success: receiptSucceeded(originReceipt),
       error: null,
       decodedError: null,
-      proxies: resolved.map(({ proxy }) => proxy),
-      proxyCount: proxyKeys.size,
       legs: traced.map(({ leg }) => leg),
       settlement,
       isL2Origin,
-      omittedLegs,
-      correlationError
+      correlationError,
+      linked: !!references,
+      composer: composerRecord(record),
+      calls,
+      tokenTransfers: transfers,
+      checks,
+      pendingRoles: references ? [] : pendingRolesOf(record, isL2Origin),
+      pendingTimedOut: false
     }
-    dispatch({ type: 'TRACE_SUCCESS', payload: result })
+    if (!silent) dispatch({ type: 'TRACE_SUCCESS', payload: result })
+    return { result, network: currentNetwork }
   } catch (e: any) {
-    dispatch({ type: 'TRACE_ERROR', payload: e?.message || 'Failed to trace this transaction.' })
+    return fail(e?.message || 'Failed to trace this transaction.')
   } finally {
     providers.forEach((provider) => provider.destroy())
   }

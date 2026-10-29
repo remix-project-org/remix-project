@@ -9,7 +9,7 @@ import { checksumAddressesInValue } from '@remix-ui/utils'
 import { FuncABI } from '@remix-project/core-plugin'
 import { DeployedContractsAppContext } from '../contexts'
 import { DeployedContract } from '../types'
-import { runTransactions, checkCrossChainProxy, getCrossChainDestinations, quoteCrossChainFee, traceCrossChainCall, CrossChainDestination, CrossChainProxyInfo, CrossChainTraceResult } from '../actions'
+import { runTransactions, checkCrossChainProxy, getCrossChainDestinations, quoteCrossChainFee, traceCrossChainCall, CrossChainDestination, CrossChainProxyInfo, CrossChainTraceResult, EezNetworkEntry } from '../actions'
 import { ContractKebabMenu } from './ContractKebabMenu'
 import { EnsNaming } from './EnsNaming'
 import { QuickDappContractSelector, QuickDappFigmaPreparationResult, QuickDappSetupOptions, QuickDappModelChoice } from '@remix-ui/quick-dapp-v2'
@@ -81,14 +81,17 @@ export function DeployedContractItem({ contract, index, collapseSignal, register
       } | null>(null)
 
   useEffect(() => {
-    plugin.call('udappEnv', 'getNetwork').then((net) => {
+    plugin.call('udappEnv', 'getNetwork').then(async (net) => {
       if (net && net.name) {
         const networkName = net.name === 'VM' ? 'Remix VM' : net.name
 
         setNetworkName(networkName)
+        const eezNetworks: EezNetworkEntry[] = await plugin.call('udappEez', 'getNetworks').catch(() => null)
+        const eezNetwork = eezNetworks?.find((n) => String(n.chainId) === String(net.chainId))
+        if (eezNetwork) setNetworkName(eezNetwork.label)
       }
     })
-  }, [])
+  }, [eezNetworksVersion])
 
   useEffect(() => {
     if (!contract.abi) {
@@ -1119,7 +1122,7 @@ For Inline mode, preserve the existing /frontend overwrite confirmation flow. Co
               }}
               contract={contract}
               onCreateDapp={handleCreateDapp}
-              crossChainDestinations={crossChainProxyInfo ? [] : crossChainDestinations}
+              crossChainDestinations={crossChainDestinations}
               onCreateCrossChainProxy={handleCreateCrossChainProxy}
               onInteractThroughProxy={handleInteractThroughProxy}
               onNameContract={networkName !== 'Remix VM' ? handleNameContract : undefined}

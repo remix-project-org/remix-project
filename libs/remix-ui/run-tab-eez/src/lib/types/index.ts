@@ -48,13 +48,7 @@ export interface ResolvedProxyInfo {
   originNetworkLabel: string | null
 }
 
-export interface TraceProxyInfo {
-  address: string
-  networkLabel: string
-  hops: ResolvedProxyInfo[]
-}
-
-export type TraceLegRole = 'origin' | 'settlement' | 'execution'
+export type TraceLegRole = 'origin' | 'batch-post' | 'delivery' | 'table-load' | 'l1-execution'
 
 export interface TraceLeg {
   role: TraceLegRole
@@ -62,8 +56,51 @@ export interface TraceLeg {
   txHash: string
   blockNumber: number | null
   success: boolean | null
+  gasUsed: string | null
   error: string | null
   decodedError: string | null
+}
+
+export type TraceCallStatus = 'delivered' | 'prepared' | 'not-observed'
+
+export interface TraceCrossChainCall {
+  hash: string
+  depth: number
+  sourceNetworkLabel: string
+  sourceAddress: string
+  proxyAddress: string | null
+  targetNetworkLabel: string
+  targetAddress: string | null
+  value: string
+  isStatic: boolean | null
+  functionLabel: string | null
+  requestTxHash: string | null
+  executionTxHash: string | null
+  status: TraceCallStatus
+  success: boolean | null
+  resultLabel: string | null
+}
+
+export interface TraceTokenTransfer {
+  networkLabel: string
+  txHash: string
+  token: string
+  symbol: string | null
+  amount: string
+  from: string
+  to: string
+  kind: 'transfer' | 'mint' | 'burn'
+}
+
+export interface TraceComposerRecord {
+  lifecycle: string | null
+  reason: string | null
+  canonicalL1Block: number | null
+}
+
+export interface TraceCheck {
+  label: string
+  ok: boolean
 }
 
 export interface TraceSettlement {
@@ -77,13 +114,17 @@ export interface TransactionTraceResult {
   success: boolean
   error: string | null
   decodedError: string | null
-  proxies: TraceProxyInfo[]
-  proxyCount: number
   legs: TraceLeg[]
   settlement: TraceSettlement | null
   isL2Origin: boolean
-  omittedLegs: number
   correlationError: string | null
+  linked: boolean
+  pendingRoles: TraceLegRole[]
+  pendingTimedOut: boolean
+  composer: TraceComposerRecord | null
+  calls: TraceCrossChainCall[]
+  tokenTransfers: TraceTokenTransfer[]
+  checks: TraceCheck[]
 }
 
 export interface EezWalletRpc {
@@ -152,6 +193,8 @@ export type Actions =
   | { type: 'START_TRACE' }
   | { type: 'TRACE_SUCCESS'; payload: TransactionTraceResult }
   | { type: 'TRACE_ERROR'; payload: string }
+  | { type: 'TRACE_LINKS_UPDATED'; payload: TransactionTraceResult }
+  | { type: 'TRACE_LINKS_TIMEOUT'; payload: string }
   | { type: 'SET_WALLET_RPC'; payload: EezWalletRpc }
   | { type: 'START_WALLET_RPC_SWITCH' }
   | { type: 'WALLET_RPC_SWITCH_DONE' }
