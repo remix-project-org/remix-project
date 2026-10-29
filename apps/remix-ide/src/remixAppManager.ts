@@ -138,6 +138,7 @@ let requiredModules = [
   'udappEez',
   'txRunner',
   'walletKeyring',
+  'arkiv',
   'betaCornerWidget',
   'lifecycle',
   'nudgePlugin',
