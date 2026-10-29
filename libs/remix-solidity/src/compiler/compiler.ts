@@ -320,8 +320,9 @@ export class Compiler {
             result = { error: { formattedMessage: 'Invalid JSON output from the compiler: ' + exception } }
           }
           let sources: SourceWithTarget = {}
-          if (data.job in jobs !== undefined) {
-            sources = jobs[data.job].sources
+          const job = jobs[data.job]
+          if (job !== undefined) {
+            sources = job.sources
             delete jobs[data.job]
           }
           this.onCompilationFinished(result, data.missingInputs, sources, data.input, this.state.currentVersion, data.timestamp)
