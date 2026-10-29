@@ -15,6 +15,13 @@
           "updateBuildableProjectDepsInPackageJson": false
         }
       },
+      "test": {
+        "executor": "@nrwl/workspace:run-commands",
+        "options": {
+          "command": "TS_NODE_PROJECT=libs/remix-core-plugin/tsconfig.spec.json mocha -r ts-node/register -r tsconfig-paths/register --timeout 10000 \"libs/remix-core-plugin/src/lib/wallet-keyring.spec.ts\"",
+          "cwd": "."
+        }
+      },
       "lint": {
         "executor": "@nrwl/linter:eslint",
         "outputs": ["{options.outputFile}"],
