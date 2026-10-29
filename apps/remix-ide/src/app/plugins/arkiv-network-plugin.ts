@@ -96,6 +96,7 @@ export class ArkivNetworkPlugin extends Plugin {
     }
 
     // ── 4. Write the entity to the Arkiv chain ──────────────────────────────
+    await (this as any).call('terminal', 'logHtml', { value: `[Arkiv] Publishing "${fileName}" to Arkiv Network…` })
     let result: { entityKey: string; txHash: string }
     try {
       result = await (this as any).call('arkivBasic', 'createEntity', {
@@ -113,14 +114,14 @@ export class ArkivNetworkPlugin extends Plugin {
       throw e
     }
 
-    // ── 5. Show the shareable link ───────────────────────────────────────────
+    // ── 5. Log transaction and share link to terminal ────────────────────────
     const shareUrl = `${SHARE_BASE_URL}?arkiv=${result.entityKey}`
-    await (this as any).call('notification', 'modal', {
-      id: 'arkivShareSuccess',
-      title: `"${fileName}" published`,
-      message: `The file is now live on the Arkiv Network.\n\nShare it with:\n\n${shareUrl}`,
-      okLabel: 'Close',
-    })
+    const scanUrl = `${SCAN_BASE_URL}/tx/${result.txHash}`
+    const html =
+      `[Arkiv] "${fileName}" published — tx processing: ` +
+      `<a href="${scanUrl}" target="_blank" rel="noopener noreferrer">${result.txHash}</a>` +
+      `<br>[Arkiv] Share link: <a href="${shareUrl}" target="_blank" rel="noopener noreferrer">${shareUrl}</a>`
+    await (this as any).call('terminal', 'logHtml', { value: html })
 
     this.emit('fileSaved', filePath, result.entityKey)
     return result.entityKey
