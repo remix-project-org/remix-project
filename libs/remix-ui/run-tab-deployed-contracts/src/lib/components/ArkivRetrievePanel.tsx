@@ -7,6 +7,7 @@ interface SavedContractRecord {
   name: string
   chainId: string
   savedAt: number
+  expiryLabel: string
   abi: any[]
 }
 
@@ -118,6 +119,9 @@ export const ArkivRetrievePanel: React.FC<ArkivRetrievePanelProps> = ({ onClose 
                 </span>
                 <span className="text-secondary" style={{ fontSize: '0.7rem' }}>
                   {chainLabel(record.chainId)}{record.savedAt ? ` · ${formatDate(record.savedAt)}` : ''}
+                  {record.expiryLabel && record.expiryLabel !== 'unknown'
+                    ? ` · ${record.expiryLabel === 'permanent' ? '🔒 permanent' : `⏳ ${record.expiryLabel}`}`
+                    : ''}
                 </span>
               </div>
               <button
