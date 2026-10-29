@@ -137,6 +137,7 @@ let requiredModules = [
   'udappTransactions',
   'udappEez',
   'txRunner',
+  'walletKeyring',
   'betaCornerWidget',
   'lifecycle',
   'nudgePlugin',
@@ -159,6 +160,7 @@ const sensitiveCalls = {
   fileManager: ['writeFile', 'copyFile', 'rename', 'copyDir'],
   contentImport: ['resolveAndSave'],
   web3Provider: ['sendAsync'],
+  walletKeyring: ['unlock', 'signMessage', 'signTypedData', 'signTransaction', 'encrypt', 'decrypt'],
 }
 
 const isInjectedProvider = (name) => {
@@ -225,6 +227,7 @@ export function isNative(name) {
     'udappTransactions',
     'udappEez',
     'txRunner',
+    'walletKeyring',
     'lifecycle',
     'skillsexplorermodal',
     'thegraph'

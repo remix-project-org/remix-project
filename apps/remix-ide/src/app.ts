@@ -33,7 +33,7 @@ import { ContractFlattener } from './app/plugins/contractFlattener'
 
 import { WalkthroughService } from './walkthroughService'
 
-import { OffsetToLineColumnConverter, CompilerMetadata, CompilerArtefacts, FetchAndCompile, CompilerImports, GistHandler, AmpPlugin, ChartJsPlugin } from '@remix-project/core-plugin'
+import { OffsetToLineColumnConverter, CompilerMetadata, CompilerArtefacts, FetchAndCompile, CompilerImports, GistHandler, AmpPlugin, ChartJsPlugin, WalletKeyringPlugin } from '@remix-project/core-plugin'
 
 import { Registry, AppLifecycle, LifecyclePlugin, all } from '@remix-project/remix-lib'
 import { ConfigPlugin } from './app/plugins/config'
@@ -435,6 +435,9 @@ class AppComponent {
     // ----------------- vega (generate visualization) ------------------------
     // const vega = new VegaPlugin()
 
+    // ----------------- wallet keyring (purpose-scoped signing / encryption) --
+    const walletKeyring = new WalletKeyringPlugin()
+
     // ----------------- chart (generate visualization) ------------------------
     const chartjs = new ChartJsPlugin()
 
@@ -595,6 +598,7 @@ class AppComponent {
       quickDappV2,
       theGraphPlugin,
       walletConnect,
+      walletKeyring,
       amp,
       // vega,
       chartjs,
@@ -814,6 +818,7 @@ class AppComponent {
     await this.appManager.activatePlugin(['feedback'])
     await this.appManager.activatePlugin(['settings'])
 
+    await this.appManager.activatePlugin(['walletKeyring'])
     await this.appManager.activatePlugin(['storage', 'storageMonitor', 'search', 'compileAndRun', 'dgitApi', 'dgit', 'helpPlugin', 'planManager'])
     await this.appManager.activatePlugin(['solidity-script', 'remix-templates'])
 
