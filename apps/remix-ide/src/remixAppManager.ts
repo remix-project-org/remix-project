@@ -139,6 +139,7 @@ let requiredModules = [
   'txRunner',
   'walletKeyring',
   'arkiv',
+  'arkivNetwork',
   'betaCornerWidget',
   'lifecycle',
   'nudgePlugin',
@@ -504,6 +505,17 @@ export class RemixAppManager extends BaseRemixAppManager {
       label: 'Create DApp from Subgraph Query',
       type: [],
       extension: ['.subgraph'],
+      path: [],
+      pattern: [],
+      group: 2,
+      multiselect: false
+    })
+    this.call('filePanel', 'registerContextMenuItem', {
+      id: 'arkivNetwork',
+      name: 'shareFile',
+      label: 'Share File with Arkiv',
+      type: ['file'],
+      extension: [],
       path: [],
       pattern: [],
       group: 2,
