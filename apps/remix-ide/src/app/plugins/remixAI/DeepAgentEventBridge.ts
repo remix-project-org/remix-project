@@ -38,7 +38,9 @@ export class DeepAgentEventBridge {
     'onAIFileChanged',
     'onTokenUsage',
     'onModelUsed',
-    'onInactivityTimeout'
+    'onInactivityTimeout',
+    'onStreamReplace',
+    'onModelDegraded'
   ] as const
 
   setupListeners(inferencer: DeepAgentInferencer, plugin: IRemixAIPlugin): void {
@@ -126,6 +128,17 @@ export class DeepAgentEventBridge {
     // Which model actually served the run (matters when `auto` is selected).
     eventEmitter.on('onModelUsed', (data: ModelUsedData) => {
       plugin.emit('onModelUsed', data)
+    })
+
+    // A drift countermeasure retried a model call: the UI drops the text the
+    // first attempt already streamed.
+    eventEmitter.on('onStreamReplace', (data: { remove: string; threadId?: string }) => {
+      plugin.emit('onStreamReplace', data)
+    })
+
+    // Sustained latency / size drift of the selected model, or its recovery.
+    eventEmitter.on('onModelDegraded', (data: { modelId: string; label: string; degraded: boolean; detail: string }) => {
+      plugin.emit('onModelDegraded', data)
     })
 
     // Human-in-the-loop: relay approval requests to UI

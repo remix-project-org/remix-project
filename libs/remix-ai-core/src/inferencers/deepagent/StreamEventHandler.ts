@@ -38,6 +38,10 @@ export class StreamEventHandler {
   private resolvedModel: string | null = null
   private hasEmittedVisibleContent = false
   private leakGuard = new LeakStreamGuard()
+  /** What the latest main-agent model run put on screen, so a retry can take it back. */
+  private lastMainRun: { runId: string; text: string; visibleBefore: boolean } | null = null
+  private retractionPending = false
+  private retractedText = ''
   private tokenUsage: TokenUsageState = {
     totalInputTokens: 0,
     totalOutputTokens: 0,
@@ -62,6 +66,40 @@ export class StreamEventHandler {
 
   startInactivityTracking(): void {
     this.inactivityTimeout.reset()
+  }
+
+  /**
+   * Asks for the latest main-agent run's text to be taken back off the
+   * screen, because a retry of that model call is about to start. Applied
+   * when the retry's first event arrives rather than now: the stream is
+   * processed asynchronously, so chunks of the run being retracted may still
+   * be on their way.
+   */
+  requestRetraction(): void {
+    this.retractionPending = true
+  }
+
+  /** The retry failed before producing anything; keep the original text. */
+  cancelRetraction(): void {
+    this.retractionPending = false
+  }
+
+  /** Text taken back since the last call, for the caller's own transcript. */
+  consumeRetractedText(): string {
+    const text = this.retractedText
+    this.retractedText = ''
+    return text
+  }
+
+  private applyPendingRetraction(runId: string): void {
+    if (!this.retractionPending || !this.lastMainRun || this.lastMainRun.runId === runId) return
+    this.retractionPending = false
+    const { text, visibleBefore } = this.lastMainRun
+    this.lastMainRun = null
+    if (!text) return
+    this.retractedText += text
+    this.hasEmittedVisibleContent = visibleBefore
+    this.event.emit('onStreamReplace', { remove: text, threadId: this.getThreadId() })
   }
 
   /** First error seen on the stream during this run, if any. */
@@ -102,6 +140,9 @@ export class StreamEventHandler {
     this.pendingTurnSeparator = false
     this.hasEmittedVisibleContent = false
     this.leakGuard.reset()
+    this.lastMainRun = null
+    this.retractionPending = false
+    this.retractedText = ''
     this.resolvedModel = null
     this.tokenUsage = {
       totalInputTokens: 0,
@@ -386,6 +427,7 @@ export class StreamEventHandler {
     if (!deltaContent) return ''
 
     const currentRunId = event.run_id
+    if (!is_subagent) this.applyPendingRetraction(currentRunId)
     if (this.previousRunId !== null && this.previousRunId !== currentRunId) {
       // Log token usage when run_id changes (new agent turn)
       remixAILogger.log(`[DeepAgent-Tokens] Run ID changed: ${this.previousRunId} → ${currentRunId}`)
@@ -400,6 +442,10 @@ export class StreamEventHandler {
   private emitDelta(deltaContent: string, event: any, is_subagent: boolean, agent_name: string): string {
     if (!deltaContent) return ''
 
+    if (!is_subagent && this.lastMainRun?.runId !== event.run_id) {
+      this.lastMainRun = { runId: event.run_id, text: '', visibleBefore: this.hasEmittedVisibleContent }
+    }
+
     if (!deltaContent.trim()) {
       if (!this.hasEmittedVisibleContent) return ''
     } else {
@@ -409,6 +455,8 @@ export class StreamEventHandler {
       this.pendingTurnSeparator = false
       this.hasEmittedVisibleContent = true
     }
+
+    if (!is_subagent && this.lastMainRun) this.lastMainRun.text += deltaContent
 
     if (is_subagent) {
       this.event.emit('onStreamResult', {
@@ -436,6 +484,8 @@ export class StreamEventHandler {
   private handleChatModelEnd(event: any, is_subagent: boolean, agent_name: string): string {
     // The model spoke — whatever it was reasoning about is settled.
     this.setThinking(false)
+    // A retry that only called tools still replaces the attempt before it.
+    if (!is_subagent) this.applyPendingRetraction(event.run_id)
     // Whatever the leak guard was still holding back for this run is safe now.
     const flushed = this.emitDelta(this.leakGuard.flush(event.run_id), event, is_subagent, agent_name)
 

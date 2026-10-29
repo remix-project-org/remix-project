@@ -4,7 +4,7 @@ import { remixAILogger } from '../../helpers/logger'
  * Integrates LangChain DeepAgent with Remix's AI system
  */
 
-import { createDeepAgent, createPatchToolCallsMiddleware, CreateDeepAgentParams } from 'deepagents'
+import { createDeepAgent, createPatchToolCallsMiddleware, createSummarizationMiddleware, CreateDeepAgentParams } from 'deepagents'
 import { ICompletions, IGeneration, IParams } from '../../types/types'
 import { AIModel, modelSupportsVision } from '../../types/models'
 import { lookupCatalogEntry } from './modelParams'
@@ -34,6 +34,8 @@ import type { DeepAgent } from 'deepagents'
 import { RemixDeepAgentMiddleware } from './deepAgentMiddleWare'
 import { ContextLeakGuardMiddleware } from './contextLeakGuardMiddleware'
 import { DriftMonitorMiddleware } from './driftMonitorMiddleware'
+import { getDriftMode } from '../../helpers/driftActions'
+import { startDriftBaselinePersistence } from '../../helpers/driftBaselineStore'
 import { RemixVisionMiddleware } from './visionMiddleware'
 import { screenshotBuffer } from './visionBuffer'
 import { screenshotConsent } from './screenshotConsent'
@@ -270,6 +272,7 @@ export class DeepAgentInferencer implements ICompletions, IGeneration {
   async initialize(): Promise<void> {
     try {
       await this.logInitDiagnostics()
+      void startDriftBaselinePersistence()
 
       // Mirror the backend catalogue before building anything — it carries
       // each model's token budget / temperature, which ModelFactory reads.
@@ -799,6 +802,13 @@ export class DeepAgentInferencer implements ICompletions, IGeneration {
 
         const result = this.streamEventHandler.processEvent(event)
         fullResponse += result.content
+        // An echo retry took the first attempt back off the screen; keep the
+        // transcript in step, or onStreamComplete would paint it again.
+        const retracted = this.streamEventHandler.consumeRetractedText()
+        if (retracted && fullResponse.includes(retracted)) {
+          const at = fullResponse.lastIndexOf(retracted)
+          fullResponse = fullResponse.slice(0, at) + fullResponse.slice(at + retracted.length)
+        }
         if (result.finalMessage) {
           finalMessageFromChain = result.finalMessage
         }
@@ -1111,6 +1121,38 @@ export class DeepAgentInferencer implements ICompletions, IGeneration {
     ) as unknown as DynamicStructuredTool
   }
 
+  private createDriftMonitor(role: 'main' | 'subagent'): DriftMonitorMiddleware {
+    return new DriftMonitorMiddleware({
+      plugin: this.plugin,
+      role,
+      retraction: role === 'main'
+        ? {
+          request: () => this.streamEventHandler.requestRetraction(),
+          cancel: () => this.streamEventHandler.cancelRetraction()
+        }
+        : undefined,
+      onDegradation: (label, degraded, detail) => {
+        this.event.emit('onModelDegraded', { modelId: this.modelSelection.modelId, label, degraded, detail })
+      }
+    })
+  }
+
+  /**
+   * deepagents summarises the history only at 85% of the context window (or
+   * 170k tokens when the model reports no window) — long after a thread has
+   * started drifting. In `act` mode the default is replaced, by name, with
+   * one that compacts much earlier. Read when the agent is built, so a mode
+   * change applies from the next model switch or reload.
+   */
+  private summarizationOverride(): any[] {
+    if (getDriftMode() !== 'act') return []
+    return [createSummarizationMiddleware({
+      backend: this.filesystemBackend as any,
+      trigger: { type: 'tokens', value: 60_000 },
+      keep: { type: 'messages', value: 8 }
+    } as any)]
+  }
+
   private async createAgentWithTools(selectedTools: DynamicStructuredTool[]): Promise<void> {
     try {
       if (!this.model) {
@@ -1166,12 +1208,17 @@ export class DeepAgentInferencer implements ICompletions, IGeneration {
         },
         skills: hasSkillsPermission ? ["skills/"] : [],
         checkpointer,
+        // Order matters for wrapModelCall: the first entry is outermost. The
+        // leak guard wraps the drift monitor so the monitor still reports the
+        // original answer; the monitor is innermost so it measures the request
+        // exactly as sent and its retries go straight to the model.
         middleware: [
           createPatchToolCallsMiddleware(),
           new RemixDeepAgentMiddleware(this.plugin, this),
           new ContextLeakGuardMiddleware(),
-          new DriftMonitorMiddleware(this.plugin),
-          new RemixVisionMiddleware()
+          new RemixVisionMiddleware(),
+          this.createDriftMonitor('main'),
+          ...this.summarizationOverride()
         ],
       }
 
@@ -1190,7 +1237,8 @@ export class DeepAgentInferencer implements ICompletions, IGeneration {
           agentConfig.subagents = await buildSubagentConfigs(
             shapedTools,
             this.model,
-            this.filesystemBackend
+            this.filesystemBackend,
+            () => [this.createDriftMonitor('subagent')]
           )
         } catch (subagentError) {
           remixAILogger.error(

@@ -116,6 +116,8 @@ export interface PromptAreaProps {
   usingOwnApiKey?: boolean
   aiRoute?: 'initializing' | 'agent' | 'tools' | 'chat'
   aiRouteReady?: boolean
+  /** Set while the selected model is running well below its usual speed or size. */
+  modelDegradedDetail?: string
   // When false the composer renders an explicit "Sign in" CTA in place
   // of the disabled send button. Without this hint the user just sees a
   // greyed-out paper plane and an "Initialising agents…" placeholder —
@@ -173,6 +175,7 @@ export const PromptArea: React.FC<PromptAreaProps> = ({
   usingOwnApiKey,
   aiRoute = 'chat',
   aiRouteReady = true,
+  modelDegradedDetail,
   isAuthenticated = true,
   onSignIn,
   handleLoadSkills,
@@ -889,6 +892,17 @@ export const PromptArea: React.FC<PromptAreaProps> = ({
                               : 'Initialising…'}
                       </span>
                     </CustomTooltip>
+                    {modelDegradedDetail && (
+                      <CustomTooltip tooltipText={`This model is underperforming: ${modelDegradedDetail}. Consider switching models.`}>
+                        <span
+                          className="badge bg-warning ms-2"
+                          style={{ fontSize: '0.6rem', padding: '2px 4px', color: '#000' }}
+                          data-id="ai-model-degraded"
+                        >
+                          Degraded
+                        </span>
+                      </CustomTooltip>
+                    )}
                     <span className={showModelSelector ? "fa fa-caret-up ms-1" : "fa fa-caret-down ms-1"}></span>
                   </div>
                 </button>
