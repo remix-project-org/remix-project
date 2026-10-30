@@ -98,6 +98,7 @@ export const eezReducer = (state: EezWidgetState, action: Actions): EezWidgetSta
         {
           proxyAddress: action.payload.proxyAddress,
           txHash: action.payload.txHash,
+          originNetworkId: action.payload.originNetworkId,
           originNetworkLabel: action.payload.originNetworkLabel,
           originAddress: action.payload.originAddress,
           destinationNetworkId: action.payload.destinationNetworkId,

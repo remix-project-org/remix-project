@@ -1,7 +1,7 @@
 import React, { useContext, useEffect, useState } from 'react'
 import { Dropdown } from 'react-bootstrap'
 import { EezAppContext } from '../contexts'
-import { resolveProxyAddresses, previewProxyCreation, createProxy, traceTransactionByHash, switchWalletToComposerRpc, stopTracePolling } from '../actions'
+import { resolveProxyAddresses, previewProxyCreation, createProxy, traceTransactionByHash, switchWalletToComposerRpc, stopTracePolling, resolveOriginAbi } from '../actions'
 import { EEZ_COMPOSER_RPC_URLS } from '../constants'
 import { FormattedMessage } from 'react-intl'
 import { CopyToClipboard } from '@remix-ui/clipboard'
@@ -87,12 +87,18 @@ function EezPortraitView() {
     }
   }
 
-  const handleLoadResolvedProxy = async (proxyAddress: string, networkId: string) => {
+  const handleLoadResolvedProxy = async (proxyAddress: string, networkId: string, originNetworkId: string, originAddress: string) => {
     setLoadingProxyAddress(proxyAddress)
     try {
+      const originNetwork = networks.find((n) => n.id === originNetworkId)
+      const origin = originNetwork ? await resolveOriginAbi(plugin, originNetwork, originAddress) : null
       if (networkId !== currentNetwork?.id && !(await plugin.switchToNetwork(networkId))) return
       window.dispatchEvent(new CustomEvent('udapp:switchTab', { detail: { tab: 'contracts' } }))
-      await plugin.call('udappDeployedContracts', 'openAddContractDialog', proxyAddress)
+      if (origin) {
+        await plugin.call('udappDeployedContracts', 'addInstance', proxyAddress, origin.abi, origin.name)
+      } else {
+        await plugin.call('udappDeployedContracts', 'openAddContractDialog', proxyAddress)
+      }
     } catch (e) {
       plugin.call('notification', 'toast', e?.message || 'Failed to switch network')
     } finally {
@@ -335,7 +341,7 @@ function EezPortraitView() {
                     data-id="eezLoadPreviewedProxy"
                     style={{ backgroundColor: '#64C4FF14', color: '#64c4ff', border: 'none', fontSize: '10px', fontWeight: 700, padding: '3px 10px' }}
                     disabled={!!loadingProxyAddress}
-                    onClick={() => handleLoadResolvedProxy(creator.previewAddress, currentNetwork?.id)}
+                    onClick={() => handleLoadResolvedProxy(creator.previewAddress, currentNetwork?.id, creator.originNetworkId, creator.originAddress.trim())}
                   >
                     {loadingProxyAddress === creator.previewAddress ? <i className="fas fa-spinner fa-spin"></i> : 'Load'}
                   </button>
@@ -542,7 +548,7 @@ function EezPortraitView() {
                     data-id={`eezLoadCreatedProxy-${p.proxyAddress}`}
                     style={{ backgroundColor: '#64C4FF14', color: '#64c4ff', border: 'none', fontSize: '10px', fontWeight: 700, padding: '3px 10px' }}
                     disabled={!!loadingProxyAddress}
-                    onClick={() => handleLoadResolvedProxy(p.proxyAddress, p.destinationNetworkId)}
+                    onClick={() => handleLoadResolvedProxy(p.proxyAddress, p.destinationNetworkId, p.originNetworkId, p.originAddress)}
                   >
                     {loadingProxyAddress === p.proxyAddress ? <i className="fas fa-spinner fa-spin"></i> : 'Load'}
                   </button>

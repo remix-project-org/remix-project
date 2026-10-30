@@ -398,6 +398,7 @@ export async function createProxy(
       payload: {
         txHash,
         proxyAddress,
+        originNetworkId: originNetwork.id,
         originNetworkLabel: originNetwork.label,
         originAddress,
         destinationNetworkId: destinationNetwork.id,
@@ -411,6 +412,41 @@ export async function createProxy(
       : message
     dispatch({ type: 'CREATE_ERROR', payload: friendly })
   }
+}
+
+export async function resolveOriginAbi(plugin: EezPlugin, originNetwork: EezNetworkEntry, originAddress: string): Promise<{ abi: any; name: string } | null> {
+  const address = originAddress.toLowerCase()
+
+  if (plugin.walletRpc.chainId === originNetwork.chainId) {
+    const deployed: any[] = await plugin.call('udappDeployedContracts', 'getDeployedContracts').catch(() => [])
+    const match = deployed.find((contract) => contract.address?.toLowerCase() === address)
+    const abi = match?.abi || match?.contractData?.abi
+    if (abi) return { abi, name: match.name }
+  }
+
+  for (const pinnedPath of [`.deploys/pinned-contracts/${originNetwork.chainId}/${originAddress}.json`, `.deploys/pinned-contracts/${originNetwork.chainId}/${address}.json`]) {
+    try {
+      if (!(await plugin.call('fileManager', 'exists', pinnedPath))) continue
+      const pinned = JSON.parse(await plugin.call('fileManager', 'readFile', pinnedPath))
+      if (pinned?.abi) return { abi: pinned.abi, name: pinned.name }
+    } catch (e) {
+      console.warn(`EEZ: unable to read the pinned contract ${pinnedPath}`, e)
+    }
+  }
+
+  if (!originNetwork.rpcUrl) return null
+  const provider = new JsonRpcProvider(originNetwork.rpcUrl, Number(originNetwork.chainId), { staticNetwork: true })
+  try {
+    const code = await provider.getCode(originAddress)
+    if (code === '0x') return null
+    const compiled = await plugin.call('compilerArtefacts', 'getContractDataFromByteCode', code)
+    if (compiled?.contract?.abi) return { abi: compiled.contract.abi, name: compiled.name }
+  } catch (e) {
+    console.warn(`EEZ: unable to match ${originAddress} against the compiled contracts`, e)
+  } finally {
+    provider.destroy()
+  }
+  return null
 }
 
 export async function loadCreatedProxyWithSelectedAbi(plugin: EezPlugin, proxyAddress: string) {

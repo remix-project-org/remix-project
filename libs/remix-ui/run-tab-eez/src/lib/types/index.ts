@@ -36,6 +36,7 @@ export interface ResolutionRow {
 export interface CreatedProxyEntry {
   proxyAddress: string
   txHash: string
+  originNetworkId: string
   originNetworkLabel: string
   originAddress: string
   destinationNetworkId: string
@@ -186,7 +187,7 @@ export type Actions =
   | { type: 'PREVIEW_SUCCESS'; payload: { previewAddress: string; previewIsDeployed: boolean } }
   | { type: 'PREVIEW_ERROR'; payload: string }
   | { type: 'START_CREATE' }
-  | { type: 'CREATE_SUCCESS'; payload: { txHash: string; proxyAddress: string; originNetworkLabel: string; originAddress: string; destinationNetworkId: string; destinationNetworkLabel: string } }
+  | { type: 'CREATE_SUCCESS'; payload: { txHash: string; proxyAddress: string; originNetworkId: string; originNetworkLabel: string; originAddress: string; destinationNetworkId: string; destinationNetworkLabel: string } }
   | { type: 'CREATE_ERROR'; payload: string }
   | { type: 'SET_THEME_QUALITY'; payload: string }
   | { type: 'NETWORK_CHANGED' }
