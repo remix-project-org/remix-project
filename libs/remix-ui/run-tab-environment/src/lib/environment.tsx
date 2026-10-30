@@ -67,6 +67,7 @@ function EnvironmentWidget({ plugin }: { plugin: EnvironmentPlugin }) {
         await addProvider({ position: 20, name: 'hardhat-provider', displayName: 'Hardhat Provider', category: 'Dev', providerConfig: { isInjected: false, isVM: false, isRpcForkedState: false, fork: '' } }, plugin, dispatch)
         await addProvider({ position: 21, name: 'ganache-provider', displayName: 'Ganache Provider', category: 'Dev', providerConfig: { isInjected: false, isVM: false, isRpcForkedState: false, fork: '' } }, plugin, dispatch)
         await addProvider({ position: 22, name: 'foundry-provider', displayName: 'Foundry Provider', category: 'Dev', providerConfig: { isInjected: false, isVM: false, isRpcForkedState: false, fork: '' } }, plugin, dispatch)
+        await addProvider({ position: 23, name: 'kms-provider', displayName: 'AWS KMS', category: 'External Signer', providerConfig: { isInjected: false, isVM: false, isRpcForkedState: false, fork: '' } }, plugin, dispatch)
 
         // register injected providers
         window.addEventListener(
