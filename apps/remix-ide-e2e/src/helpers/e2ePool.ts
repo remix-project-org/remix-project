@@ -41,6 +41,9 @@ export function loginWithE2EPool (browser: NightwatchBrowser): void {
     .pause(5000)
     .waitForElementVisible('*[data-id="login-button"]', 15000)
     .click('*[data-id="login-button"]')
+    // Top-bar Sign In opens the Plan & Credits panel first
+    .waitForElementVisible('*[data-id="planManagerSignIn"]', 15000)
+    .click('*[data-id="planManagerSignIn"]')
     .pause(3000)
     .waitForElementVisible({
       selector: '//button[contains(., "E2E Test Pool")]',

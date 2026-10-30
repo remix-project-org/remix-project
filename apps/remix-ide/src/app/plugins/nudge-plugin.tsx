@@ -123,6 +123,8 @@ export class NudgePlugin extends Plugin {
   // Last billing locale turned into engine facts — the plan manager replays a
   // cached locale on activation and again once a live preview lands.
   private _billingLocaleSignature = ''
+  // Latest resolved billing locale — lets plan copy quote the local price.
+  private _billingLocale: BillingLocale | null = null
   // A country-specific pricing offer is live, so the generic free-plan upsell
   // stands down (same audience, weaker copy).
   private _regionalOfferActive = false
@@ -595,49 +597,57 @@ export class NudgePlugin extends Plugin {
       }
       this.log('[NudgePlugin] _checkFreePlanNudge: no active subscription, proceeding', subData)
 
-      // 2. Fetch plan catalog to derive discount copy.
-      let title = 'Upgrade to Remix AI Pro'
-      let message = 'Upgrade to a paid plan to unlock premium AI models, MCP tools, higher credit quotas, and more.'
+      // 2. Fetch plan catalog to derive the copy. Lead with the cheapest paid
+      // plan — every paid plan has the same features, only the monthly
+      // credits differ — and quote the visitor's local price when Paddle has
+      // resolved it (USD list price otherwise).
+      let title = 'Get monthly AI credits'
+      let message = 'Every paid plan includes the Security Auditor and Gas Saver AI agents, front-end hosting for your contracts, and 70+ web3 AI skills — plus fresh AI credits every month.'
 
       try {
         const productsApi = await this.call('auth' as any, 'getProductsApi')
         this.log('[NudgePlugin] _checkFreePlanNudge: productsApi resolved')
         const catalogResp = await productsApi.getAvailableProducts({ type: 'subscription_plan' })
         this.log('[NudgePlugin] _checkFreePlanNudge: catalog response', catalogResp)
-        const plans: any[] = (catalogResp.data?.data ?? []).filter((p: any) => (p.price_cents ?? 0) > 0)
+        const plans: any[] = (catalogResp.data?.data ?? [])
+          .filter((p: any) => (p.price_cents ?? 0) > 0)
+          .sort((a: any, b: any) => a.price_cents - b.price_cents)
         this.log('[NudgePlugin] _checkFreePlanNudge: paid plans', plans)
-        const topPlan = [...plans].sort((a: any, b: any) => b.price_cents - a.price_cents)[0]
-        this.log('[NudgePlugin] _checkFreePlanNudge: top plan', topPlan)
+        const cheapest = plans[0]
 
-        if (topPlan) {
-          const planName: string = topPlan.name
-          title = `Upgrade to ${planName}`
-          const priceCents: number = topPlan.price_cents
-          const unit: string = topPlan.billing_interval === 'year' ? 'year' : 'month'
-          const introDiscount = Array.isArray(topPlan.intro_discounts) ? topPlan.intro_discounts[0] : null
-          this.log('[NudgePlugin] _checkFreePlanNudge: introDiscount', introDiscount)
+        if (cheapest) {
+          const monthlyCredits = plans
+            .map((p: any) => Number(p.display?.monthly_credits ?? p.credits_per_month) || 0)
+            .filter((n: number) => n > 0)
+          const compact = (n: number) => new Intl.NumberFormat('en', { notation: 'compact', maximumFractionDigits: 1 }).format(n)
+          const creditsLabel = monthlyCredits.length > 1
+            ? `+${compact(Math.min(...monthlyCredits))} to +${compact(Math.max(...monthlyCredits))}`
+            : monthlyCredits.length === 1 ? `+${compact(monthlyCredits[0])}` : null
 
+          const localPrice = this._billingLocale?.lowestPlanPrice ?? null
+          const isIntroOffer = !!localPrice && !!this._billingLocale?.lowestPlanIsIntroOffer
+          let priceLabel = localPrice ?? `$${(cheapest.price_cents / 100).toFixed(2)}`
+
+          // Intro discount on the cheapest plan (USD path only — the localized
+          // price already has a percentage intro offer folded in).
+          const introDiscount = !localPrice && Array.isArray(cheapest.intro_discounts) ? cheapest.intro_discounts[0] : null
+          let offerPrefix = isIntroOffer ? 'Launch offer: ' : ''
           if (introDiscount) {
             const isPct = introDiscount.discount_type === 'percentage'
             const dc = isPct
-              ? Math.max(0, Math.floor(priceCents * (1 - (Number(introDiscount.amount) || 0) / 100)))
-              : Math.max(0, priceCents - Math.round((Number(introDiscount.amount) || 0) * 100))
-            const intervals = introDiscount.max_recurring_intervals
-            const duration = !introDiscount.recur || !intervals || intervals === 1
-              ? `first ${unit}`
-              : `first ${intervals} ${unit}s`
-            const offerLabel = isPct
-              ? `${Math.round(Number(introDiscount.amount) || 0)}% off ${duration}`
-              : `$${(Number(introDiscount.amount) || 0).toFixed(2)} off ${duration}`
-            const discountedLabel = `$${(dc / 100).toFixed(2)}`
-            const regularLabel = `$${(priceCents / 100).toFixed(2)}`
-            message = `Limited offer: ${offerLabel} — get ${planName} for just ${discountedLabel}/${unit} (regular ${regularLabel}). Premium models, MCP tools, security and gas audit and initial credits included.`
-            this.log('[NudgePlugin] _checkFreePlanNudge: discount message built', { offerLabel, discountedLabel, regularLabel })
-          } else {
-            const priceLabel = `$${(priceCents / 100).toFixed(2)}`
-            message = `Upgrade to ${planName} for ${priceLabel}/${unit} — unlock premium AI models, MCP integrations, and higher credit quotas.`
-            this.log('[NudgePlugin] _checkFreePlanNudge: no discount, price message built', priceLabel)
+              ? Math.max(0, Math.floor(cheapest.price_cents * (1 - (Number(introDiscount.amount) || 0) / 100)))
+              : Math.max(0, cheapest.price_cents - Math.round((Number(introDiscount.amount) || 0) * 100))
+            if (dc < cheapest.price_cents) {
+              priceLabel = `$${(dc / 100).toFixed(2)}`
+              offerPrefix = 'Launch offer: '
+            }
           }
+
+          title = offerPrefix ? `${offerPrefix}plans from ${priceLabel}/month` : `Paid plans from ${priceLabel}/month`
+          message = creditsLabel
+            ? `Get ${creditsLabel} AI credits every month, plus the Security Auditor and Gas Saver AI agents, front-end hosting and 70+ web3 AI skills on every paid plan.`
+            : message
+          this.log('[NudgePlugin] _checkFreePlanNudge: copy built', { title, message, localPrice, introDiscount })
         }
       } catch (err) {
         this.log('[NudgePlugin] _checkFreePlanNudge: catalog fetch failed', err)
@@ -682,6 +692,7 @@ export class NudgePlugin extends Plugin {
   private _applyBillingLocale(locale: BillingLocale | null | undefined): void {
     const countryCode = locale?.countryCode?.toUpperCase()
     if (!locale || !countryCode) return
+    this._billingLocale = locale
 
     const signature = `${countryCode}|${locale.currencyCode}|${locale.lowestPlanPrice ?? ''}|${locale.lowestPlanIsIntroOffer}`
     if (signature === this._billingLocaleSignature) return
@@ -1006,7 +1017,7 @@ export class NudgePlugin extends Plugin {
         position: 'right',
         hidePermanentDismiss: true,
         title: `You're on ${this._upgradedPlanLabel}!`,
-        message: 'Your upgrade is live — premium AI models, higher limits, and the audit tools are unlocked. Open the AI assistant to put them to work.',
+        message: 'Your upgrade is live — your monthly AI credits, the Security Auditor and Gas Saver agents, and all AI skills are unlocked. Open the AI assistant to put them to work.',
         actionLabel: 'Open AI Assistant',
         actionTarget: 'menuicons::select::remixaiassistant',
         icon: 'fas fa-circle-check',
@@ -1026,7 +1037,7 @@ export class NudgePlugin extends Plugin {
         position: 'right',
         hidePermanentDismiss: true,
         title: 'Complete Your Upgrade',
-        message: 'You have an unfinished checkout. Complete it now to unlock premium features and higher limits.',
+        message: 'You have an unfinished checkout. Pick up right where you left off — your order is saved.',
         actionLabel: 'Complete Checkout',
         actionTarget: 'planManager::open',
         icon: 'fas fa-bag-shopping',

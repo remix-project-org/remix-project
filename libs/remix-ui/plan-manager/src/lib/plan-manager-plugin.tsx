@@ -22,6 +22,7 @@ import { PluginViewWrapper, DISCORD_URL } from '@remix-ui/helper'
 // removed when Plan Manager became the sole billing surface.
 import { initPaddle, getPaddle, openCheckoutWithTransaction, onPaddleEvent, offPaddleEvent, previewPrices } from './paddle-singleton'
 import { reportCheckoutTelemetry, setCheckoutTelemetryToken, setCheckoutTelemetryEnv } from './checkout-telemetry'
+import { endpointUrls } from '@remix-endpoints-helper'
 import type { Paddle, PaddleEventData } from '@paddle/paddle-js'
 import type { CreditsUsageQuery, FeatureGroup, UsageReport, PendingCheckout } from '@remix-api'
 import { Features, FEATURE_LABELS, trackMatomoEvent } from '@remix-api'
@@ -152,6 +153,15 @@ export class PlanManagerPlugin extends ViewPlugin {
   // failing) — the overlay can then only fall back to the hosted URL.
   private paddleInitOkReported = false
   private paddleConfigMissingReported = false
+  // Activation, auth arrival, price previews and checkout all call
+  // initPaddleSingleton — share one in-flight init instead of racing.
+  private paddleInitInFlight: Promise<void> | null = null
+  // Plan a signed-out visitor picked via "Sign up & get <plan>". Consumed on
+  // the next successful login to drop them straight into that plan's checkout.
+  private pendingPlanAfterSignIn: { planId: string; priceId?: number; at: number } | null = null
+  // Panel was opened by a generic "Sign In" (top bar) while signed out — once
+  // the login lands, get out of the way unless the user picked a plan.
+  private closeAfterSignIn = false
   // Last reason the inline Paddle SDK wasn't available, so a subsequent
   // hosted-checkout fallback can report WHY it fell back (config/token problem
   // vs a blocked CDN/global vs no attempt yet). Cleared on a successful init.
@@ -174,9 +184,11 @@ export class PlanManagerPlugin extends ViewPlugin {
   // hand a transaction to Paddle we arm a timer and, if checkout.loaded never
   // arrives, emit `checkout.load_timeout`. `checkoutContext` also lets us
   // correlate a later payload-less error back to the transaction we opened and
-  // report whether the overlay ever rendered.
+  // report whether the overlay ever rendered. It is reset at the start of every
+  // checkout and tracks the furthest funnel stage, so `checkout.abandoned` can
+  // say which transaction was left and where.
   private checkoutLoadWatchdog: number | null = null
-  private checkoutContext: { transactionId?: string; intent?: string; itemLabel?: string; openedAt: number; loaded: boolean } | null = null
+  private checkoutContext: CheckoutContext | null = null
   // How long to wait for checkout.loaded before declaring a silent render
   // failure. Generous enough to survive a slow network / cold Paddle CDN.
   private readonly checkoutLoadTimeoutMs = 12_000
@@ -251,6 +263,11 @@ export class PlanManagerPlugin extends ViewPlugin {
     this.store.subscribe(() => {
       const pending = !!this.store.getSnapshot().pendingCheckout
       if (hadPending && !pending) {
+        // The checkout ended (completed, closed, errored) — drop its
+        // correlation context so a later non-Paddle flow (change plan,
+        // cancel…) can't report this transaction as abandoned.
+        this.clearCheckoutLoadWatchdog()
+        this.checkoutContext = null
         if (this.store.getSnapshot().isAuthenticated) {
           void this.loadAccountData()
           void this.loadPendingCheckouts()
@@ -343,6 +360,11 @@ export class PlanManagerPlugin extends ViewPlugin {
         // The country is usually already known (cached or probed while
         // anonymous) — persist it now that there's an account to attach it to.
         void this.syncBillingLocaleToAccount()
+        if (this.closeAfterSignIn && !this.pendingPlanAfterSignIn) {
+          this.close()
+        }
+        this.closeAfterSignIn = false
+        void this.continuePendingPlanAfterSignIn()
       }
     }
     try {
@@ -406,6 +428,7 @@ export class PlanManagerPlugin extends ViewPlugin {
       hasPermissions: !!snapBefore.permissions
     })
     this.store.send({ type: 'OPEN_OVERLAY', intent: resolved })
+    this.closeAfterSignIn = resolved?.reason === 'sign-in' && !snapBefore.isAuthenticated
     // Refresh on every open — catalog (plans/packages) and, when signed
     // in, account-scoped data (credits/quotas, subscription, permissions).
     // This keeps the panel consistent with the API instead of relying on
@@ -428,6 +451,7 @@ export class PlanManagerPlugin extends ViewPlugin {
   }
 
   close(): void {
+    this.closeAfterSignIn = false
     // If Paddle checkout is in-progress, clear it before closing — otherwise
     // re-opening the panel shows an empty checkout frame with no iframe.
     // Also clear any pending cart so the upsell step doesn't linger on re-open.
@@ -453,12 +477,23 @@ export class PlanManagerPlugin extends ViewPlugin {
       // Paddle frame (X / backdrop / Escape / panel close). Paddle's own
       // `checkout.closed` often does NOT fire here because we tear the frame
       // container down ourselves — so this is a distinct abandonment signal.
+      const ctx = this.checkoutContext
       reportCheckoutTelemetry('checkout.abandoned', {
-        transactionId: (pending as any)?.transactionId,
+        transactionId: ctx?.transactionId,
         message: `Remix checkout modal closed (${reason})`,
-        detail: { reason, intent: pending.intent, itemLabel: (pending as any)?.itemLabel },
+        detail: {
+          reason,
+          intent: pending.intent,
+          itemLabel: pending.itemLabel,
+          stage: ctx?.stage ?? 'none',
+          resumed: ctx?.resumed ?? false,
+          paymentFailures: ctx?.paymentFailures ?? 0,
+          msSinceStart: ctx ? Date.now() - ctx.startedAt : undefined,
+          msSinceOpen: ctx?.openedAt ? Date.now() - ctx.openedAt : undefined,
+        },
       })
     }
+    this.checkoutContext = null
     this.store.send({ type: 'CHECKOUT_CLOSED' })
   }
 
@@ -596,6 +631,64 @@ export class PlanManagerPlugin extends ViewPlugin {
     // backend method gains the parameter. Suppress unused-warning via void.
     void priceId
     await this.runCheckout('topup', itemLabel, async (api) => api.purchaseCredits(packageId, 'paddle'))
+  }
+
+  /**
+   * Signed-out "Sign up & get <plan>" — remember the choice so the login that
+   * follows continues straight into that plan's checkout instead of making the
+   * user find and click the plan again.
+   */
+  rememberPlanForSignIn(planId: string, priceId?: number): void {
+    if (!planId) return
+    this.pendingPlanAfterSignIn = { planId, priceId, at: Date.now() }
+    this.trackCheckout('signup_to_buy', planId)
+  }
+
+  /** Resolve once `predicate` holds for the store snapshot, or `false` after `timeoutMs`. */
+  private waitForStore(predicate: (s: PlanManagerSnapshot) => boolean, timeoutMs: number): Promise<boolean> {
+    if (predicate(this.store.getSnapshot())) return Promise.resolve(true)
+    return new Promise((resolve) => {
+      let done = false
+      const finish = (ok: boolean) => {
+        if (done) return
+        done = true
+        clearTimeout(timer)
+        unsubscribe()
+        resolve(ok)
+      }
+      const unsubscribe = this.store.subscribe(() => {
+        if (predicate(this.store.getSnapshot())) finish(true)
+      })
+      const timer = setTimeout(() => finish(false), timeoutMs)
+    })
+  }
+
+  /**
+   * After a sign-up started from a plan card, wait for the account data
+   * (current plan, permissions) and catalog to load, then run the normal
+   * subscribe flow for the remembered plan. Stale intents (abandoned sign-in
+   * long ago) are dropped so a later unrelated login never pops a checkout.
+   */
+  private async continuePendingPlanAfterSignIn(): Promise<void> {
+    const pending = this.pendingPlanAfterSignIn
+    if (!pending) return
+    this.pendingPlanAfterSignIn = null
+    if (Date.now() - pending.at > 15 * 60_000) return
+
+    const ready = await this.waitForStore(
+      s => s.isAuthenticated && s.dataState === 'ready' && !!s.permissions && s.catalogPlans.some(p => p.id === pending.planId),
+      20_000
+    )
+    const snap = this.store.getSnapshot()
+    if (!snap.isAuthenticated) return
+    await this.open({ initialSection: 'plans' })
+    if (!ready) return
+    // Already on this plan (e.g. signed into an existing paid account) — the
+    // plans screen shows it as active; nothing to buy.
+    const planState = selectPlanState(snap)
+    if (planState.kind === 'paid' && planState.planId === pending.planId) return
+    if (snap.pendingCheckout || snap.cartItems.length > 0) return
+    await this.subscribeToPlan(pending.planId, pending.priceId)
   }
 
   /**
@@ -1507,19 +1600,87 @@ export class PlanManagerPlugin extends ViewPlugin {
     this.setCheckoutResult({ kind: 'success', intent, itemLabel })
   }
 
-  /** Init the Paddle singleton with config fetched from the auth backend. */
-  private async initPaddleSingleton(): Promise<void> {
+  /** Init the Paddle singleton with config fetched from the billing backend. */
+  private initPaddleSingleton(): Promise<void> {
+    const existing = getPaddle()
+    if (existing) {
+      this.paddle = existing
+      return Promise.resolve()
+    }
+    if (!this.paddleInitInFlight) {
+      this.paddleInitInFlight = this.doInitPaddleSingleton().finally(() => { this.paddleInitInFlight = null })
+    }
+    return this.paddleInitInFlight
+  }
+
+  /**
+   * Resolve the public Paddle client config. `GET {billing}/config` is
+   * unauthenticated, so fetch it directly first — going through the `auth`
+   * plugin queues behind any slow call on that plugin (token refresh, login
+   * popup) and the engine rejects it after 10s, which is what produced most
+   * `paddle.config.missing` events. The auth plugin stays as a fallback.
+   * Every failure reason is returned so telemetry can say WHY it failed.
+   */
+  private async fetchPaddleConfig(): Promise<{
+    config: { clientToken: string; environment: 'sandbox' | 'production' } | null
+    source: 'direct' | 'auth' | null
+    directStatus?: number
+    directError?: string
+    authError?: string
+    authReturned?: boolean
+  }> {
+    let directStatus: number | undefined
+    let directError: string | undefined
     try {
-      // Singleton already up — fast path.
-      const existing = getPaddle()
-      if (existing) {
-        this.paddle = existing
-        return
+      const ctrl = typeof AbortController !== 'undefined' ? new AbortController() : null
+      const timer = ctrl ? setTimeout(() => ctrl.abort(), 8000) : null
+      try {
+        const res = await fetch(`${endpointUrls.billing}/config`, { signal: ctrl?.signal })
+        directStatus = res.status
+        if (res.ok) {
+          const body: any = await res.json().catch(() => null)
+          const token = body?.paddle?.token
+          if (typeof token === 'string' && token) {
+            return {
+              config: { clientToken: token, environment: body.paddle.environment === 'production' ? 'production' : 'sandbox' },
+              source: 'direct',
+              directStatus,
+            }
+          }
+          directError = 'no_token_in_response'
+        } else {
+          directError = `http_${res.status}`
+        }
+      } finally {
+        if (timer) clearTimeout(timer)
       }
-      const config = await this.call('auth', 'getPaddleConfig').catch(() => null) as
-        { clientToken: string | null; environment: 'sandbox' | 'production' } | null
+    } catch (err: any) {
+      directError = err?.name === 'AbortError' ? 'timeout' : (err?.message || String(err))
+    }
+
+    let authError: string | undefined
+    const viaAuth = await this.call('auth', 'getPaddleConfig').catch((err: any) => {
+      authError = typeof err === 'string' ? err : (err?.message || String(err))
+      return null
+    }) as { clientToken: string | null; environment: 'sandbox' | 'production' } | null
+    if (viaAuth?.clientToken) {
+      return {
+        config: { clientToken: viaAuth.clientToken, environment: viaAuth.environment },
+        source: 'auth',
+        directStatus,
+        directError,
+      }
+    }
+    return { config: null, source: null, directStatus, directError, authError, authReturned: !!viaAuth }
+  }
+
+  private async doInitPaddleSingleton(): Promise<void> {
+    try {
+      const startedAt = Date.now()
+      const fetched = await this.fetchPaddleConfig()
+      const config = fetched.config
       if (!config?.clientToken) {
-        planManagerLogger.log('[PlanManager] No Paddle client token from auth — checkout will fall back to hosted URL.')
+        planManagerLogger.log('[PlanManager] No Paddle client token — checkout will fall back to hosted URL.', fetched)
         // Remember why the inline SDK is unavailable so a later hosted-checkout
         // fallback can attribute itself (token/billing-config problem).
         this.lastPaddleInitIssue = 'config_missing'
@@ -1531,12 +1692,16 @@ export class PlanManagerPlugin extends ViewPlugin {
           const isAuthenticated = this.store.getSnapshot().isAuthenticated
           const token = await this.call('auth', 'getToken').catch(() => null)
           reportCheckoutTelemetry('paddle.config.missing', {
-            message: 'billing/config returned no Paddle client token',
+            message: fetched.directError || fetched.authError || 'billing/config returned no Paddle client token',
+            errorCode: fetched.directError ? 'direct_failed' : undefined,
             detail: {
               isAuthenticated,
               hasToken: !!token,
-              configReturned: !!config,
-              environment: config?.environment ?? null,
+              configReturned: !!fetched.authReturned,
+              directStatus: fetched.directStatus ?? null,
+              directError: fetched.directError ?? null,
+              authError: fetched.authError ?? null,
+              msElapsed: Date.now() - startedAt,
             },
           })
         }
@@ -1555,10 +1720,24 @@ export class PlanManagerPlugin extends ViewPlugin {
           paddleEnv: config.environment,
         })
       } else if ((this.paddle || getPaddle()) && !this.paddleInitOkReported) {
-        // SDK is ready — the positive signal that the whole config→init chain
-        // worked for this user. Absence of this (with config.missing or
-        // script.blocked present) tells us where the funnel broke.
+        // SDK is ready. Only report it when the init needed rescuing (direct
+        // config fetch failed, or a previous attempt reported config.missing)
+        // — reporting every healthy session would flood the checkout table.
         this.paddleInitOkReported = true
+        const recoveredFrom = this.lastPaddleInitIssue
+        if (fetched.source !== 'direct' || recoveredFrom) {
+          reportCheckoutTelemetry('paddle.init.ok', {
+            paddleEnv: config.environment,
+            message: `Paddle ready via ${fetched.source}${recoveredFrom ? ` after ${recoveredFrom}` : ''}`,
+            detail: {
+              configSource: fetched.source,
+              recoveredFrom,
+              directStatus: fetched.directStatus ?? null,
+              directError: fetched.directError ?? null,
+              msElapsed: Date.now() - startedAt,
+            },
+          })
+        }
         // A recovered init after a prior config.missing means a later login/
         // token succeeded — allow config.missing to report again if it breaks.
         this.paddleConfigMissingReported = false
@@ -1602,6 +1781,7 @@ export class PlanManagerPlugin extends ViewPlugin {
       this.store.send({ type: 'CHECKOUT_ERROR', message: 'Please sign in to complete the purchase.' })
       return
     }
+    const ctx = this.beginCheckoutContext({ intent, itemLabel })
     try {
       const billingApi = await this.call('auth', 'getBillingApi').catch(() => null) as any
       if (!billingApi) {
@@ -1640,6 +1820,20 @@ export class PlanManagerPlugin extends ViewPlugin {
       if (!this.paddle && !getPaddle()) {
         await this.initPaddleSingleton()
       }
+      // The user may have closed the panel (or started another checkout) while
+      // the backend was creating this transaction — don't open a frame into a
+      // container that is gone (that was the `appendChild` crash).
+      if (!this.isCurrentCheckout(ctx)) {
+        if (transactionId) {
+          reportCheckoutTelemetry('transaction.created', {
+            transactionId,
+            detail: { intent, itemLabel, abandonedBeforeOpen: true },
+          })
+        }
+        return
+      }
+      ctx.transactionId = transactionId
+      ctx.checkoutUrl = checkoutUrl
       const paddleInstance = this.paddle ?? getPaddle()
       if (paddleInstance && transactionId) {
         // Backend produced a transaction and Paddle is ready — record it so a
@@ -1649,38 +1843,28 @@ export class PlanManagerPlugin extends ViewPlugin {
           transactionId,
           detail: { intent, itemLabel, displayMode: 'inline' },
         })
-        // Paddle.js inline checkout — renders inside .paddle-checkout-container
-        openCheckoutWithTransaction(paddleInstance, transactionId, {
-          settings: {
-            displayMode: 'inline',
-            theme: this.paddleTheme,
-            variant: 'one-page',
-            frameTarget: 'paddle-checkout-container',
-            frameInitialHeight: 700,
-            frameStyle: 'width: 100%; min-width: 312px; min-height: 700px; background-color: transparent; border: none;',
+        const opened = await this.openInlineCheckout(paddleInstance, ctx)
+        if (opened === 'opened') {
+          this.trackCheckout('opened', intent, transactionId)
+        } else if (opened === 'no_container') {
+          if (checkoutUrl) {
+            this.openHostedCheckout(ctx, 'container_missing')
+          } else {
+            this.trackCheckout('error', intent, 'container_missing')
+            reportCheckoutTelemetry('transaction.error', {
+              transactionId,
+              errorCode: 'container_missing',
+              message: 'Inline checkout container never mounted.',
+              detail: { intent, itemLabel },
+            })
+            this.store.send({ type: 'CHECKOUT_ERROR', message: 'Could not open the checkout. Please try again.', transactionId })
           }
-        })
-        // Arm the load watchdog: if checkout.loaded never fires the overlay
-        // silently failed to render (blocker / init error that emits no usable
-        // event). This is the single biggest "created a transaction but the
-        // user never saw a form" signal.
-        this.armCheckoutLoadWatchdog({ transactionId, intent, itemLabel })
-        this.trackCheckout('opened', intent, transactionId)
-        this.store.send({ type: 'CHECKOUT_OPENED' })
+        }
       } else if (checkoutUrl) {
         // Hosted-checkout fallback — we won't get Paddle events back, so
         // surface a "processing" state immediately and poll the backend
         // until the webhook lands.
-        reportCheckoutTelemetry('checkout.hosted_fallback', {
-          transactionId,
-          message: 'Opened hosted checkout URL (no inline Paddle events).',
-          detail: { intent, itemLabel, reason: this.lastPaddleInitIssue ?? 'no_inline_sdk' },
-        })
-        window.open(checkoutUrl, '_blank', 'noopener,noreferrer')
-        this.trackCheckout('opened', intent, 'hosted_url')
-        this.store.send({ type: 'CHECKOUT_COMPLETED', transactionId })
-        planManagerLogger.log('[plan-manager:poll] triggered from hosted-url fallback', { intent, transactionId })
-        void this.pollPaymentConfirmation(intent, transactionId)
+        this.openHostedCheckout(ctx, this.lastPaddleInitIssue ?? 'no_inline_sdk')
       } else {
         this.trackCheckout('error', intent, 'no_checkout_reference')
         reportCheckoutTelemetry('transaction.error', {
@@ -1877,63 +2061,37 @@ export class PlanManagerPlugin extends ViewPlugin {
     this.store.send({ type: 'OPEN_OVERLAY' })
     // The nudge has served its purpose — hide it now the user acted.
     this.store.send({ type: 'RESUME_NUDGE_DISMISS' })
+    const ctx = this.beginCheckoutContext({
+      intent,
+      itemLabel,
+      transactionId,
+      checkoutUrl: checkout.resume_link ?? undefined,
+      resumed: true,
+    })
 
     try {
       if (!this.paddle && !getPaddle()) {
         await this.initPaddleSingleton()
       }
+      if (!this.isCurrentCheckout(ctx)) return
       const paddleInstance = this.paddle ?? getPaddle()
       if (paddleInstance) {
-        // CHECKOUT_INTENT above asked React to render the inline
-        // `.paddle-checkout-container`, but that render is async. A fresh
-        // purchase gets away with opening straight after because the backend
-        // POST awaits (yielding to React); resume has no such gap, so Paddle's
-        // `appendChild` into the frame target would hit `undefined`. Wait for
-        // the container to actually exist first.
-        planManagerLogger.log('[PlanManager:resume] waiting for .paddle-checkout-container to mount…')
-        const container = await this.waitForCheckoutContainer()
-        planManagerLogger.log('[PlanManager:resume] waitForCheckoutContainer result', { found: !!container })
-        if (!container) {
-          if (checkout.resume_link) {
-            reportCheckoutTelemetry('checkout.hosted_fallback', {
-              transactionId,
-              message: 'Inline container never mounted — opened hosted resume link.',
-              detail: { intent, itemLabel, resumed: true, reason: 'container_missing' },
-            })
-            window.open(checkout.resume_link, '_blank', 'noopener,noreferrer')
-            this.store.send({ type: 'CHECKOUT_COMPLETED', transactionId })
-            void this.pollPaymentConfirmation(intent, transactionId)
-            return
-          }
-          this.store.send({ type: 'CHECKOUT_ERROR', message: 'Could not reopen this checkout.', transactionId })
-          return
-        }
         reportCheckoutTelemetry('transaction.created', {
           transactionId,
           detail: { intent, itemLabel, displayMode: 'inline', resumed: true },
         })
-        openCheckoutWithTransaction(paddleInstance, transactionId, {
-          settings: {
-            displayMode: 'inline',
-            theme: this.paddleTheme,
-            variant: 'one-page',
-            frameTarget: 'paddle-checkout-container',
-            frameInitialHeight: 700,
-            frameStyle: 'width: 100%; min-width: 312px; min-height: 700px; background-color: transparent; border: none;',
+        const opened = await this.openInlineCheckout(paddleInstance, ctx)
+        if (opened === 'no_container') {
+          if (ctx.checkoutUrl) {
+            this.openHostedCheckout(ctx, 'container_missing')
+            return
           }
-        })
-        this.store.send({ type: 'CHECKOUT_OPENED' })
-      } else if (checkout.resume_link) {
+          this.store.send({ type: 'CHECKOUT_ERROR', message: 'Could not reopen this checkout.', transactionId })
+        }
+      } else if (ctx.checkoutUrl) {
         // Inline SDK unavailable (blocked/desktop) — fall back to the hosted
         // resume link Paddle handed us.
-        reportCheckoutTelemetry('checkout.hosted_fallback', {
-          transactionId,
-          message: 'Opened hosted resume link (no inline Paddle SDK).',
-          detail: { intent, itemLabel, resumed: true },
-        })
-        window.open(checkout.resume_link, '_blank', 'noopener,noreferrer')
-        this.store.send({ type: 'CHECKOUT_COMPLETED', transactionId })
-        void this.pollPaymentConfirmation(intent, transactionId)
+        this.openHostedCheckout(ctx, this.lastPaddleInitIssue ?? 'no_inline_sdk')
       } else {
         this.store.send({ type: 'CHECKOUT_ERROR', message: 'Could not reopen this checkout.', transactionId })
       }
@@ -1941,6 +2099,77 @@ export class PlanManagerPlugin extends ViewPlugin {
       planManagerLogger.error('[PlanManager] resumeCheckout failed', err)
       this.store.send({ type: 'CHECKOUT_ERROR', message: err?.message || 'Could not reopen this checkout.', transactionId })
     }
+  }
+
+  /** Start a fresh correlation context for a new (or resumed) checkout. */
+  private beginCheckoutContext(init: Partial<Pick<CheckoutContext, 'transactionId' | 'intent' | 'itemLabel' | 'checkoutUrl' | 'resumed'>>): CheckoutContext {
+    this.clearCheckoutLoadWatchdog()
+    const ctx: CheckoutContext = {
+      ...init,
+      startedAt: Date.now(),
+      openedAt: 0,
+      loaded: false,
+      stage: 'creating',
+      paymentFailures: 0,
+    }
+    this.checkoutContext = ctx
+    return ctx
+  }
+
+  /** True while `ctx` is still the checkout the user is looking at. */
+  private isCurrentCheckout(ctx: CheckoutContext): boolean {
+    return this.checkoutContext === ctx && !!this.store.getSnapshot().pendingCheckout
+  }
+
+  /**
+   * Hand a transaction to the inline Paddle frame. `CHECKOUT_INTENT` asks
+   * React to render `.paddle-checkout-container`, but that render is async —
+   * opening before it exists makes Paddle's `appendChild` throw. So wait for
+   * the container, bail if the user walked away meanwhile, then open and arm
+   * the load watchdog (both fresh and resumed checkouts).
+   */
+  private async openInlineCheckout(paddle: Paddle, ctx: CheckoutContext): Promise<'opened' | 'abandoned' | 'no_container'> {
+    const container = await this.waitForCheckoutContainer()
+    if (!this.isCurrentCheckout(ctx)) return 'abandoned'
+    if (!container || !ctx.transactionId) return 'no_container'
+    openCheckoutWithTransaction(paddle, ctx.transactionId, {
+      settings: { ...INLINE_CHECKOUT_SETTINGS, theme: this.paddleTheme }
+    })
+    this.armCheckoutLoadWatchdog(ctx)
+    this.store.send({ type: 'CHECKOUT_OPENED' })
+    return 'opened'
+  }
+
+  /**
+   * Open the hosted Paddle checkout (`?_ptxn=` payment link / resume link) in
+   * a new tab. We get no Paddle events back from it, so surface "processing"
+   * immediately and poll the backend until the webhook lands.
+   */
+  private openHostedCheckout(ctx: CheckoutContext, reason: string): void {
+    if (!ctx.checkoutUrl) return
+    const intent = (ctx.intent as CheckoutIntent) ?? 'subscription'
+    this.clearCheckoutLoadWatchdog()
+    reportCheckoutTelemetry('checkout.hosted_fallback', {
+      transactionId: ctx.transactionId,
+      message: `Opened hosted checkout in a new tab (${reason}).`,
+      detail: { intent: ctx.intent, itemLabel: ctx.itemLabel, resumed: !!ctx.resumed, reason, stage: ctx.stage },
+    })
+    window.open(ctx.checkoutUrl, '_blank', 'noopener,noreferrer')
+    this.trackCheckout('opened', intent, 'hosted_url')
+    this.store.send({ type: 'CHECKOUT_COMPLETED', transactionId: ctx.transactionId })
+    planManagerLogger.log('[plan-manager:poll] triggered from hosted-url fallback', { intent, transactionId: ctx.transactionId, reason })
+    void this.pollPaymentConfirmation(intent, ctx.transactionId)
+  }
+
+  /**
+   * Escape hatch offered by the load-timeout notice: the inline frame never
+   * rendered, so let the user finish the same transaction on Paddle's hosted
+   * checkout. Must run synchronously from the click so popup blockers allow it.
+   */
+  openStalledCheckoutInNewTab(): void {
+    const ctx = this.checkoutContext
+    if (!ctx?.checkoutUrl || !this.store.getSnapshot().pendingCheckout) return
+    this.openHostedCheckout(ctx, 'load_timeout')
   }
 
   /**
@@ -2036,6 +2265,7 @@ export class PlanManagerPlugin extends ViewPlugin {
     // closed/error/warning in between. `detail: d` keeps the full payload so
     // we still capture everything even if a specific field path shifts.
     this.reportPaddleTelemetry(event)
+    this.trackCheckoutStage(event?.name as string | undefined)
     const transactionId = (event as any)?.data?.transaction_id as string | undefined
     switch (event.name) {
     // Fired once when the checkout iframe loads, then on every change the
@@ -2207,32 +2437,48 @@ export class PlanManagerPlugin extends ViewPlugin {
    * Arm the inline-overlay load watchdog. If `checkout.loaded` doesn't arrive
    * within `checkoutLoadTimeoutMs`, the overlay silently failed to render and
    * we emit `checkout.load_timeout` — the signal for "backend gave us a
-   * transaction but the user never saw a payment form".
+   * transaction but the user never saw a payment form". The user also gets a
+   * notice offering the hosted checkout in a new tab, since the frame often
+   * never recovers (ad/tracking blockers).
    */
-  private armCheckoutLoadWatchdog(ctx: { transactionId?: string; intent?: string; itemLabel?: string }): void {
+  private armCheckoutLoadWatchdog(ctx: CheckoutContext): void {
     this.clearCheckoutLoadWatchdog()
-    this.checkoutContext = { ...ctx, openedAt: Date.now(), loaded: false }
+    ctx.openedAt = Date.now()
+    ctx.loaded = false
+    ctx.stage = 'opened'
+    this.checkoutContext = ctx
     this.checkoutLoadWatchdog = window.setTimeout(() => {
       this.checkoutLoadWatchdog = null
       const c = this.checkoutContext
-      if (!c || c.loaded) return
+      if (c !== ctx || c.loaded) return
       // Probe the DOM the overlay renders into so the timeout event can tell
       // "Paddle never injected an iframe" (blocker / init failure) apart from
       // "iframe injected but never signalled loaded" (blank / cross-origin
       // render stall). `frameTarget` is the container class we passed to
       // Paddle.Checkout.open.
       const probe = this.probeCheckoutFrame('paddle-checkout-container')
+      const canOfferHosted = !!c.checkoutUrl && !!this.store.getSnapshot().pendingCheckout
       reportCheckoutTelemetry('checkout.load_timeout', {
         transactionId: c.transactionId,
         message: `Paddle checkout.loaded not received within ${this.checkoutLoadTimeoutMs}ms — overlay likely failed to render.`,
         detail: {
           intent: c.intent,
           itemLabel: c.itemLabel,
+          resumed: !!c.resumed,
           waitedMs: this.checkoutLoadTimeoutMs,
           paddleGlobalPresent: typeof (globalThis as any).Paddle !== 'undefined',
+          offeredHostedFallback: canOfferHosted,
           ...probe,
         },
       })
+      if (canOfferHosted) {
+        this.store.send({
+          type: 'CHECKOUT_NOTICE',
+          level: 'warning',
+          message: 'The secure payment form is taking longer than usual to load. An ad or tracking blocker may be stopping it.',
+          action: 'open_hosted',
+        })
+      }
     }, this.checkoutLoadTimeoutMs)
   }
 
@@ -2270,8 +2516,35 @@ export class PlanManagerPlugin extends ViewPlugin {
 
   /** Mark the current checkout as rendered and stop the watchdog. */
   private markCheckoutLoaded(): void {
-    if (this.checkoutContext) this.checkoutContext.loaded = true
+    const ctx = this.checkoutContext
+    if (ctx) {
+      ctx.loaded = true
+      if (ctx.stage === 'creating' || ctx.stage === 'opened') ctx.stage = 'loaded'
+    }
     this.clearCheckoutLoadWatchdog()
+    // A slow frame that eventually rendered no longer needs the timeout notice.
+    if (this.store.getSnapshot().checkoutNotice?.action === 'open_hosted') {
+      this.store.send({ type: 'CHECKOUT_NOTICE_DISMISS' })
+    }
+  }
+
+  /** Advance the current checkout's funnel stage from a Paddle event. */
+  private trackCheckoutStage(eventName: string | undefined): void {
+    const ctx = this.checkoutContext
+    if (!ctx || !eventName) return
+    switch (eventName) {
+    case 'checkout.payment.selected':
+      if (ctx.stage !== 'payment_initiated') ctx.stage = 'payment_selected'
+      break
+    case 'checkout.payment.initiated':
+      ctx.stage = 'payment_initiated'
+      break
+    case 'checkout.payment.failed':
+    case 'checkout.payment.error':
+      ctx.stage = 'payment_failed'
+      ctx.paymentFailures += 1
+      break
+    }
   }
 
   /** Cancel a pending load watchdog (checkout reached a terminal state). */
@@ -3479,6 +3752,15 @@ const PlanManagerOverlay: React.FC<{
                             <i className={`fas ${snap.checkoutNotice.level === 'error' ? 'fa-circle-exclamation' : 'fa-triangle-exclamation'}`}></i>
                             <div className="pm-inline-checkout__notice-body">
                               <span>{snap.checkoutNotice.message}</span>
+                              {snap.checkoutNotice.action === 'open_hosted' && (
+                                <button
+                                  type="button"
+                                  className="pm-inline-checkout__notice-action"
+                                  onClick={() => plugin.openStalledCheckoutInNewTab()}
+                                >
+                                  <i className="fas fa-external-link-alt"></i> Open secure checkout in a new tab
+                                </button>
+                              )}
                               <span className="pm-inline-checkout__notice-help">
                                 Having trouble?{' '}
                                 <a href={DISCORD_URL} target="_blank" rel="noreferrer">
@@ -4316,6 +4598,34 @@ function relativeTimeFrom(iso: string | null | undefined): string {
   return `${days} day${days === 1 ? '' : 's'} ago`
 }
 
+/** Furthest point a checkout reached — attached to abandonment telemetry. */
+type CheckoutStage = 'creating' | 'opened' | 'loaded' | 'payment_selected' | 'payment_initiated' | 'payment_failed'
+
+/** Correlation context for the checkout currently in flight. */
+interface CheckoutContext {
+  transactionId?: string
+  intent?: string
+  itemLabel?: string
+  /** Hosted checkout / resume link — the escape hatch when the inline frame stalls. */
+  checkoutUrl?: string
+  resumed?: boolean
+  startedAt: number
+  /** When the inline frame was handed to Paddle (0 = not yet opened). */
+  openedAt: number
+  loaded: boolean
+  stage: CheckoutStage
+  paymentFailures: number
+}
+
+/** Shared settings for the inline Paddle frame (fresh + resumed checkouts). */
+const INLINE_CHECKOUT_SETTINGS = {
+  displayMode: 'inline' as const,
+  variant: 'one-page' as const,
+  frameTarget: 'paddle-checkout-container',
+  frameInitialHeight: 700,
+  frameStyle: 'width: 100%; min-width: 312px; min-height: 700px; background-color: transparent; border: none;',
+}
+
 /** A single product's localized list price from the batched catalog preview. */
 interface LocalizedCatalogPrice {
   paddlePriceId: string
@@ -4711,17 +5021,12 @@ const CartUpsellStep: React.FC<{
   )
 }
 
-/** Fallback balance caps when the API's display.max_balance is absent. */
-const PAID_PLAN_BALANCE_CAPS: Record<string, number> = {
-  lite: 160_000,
-  starter: 300_000,
-  pro: 600_000,
-}
-
 const FreePlanCard: React.FC<{
   plan: any
   readOnly?: boolean
-}> = ({ plan, readOnly }) => (
+  /** Signed-out catalog: turn the card's button into a "Start free" sign-up CTA. */
+  onStart?: () => void
+}> = ({ plan, readOnly, onStart }) => (
   <div className="pm-free-plan" data-id="pm-free-plan">
     <div className="pm-free-plan__label">Free</div>
     <div className="pm-free-plan__price">
@@ -4736,6 +5041,11 @@ const FreePlanCard: React.FC<{
         </li>
       ))}
     </ul>
+    {readOnly && onStart && (
+      <button className="pm-free-plan__btn pm-free-plan__btn--start" data-id="pm-free-plan-start" onClick={onStart}>
+        Start free
+      </button>
+    )}
     {!readOnly && (
       <button className="pm-free-plan__btn" disabled>
         Always free
@@ -4743,6 +5053,80 @@ const FreePlanCard: React.FC<{
     )}
   </div>
 )
+
+/** Total sign-up gift credits bundled with a plan (`introCreditPackages`). */
+function planGiftCredits(plan: any): number {
+  const pkgs: any[] = plan?.introCreditPackages ?? []
+  return pkgs.reduce((sum, cp: any) => sum + (Number(cp?.credits) || 0) * (Number(cp?.quantity) || 1), 0)
+}
+
+/**
+ * Animate a number from its previous value to `target` (ease-out). Jumps
+ * straight to the target when the user prefers reduced motion.
+ */
+function useCountUp(target: number, durationMs = 650): number {
+  const [value, setValue] = useState(target)
+  const fromRef = React.useRef(target)
+  useEffect(() => {
+    const from = fromRef.current
+    fromRef.current = target
+    const reduced = typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
+    if (from === target || reduced || typeof requestAnimationFrame === 'undefined') {
+      setValue(target)
+      return
+    }
+    let raf = 0
+    const start = performance.now()
+    const tick = (now: number) => {
+      const t = Math.min(1, (now - start) / durationMs)
+      const eased = 1 - Math.pow(1 - t, 3)
+      setValue(from + (target - from) * eased)
+      if (t < 1) raf = requestAnimationFrame(tick)
+    }
+    raf = requestAnimationFrame(tick)
+    return () => cancelAnimationFrame(raf)
+  }, [target, durationMs])
+  return value
+}
+
+/**
+ * Track a CSS media query (e.g. short viewports). SSR/old-browser safe —
+ * returns false when `matchMedia` is unavailable.
+ */
+function useMediaQuery(query: string): boolean {
+  const get = () => typeof window !== 'undefined' && !!window.matchMedia?.(query).matches
+  const [matches, setMatches] = useState(get)
+  useEffect(() => {
+    if (typeof window === 'undefined' || !window.matchMedia) return
+    const mql = window.matchMedia(query)
+    const onChange = () => setMatches(mql.matches)
+    onChange()
+    mql.addEventListener?.('change', onChange)
+    return () => mql.removeEventListener?.('change', onChange)
+  }, [query])
+  return matches
+}
+
+/** Number of headline features always shown in the paid panel. */
+const PRIMARY_FEATURE_COUNT = 4
+
+/** Platform credit value: top-ups and plans are priced at $1 per 10K credits. */
+const CREDITS_PER_USD = 10_000
+
+/**
+ * True when a plan's monthly credits are worth (≈) everything it costs, i.e.
+ * the subscription price comes back 1:1 as credits and the tools are a free
+ * bonus. Data-driven so the copy disappears if pricing ever changes.
+ */
+function planIsCreditsOneToOne(plan: any): boolean {
+  const prices: any[] = Array.isArray(plan?.prices) ? plan.prices : []
+  const active = prices.filter((pr: any) => pr.is_active !== false)
+  const def = active.find((pr: any) => pr.is_default) ?? active[0] ?? null
+  const priceCents = Number(def?.price_cents ?? plan?.priceUsd) || 0
+  const credits = Number(plan?.creditsPerMonth) || 0
+  if (priceCents <= 0 || credits <= 0) return false
+  return (credits / CREDITS_PER_USD) * 100 >= priceCents * 0.98
+}
 
 const PaidPlansPanel: React.FC<{
   plans: any[]
@@ -4753,15 +5137,21 @@ const PaidPlansPanel: React.FC<{
   cancelledNotice: { expiresOn: string | null } | null
   localizedPrices: Record<string, LocalizedCatalogPrice> | null
   readOnly?: boolean
+  onSignUp?: (planId: string, priceId?: number) => void
   onSubscribe: (planId: string, priceId?: number) => void
   onCancel: () => void
   onReactivate: () => void
-}> = ({ plans, currentPlanId, userFeatureGroups, isTrialEligible, purchasingId, cancelledNotice, localizedPrices, readOnly, onSubscribe, onCancel, onReactivate }) => {
+}> = ({ plans, currentPlanId, userFeatureGroups, isTrialEligible, purchasingId, cancelledNotice, localizedPrices, readOnly, onSignUp, onSubscribe, onCancel, onReactivate }) => {
   const defaultId = (currentPlanId && plans.some(p => p.id === currentPlanId))
     ? currentPlanId
     : plans.find(p => p.id === 'lite')?.id ?? plans[0]?.id ?? null
   const [selectedId, setSelectedId] = React.useState<string | null>(defaultId)
   const selectedPlan = plans.find(p => p.id === selectedId) ?? plans[0] ?? null
+  const animatedCredits = useCountUp(Number(selectedPlan?.creditsPerMonth) || 0)
+  // On short screens fold the secondary features so price, credits and the
+  // buy button fit without scrolling.
+  const isShortViewport = useMediaQuery('(max-height: 900px)')
+  const [showAllFeatures, setShowAllFeatures] = useState(false)
   if (!selectedPlan) return null
 
   const pricesArr: any[] = Array.isArray(selectedPlan.prices) ? selectedPlan.prices : []
@@ -4789,7 +5179,9 @@ const PaidPlansPanel: React.FC<{
   }
 
   const creditsPerMonth = Number(selectedPlan.creditsPerMonth) || 0
-  const balanceCap = typeof selectedPlan.maxBalance === 'number' ? selectedPlan.maxBalance : (PAID_PLAN_BALANCE_CAPS[selectedPlan.id] ?? null)
+  const giftCredits = planGiftCredits(selectedPlan)
+  const selectedIsOneToOne = planIsCreditsOneToOne(selectedPlan)
+  const allOneToOne = plans.every(planIsCreditsOneToOne)
   const features: string[] = selectedPlan.features ?? []
 
   const isSubscriptionCurrent = selectedPlan.id === currentPlanId
@@ -4815,7 +5207,11 @@ const PaidPlansPanel: React.FC<{
     <div className="pm-paid-panel" data-id="pm-paid-panel">
       <div className="pm-paid-panel__header">
         <div className="pm-paid-panel__title">Paid plans</div>
-        <div className="pm-paid-panel__header-hint">Monthly credits added to your balance</div>
+        <div className="pm-paid-panel__header-hint">
+          {allOneToOne
+            ? <><strong>100% of your plan comes back as AI credits.</strong> The tools are on us.</>
+            : 'Monthly credits added to your balance'}
+        </div>
       </div>
 
       <div className="pm-paid-panel__tabs" role="tablist">
@@ -4830,6 +5226,7 @@ const PaidPlansPanel: React.FC<{
           const isSelected = plan.id === selectedId
           const isCurrent = plan.id === currentPlanId
           const planCredits = Number(plan.creditsPerMonth) || 0
+          const planGift = planGiftCredits(plan)
           return (
             <button
               key={plan.id}
@@ -4842,10 +5239,18 @@ const PaidPlansPanel: React.FC<{
               <span className="pm-paid-panel__tab-row">
                 <span className="pm-paid-panel__tab-name">{plan.name}</span>
                 {isCurrent && <span className="pm-paid-panel__tab-badge">CURRENT</span>}
+                {!isCurrent && planGift > 0 && (
+                  <span className="pm-paid-panel__tab-gift" title={`${planGift.toLocaleString()} bonus AI credits on sign-up`}>
+                    <i className="fas fa-gift" aria-hidden></i> +{formatCompactNumber(planGift)}
+                  </span>
+                )}
               </span>
               <span className="pm-paid-panel__tab-price">{planPriceStr}/mo</span>
               {planCredits > 0 && (
-                <span className="pm-paid-panel__tab-credits">+{formatCompactNumber(planCredits)} credits / month</span>
+                <span className="pm-paid-panel__tab-credits">
+                  <i className="fas fa-bolt" aria-hidden></i>
+                  +{formatCompactNumber(planCredits)} credits / month
+                </span>
               )}
             </button>
           )
@@ -4862,34 +5267,76 @@ const PaidPlansPanel: React.FC<{
             <span className="pm-paid-panel__price-per">per month</span>
           </div>
           {creditsPerMonth > 0 && (
-            <div className="pm-paid-panel__stat">
-              <span className="pm-paid-panel__stat-label">Added every month</span>
-              <span className="pm-paid-panel__stat-value pm-paid-panel__stat-value--accent">+{formatCompactNumber(creditsPerMonth)}</span>
+            <div className="pm-paid-panel__credits-hero" key={selectedPlan.id}>
+              <span className="pm-paid-panel__credits-sparkles" aria-hidden>
+                <span></span><span></span><span></span><span></span>
+              </span>
+              <span className="pm-paid-panel__credits-label">
+                <i className="fas fa-bolt" aria-hidden></i> AI credits every month
+              </span>
+              <span className="pm-paid-panel__credits-value" aria-label={`${creditsPerMonth.toLocaleString()} credits per month`}>
+                +{formatCompactNumber(Math.round(animatedCredits / 100) * 100)}
+              </span>
+              <span className="pm-paid-panel__credits-note">
+                {selectedIsOneToOne
+                  ? <>= <strong>100%</strong> of your plan price, every month</>
+                  : 'Topped up automatically, every billing cycle'}
+              </span>
             </div>
           )}
-          {balanceCap !== null && (
-            <div className="pm-paid-panel__stat">
-              <span className="pm-paid-panel__stat-label">Monthly credits cap</span>
-              <span className="pm-paid-panel__stat-value">{formatCompactNumber(balanceCap)}</span>
-              <span className="pm-paid-panel__stat-note">Purchased credits are unlimited</span>
+          {giftCredits > 0 && (
+            <div className="pm-paid-panel__gift" key={`gift-${selectedPlan.id}`}>
+              <span className="pm-paid-panel__gift-icon" aria-hidden><i className="fas fa-gift"></i></span>
+              <span className="pm-paid-panel__gift-text">
+                <strong>+{giftCredits.toLocaleString()} bonus credits</strong>
+                <span>Free on sign-up</span>
+              </span>
             </div>
           )}
         </div>
 
         {features.length > 0 && (
           <div className="pm-paid-panel__features-col">
-            <div className="pm-paid-panel__features-label">Included in every paid plan</div>
+            <div className="pm-paid-panel__features-label">
+              {allOneToOne
+                ? <>Included <span className="pm-paid-panel__free-tag">free</span> with every paid plan</>
+                : 'Included in every paid plan'}
+            </div>
             <ul className="pm-paid-panel__features">
-              {features.map((f: string, i: number) => (
-                <li key={f} className={i < 4 ? 'pm-paid-panel__features-item--primary' : ''}>
+              {(isShortViewport && !showAllFeatures ? features.slice(0, PRIMARY_FEATURE_COUNT) : features).map((f: string, i: number) => (
+                <li key={f} className={i < PRIMARY_FEATURE_COUNT ? 'pm-paid-panel__features-item--primary' : ''}>
                   <i className="fas fa-check" aria-hidden></i>
                   <span>{f}</span>
                 </li>
               ))}
             </ul>
+            {isShortViewport && !showAllFeatures && features.length > PRIMARY_FEATURE_COUNT && (
+              <button
+                type="button"
+                className="pm-paid-panel__features-more"
+                onClick={() => setShowAllFeatures(true)}
+              >
+                + {features.length - PRIMARY_FEATURE_COUNT} more included
+              </button>
+            )}
           </div>
         )}
       </div>
+
+      {readOnly && onSignUp && (
+        <div className="pm-paid-panel__actions">
+          <button
+            className="pm-paid-panel__btn"
+            data-id="pm-paid-panel-signup"
+            onClick={() => onSignUp(selectedPlan.id, selectedPriceId)}
+          >
+            <i className="fas fa-bolt" aria-hidden></i> Sign up &amp; get {selectedPlan.name}
+          </button>
+          <div className="pm-paid-panel__signup-hint">
+            Free account in seconds — we'll take you straight to checkout.
+          </div>
+        </div>
+      )}
 
       {!readOnly && (
         <div className="pm-paid-panel__actions">
@@ -4949,7 +5396,11 @@ const PlansSection: React.FC<{
   localizedPrices: Record<string, LocalizedCatalogPrice> | null
   /** Catalog preview for signed-out visitors — prices only, no purchase affordances. */
   readOnly?: boolean
-}> = ({ plans, currentPlanId, userFeatureGroups, isTrialEligible, purchasingId, requiredFeature, onSubscribe, onCancel, onReactivate, cancelledNotice, localizedPrices, readOnly }) => {
+  /** Signed-out "Sign up & get <plan>" CTA — starts sign-in, then continues to checkout. */
+  onSignUp?: (planId: string, priceId?: number) => void
+  /** Signed-out "Start free" CTA on the free card. */
+  onStartFree?: () => void
+}> = ({ plans, currentPlanId, userFeatureGroups, isTrialEligible, purchasingId, requiredFeature, onSubscribe, onCancel, onReactivate, cancelledNotice, localizedPrices, readOnly, onSignUp, onStartFree }) => {
   if (plans.length === 0) {
     return (
       <div className="pm-empty">
@@ -5000,6 +5451,7 @@ const PlansSection: React.FC<{
           <FreePlanCard
             plan={freePlan}
             readOnly={readOnly}
+            onStart={onStartFree}
           />
         )}
         {paidPlans.length > 0 && (
@@ -5012,6 +5464,7 @@ const PlansSection: React.FC<{
             cancelledNotice={cancelledNotice}
             localizedPrices={localizedPrices}
             readOnly={readOnly}
+            onSignUp={onSignUp}
             onSubscribe={onSubscribe}
             onCancel={onCancel}
             onReactivate={onReactivate}
@@ -5663,17 +6116,84 @@ const SignInPromptScreen: React.FC<{
       .finally(() => setPending(false))
   }
 
+  const handleSignUpForPlan = (planId: string, priceId?: number) => {
+    plugin.rememberPlanForSignIn(planId, priceId)
+    handleSignIn()
+  }
+
+  const legal = (
+    <p className="pm-signin__legal">
+      By continuing, you agree to the&nbsp;
+      <a href="https://remix-project.org/terms" target="_blank" rel="noreferrer">Terms of Service</a>
+      &nbsp;and&nbsp;
+      <a href="https://remix-project.org/privacy" target="_blank" rel="noreferrer">Privacy Policy</a>.
+    </p>
+  )
+
+  // With a catalog to show, plans lead and sign-in shrinks to a one-line strip:
+  // the eye lands on credits + prices first, while returning users still find
+  // "Sign in" without scrolling.
+  if (plans.length > 0) {
+    return (
+      <>
+        <div className="pm-signedout">
+          <div className="pm-signin-strip" data-id="pm-signin-strip">
+            <span className="pm-signin-strip__lead">
+              <i className="fas fa-sparkles" aria-hidden></i>
+              <span><strong>Welcome to RemixAI</strong> — start free or pick a plan.</span>
+            </span>
+            <span className="pm-signin-strip__auth">
+              <span className="pm-signin-strip__hint">Already have an account?</span>
+              <button
+                className="pm-signin__btn pm-signin__btn--ghost pm-signin-strip__btn"
+                onClick={handleSignIn}
+                disabled={pending}
+                data-id="planManagerSignIn"
+              >
+                {pending
+                  ? <><i className="fas fa-spinner fa-spin"></i> Opening…</>
+                  : <><i className="fas fa-right-to-bracket"></i> Sign in</>}
+              </button>
+            </span>
+          </div>
+          <section className="pm-signin-catalog" data-id="pm-signin-catalog">
+            <PlansSection
+              plans={plans}
+              currentPlanId={null}
+              userFeatureGroups={[]}
+              isTrialEligible={false}
+              purchasingId={null}
+              requiredFeature={null}
+              cancelledNotice={null}
+              localizedPrices={localizedPrices}
+              readOnly
+              onSignUp={handleSignUpForPlan}
+              onStartFree={handleSignIn}
+              onSubscribe={() => { /* display only — the sign-up CTAs are the entry points */ }}
+              onCancel={() => { /* display only */ }}
+              onReactivate={() => { /* display only */ }}
+            />
+            {legal}
+          </section>
+        </div>
+        {showLoginModal && (
+          <LoginModal onClose={() => setShowLoginModal(false)} plugin={plugin} />
+        )}
+      </>
+    )
+  }
+
   return (
     <>
       <div className="pm-signedout">
-        <section className={`pm-signin${plans.length > 0 ? ' pm-signin--compact' : ''}`}>
+        <section className="pm-signin">
           <div className="pm-signin__halo" aria-hidden />
           <div className="pm-signin__inner">
             <div className="pm-signin__badge">
               <i className="fas fa-sparkles"></i>
-              <span>Account required</span>
+              <span>Welcome to RemixAI</span>
             </div>
-            <h2 className="pm-signin__title">Create a free account to use RemixAI</h2>
+            <h2 className="pm-signin__title">Sign in or create your free account</h2>
 
             <ul className="pm-signin__perks">
               <li><i className="fas fa-robot"></i> Solidity Assistant, Code Completion, and Security Audits</li>
@@ -5689,40 +6209,13 @@ const SignInPromptScreen: React.FC<{
               >
                 {pending
                   ? <><i className="fas fa-spinner fa-spin"></i> Opening sign-in…</>
-                  : <><i className="fas fa-right-to-bracket"></i> Sign in to Remix</>}
+                  : <><i className="fas fa-right-to-bracket"></i> Sign in / Sign up</>}
               </button>
             </div>
 
-            <p className="pm-signin__legal">
-              By continuing, you agree to the&nbsp;
-              <a href="https://remix-project.org/terms" target="_blank" rel="noreferrer">Terms of Service</a>
-              &nbsp;and&nbsp;
-              <a href="https://remix-project.org/privacy" target="_blank" rel="noreferrer">Privacy Policy</a>.
-            </p>
+            {legal}
           </div>
         </section>
-        {plans.length > 0 && (
-          <section className="pm-signin-catalog" data-id="pm-signin-catalog">
-            <header className="pm-signin-catalog__head">
-              <h3>What you can upgrade to</h3>
-              <p>Sign in to pick a plan — prices shown for your region.</p>
-            </header>
-            <PlansSection
-              plans={plans}
-              currentPlanId={null}
-              userFeatureGroups={[]}
-              isTrialEligible={false}
-              purchasingId={null}
-              requiredFeature={null}
-              cancelledNotice={null}
-              localizedPrices={localizedPrices}
-              readOnly
-              onSubscribe={() => { /* display only — the sign-in CTA above is the entry point */ }}
-              onCancel={() => { /* display only */ }}
-              onReactivate={() => { /* display only */ }}
-            />
-          </section>
-        )}
       </div>
       {showLoginModal && (
         <LoginModal onClose={() => setShowLoginModal(false)} plugin={plugin} />

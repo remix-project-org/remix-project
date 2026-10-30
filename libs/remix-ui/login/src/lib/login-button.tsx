@@ -17,6 +17,12 @@ interface LoginButtonProps {
   plugin?: any
   cloneGitRepository?: () => void
   publishToGist?: () => void
+  /**
+   * Where the signed-out "Sign In" button leads. `plans` opens the Plan &
+   * Credits panel (sign-in prompt + plan catalog) so every sign-in attempt
+   * also sees the plans; `modal` goes straight to the provider picker.
+   */
+  signInTarget?: 'modal' | 'plans'
 }
 
 export const LoginButton: React.FC<LoginButtonProps> = ({
@@ -26,7 +32,8 @@ export const LoginButton: React.FC<LoginButtonProps> = ({
   signInDataId = 'login-button',
   plugin,
   cloneGitRepository,
-  publishToGist
+  publishToGist,
+  signInTarget = 'modal'
 }) => {
   const appContext = useContext(AppContext)
   const { isAuthenticated, user, credits, logout, login } = useAuth()
@@ -65,6 +72,15 @@ export const LoginButton: React.FC<LoginButtonProps> = ({
   }, [isDesktopApp, isAuthenticated])
 
   const handleSignIn = async () => {
+    if (signInTarget === 'plans' && plugin && typeof plugin.call === 'function') {
+      try {
+        await plugin.call('planManager', 'open', { reason: 'sign-in', initialSection: 'plans' })
+        plugin.call('matomo', 'trackEvent', 'auth', 'openPlansFromSignIn', 'Sign In', undefined).catch(() => {})
+        return
+      } catch (err) {
+        console.warn('[LoginButton] Plan manager unavailable, falling back to login modal:', err)
+      }
+    }
     await startSignInFlow(plugin, () => setShowModal(true), 'Sign In')
   }
 

@@ -1054,6 +1054,7 @@ export function RemixUiTopbar() {
                 variant="compact"
                 showCredits={true}
                 signInDataId="login-button"
+                signInTarget="plans"
                 className="text-nowrap"
                 cloneGitRepository={showCloneModal}
                 publishToGist={publishToGist}
