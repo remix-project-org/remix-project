@@ -29,6 +29,7 @@ test.describe.serial('Circom hashchecker: trusted setup, zk dapp button, and zkV
     if (poolApiKey) {
       // --- Sign in via the E2E test pool -------------------------------------
       await page.locator('[data-id="login-button"]').click()
+      await page.locator('[data-id="pm-free-plan-start"]').click()
       await page.locator('[data-id="loginModalE2EPoolButton"]').click()
       await expect(page.locator('[data-id="user-menu-compact"]').first()).toBeVisible({ timeout: 30_000 })
       // await page.locator('[data-id="verticalIconsKindremixaiassistant"]').click()
