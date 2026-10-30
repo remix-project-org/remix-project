@@ -137,7 +137,6 @@ let requiredModules = [
   'udappTransactions',
   'udappEez',
   'txRunner',
-  'walletKeyring',
   'arkiv',
   'arkivNetwork',
   'betaCornerWidget',
@@ -161,8 +160,7 @@ const partnerPlugins = ['cookbookdev']
 const sensitiveCalls = {
   fileManager: ['writeFile', 'copyFile', 'rename', 'copyDir'],
   contentImport: ['resolveAndSave'],
-  web3Provider: ['sendAsync'],
-  walletKeyring: ['unlock', 'signMessage', 'signTypedData', 'signTransaction', 'encrypt', 'decrypt'],
+  web3Provider: ['sendAsync']
 }
 
 const isInjectedProvider = (name) => {
@@ -229,7 +227,6 @@ export function isNative(name) {
     'udappTransactions',
     'udappEez',
     'txRunner',
-    'walletKeyring',
     'lifecycle',
     'skillsexplorermodal',
     'thegraph'

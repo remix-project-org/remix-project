@@ -15,5 +15,3 @@ export { fetchContractFromEtherscan, Network } from './lib/helpers/fetch-ethersc
 export { fetchContractFromBlockscout } from './lib/helpers/fetch-blockscout'
 export * from './lib/solidity-scan'
 export * from './lib/compiler-artefacts'
-export { WalletKeyringPlugin } from './lib/wallet-keyring'
-export type { UnlockParams, EncryptedEnvelope, TxRequest } from './lib/wallet-keyring'
