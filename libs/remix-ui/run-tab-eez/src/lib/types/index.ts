@@ -38,6 +38,7 @@ export interface CreatedProxyEntry {
   txHash: string
   originNetworkLabel: string
   originAddress: string
+  destinationNetworkId: string
   destinationNetworkLabel: string
   timestamp: number
 }
@@ -185,7 +186,7 @@ export type Actions =
   | { type: 'PREVIEW_SUCCESS'; payload: { previewAddress: string; previewIsDeployed: boolean } }
   | { type: 'PREVIEW_ERROR'; payload: string }
   | { type: 'START_CREATE' }
-  | { type: 'CREATE_SUCCESS'; payload: { txHash: string; proxyAddress: string; originNetworkLabel: string; originAddress: string; destinationNetworkLabel: string } }
+  | { type: 'CREATE_SUCCESS'; payload: { txHash: string; proxyAddress: string; originNetworkLabel: string; originAddress: string; destinationNetworkId: string; destinationNetworkLabel: string } }
   | { type: 'CREATE_ERROR'; payload: string }
   | { type: 'SET_THEME_QUALITY'; payload: string }
   | { type: 'NETWORK_CHANGED' }

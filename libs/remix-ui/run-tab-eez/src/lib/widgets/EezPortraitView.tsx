@@ -21,6 +21,7 @@ function EezPortraitView() {
   const [switchingNetworkId, setSwitchingNetworkId] = useState<string | null>(null)
   const [switchNetworkError, setSwitchNetworkError] = useState<string | null>(null)
   const [showSameNetworkWarning, setShowSameNetworkWarning] = useState(false)
+  const [loadingProxyAddress, setLoadingProxyAddress] = useState<string | null>(null)
 
   useEffect(() => {
     setShowSameNetworkWarning(false)
@@ -86,9 +87,17 @@ function EezPortraitView() {
     }
   }
 
-  const handleLoadResolvedProxy = async (proxyAddress: string) => {
-    window.dispatchEvent(new CustomEvent('udapp:switchTab', { detail: { tab: 'contracts' } }))
-    await plugin.call('udappDeployedContracts', 'openAddContractDialog', proxyAddress)
+  const handleLoadResolvedProxy = async (proxyAddress: string, networkId: string) => {
+    setLoadingProxyAddress(proxyAddress)
+    try {
+      if (networkId !== currentNetwork?.id && !(await plugin.switchToNetwork(networkId))) return
+      window.dispatchEvent(new CustomEvent('udapp:switchTab', { detail: { tab: 'contracts' } }))
+      await plugin.call('udappDeployedContracts', 'openAddContractDialog', proxyAddress)
+    } catch (e) {
+      plugin.call('notification', 'toast', e?.message || 'Failed to switch network')
+    } finally {
+      setLoadingProxyAddress(null)
+    }
   }
 
   const handleOpenEezSettings = async () => {
@@ -325,9 +334,10 @@ function EezPortraitView() {
                     className="btn btn-sm"
                     data-id="eezLoadPreviewedProxy"
                     style={{ backgroundColor: '#64C4FF14', color: '#64c4ff', border: 'none', fontSize: '10px', fontWeight: 700, padding: '3px 10px' }}
-                    onClick={() => handleLoadResolvedProxy(creator.previewAddress)}
+                    disabled={!!loadingProxyAddress}
+                    onClick={() => handleLoadResolvedProxy(creator.previewAddress, currentNetwork?.id)}
                   >
-                    Load
+                    {loadingProxyAddress === creator.previewAddress ? <i className="fas fa-spinner fa-spin"></i> : 'Load'}
                   </button>
                 )}
               </div>
@@ -531,9 +541,10 @@ function EezPortraitView() {
                     className="btn btn-sm"
                     data-id={`eezLoadCreatedProxy-${p.proxyAddress}`}
                     style={{ backgroundColor: '#64C4FF14', color: '#64c4ff', border: 'none', fontSize: '10px', fontWeight: 700, padding: '3px 10px' }}
-                    onClick={() => handleLoadResolvedProxy(p.proxyAddress)}
+                    disabled={!!loadingProxyAddress}
+                    onClick={() => handleLoadResolvedProxy(p.proxyAddress, p.destinationNetworkId)}
                   >
-                    Load
+                    {loadingProxyAddress === p.proxyAddress ? <i className="fas fa-spinner fa-spin"></i> : 'Load'}
                   </button>
                 </div>
               </div>

@@ -400,6 +400,7 @@ export async function createProxy(
         proxyAddress,
         originNetworkLabel: originNetwork.label,
         originAddress,
+        destinationNetworkId: destinationNetwork.id,
         destinationNetworkLabel: destinationNetwork.label
       }
     })

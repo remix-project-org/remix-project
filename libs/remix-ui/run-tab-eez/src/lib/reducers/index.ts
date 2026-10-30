@@ -100,6 +100,7 @@ export const eezReducer = (state: EezWidgetState, action: Actions): EezWidgetSta
           txHash: action.payload.txHash,
           originNetworkLabel: action.payload.originNetworkLabel,
           originAddress: action.payload.originAddress,
+          destinationNetworkId: action.payload.destinationNetworkId,
           destinationNetworkLabel: action.payload.destinationNetworkLabel,
           timestamp: Date.now()
         },
