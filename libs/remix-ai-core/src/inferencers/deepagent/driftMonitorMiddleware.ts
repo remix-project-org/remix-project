@@ -37,7 +37,8 @@ import { cachedPrefixParts } from './deepAgentMiddleWare'
 const TOOL_LOOP_STOP_AT = 4
 /** Main-agent user turns between two reminders of the standing rules. */
 const REMIND_EVERY_TURNS = 8
-const WRITE_TOOLS = new Set(['write_file', 'edit_file'])
+/** deepagents' file tools and the MCP ones the approval gate writes through. */
+const WRITE_TOOLS = new Set(['write_file', 'edit_file', 'file_write', 'file_create', 'file_replace'])
 
 export interface DriftMonitorOptions {
   /** For Matomo. Absent in evals, which only read `getDriftStats()`. */
@@ -55,6 +56,12 @@ export interface DriftMonitorOptions {
   retraction?: { request(): void; cancel(): void }
   /** A model entering (`true`) or leaving (`false`) sustained degradation. */
   onDegradation?: (label: string, degraded: boolean, detail: string) => void
+  /**
+   * A write tool was called on this thread. Subagent monitors forward their
+   * writes here so the main agent's "printed a file it just wrote" check sees
+   * writes it delegated.
+   */
+  onFileWrite?: (threadId: string) => void
 }
 
 interface ThreadState {
@@ -158,8 +165,10 @@ export class DriftMonitorMiddleware implements AgentMiddleware {
       try {
         const name = request.toolCall?.name ?? 'unknown'
         const threadId = threadIdOf(request.runtime)
-        const thread = this.threads.get(threadId)
-        if (thread && WRITE_TOOLS.has(name)) thread.wroteFileThisTurn = true
+        if (WRITE_TOOLS.has(name)) {
+          this.noteFileWritten(threadId)
+          this.options.onFileWrite?.(threadId)
+        }
 
         const verdict = this.toolLoops.check(threadId, name, request.toolCall?.args)
         if (verdict.action !== 'run') {
@@ -182,6 +191,15 @@ export class DriftMonitorMiddleware implements AgentMiddleware {
     }
 
     return handler(request as any) as Promise<ToolMessage>
+  }
+
+  /**
+   * Counted when the write is *requested*: writes under approval are batched
+   * and only land after the answer, too late for the turn they belong to.
+   */
+  noteFileWritten(threadId: string): void {
+    const thread = this.threads.get(threadId)
+    if (thread) thread.wroteFileThisTurn = true
   }
 
   private threadFor(threadId: string, request: ModelRequest): ThreadState {
@@ -241,7 +259,7 @@ export class DriftMonitorMiddleware implements AgentMiddleware {
     mode: DriftMode,
     { retry = false }: { retry?: boolean } = {}
   ): DriftFinding | null {
-    const label = modelLabel(request)
+    const label = servedModel(result) ?? modelLabel(request)
     this.lastLabel = label
     const threadId = threadIdOf(request.runtime)
     const output = extractText(result?.content)
@@ -297,7 +315,7 @@ export class DriftMonitorMiddleware implements AgentMiddleware {
         action: 'remixAI',
         name: `drift|${finding.signal}|${label}|${mode}`,
         value: finding.value ?? 1
-      } as any)
+      })
     } catch (error) {
       remixAILogger.warn('[DriftMonitor] matomo tracking failed, continuing:', error)
     }
@@ -306,6 +324,17 @@ export class DriftMonitorMiddleware implements AgentMiddleware {
 
 function modelLabel(request: ModelRequest): string {
   return (request as any)?.model?.model ?? (request as any)?.model?.modelName ?? 'unknown'
+}
+
+/**
+ * The model the provider actually ran. Differs from the requested id for
+ * routers — `openrouter/auto` picks per request, a `~…-latest` alias resolves
+ * to a version — and the stats are only meaningful per real model.
+ */
+function servedModel(result: AIMessage): string | null {
+  const metadata: any = (result as any)?.response_metadata ?? {}
+  const model = metadata.model_name ?? metadata.model
+  return typeof model === 'string' && model ? model : null
 }
 
 function threadIdOf(runtime: unknown): string {

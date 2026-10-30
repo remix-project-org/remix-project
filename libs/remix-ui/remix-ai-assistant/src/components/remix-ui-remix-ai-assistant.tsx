@@ -201,8 +201,9 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
   // Mirrored for sendPrompt, which is memoized without the route in its deps.
   const aiRouteRef = useRef<'initializing' | 'agent' | 'tools' | 'chat'>('initializing')
   useEffect(() => { aiRouteRef.current = aiRouteStatus.route }, [aiRouteStatus.route])
-  // Sustained slowdown of a model, keyed by model id, from the drift monitor.
-  const [degradedModels, setDegradedModels] = useState<Record<string, string>>({})
+  // Sustained slowdown of a served model, from the drift monitor. Keyed by the
+  // served model: under Auto one picked model can recover while another is slow.
+  const [degradedModels, setDegradedModels] = useState<Record<string, { modelId: string; detail: string }>>({})
 
   // Authentication signal — mirrored from the assistantState snapshot.
   // Drives the composer's sign-in CTA so an anonymous user gets a clear
@@ -278,6 +279,9 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
   const ollamaMenuRef = useRef<any>()
   const [ollamaModels, setOllamaModels] = useState<{ name: string; supported: boolean }[]>([])
   const [selectedModel, setSelectedModel] = useState<AIModel | null>(null)
+  const selectedModelDegradedDetail = selectedModel
+    ? Object.values(degradedModels).find(entry => entry.modelId === selectedModel.id)?.detail
+    : undefined
   // Set when a starter credit pack is confirmed; cleared once the switch to a
   // low-cost model has actually been applied (the catalogue is refreshed
   // asynchronously after the purchase, so the switch can't happen inline).
@@ -1056,12 +1060,13 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
       )
     }
 
-    const handleModelDegraded = (data: { modelId: string; degraded: boolean; detail: string }) => {
+    const handleModelDegraded = (data: { modelId: string; label: string; degraded: boolean; detail: string }) => {
       if (!data?.modelId) return
+      const key = data.label || data.modelId
       setDegradedModels(prev => {
         const next = { ...prev }
-        if (data.degraded) next[data.modelId] = data.detail
-        else delete next[data.modelId]
+        if (data.degraded) next[key] = { modelId: data.modelId, detail: data.detail }
+        else delete next[key]
         return next
       })
     }
@@ -3500,7 +3505,7 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
             onAddApiKeyClick={handleOpenApiKeySettings}
             aiRoute={aiRouteStatus.route}
             aiRouteReady={aiRouteStatus.ready}
-            modelDegradedDetail={selectedModel ? degradedModels[selectedModel.id] : undefined}
+            modelDegradedDetail={selectedModelDegradedDetail}
             isAuthenticated={isAuthenticated}
             onSignIn={handleSignIn}
             hasAuditorPermission={hasAuditorPermission}
@@ -3569,7 +3574,7 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
             onAddApiKeyClick={handleOpenApiKeySettings}
             aiRoute={aiRouteStatus.route}
             aiRouteReady={aiRouteStatus.ready}
-            modelDegradedDetail={selectedModel ? degradedModels[selectedModel.id] : undefined}
+            modelDegradedDetail={selectedModelDegradedDetail}
             isAuthenticated={isAuthenticated}
             onSignIn={handleSignIn}
             hasAuditorPermission={hasAuditorPermission}

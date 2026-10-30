@@ -1121,10 +1121,16 @@ export class DeepAgentInferencer implements ICompletions, IGeneration {
     ) as unknown as DynamicStructuredTool
   }
 
+  /** The main agent's monitor, which subagent monitors report writes to. */
+  private mainDriftMonitor: DriftMonitorMiddleware | null = null
+
   private createDriftMonitor(role: 'main' | 'subagent'): DriftMonitorMiddleware {
-    return new DriftMonitorMiddleware({
+    const monitor = new DriftMonitorMiddleware({
       plugin: this.plugin,
       role,
+      onFileWrite: role === 'subagent'
+        ? (threadId) => this.mainDriftMonitor?.noteFileWritten(threadId)
+        : undefined,
       retraction: role === 'main'
         ? {
           request: () => this.streamEventHandler.requestRetraction(),
@@ -1132,9 +1138,19 @@ export class DeepAgentInferencer implements ICompletions, IGeneration {
         }
         : undefined,
       onDegradation: (label, degraded, detail) => {
-        this.event.emit('onModelDegraded', { modelId: this.modelSelection.modelId, label, degraded, detail })
+        // `label` is the served model; under a router it is not the one the
+        // user picked, so name it.
+        const modelId = this.modelSelection.modelId
+        this.event.emit('onModelDegraded', {
+          modelId,
+          label,
+          degraded,
+          detail: label === modelId ? detail : `${label}: ${detail}`
+        })
       }
     })
+    if (role === 'main') this.mainDriftMonitor = monitor
+    return monitor
   }
 
   /**

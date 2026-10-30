@@ -1,4 +1,5 @@
 import { remixAILogger } from './logger'
+import { isSafeTool } from '../types/humanInTheLoop'
 
 /**
  * Quality telemetry for the agent loop — the counterpart to `modelTelemetry`,
@@ -201,17 +202,20 @@ export function fingerprintToolCall(name: string, args: unknown): string {
   }
 }
 
-/**
- * Tools whose call can change what a later identical call returns. Running
- * one ends the current streak, so read → edit → read is never a loop. `task`
- * is here because a subagent can do any of these.
- */
-export const MUTATING_TOOLS = new Set([
-  'write_file', 'edit_file', 'delete', 'mkdir', 'task',
-  'solidity_compile', 'compile_contract', 'set_compiler_config',
-  'deploy_contract', 'send_transaction', 'call_contract', 'run_script',
-  'set_execution_environment', 'set_selected_account', 'add_instance'
+/** deepagents' built-in filesystem reads, which the approval list does not cover. */
+const BUILTIN_READ_TOOLS = new Set(['ls', 'read_file', 'glob', 'grep'])
+
+const STATE_CHANGING_SAFE_TOOLS = new Set([
+  'compile_solidity', 'solidity_compile', 'compile_with_hardhat', 'compile_with_foundry', 'compile_with_truffle',
+  'debug_transaction', 'start_debug_session', 'jump_to',
+  'open_file', 'scroll_element', 'dapp_open', 'dapp_navigate', 'start_tutorial',
+  'generate_dapp', 'update_dapp'
 ])
+
+export function isRepeatableReadTool(name: string): boolean {
+  if (BUILTIN_READ_TOOLS.has(name)) return true
+  return isSafeTool(name) && !STATE_CHANGING_SAFE_TOOLS.has(name)
+}
 
 /** Never short-circuited: re-sending the same todo list is how progress is shown. */
 export const LOOP_EXEMPT_TOOLS = new Set(['write_todos'])
@@ -233,7 +237,7 @@ export class ToolLoopGuard {
 
   check(key: string, name: string, args: unknown): ToolLoopVerdict {
     if (LOOP_EXEMPT_TOOLS.has(name)) return { action: 'run' }
-    if (MUTATING_TOOLS.has(name)) {
+    if (!isRepeatableReadTool(name)) {
       this.streaks.delete(key)
       return { action: 'run' }
     }
@@ -591,14 +595,8 @@ export function recordCall(
           value: Number(sizeZ.toFixed(2))
         })
       }
-      const latencyZ = zScore(sample.latencyMs, row.meanLatencyMs, row.m2LatencyMs, row.samples)
-      if (latencyZ >= zThreshold) {
-        findings.push({
-          signal: 'output_drift',
-          detail: 'response latency departed from this model\'s session baseline',
-          value: Number(latencyZ.toFixed(2))
-        })
-      }
+      // No per-answer latency check: a single slow answer is network noise,
+      // not drift. Latency is judged over a window by `foldIntoBaseline`.
     }
 
     row.samples += 1
