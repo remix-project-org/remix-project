@@ -18,14 +18,14 @@ test('e2e-erc721-generation-with-form', async ({ page }) => {
   }
   await page.goto(`http://127.0.0.1:8080/#e2e_feature_groups=e2e-unlimited-quota&e2e_pool_key=${encodeURIComponent(poolApiKey)}&lang=en&optimize&runs=200&evmVersion&version=soljson-v0.8.34+commit.80d5c536.js`);
   try {
-    await page.getByTitle('Dismiss').waitFor({ state: 'visible', timeout: 5000 });
+    await page.getByTitle('Dismiss').waitFor({ state: 'visible', timeout: 30000 });
     await page.getByTitle('Dismiss').click();
   } catch { /* not present */ }
   await page.getByRole('button', { name: 'Sign In', exact: true }).click();
   await page.locator('[data-id="pm-free-plan-start"]').click();
   await page.getByRole('button', { name: 'E2E Test Pool', exact: false }).click();
   try {
-    await page.getByTitle('Dismiss').waitFor({ state: 'visible', timeout: 3000 });
+    await page.getByTitle('Dismiss').waitFor({ state: 'visible', timeout: 30000 });
     await page.getByTitle('Dismiss').click();
   } catch { /* not present */ }
   await page.getByRole('textbox', { name: 'Type "/" for more options or' }).click();

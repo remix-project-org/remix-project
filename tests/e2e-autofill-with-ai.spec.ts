@@ -50,7 +50,7 @@ async function signIn(page: any, poolApiKey: string) {
   const url = `http://127.0.0.1:8080/?#e2e_feature_groups=e2e-unlimited-quota&e2e_pool_key=${encodeURIComponent(poolApiKey)}&lang=en&optimize&runs=200&evmVersion&version=soljson-v0.8.34+commit.80d5c536.js`
   await page.goto(url)
   try {
-    await page.getByTitle('Dismiss').waitFor({ state: 'visible', timeout: 5000 });
+    await page.getByTitle('Dismiss').waitFor({ state: 'visible', timeout: 30000 });
     await page.getByTitle('Dismiss').click();
   } catch { /* not present */ }
   await page.locator('[data-id="login-button"]').click()
@@ -72,7 +72,17 @@ async function loadAndCompileContract(page: any, source: string) {
 
   // Compile
   await page.locator('[data-id="verticalIconsKindsolidity"]').click()
+  // If the plan manager stub overlay appeared (covering the compiler panel), re-click to restore focus
+  try {
+    await page.locator('[data-id="planManagerStubOpenButton"]').waitFor({ state: 'visible', timeout: 2000 });
+    await page.locator('[data-id="verticalIconsKindsolidity"]').click()
+  } catch { /* not present */ }
   await page.locator('[data-id="compilerContainerCompileBtn"]').click()
+  // If the plan manager stub overlay appeared (covering the compiler panel), re-click to restore focus
+  try {
+    await page.locator('[data-id="planManagerStubOpenButton"]').waitFor({ state: 'visible', timeout: 2000 });
+    await page.locator('[data-id="verticalIconsKindsolidity"]').click()
+  } catch { /* not present */ }
   // Wait for compilation success — compiled contracts list appears
   await expect(page.locator('[data-id="compiledContracts"]')).toBeVisible({ timeout: 30000 })
 }
