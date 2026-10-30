@@ -130,6 +130,12 @@ export class EezPlugin extends Plugin {
     return isComposer
   }
 
+  async switchToNetwork(networkId: string): Promise<boolean> {
+    const network = this.networks.find((n) => n.id === networkId)
+    if (!network) throw new Error('The selected network is not part of this EEZ network.')
+    return this.switchWalletTo(network)
+  }
+
   private setWalletRpc(walletRpc: EezWalletRpc) {
     this.walletRpc = walletRpc
     this.getDispatch()?.({ type: 'SET_WALLET_RPC', payload: walletRpc })
