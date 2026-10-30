@@ -1,22 +1,21 @@
 import React, { useContext } from 'react'
 import { Dropdown } from 'react-bootstrap'
 import { EezAppContext } from '../contexts'
-import { resolveProxyAddresses, previewProxyCreation, createProxy, traceTransactionByHash } from '../actions'
+import { resolveProxyAddresses, previewProxyCreation, createProxy, traceTransactionByHash, switchWalletToComposerRpc, stopTracePolling } from '../actions'
+import { EEZ_COMPOSER_RPC_URLS } from '../constants'
 import { FormattedMessage } from 'react-intl'
 import { CopyToClipboard } from '@remix-ui/clipboard'
 import { CustomMenu, CustomToggle, getTimeAgo } from '@remix-ui/helper'
-
-function shorten(address: string) {
-  if (!address) return ''
-  return `${address.slice(0, 6)}...${address.slice(-4)}`
-}
+import { EezTraceResult, shorten } from './EezTraceResult'
 
 function EezPortraitView() {
   const { plugin, widgetState, dispatch, themeQuality } = useContext(EezAppContext)
   const {
     networks, isDiscovering, addressInput, isResolving, resolutionRows, resolutionError, showCreateDialog, createdProxies, creator,
-    traceTxHash, isTracing, traceResult, traceError
+    traceTxHash, isTracing, traceResult, traceError, walletRpc, isSwitchingWalletRpc, isWalletRpcAdded
   } = widgetState
+  const isWalletOffComposer = walletRpc.isComposer === false
+  const currentNetworkLabel = networks.find((n) => n.chainId === walletRpc.chainId)?.label || 'this network'
 
   const handleResolve = () => {
     resolveProxyAddresses(plugin, dispatch, networks, addressInput.trim())
@@ -40,6 +39,19 @@ function EezPortraitView() {
 
   const handleCreate = () => {
     createProxy(plugin, dispatch, networks, creator.originNetworkId, creator.originAddress.trim())
+  }
+
+  const handleSwitchWalletRpc = () => {
+    switchWalletToComposerRpc(plugin, dispatch, walletRpc.chainId)
+  }
+
+  const handleCheckWalletRpc = async () => {
+    dispatch({ type: 'START_WALLET_RPC_SWITCH' })
+    try {
+      await plugin.checkWalletRpc()
+    } finally {
+      dispatch({ type: 'WALLET_RPC_SWITCH_DONE' })
+    }
   }
 
   const handleLoadResolvedProxy = async (proxyAddress: string) => {
@@ -103,6 +115,74 @@ function EezPortraitView() {
           </button>
         </div>
       </div>
+      {isWalletOffComposer && isWalletRpcAdded && (
+        <div
+          className="alert alert-info mx-3 mt-0 mb-0 d-flex gap-2 small"
+          role="alert"
+          data-id="eezWalletRpcSelectInfo"
+          style={{ borderLeft: '4px solid var(--bs-info)' }}
+        >
+          <div className="flex-grow-1" style={{ minWidth: 0 }}>
+            <p className="mb-1 fw-bold d-flex align-items-center gap-2" style={{ fontSize: '0.85rem' }}>
+              <i className="fas fa-info-circle"></i>
+              Select the EEZ RPC in your wallet
+            </p>
+            <p className="mb-1">
+              The EEZ composer RPC was added to {currentNetworkLabel}, but your wallet is still using its previous RPC. To switch in MetaMask:
+            </p>
+            <ol className="mb-2 ps-3">
+              <li>Open the MetaMask network menu.</li>
+              <li>Click {currentNetworkLabel} to show its RPC list.</li>
+              <li>Select <code className="text-break">{EEZ_COMPOSER_RPC_URLS[walletRpc.chainId]?.rpcUrl}</code>.</li>
+              <li>Click "Check again" below.</li>
+            </ol>
+            <button
+              className="btn btn-sm btn-info w-100 fw-bold d-flex align-items-center justify-content-center"
+              data-id="eezCheckWalletRpcButton"
+              disabled={isSwitchingWalletRpc}
+              onClick={handleCheckWalletRpc}
+            >
+              {isSwitchingWalletRpc ? (
+                <><i className="fas fa-spinner fa-spin me-2"></i>Checking...</>
+              ) : (
+                <>Check again</>
+              )}
+            </button>
+          </div>
+        </div>
+      )}
+      {isWalletOffComposer && !isWalletRpcAdded && (
+        <div
+          className="alert alert-warning mx-3 mt-0 mb-0 d-flex gap-2 small"
+          role="alert"
+          data-id="eezWalletRpcWarning"
+          style={{ borderLeft: '4px solid var(--bs-warning)' }}
+        >
+          <div className="flex-grow-1" style={{ minWidth: 0 }}>
+            <p className="mb-1 fw-bold d-flex align-items-center gap-2" style={{ fontSize: '0.85rem' }}>
+              <i className="fas fa-exclamation-triangle"></i>
+              Wrong Composer RPC for {currentNetworkLabel}
+            </p>
+            <p className="mb-2">
+              Your wallet is connected to {currentNetworkLabel} through an RPC that isn't the EEZ composer, so cross-chain transactions sent from your wallet will fail. Proxy lookups still work.
+            </p>
+            {walletRpc.canSwitch && (
+              <button
+                className="btn btn-sm btn-warning w-100 fw-bold d-flex align-items-center justify-content-center"
+                data-id="eezSwitchWalletRpcButton"
+                disabled={isSwitchingWalletRpc}
+                onClick={handleSwitchWalletRpc}
+              >
+                {isSwitchingWalletRpc ? (
+                  <><i className="fas fa-spinner fa-spin me-2"></i>Confirm in your wallet...</>
+                ) : (
+                  <>Use EEZ RPC</>
+                )}
+              </button>
+            )}
+          </div>
+        </div>
+      )}
       {showCreateDialog && (
         <div className="m-3 mt-0 p-3 rounded" data-id="eezCreateDialog" style={{ backgroundColor: 'var(--custom-onsurface-layer-2)' }}>
           <div className="d-flex justify-content-between align-items-center mb-2">
@@ -222,7 +302,7 @@ function EezPortraitView() {
             </div>
           )}
           {creator.previewAddress && !creator.previewIsDeployed && (
-            <button className="btn btn-sm btn-primary w-100" data-id="eezCreateButton" disabled={creator.isCreating} onClick={handleCreate}>
+            <button className="btn btn-sm btn-primary w-100" data-id="eezCreateButton" disabled={creator.isCreating || isWalletOffComposer} onClick={handleCreate}>
               {creator.isCreating ? 'Creating...' : 'Create proxy'}
             </button>
           )}
@@ -312,7 +392,7 @@ function EezPortraitView() {
           Trace Cross-Chain Transaction
         </p>
         <p style={{ color: 'var(--bs-tertiary)', fontSize: '0.7rem' }} className="mb-2 fw-light">
-          Enter the hash of a mined transaction on the currently connected network to see the cross-chain proxies its execution touched.
+          Enter the hash of a transaction on the currently connected network to follow it, through its settlement, across the EEZ chains it touched.
         </p>
         <div className="d-flex align-items-center mb-2">
           <label className="mb-0 me-2" style={{ color: 'var(--bs-tertiary)' }}>
@@ -326,7 +406,10 @@ function EezPortraitView() {
             data-id="eezTraceTxHashInput"
             placeholder="0x..."
             value={traceTxHash}
-            onChange={(e) => dispatch({ type: 'SET_TRACE_TX_HASH', payload: e.target.value })}
+            onChange={(e) => {
+              stopTracePolling()
+              dispatch({ type: 'SET_TRACE_TX_HASH', payload: e.target.value })
+            }}
             style={{ backgroundColor: 'var(--bs-body-bg)', color: themeQuality === 'dark' ? 'white' : 'black', flex: 1, padding: '0.75rem', paddingRight: '5.5rem', fontSize: '0.75rem' }}
           />
           <button
@@ -340,36 +423,7 @@ function EezPortraitView() {
           </button>
         </div>
         {traceError && <div className="text-danger small mb-2">{traceError}</div>}
-        {traceResult && (
-          <div className="mt-2">
-            <div
-              className="small mb-2 p-2 rounded"
-              style={{ backgroundColor: traceResult.success ? 'rgba(var(--bs-success-rgb), 0.08)' : 'rgba(var(--bs-danger-rgb), 0.08)', color: themeQuality === 'dark' ? 'white' : 'black' }}
-            >
-              {traceResult.success
-                ? '✓ This transaction succeeded.'
-                : `✗ This transaction reverted${traceResult.decodedError ? `: ${traceResult.decodedError}` : traceResult.error ? `: ${traceResult.error}` : '.'}`}
-            </div>
-            {traceResult.proxies.length > 0 ? (
-              <div className="small mb-2 p-2 rounded" style={{ backgroundColor: '#a56eff14', color: themeQuality === 'dark' ? 'white' : 'black' }}>
-                <div style={{ fontWeight: 700 }}>
-                  This transaction is cross-chain — {traceResult.proxyCount} {traceResult.proxyCount === 1 ? 'proxy' : 'proxies'} touched:
-                </div>
-                {traceResult.proxies.map((p) => (
-                  <div key={p.address} className="mt-1">
-                    {p.hops.map((hop, hopIndex) => (
-                      <div key={hopIndex} className="text-break" style={{ fontSize: '11px', fontFamily: 'Monaco, monospace' }}>
-                        {shorten(hopIndex === 0 ? p.address : p.hops[hopIndex - 1].originalAddress)} → acts for {shorten(hop.originalAddress)} on {hop.originNetworkLabel || `network ${hop.originalRollupId}`}
-                      </div>
-                    ))}
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div className="small mb-2 text-secondary">No cross-chain proxies were touched by this transaction.</div>
-            )}
-          </div>
-        )}
+        {traceResult && <EezTraceResult result={traceResult} themeQuality={themeQuality} />}
       </div>
 
       {createdProxies.length > 0 && (
