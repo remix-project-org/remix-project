@@ -1,7 +1,7 @@
-import React, { useContext } from 'react'
+import React, { useContext, useEffect, useState } from 'react'
 import { Dropdown } from 'react-bootstrap'
 import { EezAppContext } from '../contexts'
-import { resolveProxyAddresses, previewProxyCreation, createProxy, traceTransactionByHash, switchWalletToComposerRpc, stopTracePolling } from '../actions'
+import { resolveProxyAddresses, previewProxyCreation, createProxy, traceTransactionByHash, switchWalletToComposerRpc, stopTracePolling, resolveOriginAbi } from '../actions'
 import { EEZ_COMPOSER_RPC_URLS } from '../constants'
 import { FormattedMessage } from 'react-intl'
 import { CopyToClipboard } from '@remix-ui/clipboard'
@@ -15,7 +15,18 @@ function EezPortraitView() {
     traceTxHash, isTracing, traceResult, traceError, walletRpc, isSwitchingWalletRpc, isWalletRpcAdded
   } = widgetState
   const isWalletOffComposer = walletRpc.isComposer === false
-  const currentNetworkLabel = networks.find((n) => n.chainId === walletRpc.chainId)?.label || 'this network'
+  const currentNetwork = networks.find((n) => n.chainId === walletRpc.chainId)
+  const currentNetworkLabel = currentNetwork?.label || 'this network'
+  const isOriginCurrentNetwork = !!creator.originNetworkId && creator.originNetworkId === currentNetwork?.id
+  const [switchingNetworkId, setSwitchingNetworkId] = useState<string | null>(null)
+  const [switchNetworkError, setSwitchNetworkError] = useState<string | null>(null)
+  const [showSameNetworkWarning, setShowSameNetworkWarning] = useState(false)
+  const [loadingProxyAddress, setLoadingProxyAddress] = useState<string | null>(null)
+
+  useEffect(() => {
+    setShowSameNetworkWarning(false)
+    setSwitchNetworkError(null)
+  }, [creator.originNetworkId, creator.originAddress])
 
   const handleResolve = () => {
     resolveProxyAddresses(plugin, dispatch, networks, addressInput.trim())
@@ -34,11 +45,33 @@ function EezPortraitView() {
   }
 
   const handlePreview = () => {
+    if (isOriginCurrentNetwork) {
+      setShowSameNetworkWarning(true)
+      return
+    }
     previewProxyCreation(plugin, dispatch, networks, creator.originNetworkId, creator.originAddress.trim())
   }
 
   const handleCreate = () => {
     createProxy(plugin, dispatch, networks, creator.originNetworkId, creator.originAddress.trim())
+  }
+
+  const handleSwitchNetwork = async (networkId: string) => {
+    const { originNetworkId, originAddress } = creator
+    setSwitchingNetworkId(networkId)
+    setSwitchNetworkError(null)
+    try {
+      await plugin.switchToNetwork(networkId)
+      // the network change resets the creator, so restore what the user entered
+      dispatch({ type: 'SHOW_CREATE_DIALOG', payload: true })
+      dispatch({ type: 'SET_CREATOR_ORIGIN_NETWORK', payload: originNetworkId })
+      dispatch({ type: 'SET_CREATOR_ORIGIN_ADDRESS', payload: originAddress })
+      if (originAddress.trim()) previewProxyCreation(plugin, dispatch, plugin.networks, originNetworkId, originAddress.trim())
+    } catch (e) {
+      setSwitchNetworkError(e?.message || 'Failed to switch network')
+    } finally {
+      setSwitchingNetworkId(null)
+    }
   }
 
   const handleSwitchWalletRpc = () => {
@@ -54,9 +87,23 @@ function EezPortraitView() {
     }
   }
 
-  const handleLoadResolvedProxy = async (proxyAddress: string) => {
-    window.dispatchEvent(new CustomEvent('udapp:switchTab', { detail: { tab: 'contracts' } }))
-    await plugin.call('udappDeployedContracts', 'openAddContractDialog', proxyAddress)
+  const handleLoadResolvedProxy = async (proxyAddress: string, networkId: string, originNetworkId: string, originAddress: string) => {
+    setLoadingProxyAddress(proxyAddress)
+    try {
+      const originNetwork = networks.find((n) => n.id === originNetworkId)
+      const origin = originNetwork ? await resolveOriginAbi(plugin, originNetwork, originAddress) : null
+      if (networkId !== currentNetwork?.id && !(await plugin.switchToNetwork(networkId))) return
+      window.dispatchEvent(new CustomEvent('udapp:switchTab', { detail: { tab: 'contracts' } }))
+      if (origin) {
+        await plugin.call('udappDeployedContracts', 'addInstance', proxyAddress, origin.abi, origin.name)
+      } else {
+        await plugin.call('udappDeployedContracts', 'openAddContractDialog', proxyAddress)
+      }
+    } catch (e) {
+      plugin.call('notification', 'toast', e?.message || 'Failed to switch network')
+    } finally {
+      setLoadingProxyAddress(null)
+    }
   }
 
   const handleOpenEezSettings = async () => {
@@ -293,9 +340,10 @@ function EezPortraitView() {
                     className="btn btn-sm"
                     data-id="eezLoadPreviewedProxy"
                     style={{ backgroundColor: '#64C4FF14', color: '#64c4ff', border: 'none', fontSize: '10px', fontWeight: 700, padding: '3px 10px' }}
-                    onClick={() => handleLoadResolvedProxy(creator.previewAddress)}
+                    disabled={!!loadingProxyAddress}
+                    onClick={() => handleLoadResolvedProxy(creator.previewAddress, currentNetwork?.id, creator.originNetworkId, creator.originAddress.trim())}
                   >
-                    Load
+                    {loadingProxyAddress === creator.previewAddress ? <i className="fas fa-spinner fa-spin"></i> : 'Load'}
                   </button>
                 )}
               </div>
@@ -305,6 +353,40 @@ function EezPortraitView() {
             <button className="btn btn-sm btn-primary w-100" data-id="eezCreateButton" disabled={creator.isCreating || isWalletOffComposer} onClick={handleCreate}>
               {creator.isCreating ? 'Creating...' : 'Create proxy'}
             </button>
+          )}
+          {showSameNetworkWarning && isOriginCurrentNetwork && (
+            <div
+              className="alert alert-danger mt-2 mb-0 small"
+              role="alert"
+              data-id="eezSameNetworkWarning"
+              style={{ borderLeft: '4px solid var(--bs-danger)' }}
+            >
+              <p className="mb-1 fw-bold d-flex align-items-center gap-2" style={{ fontSize: '0.85rem' }}>
+                <i className="fas fa-exclamation-triangle"></i>
+                Same Network Proxies Not Allowed
+              </p>
+              <p className="mb-2">
+                Same-network proxies are not allowed. Change the selected origin network, or switch your wallet to {networks.filter((n) => n.id !== creator.originNetworkId).map((n) => n.label).join(' or ')} to create the proxy.
+              </p>
+              <div className="d-flex flex-column gap-1">
+                {networks.filter((n) => n.id !== creator.originNetworkId).map((n) => (
+                  <button
+                    key={n.id}
+                    className="btn btn-sm btn-warning w-100 fw-bold d-flex align-items-center justify-content-center"
+                    data-id={`eezSwitchNetworkButton-${n.id}`}
+                    disabled={!!switchingNetworkId}
+                    onClick={() => handleSwitchNetwork(n.id)}
+                  >
+                    {switchingNetworkId === n.id ? (
+                      <><i className="fas fa-spinner fa-spin me-2"></i>Confirm in your wallet...</>
+                    ) : (
+                      <>Switch to {n.label}</>
+                    )}
+                  </button>
+                ))}
+              </div>
+              {switchNetworkError && <div className="text-danger mt-2">{switchNetworkError}</div>}
+            </div>
           )}
         </div>
       )}
@@ -465,9 +547,10 @@ function EezPortraitView() {
                     className="btn btn-sm"
                     data-id={`eezLoadCreatedProxy-${p.proxyAddress}`}
                     style={{ backgroundColor: '#64C4FF14', color: '#64c4ff', border: 'none', fontSize: '10px', fontWeight: 700, padding: '3px 10px' }}
-                    onClick={() => handleLoadResolvedProxy(p.proxyAddress)}
+                    disabled={!!loadingProxyAddress}
+                    onClick={() => handleLoadResolvedProxy(p.proxyAddress, p.destinationNetworkId, p.originNetworkId, p.originAddress)}
                   >
-                    Load
+                    {loadingProxyAddress === p.proxyAddress ? <i className="fas fa-spinner fa-spin"></i> : 'Load'}
                   </button>
                 </div>
               </div>
