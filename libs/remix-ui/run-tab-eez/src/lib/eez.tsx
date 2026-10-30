@@ -31,6 +31,7 @@ function EezWidget({ plugin }: { plugin: EezPlugin }) {
     if (!isPrimaryInstance.current) return
     localDispatch({ type: 'SET_NETWORKS', payload: plugin.networks })
     localDispatch({ type: 'SET_DISCOVERING', payload: plugin.isDiscovering })
+    localDispatch({ type: 'SET_WALLET_RPC', payload: plugin.walletRpc })
   }, [plugin])
 
   useEffect(() => {

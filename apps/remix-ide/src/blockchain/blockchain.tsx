@@ -11,6 +11,7 @@ import { VMProvider } from './providers/vm'
 import { InjectedProvider } from './providers/injected'
 import { NodeProvider } from './providers/node'
 import { execution, EventManager, helpers } from '@remix-project/remix-lib'
+import type { QuotedFee } from '@remix-project/remix-lib'
 import { etherScanLink, getBlockScoutUrl } from './helper'
 import { logBuilder, cancelUpgradeMsg, cancelProxyMsg, addressToString } from '@remix-ui/helper'
 import { Provider } from '@remix-ui/environment-explorer'
@@ -656,7 +657,7 @@ export class Blockchain extends Plugin {
     return txlistener
   }
 
-  async runOrCallContractMethod(contractName, contractAbi, funABI, contract, value, address, callType, sendParams?: { value: string, gasLimit: string }) {
+  async runOrCallContractMethod(contractName, contractAbi, funABI, contract, value, address, callType, sendParams?: { value: string, gasLimit: string, quotedFee?: QuotedFee }) {
     // contractsDetails is used to resolve libraries
     const data = await txFormat.buildData(
       contractName,
@@ -690,6 +691,8 @@ export class Blockchain extends Plugin {
         data.value = sendParams.value
         // @ts-ignore
         data.gasLimit = sendParams.gasLimit
+        // @ts-ignore
+        data.quotedFee = sendParams.quotedFee
       }
     }
     const useCall = funABI.stateMutability === 'view' || funABI.stateMutability === 'pure'
@@ -1027,7 +1030,8 @@ export class Blockchain extends Plugin {
       web3: await this.getWeb3(), // Pass web3 to avoid circular callback
       provider: this.getProvider(), // Pass provider to avoid circular callback deadlock
       isVM: this.executionContext.isVM(), // Pass isVM to avoid circular callback deadlock
-      determineGasPrice: await this.determineGasPrice() // Pass gasPrice to avoid circular callback deadlock
+      determineGasPrice: await this.determineGasPrice(), // Pass gasPrice to avoid circular callback deadlock
+      quotedFee: args.data?.quotedFee
     }
     const payLoad = {
       funAbi: args.data.funAbi,

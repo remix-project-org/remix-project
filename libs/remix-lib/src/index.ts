@@ -15,6 +15,7 @@ import * as typeConversion from './execution/typeConversion'
 import { TxRunnerVM } from './execution/txRunnerVM'
 import { TxRunnerWeb3 } from './execution/txRunnerWeb3'
 import { TxRunner } from './execution/txRunner'
+import type { QuotedFee } from './execution/txRunner'
 import * as txResultHelper from './helpers/txResultHelper'
 import * as eip7702Constants from './helpers/eip7702Constants'
 import { EOACode7702AuthorizationList } from '@ethereumjs/util'
@@ -49,6 +50,7 @@ export type Transaction = {
   provider?: string // Provider type to avoid circular callback deadlock
   isVM?: boolean // VM flag to avoid circular callback deadlock
   determineGasPrice?: any // Gas price to avoid circular callback deadlock
+  quotedFee?: QuotedFee // Sent as quoted, without gas estimation or fee confirmation
 }
 
 type TxResult = {
@@ -76,3 +78,4 @@ const execution = {
   forkAt
 }
 export { EventManager, helpers, Storage, util, execution, hash, eip7702Constants, TxResult }
+export type { QuotedFee }

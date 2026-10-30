@@ -2,7 +2,8 @@ import React from 'react'
 import { trackMatomoEvent } from '@remix-api'
 import * as remixLib from '@remix-project/remix-lib'
 import { FuncABI } from '@remix-project/core-plugin'
-import { JsonRpcProvider, Contract } from 'ethers'
+import { JsonRpcProvider, Contract, toQuantity } from 'ethers'
+import type { QuotedFee } from '@remix-project/remix-lib'
 // eslint-disable-next-line @nrwl/nx/enforce-module-boundaries
 import { DeployedContractsPlugin } from 'apps/remix-ide/src/app/udapp/udappDeployedContracts'
 import { Actions, DeployedContract } from '../types'
@@ -11,7 +12,7 @@ const txFormat = remixLib.execution.txFormat
 
 const AUTHORIZED_PROXIES_ABI = ['function authorizedProxies(address) view returns (bool isProxy, address originalAddress, uint64 originalRollupId)']
 
-interface EezNetworkEntry {
+export interface EezNetworkEntry {
   id: string
   label: string
   rpcUrl: string | null
@@ -72,6 +73,45 @@ export async function checkCrossChainProxy(plugin: DeployedContractsPlugin, addr
     }
   } catch (e) {
     return null
+  }
+}
+
+export async function quoteCrossChainFee(plugin: DeployedContractsPlugin, to: string, data: string, from: string, value: bigint): Promise<QuotedFee> {
+  const ctx = await getEezContext(plugin)
+  if (!ctx) throw new Error('The current network is not part of an EEZ network.')
+  const network = await plugin.call('network', 'detectNetwork')
+  const type: QuotedFee['type'] = network?.lastBlock?.baseFeePerGas ? '0x2' : '0x0'
+  const nonce: string = await plugin.call('blockchain', 'sendRpc', 'eth_getTransactionCount', [from, 'pending'])
+
+  const provider = providerFor(ctx.currentNetwork)
+  try {
+    const quote = await provider.send('eez_quoteFee', [{ from, to, data, value: toQuantity(value), nonce: toQuantity(nonce) }])
+    const option = quote?.options?.find((o: any) => o.type === type)
+    if (!option) throw new Error(`The composer returned no ${type === '0x2' ? 'EIP-1559' : 'legacy'} fee quote for this transaction.`)
+    if (option.error) throw new Error(`The cross-chain fee quote failed: ${option.error.message || option.error.code}`)
+    return type === '0x2'
+      ? { type, nonce: toQuantity(nonce), gas: option.gas, maxFeePerGas: option.maxFeePerGas, maxPriorityFeePerGas: option.maxPriorityFeePerGas }
+      : { type, nonce: toQuantity(nonce), gas: option.gas, gasPrice: option.gasPrice }
+  } finally {
+    provider.destroy()
+  }
+}
+
+export interface CrossChainDestination {
+  id: string
+  label: string
+}
+
+export async function getCrossChainDestinations(plugin: DeployedContractsPlugin): Promise<CrossChainDestination[]> {
+  try {
+    const ctx = await getEezContext(plugin)
+    if (!ctx) return []
+    // Cross-chain actions only work when the wallet sends through the composer;
+    const walletRpc = await plugin.call('udappEez', 'getWalletRpc')
+    if (!walletRpc || walletRpc.isComposer === false) return []
+    return ctx.networks.filter((n) => n.id !== ctx.currentNetwork.id).map((n) => ({ id: n.id, label: n.label }))
+  } catch (e) {
+    return []
   }
 }
 
@@ -269,7 +309,7 @@ export async function runTransactions (
   inputsValues: string,
   contract: any,
   funcIndex: number,
-  sendParams?: { value: bigint, gasLimit: string }
+  sendParams?: { value: bigint, gasLimit: string, quotedFee?: QuotedFee }
 ) {
   // Destructure contract properties
   const { name: contractName, abi, contractData, address } = contract

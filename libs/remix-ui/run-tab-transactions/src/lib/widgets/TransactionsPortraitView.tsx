@@ -311,6 +311,9 @@ function TransactionsPortraitView() {
                     style={{ backgroundColor: activeTab === 'TransactionList' ? 'var(--custom-onsurface-layer-2)' : '' }}
                   >
                     <FormattedMessage id="debugger.transactionList" defaultMessage="Transaction List" />
+                    {sortedTransactions.length > 0 && (
+                      <span className="badge rounded-pill text-info ms-1" data-id="transactionListCount" style={{ backgroundColor: '#64C4FF14' }}>{sortedTransactions.length}</span>
+                    )}
                   </button>
                 </li>
               </ul>

@@ -53,14 +53,22 @@ function similarity(target: AIModel, candidate: AIModel): number {
   return score
 }
 
+/** `openrouter/…` is OpenRouter's namespace for its meta-models, all routers. */
+function isOpenRouterRouterId(modelId: string): boolean {
+  return modelId.toLowerCase().startsWith('openrouter/')
+}
+
 /**
  * Whether a catalogue row can serve as an OpenRouter fallback at all. The
  */
 function isRoutableFallback(candidate: AIModel, targetId: string): boolean {
   if (candidate.id === targetId) return false
   if (modelTransportProvider(candidate) !== 'openrouter') return false
-  // `auto` is OpenRouter's own router — nesting it under our list is circular.
-  if (isAutoModelId(candidate.id)) return false
+  // OpenRouter's own routers (`auto`, `auto-beta`, `free`, `fusion`, …) never
+  // go in the list: nesting one is circular, and under `auto-beta` it is a
+  // hard 400 — "The decisions router cannot be combined with another router
+  // model". Plain models and `~…-latest` aliases are accepted.
+  if (isAutoModelId(candidate.id) || isOpenRouterRouterId(candidate.id)) return false
   // Gated or key-hungry rows fail the same way for this user as the model we
   // are falling back *from*, so they buy nothing.
   if (candidate.available === false) return false
