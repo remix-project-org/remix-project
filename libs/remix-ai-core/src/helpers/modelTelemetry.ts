@@ -3,6 +3,7 @@ import type { Serialized } from '@langchain/core/load/serializable'
 import type { BaseMessage } from '@langchain/core/messages'
 import type { LLMResult } from '@langchain/core/outputs'
 import { remixAILogger } from './logger'
+import { logFinding, recordCall } from './driftMonitor'
 
 /**
  * Per-provider observability for model calls.
@@ -85,14 +86,27 @@ export class RemixModelCallbackHandler extends BaseCallbackHandler {
 
   private readonly label: string
   private readonly startedAt = new Map<string, number>()
+  /** Runs inside the agent's model node — DriftMonitorMiddleware samples those. */
+  private readonly agentRuns = new Set<string>()
 
   constructor(label: string) {
     super()
     this.label = label
   }
 
-  handleChatModelStart(_llm: Serialized, messages: BaseMessage[][], runId: string): void {
+  handleChatModelStart(
+    _llm: Serialized,
+    messages: BaseMessage[][],
+    runId: string,
+    _parentRunId?: string,
+    _extraParams?: Record<string, unknown>,
+    _tags?: string[],
+    metadata?: Record<string, unknown>
+  ): void {
     this.startedAt.set(runId, Date.now())
+    // langchain's agent runs every model call in its `model_request` node; a
+    // direct `basic_inference` call has no graph node, or a different one.
+    if (metadata?.langgraph_node === 'model_request') this.agentRuns.add(runId)
     if (!isModelDebugEnabled()) return
     const flat = messages?.[0] ?? []
     remixAILogger.groupCollapsed(`[Model ${this.label}] → ${flat.length} message(s)`)
@@ -122,6 +136,32 @@ export class RemixModelCallbackHandler extends BaseCallbackHandler {
     const outputTokens = usage?.completionTokens ?? usage?.output_tokens ?? 0
 
     bump(this.label, { calls: 1, totalLatencyMs: latencyMs, inputTokens, outputTokens })
+
+    // `basic_inference` / `structured_inference` call the model directly and
+    // never pass through DriftMonitorMiddleware, so they are sampled here.
+    // Agent calls are skipped: the callbacks sit on the model instance, so
+    // they fire for those too, and the middleware has already sampled them.
+    // Without an agent there is no thread, so direct calls share one bucket.
+    const agentCall = this.agentRuns.delete(runId)
+    try {
+      const text = output?.generations?.[0]?.[0]?.text ?? ''
+      if (!agentCall) for (const finding of recordCall(this.label, 'direct-model-call', {
+        systemHash: '',
+        toolsHash: '',
+        answerTurn: text.trim().length > 0,
+        outputLength: text.length,
+        latencyMs,
+        inputTokens,
+        outputTokens,
+        cacheReadTokens: usage?.cache_read_input_tokens ?? usage?.input_token_details?.cache_read ?? 0,
+        cacheCreationTokens: usage?.cache_creation_input_tokens ?? usage?.input_token_details?.cache_creation ?? 0
+      })) {
+        logFinding(this.label, 'direct-model-call', finding)
+      }
+    } catch (error) {
+      remixAILogger.warn('[DriftMonitor] direct-call sampling failed, continuing:', error)
+    }
+
     if (isModelDebugEnabled()) {
       remixAILogger.log(`[Model ${this.label}] ← ${latencyMs}ms in=${inputTokens} out=${outputTokens}`)
     }
@@ -130,6 +170,7 @@ export class RemixModelCallbackHandler extends BaseCallbackHandler {
   handleLLMError(error: any, runId: string): void {
     const started = this.startedAt.get(runId)
     this.startedAt.delete(runId)
+    this.agentRuns.delete(runId)
     bump(this.label, { errors: 1, totalLatencyMs: started ? Date.now() - started : 0 })
     remixAILogger.error(`[Model ${this.label}] failed:`, error?.message || error)
   }

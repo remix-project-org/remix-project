@@ -4,7 +4,7 @@ import { remixAILogger } from '../../helpers/logger'
  * Integrates LangChain DeepAgent with Remix's AI system
  */
 
-import { createDeepAgent, createPatchToolCallsMiddleware, CreateDeepAgentParams } from 'deepagents'
+import { createDeepAgent, createPatchToolCallsMiddleware, createSummarizationMiddleware, CreateDeepAgentParams } from 'deepagents'
 import { ICompletions, IGeneration, IParams } from '../../types/types'
 import { AIModel, modelSupportsVision } from '../../types/models'
 import { lookupCatalogEntry } from './modelParams'
@@ -32,6 +32,10 @@ import { BaseChatModel } from '@langchain/core/language_models/chat_models'
 import { IndexedDBCheckpointSaver } from '../../storage/IndexedDBCheckpointSaver'
 import type { DeepAgent } from 'deepagents'
 import { RemixDeepAgentMiddleware } from './deepAgentMiddleWare'
+import { ContextLeakGuardMiddleware } from './contextLeakGuardMiddleware'
+import { DriftMonitorMiddleware } from './driftMonitorMiddleware'
+import { getDriftMode } from '../../helpers/driftActions'
+import { startDriftBaselinePersistence } from '../../helpers/driftBaselineStore'
 import { RemixVisionMiddleware } from './visionMiddleware'
 import { screenshotBuffer } from './visionBuffer'
 import { screenshotConsent } from './screenshotConsent'
@@ -268,6 +272,7 @@ export class DeepAgentInferencer implements ICompletions, IGeneration {
   async initialize(): Promise<void> {
     try {
       await this.logInitDiagnostics()
+      void startDriftBaselinePersistence()
 
       // Mirror the backend catalogue before building anything — it carries
       // each model's token budget / temperature, which ModelFactory reads.
@@ -797,6 +802,13 @@ export class DeepAgentInferencer implements ICompletions, IGeneration {
 
         const result = this.streamEventHandler.processEvent(event)
         fullResponse += result.content
+        // An echo retry took the first attempt back off the screen; keep the
+        // transcript in step, or onStreamComplete would paint it again.
+        const retracted = this.streamEventHandler.consumeRetractedText()
+        if (retracted && fullResponse.includes(retracted)) {
+          const at = fullResponse.lastIndexOf(retracted)
+          fullResponse = fullResponse.slice(0, at) + fullResponse.slice(at + retracted.length)
+        }
         if (result.finalMessage) {
           finalMessageFromChain = result.finalMessage
         }
@@ -1109,6 +1121,54 @@ export class DeepAgentInferencer implements ICompletions, IGeneration {
     ) as unknown as DynamicStructuredTool
   }
 
+  /** The main agent's monitor, which subagent monitors report writes to. */
+  private mainDriftMonitor: DriftMonitorMiddleware | null = null
+
+  private createDriftMonitor(role: 'main' | 'subagent'): DriftMonitorMiddleware {
+    const monitor = new DriftMonitorMiddleware({
+      plugin: this.plugin,
+      role,
+      onFileWrite: role === 'subagent'
+        ? (threadId) => this.mainDriftMonitor?.noteFileWritten(threadId)
+        : undefined,
+      retraction: role === 'main'
+        ? {
+          request: () => this.streamEventHandler.requestRetraction(),
+          cancel: () => this.streamEventHandler.cancelRetraction()
+        }
+        : undefined,
+      onDegradation: (label, degraded, detail) => {
+        // `label` is the served model; under a router it is not the one the
+        // user picked, so name it.
+        const modelId = this.modelSelection.modelId
+        this.event.emit('onModelDegraded', {
+          modelId,
+          label,
+          degraded,
+          detail: label === modelId ? detail : `${label}: ${detail}`
+        })
+      }
+    })
+    if (role === 'main') this.mainDriftMonitor = monitor
+    return monitor
+  }
+
+  /**
+   * deepagents summarises the history only at 85% of the context window (or
+   * 170k tokens when the model reports no window) — long after a thread has
+   * started drifting. In `act` mode the default is replaced, by name, with
+   * one that compacts much earlier. Read when the agent is built, so a mode
+   * change applies from the next model switch or reload.
+   */
+  private summarizationOverride(): any[] {
+    if (getDriftMode() !== 'act') return []
+    return [createSummarizationMiddleware({
+      backend: this.filesystemBackend as any,
+      trigger: { type: 'tokens', value: 60_000 },
+      keep: { type: 'messages', value: 8 }
+    } as any)]
+  }
+
   private async createAgentWithTools(selectedTools: DynamicStructuredTool[]): Promise<void> {
     try {
       if (!this.model) {
@@ -1164,7 +1224,18 @@ export class DeepAgentInferencer implements ICompletions, IGeneration {
         },
         skills: hasSkillsPermission ? ["skills/"] : [],
         checkpointer,
-        middleware: [createPatchToolCallsMiddleware(), new RemixDeepAgentMiddleware(this.plugin, this), new RemixVisionMiddleware()],
+        // Order matters for wrapModelCall: the first entry is outermost. The
+        // leak guard wraps the drift monitor so the monitor still reports the
+        // original answer; the monitor is innermost so it measures the request
+        // exactly as sent and its retries go straight to the model.
+        middleware: [
+          createPatchToolCallsMiddleware(),
+          new RemixDeepAgentMiddleware(this.plugin, this),
+          new ContextLeakGuardMiddleware(),
+          new RemixVisionMiddleware(),
+          this.createDriftMonitor('main'),
+          ...this.summarizationOverride()
+        ],
       }
 
       if (this.config.enableSubagents && this.model) {
@@ -1182,7 +1253,8 @@ export class DeepAgentInferencer implements ICompletions, IGeneration {
           agentConfig.subagents = await buildSubagentConfigs(
             shapedTools,
             this.model,
-            this.filesystemBackend
+            this.filesystemBackend,
+            () => [this.createDriftMonitor('subagent')]
           )
         } catch (subagentError) {
           remixAILogger.error(
