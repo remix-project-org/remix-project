@@ -550,9 +550,10 @@ export const PromptArea: React.FC<PromptAreaProps> = ({
   // Logout doesn't reliably flip `aiRouteReady` (the route was already ready),
   // so authentication is the source of truth for whether the composer is
   // usable. Folding it in here disables the input + send button and surfaces
-  // the sign-in CTA the instant the user logs out.
+  // the sign-in CTA the instant the user logs out. The CTA therefore must not
+  // depend on `aiRouteReady` either — after a logout the route stays ready.
   const composerReady = aiRouteReady && isAuthenticated
-  const needsSignIn = !aiRouteReady && !isAuthenticated && !!onSignIn
+  const needsSignIn = !isAuthenticated && !!onSignIn
   const placeholderText = needsSignIn
     ? 'Sign in to chat with RemixAI…'
     : aiRouteReady
