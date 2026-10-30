@@ -40,6 +40,7 @@ export interface CheckoutEvent extends MatomoEventBase {
     | 'cancel'            // cancelled a subscription (value = effectiveFrom)
     | 'reactivate'        // un-cancelled a pending cancellation
     | 'desktop_handoff'   // redirected to the web IDE because Paddle can't run in Electron
+    | 'signup_to_buy'     // signed-out visitor clicked "Sign up & get <plan>" (name = plan slug)
     // low-cost-models hand-off after a starter-pack purchase (name = armed|announced)
     | 'cheap_models';
 }

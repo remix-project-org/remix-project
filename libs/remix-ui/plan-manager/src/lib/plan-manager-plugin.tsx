@@ -156,6 +156,12 @@ export class PlanManagerPlugin extends ViewPlugin {
   // Activation, auth arrival, price previews and checkout all call
   // initPaddleSingleton — share one in-flight init instead of racing.
   private paddleInitInFlight: Promise<void> | null = null
+  // Plan a signed-out visitor picked via "Sign up & get <plan>". Consumed on
+  // the next successful login to drop them straight into that plan's checkout.
+  private pendingPlanAfterSignIn: { planId: string; priceId?: number; at: number } | null = null
+  // Panel was opened by a generic "Sign In" (top bar) while signed out — once
+  // the login lands, get out of the way unless the user picked a plan.
+  private closeAfterSignIn = false
   // Last reason the inline Paddle SDK wasn't available, so a subsequent
   // hosted-checkout fallback can report WHY it fell back (config/token problem
   // vs a blocked CDN/global vs no attempt yet). Cleared on a successful init.
@@ -354,6 +360,11 @@ export class PlanManagerPlugin extends ViewPlugin {
         // The country is usually already known (cached or probed while
         // anonymous) — persist it now that there's an account to attach it to.
         void this.syncBillingLocaleToAccount()
+        if (this.closeAfterSignIn && !this.pendingPlanAfterSignIn) {
+          this.close()
+        }
+        this.closeAfterSignIn = false
+        void this.continuePendingPlanAfterSignIn()
       }
     }
     try {
@@ -417,6 +428,7 @@ export class PlanManagerPlugin extends ViewPlugin {
       hasPermissions: !!snapBefore.permissions
     })
     this.store.send({ type: 'OPEN_OVERLAY', intent: resolved })
+    this.closeAfterSignIn = resolved?.reason === 'sign-in' && !snapBefore.isAuthenticated
     // Refresh on every open — catalog (plans/packages) and, when signed
     // in, account-scoped data (credits/quotas, subscription, permissions).
     // This keeps the panel consistent with the API instead of relying on
@@ -439,6 +451,7 @@ export class PlanManagerPlugin extends ViewPlugin {
   }
 
   close(): void {
+    this.closeAfterSignIn = false
     // If Paddle checkout is in-progress, clear it before closing — otherwise
     // re-opening the panel shows an empty checkout frame with no iframe.
     // Also clear any pending cart so the upsell step doesn't linger on re-open.
@@ -618,6 +631,64 @@ export class PlanManagerPlugin extends ViewPlugin {
     // backend method gains the parameter. Suppress unused-warning via void.
     void priceId
     await this.runCheckout('topup', itemLabel, async (api) => api.purchaseCredits(packageId, 'paddle'))
+  }
+
+  /**
+   * Signed-out "Sign up & get <plan>" — remember the choice so the login that
+   * follows continues straight into that plan's checkout instead of making the
+   * user find and click the plan again.
+   */
+  rememberPlanForSignIn(planId: string, priceId?: number): void {
+    if (!planId) return
+    this.pendingPlanAfterSignIn = { planId, priceId, at: Date.now() }
+    this.trackCheckout('signup_to_buy', planId)
+  }
+
+  /** Resolve once `predicate` holds for the store snapshot, or `false` after `timeoutMs`. */
+  private waitForStore(predicate: (s: PlanManagerSnapshot) => boolean, timeoutMs: number): Promise<boolean> {
+    if (predicate(this.store.getSnapshot())) return Promise.resolve(true)
+    return new Promise((resolve) => {
+      let done = false
+      const finish = (ok: boolean) => {
+        if (done) return
+        done = true
+        clearTimeout(timer)
+        unsubscribe()
+        resolve(ok)
+      }
+      const unsubscribe = this.store.subscribe(() => {
+        if (predicate(this.store.getSnapshot())) finish(true)
+      })
+      const timer = setTimeout(() => finish(false), timeoutMs)
+    })
+  }
+
+  /**
+   * After a sign-up started from a plan card, wait for the account data
+   * (current plan, permissions) and catalog to load, then run the normal
+   * subscribe flow for the remembered plan. Stale intents (abandoned sign-in
+   * long ago) are dropped so a later unrelated login never pops a checkout.
+   */
+  private async continuePendingPlanAfterSignIn(): Promise<void> {
+    const pending = this.pendingPlanAfterSignIn
+    if (!pending) return
+    this.pendingPlanAfterSignIn = null
+    if (Date.now() - pending.at > 15 * 60_000) return
+
+    const ready = await this.waitForStore(
+      s => s.isAuthenticated && s.dataState === 'ready' && !!s.permissions && s.catalogPlans.some(p => p.id === pending.planId),
+      20_000
+    )
+    const snap = this.store.getSnapshot()
+    if (!snap.isAuthenticated) return
+    await this.open({ initialSection: 'plans' })
+    if (!ready) return
+    // Already on this plan (e.g. signed into an existing paid account) — the
+    // plans screen shows it as active; nothing to buy.
+    const planState = selectPlanState(snap)
+    if (planState.kind === 'paid' && planState.planId === pending.planId) return
+    if (snap.pendingCheckout || snap.cartItems.length > 0) return
+    await this.subscribeToPlan(pending.planId, pending.priceId)
   }
 
   /**
@@ -4950,17 +5021,12 @@ const CartUpsellStep: React.FC<{
   )
 }
 
-/** Fallback balance caps when the API's display.max_balance is absent. */
-const PAID_PLAN_BALANCE_CAPS: Record<string, number> = {
-  lite: 160_000,
-  starter: 300_000,
-  pro: 600_000,
-}
-
 const FreePlanCard: React.FC<{
   plan: any
   readOnly?: boolean
-}> = ({ plan, readOnly }) => (
+  /** Signed-out catalog: turn the card's button into a "Start free" sign-up CTA. */
+  onStart?: () => void
+}> = ({ plan, readOnly, onStart }) => (
   <div className="pm-free-plan" data-id="pm-free-plan">
     <div className="pm-free-plan__label">Free</div>
     <div className="pm-free-plan__price">
@@ -4975,6 +5041,11 @@ const FreePlanCard: React.FC<{
         </li>
       ))}
     </ul>
+    {readOnly && onStart && (
+      <button className="pm-free-plan__btn pm-free-plan__btn--start" data-id="pm-free-plan-start" onClick={onStart}>
+        Start free
+      </button>
+    )}
     {!readOnly && (
       <button className="pm-free-plan__btn" disabled>
         Always free
@@ -4982,6 +5053,80 @@ const FreePlanCard: React.FC<{
     )}
   </div>
 )
+
+/** Total sign-up gift credits bundled with a plan (`introCreditPackages`). */
+function planGiftCredits(plan: any): number {
+  const pkgs: any[] = plan?.introCreditPackages ?? []
+  return pkgs.reduce((sum, cp: any) => sum + (Number(cp?.credits) || 0) * (Number(cp?.quantity) || 1), 0)
+}
+
+/**
+ * Animate a number from its previous value to `target` (ease-out). Jumps
+ * straight to the target when the user prefers reduced motion.
+ */
+function useCountUp(target: number, durationMs = 650): number {
+  const [value, setValue] = useState(target)
+  const fromRef = React.useRef(target)
+  useEffect(() => {
+    const from = fromRef.current
+    fromRef.current = target
+    const reduced = typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
+    if (from === target || reduced || typeof requestAnimationFrame === 'undefined') {
+      setValue(target)
+      return
+    }
+    let raf = 0
+    const start = performance.now()
+    const tick = (now: number) => {
+      const t = Math.min(1, (now - start) / durationMs)
+      const eased = 1 - Math.pow(1 - t, 3)
+      setValue(from + (target - from) * eased)
+      if (t < 1) raf = requestAnimationFrame(tick)
+    }
+    raf = requestAnimationFrame(tick)
+    return () => cancelAnimationFrame(raf)
+  }, [target, durationMs])
+  return value
+}
+
+/**
+ * Track a CSS media query (e.g. short viewports). SSR/old-browser safe —
+ * returns false when `matchMedia` is unavailable.
+ */
+function useMediaQuery(query: string): boolean {
+  const get = () => typeof window !== 'undefined' && !!window.matchMedia?.(query).matches
+  const [matches, setMatches] = useState(get)
+  useEffect(() => {
+    if (typeof window === 'undefined' || !window.matchMedia) return
+    const mql = window.matchMedia(query)
+    const onChange = () => setMatches(mql.matches)
+    onChange()
+    mql.addEventListener?.('change', onChange)
+    return () => mql.removeEventListener?.('change', onChange)
+  }, [query])
+  return matches
+}
+
+/** Number of headline features always shown in the paid panel. */
+const PRIMARY_FEATURE_COUNT = 4
+
+/** Platform credit value: top-ups and plans are priced at $1 per 10K credits. */
+const CREDITS_PER_USD = 10_000
+
+/**
+ * True when a plan's monthly credits are worth (≈) everything it costs, i.e.
+ * the subscription price comes back 1:1 as credits and the tools are a free
+ * bonus. Data-driven so the copy disappears if pricing ever changes.
+ */
+function planIsCreditsOneToOne(plan: any): boolean {
+  const prices: any[] = Array.isArray(plan?.prices) ? plan.prices : []
+  const active = prices.filter((pr: any) => pr.is_active !== false)
+  const def = active.find((pr: any) => pr.is_default) ?? active[0] ?? null
+  const priceCents = Number(def?.price_cents ?? plan?.priceUsd) || 0
+  const credits = Number(plan?.creditsPerMonth) || 0
+  if (priceCents <= 0 || credits <= 0) return false
+  return (credits / CREDITS_PER_USD) * 100 >= priceCents * 0.98
+}
 
 const PaidPlansPanel: React.FC<{
   plans: any[]
@@ -4992,15 +5137,21 @@ const PaidPlansPanel: React.FC<{
   cancelledNotice: { expiresOn: string | null } | null
   localizedPrices: Record<string, LocalizedCatalogPrice> | null
   readOnly?: boolean
+  onSignUp?: (planId: string, priceId?: number) => void
   onSubscribe: (planId: string, priceId?: number) => void
   onCancel: () => void
   onReactivate: () => void
-}> = ({ plans, currentPlanId, userFeatureGroups, isTrialEligible, purchasingId, cancelledNotice, localizedPrices, readOnly, onSubscribe, onCancel, onReactivate }) => {
+}> = ({ plans, currentPlanId, userFeatureGroups, isTrialEligible, purchasingId, cancelledNotice, localizedPrices, readOnly, onSignUp, onSubscribe, onCancel, onReactivate }) => {
   const defaultId = (currentPlanId && plans.some(p => p.id === currentPlanId))
     ? currentPlanId
     : plans.find(p => p.id === 'lite')?.id ?? plans[0]?.id ?? null
   const [selectedId, setSelectedId] = React.useState<string | null>(defaultId)
   const selectedPlan = plans.find(p => p.id === selectedId) ?? plans[0] ?? null
+  const animatedCredits = useCountUp(Number(selectedPlan?.creditsPerMonth) || 0)
+  // On short screens fold the secondary features so price, credits and the
+  // buy button fit without scrolling.
+  const isShortViewport = useMediaQuery('(max-height: 900px)')
+  const [showAllFeatures, setShowAllFeatures] = useState(false)
   if (!selectedPlan) return null
 
   const pricesArr: any[] = Array.isArray(selectedPlan.prices) ? selectedPlan.prices : []
@@ -5028,7 +5179,9 @@ const PaidPlansPanel: React.FC<{
   }
 
   const creditsPerMonth = Number(selectedPlan.creditsPerMonth) || 0
-  const balanceCap = typeof selectedPlan.maxBalance === 'number' ? selectedPlan.maxBalance : (PAID_PLAN_BALANCE_CAPS[selectedPlan.id] ?? null)
+  const giftCredits = planGiftCredits(selectedPlan)
+  const selectedIsOneToOne = planIsCreditsOneToOne(selectedPlan)
+  const allOneToOne = plans.every(planIsCreditsOneToOne)
   const features: string[] = selectedPlan.features ?? []
 
   const isSubscriptionCurrent = selectedPlan.id === currentPlanId
@@ -5054,7 +5207,11 @@ const PaidPlansPanel: React.FC<{
     <div className="pm-paid-panel" data-id="pm-paid-panel">
       <div className="pm-paid-panel__header">
         <div className="pm-paid-panel__title">Paid plans</div>
-        <div className="pm-paid-panel__header-hint">Monthly credits added to your balance</div>
+        <div className="pm-paid-panel__header-hint">
+          {allOneToOne
+            ? <><strong>100% of your plan comes back as AI credits.</strong> The tools are on us.</>
+            : 'Monthly credits added to your balance'}
+        </div>
       </div>
 
       <div className="pm-paid-panel__tabs" role="tablist">
@@ -5069,6 +5226,7 @@ const PaidPlansPanel: React.FC<{
           const isSelected = plan.id === selectedId
           const isCurrent = plan.id === currentPlanId
           const planCredits = Number(plan.creditsPerMonth) || 0
+          const planGift = planGiftCredits(plan)
           return (
             <button
               key={plan.id}
@@ -5081,10 +5239,18 @@ const PaidPlansPanel: React.FC<{
               <span className="pm-paid-panel__tab-row">
                 <span className="pm-paid-panel__tab-name">{plan.name}</span>
                 {isCurrent && <span className="pm-paid-panel__tab-badge">CURRENT</span>}
+                {!isCurrent && planGift > 0 && (
+                  <span className="pm-paid-panel__tab-gift" title={`${planGift.toLocaleString()} bonus AI credits on sign-up`}>
+                    <i className="fas fa-gift" aria-hidden></i> +{formatCompactNumber(planGift)}
+                  </span>
+                )}
               </span>
               <span className="pm-paid-panel__tab-price">{planPriceStr}/mo</span>
               {planCredits > 0 && (
-                <span className="pm-paid-panel__tab-credits">+{formatCompactNumber(planCredits)} credits / month</span>
+                <span className="pm-paid-panel__tab-credits">
+                  <i className="fas fa-bolt" aria-hidden></i>
+                  +{formatCompactNumber(planCredits)} credits / month
+                </span>
               )}
             </button>
           )
@@ -5101,34 +5267,76 @@ const PaidPlansPanel: React.FC<{
             <span className="pm-paid-panel__price-per">per month</span>
           </div>
           {creditsPerMonth > 0 && (
-            <div className="pm-paid-panel__stat">
-              <span className="pm-paid-panel__stat-label">Added every month</span>
-              <span className="pm-paid-panel__stat-value pm-paid-panel__stat-value--accent">+{formatCompactNumber(creditsPerMonth)}</span>
+            <div className="pm-paid-panel__credits-hero" key={selectedPlan.id}>
+              <span className="pm-paid-panel__credits-sparkles" aria-hidden>
+                <span></span><span></span><span></span><span></span>
+              </span>
+              <span className="pm-paid-panel__credits-label">
+                <i className="fas fa-bolt" aria-hidden></i> AI credits every month
+              </span>
+              <span className="pm-paid-panel__credits-value" aria-label={`${creditsPerMonth.toLocaleString()} credits per month`}>
+                +{formatCompactNumber(Math.round(animatedCredits / 100) * 100)}
+              </span>
+              <span className="pm-paid-panel__credits-note">
+                {selectedIsOneToOne
+                  ? <>= <strong>100%</strong> of your plan price, every month</>
+                  : 'Topped up automatically, every billing cycle'}
+              </span>
             </div>
           )}
-          {balanceCap !== null && (
-            <div className="pm-paid-panel__stat">
-              <span className="pm-paid-panel__stat-label">Monthly credits cap</span>
-              <span className="pm-paid-panel__stat-value">{formatCompactNumber(balanceCap)}</span>
-              <span className="pm-paid-panel__stat-note">Purchased credits are unlimited</span>
+          {giftCredits > 0 && (
+            <div className="pm-paid-panel__gift" key={`gift-${selectedPlan.id}`}>
+              <span className="pm-paid-panel__gift-icon" aria-hidden><i className="fas fa-gift"></i></span>
+              <span className="pm-paid-panel__gift-text">
+                <strong>+{giftCredits.toLocaleString()} bonus credits</strong>
+                <span>Free on sign-up</span>
+              </span>
             </div>
           )}
         </div>
 
         {features.length > 0 && (
           <div className="pm-paid-panel__features-col">
-            <div className="pm-paid-panel__features-label">Included in every paid plan</div>
+            <div className="pm-paid-panel__features-label">
+              {allOneToOne
+                ? <>Included <span className="pm-paid-panel__free-tag">free</span> with every paid plan</>
+                : 'Included in every paid plan'}
+            </div>
             <ul className="pm-paid-panel__features">
-              {features.map((f: string, i: number) => (
-                <li key={f} className={i < 4 ? 'pm-paid-panel__features-item--primary' : ''}>
+              {(isShortViewport && !showAllFeatures ? features.slice(0, PRIMARY_FEATURE_COUNT) : features).map((f: string, i: number) => (
+                <li key={f} className={i < PRIMARY_FEATURE_COUNT ? 'pm-paid-panel__features-item--primary' : ''}>
                   <i className="fas fa-check" aria-hidden></i>
                   <span>{f}</span>
                 </li>
               ))}
             </ul>
+            {isShortViewport && !showAllFeatures && features.length > PRIMARY_FEATURE_COUNT && (
+              <button
+                type="button"
+                className="pm-paid-panel__features-more"
+                onClick={() => setShowAllFeatures(true)}
+              >
+                + {features.length - PRIMARY_FEATURE_COUNT} more included
+              </button>
+            )}
           </div>
         )}
       </div>
+
+      {readOnly && onSignUp && (
+        <div className="pm-paid-panel__actions">
+          <button
+            className="pm-paid-panel__btn"
+            data-id="pm-paid-panel-signup"
+            onClick={() => onSignUp(selectedPlan.id, selectedPriceId)}
+          >
+            <i className="fas fa-bolt" aria-hidden></i> Sign up &amp; get {selectedPlan.name}
+          </button>
+          <div className="pm-paid-panel__signup-hint">
+            Free account in seconds — we'll take you straight to checkout.
+          </div>
+        </div>
+      )}
 
       {!readOnly && (
         <div className="pm-paid-panel__actions">
@@ -5188,7 +5396,11 @@ const PlansSection: React.FC<{
   localizedPrices: Record<string, LocalizedCatalogPrice> | null
   /** Catalog preview for signed-out visitors — prices only, no purchase affordances. */
   readOnly?: boolean
-}> = ({ plans, currentPlanId, userFeatureGroups, isTrialEligible, purchasingId, requiredFeature, onSubscribe, onCancel, onReactivate, cancelledNotice, localizedPrices, readOnly }) => {
+  /** Signed-out "Sign up & get <plan>" CTA — starts sign-in, then continues to checkout. */
+  onSignUp?: (planId: string, priceId?: number) => void
+  /** Signed-out "Start free" CTA on the free card. */
+  onStartFree?: () => void
+}> = ({ plans, currentPlanId, userFeatureGroups, isTrialEligible, purchasingId, requiredFeature, onSubscribe, onCancel, onReactivate, cancelledNotice, localizedPrices, readOnly, onSignUp, onStartFree }) => {
   if (plans.length === 0) {
     return (
       <div className="pm-empty">
@@ -5239,6 +5451,7 @@ const PlansSection: React.FC<{
           <FreePlanCard
             plan={freePlan}
             readOnly={readOnly}
+            onStart={onStartFree}
           />
         )}
         {paidPlans.length > 0 && (
@@ -5251,6 +5464,7 @@ const PlansSection: React.FC<{
             cancelledNotice={cancelledNotice}
             localizedPrices={localizedPrices}
             readOnly={readOnly}
+            onSignUp={onSignUp}
             onSubscribe={onSubscribe}
             onCancel={onCancel}
             onReactivate={onReactivate}
@@ -5902,17 +6116,84 @@ const SignInPromptScreen: React.FC<{
       .finally(() => setPending(false))
   }
 
+  const handleSignUpForPlan = (planId: string, priceId?: number) => {
+    plugin.rememberPlanForSignIn(planId, priceId)
+    handleSignIn()
+  }
+
+  const legal = (
+    <p className="pm-signin__legal">
+      By continuing, you agree to the&nbsp;
+      <a href="https://remix-project.org/terms" target="_blank" rel="noreferrer">Terms of Service</a>
+      &nbsp;and&nbsp;
+      <a href="https://remix-project.org/privacy" target="_blank" rel="noreferrer">Privacy Policy</a>.
+    </p>
+  )
+
+  // With a catalog to show, plans lead and sign-in shrinks to a one-line strip:
+  // the eye lands on credits + prices first, while returning users still find
+  // "Sign in" without scrolling.
+  if (plans.length > 0) {
+    return (
+      <>
+        <div className="pm-signedout">
+          <div className="pm-signin-strip" data-id="pm-signin-strip">
+            <span className="pm-signin-strip__lead">
+              <i className="fas fa-sparkles" aria-hidden></i>
+              <span><strong>Welcome to RemixAI</strong> — start free or pick a plan.</span>
+            </span>
+            <span className="pm-signin-strip__auth">
+              <span className="pm-signin-strip__hint">Already have an account?</span>
+              <button
+                className="pm-signin__btn pm-signin__btn--ghost pm-signin-strip__btn"
+                onClick={handleSignIn}
+                disabled={pending}
+                data-id="planManagerSignIn"
+              >
+                {pending
+                  ? <><i className="fas fa-spinner fa-spin"></i> Opening…</>
+                  : <><i className="fas fa-right-to-bracket"></i> Sign in</>}
+              </button>
+            </span>
+          </div>
+          <section className="pm-signin-catalog" data-id="pm-signin-catalog">
+            <PlansSection
+              plans={plans}
+              currentPlanId={null}
+              userFeatureGroups={[]}
+              isTrialEligible={false}
+              purchasingId={null}
+              requiredFeature={null}
+              cancelledNotice={null}
+              localizedPrices={localizedPrices}
+              readOnly
+              onSignUp={handleSignUpForPlan}
+              onStartFree={handleSignIn}
+              onSubscribe={() => { /* display only — the sign-up CTAs are the entry points */ }}
+              onCancel={() => { /* display only */ }}
+              onReactivate={() => { /* display only */ }}
+            />
+            {legal}
+          </section>
+        </div>
+        {showLoginModal && (
+          <LoginModal onClose={() => setShowLoginModal(false)} plugin={plugin} />
+        )}
+      </>
+    )
+  }
+
   return (
     <>
       <div className="pm-signedout">
-        <section className={`pm-signin${plans.length > 0 ? ' pm-signin--compact' : ''}`}>
+        <section className="pm-signin">
           <div className="pm-signin__halo" aria-hidden />
           <div className="pm-signin__inner">
             <div className="pm-signin__badge">
               <i className="fas fa-sparkles"></i>
-              <span>Account required</span>
+              <span>Welcome to RemixAI</span>
             </div>
-            <h2 className="pm-signin__title">Create a free account to use RemixAI</h2>
+            <h2 className="pm-signin__title">Sign in or create your free account</h2>
 
             <ul className="pm-signin__perks">
               <li><i className="fas fa-robot"></i> Solidity Assistant, Code Completion, and Security Audits</li>
@@ -5928,40 +6209,13 @@ const SignInPromptScreen: React.FC<{
               >
                 {pending
                   ? <><i className="fas fa-spinner fa-spin"></i> Opening sign-in…</>
-                  : <><i className="fas fa-right-to-bracket"></i> Sign in to Remix</>}
+                  : <><i className="fas fa-right-to-bracket"></i> Sign in / Sign up</>}
               </button>
             </div>
 
-            <p className="pm-signin__legal">
-              By continuing, you agree to the&nbsp;
-              <a href="https://remix-project.org/terms" target="_blank" rel="noreferrer">Terms of Service</a>
-              &nbsp;and&nbsp;
-              <a href="https://remix-project.org/privacy" target="_blank" rel="noreferrer">Privacy Policy</a>.
-            </p>
+            {legal}
           </div>
         </section>
-        {plans.length > 0 && (
-          <section className="pm-signin-catalog" data-id="pm-signin-catalog">
-            <header className="pm-signin-catalog__head">
-              <h3>What you can upgrade to</h3>
-              <p>Sign in to pick a plan — prices shown for your region.</p>
-            </header>
-            <PlansSection
-              plans={plans}
-              currentPlanId={null}
-              userFeatureGroups={[]}
-              isTrialEligible={false}
-              purchasingId={null}
-              requiredFeature={null}
-              cancelledNotice={null}
-              localizedPrices={localizedPrices}
-              readOnly
-              onSubscribe={() => { /* display only — the sign-in CTA above is the entry point */ }}
-              onCancel={() => { /* display only */ }}
-              onReactivate={() => { /* display only */ }}
-            />
-          </section>
-        )}
       </div>
       {showLoginModal && (
         <LoginModal onClose={() => setShowLoginModal(false)} plugin={plugin} />
