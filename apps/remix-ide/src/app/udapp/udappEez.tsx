@@ -216,6 +216,7 @@ export class EezPlugin extends Plugin {
         `The proxy is loaded into Deployed Contracts at ${proxyAddress}, so you can call ${name} through it.`
       ])
       if (!confirmed) return
+      await this.pinOriginContract(originAddress)
       if (!(await this.switchWalletTo(destination))) return
 
       let outcome: Actions | null = null
@@ -250,10 +251,19 @@ export class EezPlugin extends Plugin {
         `The proxy at ${proxyAddress} is loaded into Deployed Contracts, so you can call ${name} through it.`
       ])
       if (!confirmed) return
+      await this.pinOriginContract(originAddress)
       if (!(await this.switchWalletTo(destination))) return
 
       await this.showInDeployedContracts(proxyAddress, abi, name)
     })
+  }
+
+  private async pinOriginContract(originAddress: string) {
+    try {
+      await this.call('udappDeployedContracts', 'pinContract', originAddress)
+    } catch (e) {
+      console.warn(`EEZ: failed to pin the original contract ${originAddress}`, e)
+    }
   }
 
   private confirmSteps(title: string, steps: string[]): Promise<boolean> {

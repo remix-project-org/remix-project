@@ -9,7 +9,7 @@ import { checksumAddressesInValue } from '@remix-ui/utils'
 import { FuncABI } from '@remix-project/core-plugin'
 import { DeployedContractsAppContext } from '../contexts'
 import { DeployedContract } from '../types'
-import { runTransactions, checkCrossChainProxy, getCrossChainDestinations, quoteCrossChainFee, traceCrossChainCall, CrossChainDestination, CrossChainProxyInfo, CrossChainTraceResult, EezNetworkEntry } from '../actions'
+import { runTransactions, pinContract, checkCrossChainProxy, getCrossChainDestinations, quoteCrossChainFee, traceCrossChainCall, CrossChainDestination, CrossChainProxyInfo, CrossChainTraceResult, EezNetworkEntry } from '../actions'
 import { ContractKebabMenu } from './ContractKebabMenu'
 import { EnsNaming } from './EnsNaming'
 import { QuickDappContractSelector, QuickDappFigmaPreparationResult, QuickDappSetupOptions, QuickDappModelChoice } from '@remix-ui/quick-dapp-v2'
@@ -222,30 +222,7 @@ export function DeployedContractItem({ contract, index, collapseSignal, register
       dispatch({ type: 'UNPIN_CONTRACT', payload: index })
       return
     }
-    const provider = await plugin.call('blockchain', 'getProviderObject')
-
-    if (!provider.config.statePath && provider.config.isRpcForkedState) {
-      // we can't pin a contract in the following case:
-      // - state is not persisted
-      // - future state is browser stored (e.g it's not just a simple RPC provider)
-      plugin.call('notification', 'toast', 'Cannot pin this contract in the current context: state is not persisted. Please fork this provider to start pinning a contract to it.')
-      return
-    }
-
-    const workspace = await plugin.call('filePanel', 'getCurrentWorkspace')
-
-    const objToSave = {
-      name: contract.name,
-      address: contract.address,
-      timestamp: contract.timestamp,
-      abi: contract.abi || contract.contractData?.abi,
-      filePath: contract.filePath || `${workspace.name}/${contract.contractData?.contract?.file}`,
-      pinnedAt: Date.now()
-    }
-
-    await plugin.call('fileManager', 'writeFile', `.deploys/pinned-contracts/${providerName}/${contract.address}.json`, JSON.stringify(objToSave, null, 2))
-
-    dispatch({ type: 'PIN_CONTRACT', payload: { index, pinnedAt: objToSave.pinnedAt, filePath: objToSave.filePath } })
+    await pinContract(plugin, dispatch, contract, index)
   }
 
   const handleContractClick = () => {

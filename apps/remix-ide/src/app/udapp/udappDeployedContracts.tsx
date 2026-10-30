@@ -1,6 +1,6 @@
 import React from 'react'
 import { Plugin } from '@remixproject/engine'
-import { DeployedContractsWidget } from '@remix-ui/run-tab-deployed-contracts'
+import { DeployedContractsWidget, pinContract } from '@remix-ui/run-tab-deployed-contracts'
 import { DeployedContractsWidgetState, Actions } from '@remix-ui/run-tab-deployed-contracts'
 import * as ethJSUtil from '@ethereumjs/util'
 
@@ -8,7 +8,7 @@ const profile = {
   name: 'udappDeployedContracts',
   displayName: 'Udapp Deployed Contracts',
   description: 'Manages the UI and state for deployed contracts',
-  methods: ['getUI', 'addInstance', 'getDeployedInstanceCount', 'getDeployedContracts', 'clearDeployedContracts', 'openAddContractDialog'],
+  methods: ['getUI', 'addInstance', 'pinContract', 'getDeployedInstanceCount', 'getDeployedContracts', 'clearDeployedContracts', 'openAddContractDialog'],
   events: ['deployedInstanceUpdated']
 }
 
@@ -51,6 +51,14 @@ export class DeployedContractsPlugin extends Plugin {
     } else {
       this.call('notification', 'toast', 'Deployed contract with duplicate address already exist!')
     }
+  }
+
+  async pinContract(address: string): Promise<boolean> {
+    const contracts = this.getWidgetState()?.deployedContracts || []
+    const index = contracts.findIndex((contract) => contract.address.toLowerCase() === address.toLowerCase())
+    if (index === -1) return false
+    if (contracts[index].isPinned) return true
+    return pinContract(this, this.getDispatch(), contracts[index], index)
   }
 
   getDeployedInstanceCount() {
