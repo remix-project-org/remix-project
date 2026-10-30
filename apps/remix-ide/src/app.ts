@@ -33,7 +33,7 @@ import { ContractFlattener } from './app/plugins/contractFlattener'
 
 import { WalkthroughService } from './walkthroughService'
 
-import { OffsetToLineColumnConverter, CompilerMetadata, CompilerArtefacts, FetchAndCompile, CompilerImports, GistHandler, AmpPlugin, ChartJsPlugin, WalletKeyringPlugin } from '@remix-project/core-plugin'
+import { OffsetToLineColumnConverter, CompilerMetadata, CompilerArtefacts, FetchAndCompile, CompilerImports, GistHandler, AmpPlugin, ChartJsPlugin } from '@remix-project/core-plugin'
 import { ArkivBasicPlugin } from './app/plugins/arkiv-basic-plugin'
 import { ArkivNetworkPlugin } from './app/plugins/arkiv-network-plugin'
 
@@ -437,9 +437,6 @@ class AppComponent {
     // ----------------- vega (generate visualization) ------------------------
     // const vega = new VegaPlugin()
 
-    // ----------------- wallet keyring (purpose-scoped signing / encryption) --
-    const walletKeyring = new WalletKeyringPlugin()
-
     // ----------------- arkiv (on-chain entity storage) ----
     const arkivPlugin = new ArkivBasicPlugin()
 
@@ -606,7 +603,6 @@ class AppComponent {
       quickDappV2,
       theGraphPlugin,
       walletConnect,
-      walletKeyring,
       arkivPlugin,
       arkivNetworkPlugin,
       amp,
@@ -828,7 +824,6 @@ class AppComponent {
     await this.appManager.activatePlugin(['feedback'])
     await this.appManager.activatePlugin(['settings'])
 
-    await this.appManager.activatePlugin(['walletKeyring'])
     await this.appManager.activatePlugin(['arkivBasic'])
     await this.appManager.activatePlugin(['arkivNetwork'])
     await this.appManager.activatePlugin(['storage', 'storageMonitor', 'search', 'compileAndRun', 'dgitApi', 'dgit', 'helpPlugin', 'planManager'])
