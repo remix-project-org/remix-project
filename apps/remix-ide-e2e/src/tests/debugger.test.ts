@@ -66,6 +66,9 @@ module.exports = {
   'Should login via the test pool through the real UI flow': function (browser: NightwatchBrowser) {
     browser
       .click('*[data-id="login-button"]')
+      // Top-bar Sign In opens the Plan & Credits panel first
+      .waitForElementVisible('*[data-id="planManagerSignIn"]', 15000)
+      .click('*[data-id="planManagerSignIn"]')
       .pause(3000)
       .waitForElementVisible({
         selector: '//button[contains(., "E2E Test Pool")]',

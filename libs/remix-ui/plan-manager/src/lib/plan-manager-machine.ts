@@ -208,6 +208,8 @@ export type OpenReason =
   | 'feature-required'
   | 'quota-exhausted'
   | 'manual'
+  /** Generic "Sign In" (top bar) — the panel closes itself once login succeeds. */
+  | 'sign-in'
 
 /** Payload accepted by `OPEN_OVERLAY`. All fields are optional. */
 export interface OpenIntent {
