@@ -42,7 +42,7 @@ import { isQuickDappRemixVMIdentifier, normalizeQuickDappEnvironment } from '@re
 import isElectron from 'is-electron'
 import { SwarmCollab } from './swarm-collab/SwarmCollab'
 
-const COLLAB_ENABLED = new URLSearchParams(window.location.hash.slice(1)).has('collab')
+const COLLAB_ENABLED = true //new URLSearchParams(window.location.hash.slice(1)).has('collab')
 
 const _paq = (window._paq = window._paq || []) // eslint-disable-line
 

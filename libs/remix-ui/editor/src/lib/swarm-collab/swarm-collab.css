@@ -49,6 +49,27 @@
   animation: swarm-collab-blink 1s ease-in-out infinite;
 }
 
+@keyframes swarm-collab-spin {
+  to { transform: rotate(360deg); }
+}
+
+.swarm-collab-spinner {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  margin-right: 6px;
+  border: 1.5px solid var(--bs-secondary-color, #888);
+  border-top-color: transparent;
+  border-radius: 50%;
+  animation: swarm-collab-spin 0.75s linear infinite;
+  vertical-align: middle;
+  flex-shrink: 0;
+}
+
+.swarm-collab-dot-host {
+  background: var(--bs-success, #2e7d32);
+}
+
 .swarm-collab-caret {
   position: relative;
   border-left: 2px solid var(--swarm-collab-color);

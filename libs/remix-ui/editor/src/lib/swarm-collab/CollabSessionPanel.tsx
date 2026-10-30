@@ -29,18 +29,31 @@ export const CollabSessionPanel = ({ state, onLeave, onDismissError }: CollabSes
         <div className="mb-2 d-flex justify-content-between align-items-center">
           <div>
             Room <code>{state.roomId?.slice(0, 12)}</code> · workspace <b>{state.workspace}</b>
-            {state.isCreator && <span className="badge bg-info ms-1">host</span>}
+            {state.isCreator && <span className="badge bg-success ms-1">host</span>}
+            <span className="badge bg-secondary ms-1">beta</span>
           </div>
           <span className="badge bg-secondary ms-2">{connectedCount} connected</span>
         </div>
-        {state.error && (
-          <div className="alert alert-danger py-1 px-2 small mb-2 d-flex justify-content-between align-items-start">
-            <span>{state.error}</span>
-            <button type="button" className="btn-close swarm-collab-close-sm ms-2 flex-shrink-0" onClick={onDismissError} />
+        {state.phase === 'connecting' && (
+          <div className="d-flex align-items-center gap-2 mb-2 text-muted small">
+            <span className="spinner-border spinner-border-sm flex-shrink-0" role="status" aria-hidden="true" />
+            Connecting to the room…
           </div>
         )}
-        {state.phase === 'syncing' && state.pendingPeers > 0 && (
-          <div className="text-muted mb-2">Waiting for {state.pendingPeers} peer(s) to send the document…</div>
+        {state.phase === 'syncing' && (
+          <div className="d-flex align-items-center gap-2 mb-2 text-muted small">
+            <span className="spinner-border spinner-border-sm flex-shrink-0" role="status" aria-hidden="true" />
+            {state.pendingPeers > 0 ? `Waiting for ${state.pendingPeers} peer(s) to send the workspace…` : 'Loading workspace…'}
+          </div>
+        )}
+        {state.error && (
+          <div className="alert alert-danger py-1 px-2 mb-2 d-flex justify-content-between align-items-start">
+            <span>
+              {state.error}
+              <span className="d-block mt-1">Make sure your Swarm node is running, configured correctly and that the postage stamp is valid.</span>
+            </span>
+            <button type="button" className="btn-close swarm-collab-close-sm ms-2 flex-shrink-0" onClick={onDismissError} />
+          </div>
         )}
         <div className="input-group input-group-sm mb-2">
           <input className="form-control swarm-collab-invite-input" readOnly value={state.inviteLink ?? ''} data-id="swarmCollabInvite" />
@@ -64,18 +77,43 @@ export const CollabSessionPanel = ({ state, onLeave, onDismissError }: CollabSes
             <li>
               <span className="swarm-collab-dot swarm-collab-dot-live" />
               {state.nickname} <span className="text-muted">(you)</span>
+              {state.isCreator && <span className="badge bg-success ms-1">host</span>}
             </li>
           )}
           {state.people.map((person) => (
             <li key={person.identity}>
-              <span className={`swarm-collab-dot ${person.connected ? 'swarm-collab-dot-live' : ''}`} />
+              {person.connected || person.isCreator
+                ? <span className={`swarm-collab-dot swarm-collab-dot-live${person.isCreator ? ' swarm-collab-dot-host' : ''}`} />
+                : <span className="swarm-collab-spinner" title="Connecting…" />
+              }
               {person.username}
+              {person.isCreator && <span className="badge bg-success ms-1">host</span>}
               {person.sessions > 1 && <span className="text-muted"> ({person.sessions} tabs)</span>}
             </li>
           ))}
           {state.people.length === 0 && <li className="text-muted">Nobody else yet.</li>}
         </ul>
         <button className="btn btn-sm btn-outline-danger w-100" onClick={onLeave} data-id="swarmCollabLeave">Leave session</button>
+        <div className="mt-2 text-center">
+          <button
+            type="button"
+            className="btn btn-link btn-sm p-0 text-decoration-none"
+            onClick={() => window.dispatchEvent(new CustomEvent('swarmCollabSetupGuide'))}
+            data-id="swarmCollabSetupGuide"
+          >
+            <i className="fas fa-book me-1" />Swarm setup guide
+          </button>
+          <span className="text-muted mx-1 small">or</span>
+          <a
+            href="https://docs.ethswarm.org/docs/desktop/install"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="btn btn-link btn-sm p-0 text-decoration-none small"
+            data-id="swarmCollabInstallDesktop"
+          >
+            install Swarm Desktop
+          </a>
+        </div>
       </div>
     </div>
   )

@@ -985,6 +985,14 @@
   flex-shrink: 0;
   margin-top: 2px;
 }
+.pm-paid-panel__features li.pm-paid-panel__features-item--primary {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--bs-emphasis-color);
+}
+.pm-paid-panel__features li.pm-paid-panel__features-item--primary i {
+  font-size: 12px;
+}
 
 /* Actions */
 .pm-paid-panel__actions {

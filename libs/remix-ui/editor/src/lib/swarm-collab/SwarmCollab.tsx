@@ -69,6 +69,9 @@ export const SwarmCollab = ({ plugin, editorRef, monacoRef, currentFile }: Swarm
       return
     }
 
+    // Let the modal finish its hide animation before the browser may show a native permission popup.
+    await new Promise((resolve) => setTimeout(resolve, 150))
+
     const { mode, settings, joinForm } = dataRef.current
     const joining = mode === 'join'
     const pastedInvite = joining && !initialInvite ? parseInviteInput(joinForm.link) : null
@@ -82,7 +85,6 @@ export const SwarmCollab = ({ plugin, editorRef, monacoRef, currentFile }: Swarm
         if (session.getState().phase !== 'idle') await session.leave()
         await session.join(joinInvite, settings)
       }
-      openPanel()
     } catch (err) {
       const errorMsg = session.getState().error
       session.dismissError()
@@ -94,6 +96,11 @@ export const SwarmCollab = ({ plugin, editorRef, monacoRef, currentFile }: Swarm
   }
 
   openModalRef.current = openModal
+
+  // Open panel as soon as the session leaves idle (connecting, syncing, live).
+  useEffect(() => {
+    if (state.phase !== 'idle') openPanel()
+  }, [state.phase])
 
   // Async DOC_ERROR — surface in panel.
   useEffect(() => {
@@ -140,13 +147,32 @@ export const SwarmCollab = ({ plugin, editorRef, monacoRef, currentFile }: Swarm
   useEffect(() => {
     const leaveHandler = () => session.leave()
     const dismissHandler = () => session.dismissError()
+    const setupGuideHandler = async () => {
+      try {
+        await (plugin as any).call('skillsexplorermodal', 'loadSkill', 'swarm-setup-bee-interactive')
+      } catch {
+        // skill endpoint unavailable — proceed without it
+      }
+      try {
+        const isPanelHidden = await plugin.call('rightSidePanel', 'isPanelHidden')
+        if (isPanelHidden) await plugin.call('rightSidePanel', 'togglePanel')
+        await plugin.call('menuicons', 'select', 'remixaiassistant')
+        await (plugin as any).call('remixaiassistant', 'newConversation')
+        await new Promise((resolve) => setTimeout(resolve, 100))
+        await (plugin as any).call('remixaiassistant', 'chatPipe', 'guide me through the setup of a swarm node', false, { source: 'swarm-collab' })
+      } catch (err) {
+        console.error('Swarm setup guide failed:', err)
+      }
+    }
     window.addEventListener('swarmCollabLeave', leaveHandler)
     window.addEventListener('swarmCollabDismissError', dismissHandler)
+    window.addEventListener('swarmCollabSetupGuide', setupGuideHandler)
     return () => {
       window.removeEventListener('swarmCollabLeave', leaveHandler)
       window.removeEventListener('swarmCollabDismissError', dismissHandler)
+      window.removeEventListener('swarmCollabSetupGuide', setupGuideHandler)
     }
-  }, [session])
+  }, [session, plugin])
 
   // Bind the model the editor shows for the current file.
   useEffect(() => {

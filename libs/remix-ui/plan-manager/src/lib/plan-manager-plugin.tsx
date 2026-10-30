@@ -5119,8 +5119,8 @@ const PaidPlansPanel: React.FC<{
           <div className="pm-paid-panel__features-col">
             <div className="pm-paid-panel__features-label">Included in every paid plan</div>
             <ul className="pm-paid-panel__features">
-              {features.map((f: string) => (
-                <li key={f}>
+              {features.map((f: string, i: number) => (
+                <li key={f} className={i < 4 ? 'pm-paid-panel__features-item--primary' : ''}>
                   <i className="fas fa-check" aria-hidden></i>
                   <span>{f}</span>
                 </li>

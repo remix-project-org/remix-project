@@ -55,6 +55,9 @@ export const CollabDialogForm = ({ dataRef, initialMode, initialInvite, isActive
 
   return (
     <div className="w-100 overflow-hidden">
+      <div className="mb-2">
+        <span className="badge bg-secondary">beta</span>
+      </div>
       {!initialInvite && !isActive && (
         <div className="btn-group btn-group-sm w-100 mb-3" role="group">
           <button type="button" className={`btn ${joining ? 'btn-outline-primary' : 'btn-primary'}`} onClick={() => setMode('create')} data-id="swarmCollabModeCreate">Share this workspace</button>
@@ -113,6 +116,44 @@ export const CollabDialogForm = ({ dataRef, initialMode, initialInvite, isActive
         <label className="form-label small mb-0">STUN / TURN servers (comma-separated)</label>
         <input className="form-control form-control-sm" value={settings.iceUrls} onChange={(e) => update({ iceUrls: e.target.value })} />
       </details>
+
+      <div className="mt-2 text-center">
+        <button
+          type="button"
+          className="btn btn-link btn-sm p-0 text-decoration-none"
+          onClick={async () => {
+            ;(document.querySelector('[data-id="swarmCollab-modal-footer-cancel-react"]') as HTMLButtonElement)?.click()
+            try {
+              await (plugin as any).call('skillsexplorermodal', 'loadSkill', 'swarm-setup-bee-interactive')
+            } catch {
+              // skill endpoint unavailable — proceed without it
+            }
+            try {
+              const isPanelHidden = await plugin.call('rightSidePanel', 'isPanelHidden')
+              if (isPanelHidden) await plugin.call('rightSidePanel', 'togglePanel')
+              await plugin.call('menuicons', 'select', 'remixaiassistant')
+              await (plugin as any).call('remixaiassistant', 'newConversation')
+              await new Promise((resolve) => setTimeout(resolve, 100))
+              await (plugin as any).call('remixaiassistant', 'chatPipe', 'guide me through the setup of a swarm node', false, { source: 'swarm-collab' })
+            } catch (err) {
+              console.error('Swarm setup guide failed:', err)
+            }
+          }}
+          data-id="swarmCollabSetupGuide"
+        >
+          <i className="fas fa-book me-1" />Swarm setup guide
+        </button>
+        <span className="text-muted mx-1 small">or</span>
+        <a
+          href="https://docs.ethswarm.org/docs/desktop/install"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="btn btn-link btn-sm p-0 text-decoration-none small"
+          data-id="swarmCollabInstallDesktop"
+        >
+          install Swarm Desktop
+        </a>
+      </div>
     </div>
   )
 }

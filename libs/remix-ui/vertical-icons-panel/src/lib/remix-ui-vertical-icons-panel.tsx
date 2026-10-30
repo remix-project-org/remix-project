@@ -30,7 +30,7 @@ const initialState = {
 
 // pinned at the very bottom of the rail, above the Help & Resources button
 const bottomPinned = ['planManager', 'helpPlugin']
-const COLLAB_ENABLED = new URLSearchParams(window.location.hash.slice(1)).has('collab')
+const COLLAB_ENABLED = true // new URLSearchParams(window.location.hash.slice(1)).has('collab')
 
 const RemixUiVerticalIconsPanel = ({ verticalIconsPlugin, icons, rightPanelHidden, leftPanelHidden }: RemixUiVerticalIconsPanelProps) => {
   const scrollableRef = useRef<any>()

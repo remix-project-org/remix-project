@@ -11,6 +11,9 @@
  *   updateEndpoints(config)
  */
 
+import { validateEnsEnvironment } from './ens-environment'
+export { ensSepolia, ensParentName, ensDappParentName, ensWebsiteUrl, ensTransactionUrl } from './ens-environment'
+
 export type EndpointUrls = {
   corsProxy: string;
   mcpCorsProxy: string;
@@ -136,12 +139,21 @@ const defaultUrls: EndpointUrls = buildUrls('https://api.remix.live');
 
 // --- Resolution ---
 const prefix = ''
+// Override only ENS; auth, permissions and IPFS keep their normal endpoints.
+const ensPrefix = (process.env.NX_ENS_ENDPOINTS_URL || '').replace(/\/$/, '')
+validateEnsEnvironment(ensPrefix)
 
 const resolvedUrls: EndpointUrls = prefix
   ? buildUrls(prefix)
   : defaultUrls;
 
 export const endpointUrls = resolvedUrls;
+
+export function getEnsEndpoint(key: 'ensService' | 'ensContractNames' | 'ccipRead'): string {
+  if (!ensPrefix) return endpointUrls[key]
+  const paths = { ensService: 'ens-service', ensContractNames: 'contract-ens', ccipRead: 'ccip-read' }
+  return `${ensPrefix}/${paths[key]}`
+}
 
 // --- Runtime Discovery (Optional) ---
 

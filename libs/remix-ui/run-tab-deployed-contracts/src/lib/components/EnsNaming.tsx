@@ -1,3 +1,4 @@
+import { ensTransactionUrl } from '@remix-endpoints-helper'
 import React, { useState, useEffect, useRef, useContext, useCallback } from 'react'
 import { DeployedContractsAppContext } from '../contexts'
 import { DeployedContract } from '../types'
@@ -5,7 +6,6 @@ import {
   DEBOUNCE_MS,
   ENS_EVENTS,
   ENS_APP_BASE,
-  ETHERSCAN_BASE,
   JOB_STEP_LABELS,
   SUPPORTED_CHAINS,
   buildFullName,
@@ -24,6 +24,7 @@ import {
   type ReverseCheckResult,
   type ReverseStatus,
   type ViewStep,
+  type TargetChain,
 } from '../ens-contract-names'
 
 interface EnsNamingProps {
@@ -174,9 +175,12 @@ export function EnsNaming({ contract, onClose }: EnsNamingProps) {
   useEffect(() => {
     (async () => {
       try {
-        const network = await plugin.call('udappEnv', 'getNetwork')
+        const [network, supported] = await Promise.all([
+          plugin.call('udappEnv', 'getNetwork'),
+          plugin.call('ensContractNames' as any, 'getSupportedNetworks' as any) as Promise<TargetChain[]>,
+        ])
         const id = Number(network?.chainId)
-        if (SUPPORTED_CHAINS.has(id)) {
+        if (supported.some(chain => chain.chainId === id)) {
           setChainId(id)
         } else {
           setChainId(null)
@@ -185,7 +189,7 @@ export function EnsNaming({ contract, onClose }: EnsNamingProps) {
         }
       } catch {
         setPreflightStatus('error')
-        setPreflightError('Could not detect network.')
+        setPreflightError('Could not load ENS networks. Check the connection and try again.')
       }
     })()
   }, [plugin])
@@ -372,7 +376,7 @@ export function EnsNaming({ contract, onClose }: EnsNamingProps) {
     case 'available': case 'available_for_chain': return 'fas fa-check-circle text-success'
     case 'current': return 'fas fa-check-circle text-info'
     case 'taken': case 'name_not_controlled': case 'project_not_controlled': return 'fas fa-times-circle text-danger'
-    case 'unsupported_chain': case 'parent_not_owned': case 'validation_only': return 'fas fa-exclamation-triangle text-warning'
+    case 'unsupported_chain': case 'parent_not_owned': case 'validation_only': case 'read_only': return 'fas fa-exclamation-triangle text-warning'
     case 'error': return 'fas fa-exclamation-circle text-danger'
     default: return 'fas fa-info-circle'
     }
@@ -393,6 +397,7 @@ export function EnsNaming({ contract, onClose }: EnsNamingProps) {
     case 'name_not_controlled': return 'This name exists but is not controlled by the Remix server.'
     case 'project_not_controlled': return 'This project exists but is not controlled by the Remix server.'
     case 'parent_not_owned': return 'The ENS naming service is not available (parent not owned).'
+    case 'read_only': return 'ENS is configured for read-only access. Registration is unavailable.'
     case 'validation_only': return 'ENS registration is unavailable until the server wallet is configured.'
     case 'unsupported_chain': return preflightError
     case 'error': return preflightError || 'An error occurred.'
@@ -571,7 +576,7 @@ export function EnsNaming({ contract, onClose }: EnsNamingProps) {
                       <span>{tx.type}</span>
                       {tx.hash && (
                         <a
-                          href={`${ETHERSCAN_BASE}/tx/${tx.hash}`}
+                          href={ensTransactionUrl(tx.hash)}
                           target="_blank"
                           rel="noopener noreferrer"
                           style={{ color: '#64c4ff' }}
@@ -670,7 +675,7 @@ export function EnsNaming({ contract, onClose }: EnsNamingProps) {
                 <div key={i} className="d-flex justify-content-between py-1" style={{ color: subtextColor }}>
                   <span>{tx.type}</span>
                   {tx.hash && (
-                    <a href={`${ETHERSCAN_BASE}/tx/${tx.hash}`} target="_blank" rel="noopener noreferrer" style={{ color: '#64c4ff' }}>
+                    <a href={ensTransactionUrl(tx.hash)} target="_blank" rel="noopener noreferrer" style={{ color: '#64c4ff' }}>
                       {tx.hash.slice(0, 14)}...
                     </a>
                   )}
