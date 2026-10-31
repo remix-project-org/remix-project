@@ -282,7 +282,7 @@ const FREE_DEMOS: PlanGuideDemo[] = [
   {
     key: 'models', name: 'Usage-based Models', color: '#2fbfb1',
     desc: 'Pay-as-you-go access to AI models — you only pay for what you use.',
-    mockReply: 'You now have access to <span class="plg-hl">usage-based</span> models — you\'re billed per request from your credit balance, with no monthly fee. Upgrade for a monthly credit gift.'
+    mockReply: 'You now have access to <span class="plg-hl">usage-based</span> models — you\'re billed per request from your credit balance, with no monthly fee. Upgrade for a one time credit gift.'
   },
   {
     key: 'apikey', name: 'Bring Your Own API Keys', color: '#f0a030',
@@ -605,7 +605,9 @@ const HelpModalOverlay: React.FC<{
           onShowReel={showReel}
           planName="Remix Free"
           accent="#6bdb8a"
-          intro="Welcome to Remix! On the free plan you get the RemixAI assistant, QuickDApp frontend generation, basic AI skills, usage-based models, and the option to bring your own API key. Click any feature to see it in action."
+          intro="Welcome to Remix! On the free plan you get the RemixAI Assistant, QuickDApp Frontend Generation, basic AI Skills, Usage-based Models, and the option to bring your own API key."
+          introAction="Click any feature below to see it in action."
+          chatTitle="RemixAI"
           demos={FREE_DEMOS}
         />
       )
