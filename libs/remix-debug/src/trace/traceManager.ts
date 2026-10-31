@@ -1,5 +1,6 @@
 'use strict'
 import { util, execution } from '@remix-project/remix-lib'
+import { Hardfork } from '@ethereumjs/common'
 const { toHexPaddedString } = util
 import { TraceAnalyser } from './traceAnalyser'
 import { TraceCache } from './traceCache'
@@ -43,8 +44,10 @@ export class TraceManager {
         this.trace = result['structLogs']
 
         try {
-          const networkId = (await this.web3.getNetwork()).chainId
-          this.fork = execution.forkAt(networkId, tx.blockNumber)
+          // A local VM's development chain ID and block height cannot identify its configured fork.
+          const traceFork = result.fork
+          this.fork = Object.values(Hardfork).includes(traceFork as Hardfork)
+            ? traceFork : execution.forkAt((await this.web3.getNetwork()).chainId, tx.blockNumber)
         } catch (e) {
           this.fork = 'osaka'
           console.log(`unable to detect fork, defaulting to ${this.fork}..`)

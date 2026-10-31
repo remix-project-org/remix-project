@@ -119,6 +119,7 @@ export class VmProxy {
     this.incr++
     this.processingHash = bytesToHex(data.hash())
     this.vmTraces[this.processingHash] = {
+      fork: this.vm.common.hardfork(),
       gas: '0x0',
       return: '0x0',
       structLogs: []
