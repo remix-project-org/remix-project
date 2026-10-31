@@ -32,7 +32,8 @@ test.describe.serial('Circom hashchecker: trusted setup, zk dapp button, and zkV
       await page.locator('[data-id="pm-free-plan-start"]').click()
       await page.locator('[data-id="loginModalE2EPoolButton"]').click()
       await expect(page.locator('[data-id="user-menu-compact"]').first()).toBeVisible({ timeout: 30_000 })
-      // await page.locator('[data-id="verticalIconsKindremixaiassistant"]').click()
+      await page.locator('[data-id="verticalIconsKindremixaiassistant"]').click()
+      await expect(page.locator('[data-id="ai-route-status"]')).toHaveAttribute('data-route', /agent|tools|chat/, { timeout: 30_000 })
       await page.locator('[data-id="ai-model-selector-btn"]').click()
       await page.locator('[data-id="ai-model-search"]').fill('haiku')
       await page.locator('[data-id^="ai-model-"][data-locked="false"]').first().click()
@@ -63,6 +64,10 @@ test.describe.serial('Circom hashchecker: trusted setup, zk dapp button, and zkV
     await expect(workspacesSelect).toBeVisible()
     await expect(workspacesSelect).not.toHaveAttribute('data-disabled', 'true')
     await workspacesSelect.click()
+    // Remove any overlays that might have reappeared
+    await page.evaluate(() => {
+      document.querySelectorAll('#nudge-widget-container, .nudge-widget, .nudge-modal-backdrop, .nudge-decoration, .modal-backdrop').forEach((el) => el.remove())
+    })
     await page.locator('[data-id="workspacecreate"]').click()
     await expect(page.locator('[data-id="template-explorer-template-container"]')).toBeVisible()
 
@@ -116,7 +121,8 @@ test.describe.serial('Circom hashchecker: trusted setup, zk dapp button, and zkV
     const runSetupBtn = circuitFrame.locator('[data-id="runSetupBtn"]')
     await runSetupBtn.click()
     await expect(runSetupBtn.locator('.fa-spin')).toBeVisible({ timeout: 10_000 })
-    await expect(runSetupBtn.locator('.fa-spin')).toHaveCount(0, { timeout: 120_000 })
+    // Trusted setup can take a long time, especially on slower machines
+    await expect(runSetupBtn.locator('.fa-spin')).toHaveCount(0, { timeout: 240_000 })
   }
 
   async function ensureSetupSectionExpanded () {

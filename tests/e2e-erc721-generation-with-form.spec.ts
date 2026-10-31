@@ -14,7 +14,8 @@ test('e2e-erc721-generation-with-form', async ({ page }) => {
   `
   const poolApiKey = 'rmx_d07c0d90183570e959897d21dfc93443c8695b4af1e276abc03852ccffc4f9c5'
   if (!poolApiKey) {
-    throw new Error('Missing E2E pool key. Set E2E_POOL_API_KEY (or E2E_POOL_KEY) before running.')
+    test.skip(true, 'Skipping: E2E_POOL_API_KEY not set')
+    return
   }
   await page.goto(`http://127.0.0.1:8080/#e2e_feature_groups=e2e-unlimited-quota&e2e_pool_key=${encodeURIComponent(poolApiKey)}&lang=en&optimize&runs=200&evmVersion&version=soljson-v0.8.34+commit.80d5c536.js`);
   try {
@@ -28,6 +29,8 @@ test('e2e-erc721-generation-with-form', async ({ page }) => {
     await page.getByTitle('Dismiss').waitFor({ state: 'visible', timeout: 3000 });
     await page.getByTitle('Dismiss').click();
   } catch { /* not present */ }
+  await page.locator('[data-id="verticalIconsKindremixaiassistant"]').click();
+  await expect(page.locator('[data-id="ai-route-status"]')).toHaveAttribute('data-route', /agent|tools|chat/, { timeout: 30_000 });
   await page.getByRole('textbox', { name: 'Type "/" for more options or' }).click();
   await page.getByRole('textbox', { name: 'Type "/" for more options or' }).fill(prompt);
   await page.getByRole('textbox', { name: 'Type "/" for more options or' }).press('Enter');

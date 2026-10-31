@@ -77,11 +77,23 @@ export class RemixAIAssistant extends ViewPlugin {
   }
 
   async onActivation() {
-    if (!localStorage.getItem('remixaiassistant_firstload_flag')) {
-      this.call('sidePanel', 'pinView', this.profile)
-      await this.call('layout', 'maximiseSidePanel')
+    // Check if another plugin should be pinned based on saved state
+    const panelStates = JSON.parse(localStorage.getItem('panelStates') || '{}')
+    const savedPluginName = panelStates.rightSidePanel?.pluginProfile?.name
+
+    // Only pin RemixAI if no other plugin is saved, or RemixAI itself was saved
+    // This prevents RemixAI from replacing other pinned plugins (like Solidity) on reload
+    if (!savedPluginName || savedPluginName === this.profile.name) {
+      const currentFocus = await this.call('rightSidePanel', 'currentFocus')
+      if (currentFocus !== this.profile.name) {
+        await this.call('rightSidePanel', 'pinView', this.profile, this.render())
+      }
     }
-    localStorage.setItem('remixaiassistant_firstload_flag', '1')
+
+    if (!localStorage.getItem('remixaiassistant_firstload_flag')) {
+      await this.call('layout', 'maximiseSidePanel')
+      localStorage.setItem('remixaiassistant_firstload_flag', '1')
+    }
 
     // Permanent placeholder host in the center/main panel that the chat's
     // maximized view portals into (see maximizePanel()). Registered once,

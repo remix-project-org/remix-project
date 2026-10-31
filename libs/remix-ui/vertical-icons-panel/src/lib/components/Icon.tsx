@@ -142,15 +142,25 @@ const Icon = ({ iconRecord, verticalIconPlugin, contextMenuAction, theme, showLa
             name === 'remixaiassistant' ? (
               <div
                 className={`remixui_icon_ai py-1 ${showLabel ? 'remixui_icon_labeled' : ''} ${isHighlighted ? 'remixui_icon--active' : ''}`}
-                onClick={() => {
-                  // AI mode: the chat is already in the center panel (focuses its input instead)
+                onClick={async () => {
+                  // AI mode: focus the input instead of showing/hiding the panel
                   if ((verticalIconPlugin as any).interceptAIModeClick?.(name)) return
-                  if (iconRecord.pinned) {
-                    // highlight() only ever shows the panel — togglePanel() actually
-                    // closes it too, so re-clicking an already-open pinned icon closes it
-                    verticalIconPlugin.call('rightSidePanel', 'togglePanel')
+
+                  // Already showing on right panel: toggle to hide
+                  if (iconRecord.pinned && iconRecord.active) {
+                    await verticalIconPlugin.call('rightSidePanel', 'togglePanel')
+                    return
+                  }
+
+                  // Check if registered in right panel
+                  const rightPanelPlugin = await verticalIconPlugin.call('rightSidePanel', 'getPlugin', name)
+
+                  if (rightPanelPlugin) {
+                    // Registered but inactive: show it
+                    await verticalIconPlugin.call('rightSidePanel', 'showPlugin', name)
                   } else {
-                    (verticalIconPlugin as any).toggle(name)
+                    // Not registered: activate (onActivation will pin to right panel)
+                    await verticalIconPlugin.call('manager', 'activatePlugin', name)
                   }
                 }}
                 {...{ plugin: name }}
