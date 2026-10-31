@@ -336,7 +336,7 @@ export const WorkspacesDropdown: React.FC<WorkspacesDropdownProps> = ({ menuItem
       </Dropdown.Toggle>
 
       <Dropdown.Menu
-        style={{ minWidth: '100%' }}
+        style={{ minWidth: '100%', zIndex: 1050 }}
         className="p-2 fws-dropdown-menu"
         data-id="topbar-custom-dropdown-items"
         show={showMain}
