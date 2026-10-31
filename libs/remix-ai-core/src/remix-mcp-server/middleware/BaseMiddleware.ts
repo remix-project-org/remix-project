@@ -31,11 +31,16 @@ export abstract class BaseMiddleware {
   protected matchPattern(str: string, pattern: string): boolean {
     // Convert glob pattern to regex
     const regexPattern = pattern
-      .replace(/\./g, '\\.') // Escape dots
-      .replace(/\*\*/g, '___DOUBLESTAR___') // Temporarily replace **
-      .replace(/\*/g, '[^/]*') // * matches anything except /
-      .replace(/___DOUBLESTAR___/g, '.*') // ** matches anything including /
-      .replace(/\?/g, '.'); // ? matches single character
+      // First escape all regex metacharacters, including backslash
+      .replace(/[\\^$+?.()|[\]{}]/g, '\\$&')
+      // Temporarily mark escaped ** so we can distinguish it from single *
+      .replace(/\\\*\\\*/g, '___DOUBLESTAR___')
+      // * matches anything except /
+      .replace(/\\\*/g, '[^/]*')
+      // ** matches anything including /
+      .replace(/___DOUBLESTAR___/g, '.*')
+      // ? matches a single character
+      .replace(/\\\?/g, '.');
 
     const regex = new RegExp(`^${regexPattern}$`);
     return regex.test(str);

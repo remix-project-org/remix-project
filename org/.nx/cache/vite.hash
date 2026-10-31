@@ -1,0 +1,24 @@
+{
+  "1902817995297261775apps/org/vitest.config.ts": {
+    "test": {
+      "command": "vitest",
+      "options": {
+        "cwd": "apps/org",
+        "watch": false
+      },
+      "cache": true,
+      "inputs": [
+        "default",
+        "^production",
+        {
+          "externalDependencies": [
+            "vitest"
+          ]
+        }
+      ],
+      "outputs": [
+        "{workspaceRoot}\\coverage\\apps\\org"
+      ]
+    }
+  }
+}
