@@ -1074,28 +1074,104 @@ export const switchToWorkspace = async (name: string) => {
   })
 }
 
-const loadFile = (name, file, provider, cb?): void => {
-  const fileReader = new FileReader()
+const loadFile = (name, file, provider): Promise<void> => {
+  return new Promise((resolve, reject) => {
+    const fileReader = new FileReader()
 
-  fileReader.onload = async function (event) {
-    if (checkSpecialChars(file.name)) {
-      return dispatch(displayNotification('File Upload Failed', 'Special characters are not allowed', 'Close', null, async () => {}))
+    fileReader.onload = async function (event) {
+      if (checkSpecialChars(file.name)) {
+        dispatch(displayNotification('File Upload Failed', 'Special characters are not allowed', 'Close', null, async () => {}))
+        return reject(new Error('Special characters are not allowed in file name: ' + name))
+      }
+      try {
+        await provider.set(name, event.target.result)
+      } catch (error) {
+        dispatch(displayNotification('File Upload Failed', 'Failed to create file ' + name, 'Close', null, async () => {}))
+        return reject(error instanceof Error ? error : new Error('Failed to create file ' + name))
+      }
+
+      const config = plugin.registry.get('config').api
+      const editor = plugin.registry.get('editor').api
+
+      if (config.get('currentFile') === name && editor.currentContent() !== event.target.result) {
+        editor.setText(name, event.target.result)
+      }
+      resolve()
     }
+
+    fileReader.onerror = () => {
+      dispatch(displayNotification('File Upload Failed', 'Failed to read file ' + name, 'Close', null, async () => {}))
+      reject(fileReader.error || new Error('Failed to read file ' + name))
+    }
+
+    fileReader.readAsText(file)
+  })
+}
+
+/**
+ * Writes a single file, asking for confirmation first when the target already
+ * exists. Resolves only once the write - or the user's decision to skip it -
+ * has completed, so `await` means "this file is on disk".
+ */
+const uploadSingleFile = async (name: string, file, provider, modalId: string): Promise<void> => {
+  if (!(await provider.exists(name))) {
+    return loadFile(name, file, provider)
+  }
+
+  return new Promise<void>((resolve, reject) => {
+    // okFn, cancelFn and hideFn can all fire for a single modal, so only the
+    // first one to run is allowed to settle the promise. hideFn is fired by the
+    // modal wrapper ~250ms after okFn, and okFn is the one that starts the
+    // write, so once the user chose to overwrite the write must be awaited
+    // instead of being short-circuited by the hide.
+    let settled = false
+    let overwriting = false
+    const finish = (error?: Error) => {
+      if (settled) return
+      settled = true
+      if (error) reject(error)
+      else resolve()
+    }
+
+    const modalContent: AppModal = {
+      id: modalId,
+      title: 'Confirm overwrite',
+      message: `The file "${name}" already exists! Would you like to overwrite it?`,
+      modalType: ModalTypes.confirm,
+      okLabel: 'OK',
+      cancelLabel: 'Cancel',
+      okFn: () => {
+        overwriting = true
+        loadFile(name, file, provider).then(() => finish(), finish)
+      },
+      cancelFn: () => finish(),
+      hideFn: () => {
+        if (!overwriting) finish()
+      },
+    }
+    plugin.call('notification', 'modal', modalContent)
+  })
+}
+
+/**
+ * Uploads a batch of files sequentially and reports a single result to `cb`
+ * once the whole batch is done. A failing file does not abort the remaining
+ * ones; the first error is the one reported.
+ */
+const uploadFileBatch = async (files, getTargetName: (file) => string, modalId: string, cb?: WorkspaceActionCallback): Promise<void> => {
+  const workspaceProvider = plugin.fileProviders.workspace
+  let firstError: Error | undefined
+
+  for (const file of files) {
     try {
-      await provider.set(name, event.target.result)
+      await uploadSingleFile(getTargetName(file), file, workspaceProvider, modalId)
     } catch (error) {
-      return dispatch(displayNotification('File Upload Failed', 'Failed to create file ' + name, 'Close', null, async () => {}))
-    }
-
-    const config = plugin.registry.get('config').api
-    const editor = plugin.registry.get('editor').api
-
-    if (config.get('currentFile') === name && editor.currentContent() !== event.target.result) {
-      editor.setText(name, event.target.result)
+      firstError = firstError || (error instanceof Error ? error : new Error(String(error)))
     }
   }
-  fileReader.readAsText(file)
-  cb && cb(null, true)
+
+  if (firstError) cb && cb(firstError)
+  else cb && cb(null, true)
 }
 
 export const uploadFile = async (target, targetFolder: string, cb?: (err: Error, result?: string | number | boolean | Record<string, any>) => void) => {
@@ -1103,79 +1179,30 @@ export const uploadFile = async (target, targetFolder: string, cb?: (err: Error,
   // the files module. Please ask the user here if they want to overwrite
   // a file and then just use `files.add`. The file explorer will
   // pick that up via the 'fileAdded' event from the files module.
-  [...target.files].forEach(async (file) => {
-    const workspaceProvider = plugin.fileProviders.workspace
-    const name = targetFolder === '/' ? file.name : `${targetFolder}/${file.name}`
-
-    if (!(await workspaceProvider.exists(name))) {
-      loadFile(name, file, workspaceProvider, cb)
-    } else {
-      const modalContent: AppModal = {
-        id: 'overwriteUploadFile',
-        title: 'Confirm overwrite',
-        message: `The file "${name}" already exists! Would you like to overwrite it?`,
-        modalType: ModalTypes.confirm,
-        okLabel: 'OK',
-        cancelLabel: 'Cancel',
-        okFn: () => {
-          loadFile(name, file, workspaceProvider, cb)
-        },
-        cancelFn: () => {},
-        hideFn: () => {},
-      }
-      plugin.call('notification', 'modal', modalContent)
-    }
-  })
+  await uploadFileBatch(
+    [...target.files],
+    (file) => (targetFolder === '/' ? file.name : `${targetFolder}/${file.name}`),
+    'overwriteUploadFile',
+    cb
+  )
 }
 
 export const uploadFolderExcludingRootFolder = async (target, targetFolder: string, cb?: (err: Error, result?: string | number | boolean | Record<string, any>) => void) => {
-  for (const file of [...target.files]) {
-    const workspaceProvider = plugin.fileProviders.workspace
-    const name = targetFolder === '/' ? file.webkitRelativePath.split('/').slice(1).join('/') : `${targetFolder}/${file.webkitRelativePath}`
-    if (!(await workspaceProvider.exists(name))) {
-      loadFile(name, file, workspaceProvider, cb)
-    } else {
-      const modalContent: AppModal = {
-        id: 'overwriteUploadFolderFile',
-        title: 'Confirm overwrite',
-        message: `The file "${name}" already exists! Would you like to overwrite it?`,
-        modalType: ModalTypes.confirm,
-        okLabel: 'OK',
-        cancelLabel: 'Cancel',
-        okFn: () => {
-          loadFile(name, file, workspaceProvider, cb)
-        },
-        cancelFn: () => {},
-        hideFn: () => {},
-      }
-      plugin.call('notification', 'modal', modalContent)
-    }
-  }
+  await uploadFileBatch(
+    [...target.files],
+    (file) => (targetFolder === '/' ? file.webkitRelativePath.split('/').slice(1).join('/') : `${targetFolder}/${file.webkitRelativePath}`),
+    'overwriteUploadFolderFile',
+    cb
+  )
 }
 
 export const uploadFolder = async (target, targetFolder: string, cb?: (err: Error, result?: string | number | boolean | Record<string, any>) => void) => {
-  for (const file of [...target.files]) {
-    const workspaceProvider = plugin.fileProviders.workspace
-    const name = targetFolder === '/' ? file.webkitRelativePath : `${targetFolder}/${file.webkitRelativePath}`
-    if (!(await workspaceProvider.exists(name))) {
-      loadFile(name, file, workspaceProvider, cb)
-    } else {
-      const modalContent: AppModal = {
-        id: 'overwriteUploadFolderFile',
-        title: 'Confirm overwrite',
-        message: `The file "${name}" already exists! Would you like to overwrite it?`,
-        modalType: ModalTypes.confirm,
-        okLabel: 'OK',
-        cancelLabel: 'Cancel',
-        okFn: () => {
-          loadFile(name, file, workspaceProvider, cb)
-        },
-        cancelFn: () => {},
-        hideFn: () => {},
-      }
-      plugin.call('notification', 'modal', modalContent)
-    }
-  }
+  await uploadFileBatch(
+    [...target.files],
+    (file) => (targetFolder === '/' ? file.webkitRelativePath : `${targetFolder}/${file.webkitRelativePath}`),
+    'overwriteUploadFolderFile',
+    cb
+  )
 }
 
 export type WorkspaceType = { name: string; isGitRepo: boolean; hasGitSubmodules: boolean; branches?: { remote: any; name: string }[]; currentBranch?: string; remoteId?: string; cloudUuid?: string }
