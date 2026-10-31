@@ -241,6 +241,11 @@ export class TraceManager {
     }
   }
 
+  getCurrentStorageAddressAt (stepIndex) {
+    const call = this.getLastCallChangeSince(stepIndex)
+    return call.storageAddress || call.address
+  }
+
   getContractCreationCode (token) {
     if (!this.traceCache.contractCreation[token]) {
       throw new Error('no contract creation named ' + token)

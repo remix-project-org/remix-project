@@ -241,7 +241,7 @@ export class VmProxy {
         memory: null,
         op: data.opcode.name,
         pc: data.pc,
-        gasCost: data.opcode.fee.toString(),
+        gasCost: (data.opcode.dynamicFee ?? data.opcode.fee).toString(),
         gas: data.gasLeft.toString(),
         depth: depth
       }

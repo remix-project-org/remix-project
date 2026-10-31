@@ -93,6 +93,8 @@ export class TraceCache {
     const call = {
       op: step.op,
       address: address,
+      storageAddress: this.currentCall && (step.op === 'DELEGATECALL' || step.op === 'CALLCODE')
+        ? this.currentCall.call.storageAddress : address,
       callStack: callStack,
       calls: {},
       start: index
@@ -157,10 +159,17 @@ export class TraceCache {
       }
       const sstore = this.sstore[changesIndex]
       if (sstore.address?.toLowerCase() === address?.toLowerCase() && sstore.key) {
-        if (sstore.contextCall?.call?.return < index && sstore.contextCall?.call?.reverted) {
-          // this is a previous call which has reverted. state changes aren't kept.
-          continue
-        } else {
+        // A successful child is also rolled back if any enclosing frame reverts.
+        let context = sstore.contextCall
+        let reverted = false
+        while (context) {
+          if (context.call.return < index && context.call.reverted) {
+            reverted = true
+            break
+          }
+          context = context.parent
+        }
+        if (!reverted) {
           ret[sstore.hashedKey] = {
             key: sstore.key,
             value: sstore.value

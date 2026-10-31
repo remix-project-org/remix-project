@@ -573,7 +573,8 @@ export class InternalCallTree {
     const rootScopes: NestedScope[] = []
 
     // Build the tree structure
-    for (const [scopeId, nestedScope] of scopeMap) {
+    // Attach descendants before merging a low-level scope into its parent.
+    for (const [scopeId, nestedScope] of [...scopeMap].reverse()) {
       const parentScopeId = this.parentScope(scopeId)
       const isRootLevel = rootScopeId ? scopeId === rootScopeId : parentScopeId === ''
 
@@ -638,6 +639,13 @@ export class InternalCallTree {
 
     sortScopes(rootScopes)
 
+    if (filterMode === 'call' && !rootScopeId) {
+      const externalCalls = (scopes: NestedScope[]): NestedScope[] => scopes.flatMap(scope => {
+        const children = externalCalls(scope.children)
+        return isCallInstruction(scope.opcodeInfo) ? [{ ...scope, children }] : children
+      })
+      return externalCalls(rootScopes)
+    }
     return rootScopes
   }
 }
@@ -659,6 +667,7 @@ export class InternalCallTree {
  */
 async function buildTree (tree: InternalCallTree, step, scopeId, isCreation, sourceLocation?, validSourceLocation?, parentScopeId?) {
   let subScope = 1
+  const frameDepth = tree.traceManager.trace[step].depth
   const address = tree.traceManager.getCurrentCalledAddressAt(step)
   tree.scopes[scopeId].address = address
 
@@ -669,6 +678,22 @@ async function buildTree (tree: InternalCallTree, step, scopeId, isCreation, sou
   let currentAddress = ''
   let firstExecutionStep = true
   while (step < tree.traceManager.trace.length) {
+    // A nested Solidity scope can consume the frame's REVERT or exceptional halt.
+    // Unwind its enclosing scopes before processing the resumed caller.
+    if (tree.traceManager.trace[step].depth < frameDepth) {
+      const scope = tree.scopes[scopeId]
+      const lastStep = step - 1
+      const opcode = tree.traceManager.trace[lastStep]
+      scope.lastStep = lastStep
+      scope.lastSafeStep = lastStep
+      scope.lastOpcodeInfo = opcode
+      if (isRevertInstruction(opcode) || opcode.error) scope.reverted = { step: opcode }
+      if (isCallInstruction(scope.opcodeInfo) && scope.stackBeforeJumping) {
+        tree.symbolicStackManager.setStackAtStep(step, scope.stackBeforeJumping)
+      }
+      scope.stackBeforeJumping = undefined
+      return { outStep: step }
+    }
     let sourceLocation
     let validSourceLocation
     let address
@@ -709,11 +734,11 @@ async function buildTree (tree: InternalCallTree, step, scopeId, isCreation, sou
     }
     const stepDetail: StepDetail = tree.traceManager.trace[step]
     const nextStepDetail: StepDetail = tree.traceManager.trace[step + 1]
-    if (stepDetail && nextStepDetail) {
-      // for complicated opcodes which don't have a static gas cost:
+    if (stepDetail.gasCost === undefined && nextStepDetail && stepDetail.depth === nextStepDetail.depth) {
+      // Gas from different call frames cannot be subtracted to infer an opcode cost.
       stepDetail.gasCost = parseInt(stepDetail.gas as string) - parseInt(nextStepDetail.gas as string)
     } else {
-      stepDetail.gasCost = parseInt(stepDetail.gasCost as unknown as string)
+      stepDetail.gasCost = parseInt(stepDetail.gasCost as unknown as string) || 0
     }
 
     // gas per line
@@ -751,7 +776,7 @@ async function buildTree (tree: InternalCallTree, step, scopeId, isCreation, sou
     tree.locationAndOpcodePerVMTraceIndex[step] = { sourceLocation, stepDetail, lineColumnPos, contractAddress: address, scopeId }
     tree.scopes[scopeId].gasCost += stepDetail.gasCost
 
-    const isInternalTxInstrn = isCallInstruction(stepDetail)
+    const isInternalTxInstrn = isCallInstruction(stepDetail) && nextStepDetail && nextStepDetail.depth > stepDetail.depth
     const isCreateInstrn = isCreateInstruction(stepDetail)
 
     // check if there is a function at destination - but only for AST node resolution
@@ -837,7 +862,7 @@ async function buildTree (tree: InternalCallTree, step, scopeId, isCreation, sou
         if (tree.debug) console.log('Entering new scope at step ', step, newScopeId, isInternalTxInstrn, internalfunctionCall)
         tree.scopeStarts[step] = newScopeId
         const startExecutionLine = lineColumnPos && lineColumnPos.start ? lineColumnPos.start.line + 1 : undefined
-        tree.scopes[newScopeId] = { firstStep: step, locals: {}, isCreation, gasCost: 0, startExecutionLine, functionDefinition: null, opcodeInfo: stepDetail, stackBeforeJumping: newSymbolicStack, lowLevelScope: true }
+        tree.scopes[newScopeId] = { firstStep: step, locals: {}, isCreation, gasCost: 0, startExecutionLine, functionDefinition: null, opcodeInfo: stepDetail, stackBeforeJumping: newSymbolicStack, lowLevelScope: !isInternalTxInstrn }
         addReducedTrace(tree, step)
         // for the ctor we are at the start of its trace, we have to replay this step in order to catch all the locals:
         const nextStep = step + 1
