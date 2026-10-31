@@ -36,7 +36,7 @@ for (const { templateValue, cardDataId, contractFile } of TEMPLATES) {
 
     // Dismiss any notification popup
     try {
-      await page.getByTitle('Dismiss').waitFor({ state: 'visible', timeout: 5000 })
+      await page.getByTitle('Dismiss').waitFor({ state: 'visible', timeout: 30000 })
       await page.getByTitle('Dismiss').click()
     } catch { /* not present */ }
 
