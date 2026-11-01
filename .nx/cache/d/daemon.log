@@ -1,0 +1,174 @@
+[NX Daemon Server] - 2024-05-16T21:59:20.254Z - Started listening on: \\.\pipe\nx\C:\Users\Legion\AppData\Local\Temp\fca97859cd3bb8a14286\d.sock
+[NX Daemon Server] - 2024-05-16T21:59:20.294Z - [WATCHER]: Subscribed to changes within: C:\Users\Legion\GitHub\remix-project (native)
+[NX Daemon Server] - 2024-05-16T21:59:20.297Z - Established a connection. Number of open connections: 1
+[NX Daemon Server] - 2024-05-16T21:59:20.304Z - Closed a connection. Number of open connections: 0
+[NX Daemon Server] - 2024-05-16T21:59:20.304Z - Established a connection. Number of open connections: 1
+[NX Daemon Server] - 2024-05-16T21:59:20.312Z - [REQUEST]: Client Request for Project Graph Received
+[NX Daemon Server] - 2024-05-16T21:59:21.274Z - [REQUEST]: Updated workspace context based on watched changes, recomputing project graph...
+[NX Daemon Server] - 2024-05-16T21:59:21.275Z - [REQUEST]: 
+[NX Daemon Server] - 2024-05-16T21:59:21.275Z - [REQUEST]: 
+
+ NX   Using `implicitDependencies` for global implicit dependencies configuration is no longer supported.
+
+Use "namedInputs" instead. You can run "nx repair" to automatically migrate your configuration.
+For more information about the usage of "namedInputs" see https://nx.dev/deprecated/global-implicit-dependencies#global-implicit-dependencies
+
+[NX Daemon Server] - 2024-05-16T21:59:23.674Z - [REQUEST]: Responding to the client. project-graph
+[NX Daemon Server] - 2024-05-16T21:59:23.679Z - Time taken for 'total for creating and serializing project graph' 3362.0115000009537ms
+[NX Daemon Server] - 2024-05-16T21:59:23.680Z - Done responding to the client project-graph
+[NX Daemon Server] - 2024-05-16T21:59:23.680Z - Handled REQUEST_PROJECT_GRAPH. Handling time: 3362. Response time: 6.
+[NX Daemon Server] - 2024-05-16T21:59:23.702Z - Closed a connection. Number of open connections: 0
+[NX Daemon Server] - 2024-05-16T22:00:10.491Z - Established a connection. Number of open connections: 1
+[NX Daemon Server] - 2024-05-16T22:00:10.492Z - Closed a connection. Number of open connections: 0
+[NX Daemon Server] - 2024-05-16T22:00:10.493Z - Established a connection. Number of open connections: 1
+[NX Daemon Server] - 2024-05-16T22:00:10.498Z - [REQUEST]: Client Request for Project Graph Received
+[NX Daemon Server] - 2024-05-16T22:00:10.500Z - [REQUEST]: Responding to the client. project-graph
+[NX Daemon Server] - 2024-05-16T22:00:10.503Z - Time taken for 'total for creating and serializing project graph' 1.9016000032424927ms
+[NX Daemon Server] - 2024-05-16T22:00:10.504Z - Done responding to the client project-graph
+[NX Daemon Server] - 2024-05-16T22:00:10.504Z - Handled REQUEST_PROJECT_GRAPH. Handling time: 2. Response time: 4.
+[NX Daemon Server] - 2024-05-16T22:00:46.826Z - [REQUEST]: Client Request for Project Graph Received
+[NX Daemon Server] - 2024-05-16T22:00:46.828Z - [REQUEST]: Responding to the client. project-graph
+[NX Daemon Server] - 2024-05-16T22:00:46.831Z - Time taken for 'total for creating and serializing project graph' 2.06139999628067ms
+[NX Daemon Server] - 2024-05-16T22:00:46.832Z - Done responding to the client project-graph
+[NX Daemon Server] - 2024-05-16T22:00:46.832Z - Handled REQUEST_PROJECT_GRAPH. Handling time: 2. Response time: 4.
+[NX Daemon Server] - 2024-05-16T22:00:58.921Z - Closed a connection. Number of open connections: 0
+[NX Daemon Server] - 2024-05-16T22:02:12.885Z - Established a connection. Number of open connections: 1
+[NX Daemon Server] - 2024-05-16T22:02:12.887Z - Closed a connection. Number of open connections: 0
+[NX Daemon Server] - 2024-05-16T22:02:12.889Z - Established a connection. Number of open connections: 1
+[NX Daemon Server] - 2024-05-16T22:02:12.898Z - [REQUEST]: Client Request for Project Graph Received
+[NX Daemon Server] - 2024-05-16T22:02:12.899Z - [REQUEST]: Responding to the client. project-graph
+[NX Daemon Server] - 2024-05-16T22:02:12.903Z - Time taken for 'total for creating and serializing project graph' 1.8872999846935272ms
+[NX Daemon Server] - 2024-05-16T22:02:12.904Z - Done responding to the client project-graph
+[NX Daemon Server] - 2024-05-16T22:02:12.904Z - Handled REQUEST_PROJECT_GRAPH. Handling time: 2. Response time: 5.
+[NX Daemon Server] - 2024-05-16T22:02:41.800Z - [REQUEST]: Client Request for Project Graph Received
+[NX Daemon Server] - 2024-05-16T22:02:41.802Z - [REQUEST]: Responding to the client. project-graph
+[NX Daemon Server] - 2024-05-16T22:02:41.806Z - Time taken for 'total for creating and serializing project graph' 1.8012000024318695ms
+[NX Daemon Server] - 2024-05-16T22:02:41.806Z - Done responding to the client project-graph
+[NX Daemon Server] - 2024-05-16T22:02:41.806Z - Handled REQUEST_PROJECT_GRAPH. Handling time: 2. Response time: 4.
+[NX Daemon Server] - 2024-05-16T22:02:53.771Z - Closed a connection. Number of open connections: 0
+[NX Daemon Server] - 2024-05-16T22:04:48.884Z - [WATCHER]: _tmp_22500_cf0775343172fb8328e7bbf6e0ff4374 was deleted
+[NX Daemon Server] - 2024-05-16T22:04:48.884Z - [WATCHER]: Processing file changes in outputs
+[NX Daemon Server] - 2024-05-16T22:04:48.997Z - [REQUEST]: Updated workspace context based on watched changes, recomputing project graph...
+[NX Daemon Server] - 2024-05-16T22:04:48.997Z - [REQUEST]: 
+[NX Daemon Server] - 2024-05-16T22:04:48.997Z - [REQUEST]: _tmp_22500_cf0775343172fb8328e7bbf6e0ff4374
+
+ NX   Using `implicitDependencies` for global implicit dependencies configuration is no longer supported.
+
+Use "namedInputs" instead. You can run "nx repair" to automatically migrate your configuration.
+For more information about the usage of "namedInputs" see https://nx.dev/deprecated/global-implicit-dependencies#global-implicit-dependencies
+
+[NX Daemon Server] - 2024-05-16T22:04:49.389Z - Time taken for 'Load Nx Plugin: C:\Users\Legion\GitHub\remix-project\node_modules\nx\src\plugins\project-json\build-nodes\package-json-next-to-project-json' 1.4062000215053558ms
+[NX Daemon Server] - 2024-05-17T12:02:52.179Z - Started listening on: \\.\pipe\nx\C:\Users\Legion\AppData\Local\Temp\fca97859cd3bb8a14286\d.sock
+[NX Daemon Server] - 2024-05-17T12:02:52.188Z - [WATCHER]: Subscribed to changes within: c:\Users\Legion\GitHub\remix-project (native)
+[NX Daemon Server] - 2024-05-17T12:02:52.191Z - Established a connection. Number of open connections: 1
+[NX Daemon Server] - 2024-05-17T12:02:52.195Z - Closed a connection. Number of open connections: 0
+[NX Daemon Server] - 2024-05-17T12:02:52.210Z - Established a connection. Number of open connections: 1
+[NX Daemon Server] - 2024-05-17T12:02:52.233Z - [REQUEST]: Client Request for Project Graph Received
+[NX Daemon Server] - 2024-05-17T12:02:53.070Z - [REQUEST]: Updated workspace context based on watched changes, recomputing project graph...
+[NX Daemon Server] - 2024-05-17T12:02:53.070Z - [REQUEST]: 
+[NX Daemon Server] - 2024-05-17T12:02:53.070Z - [REQUEST]: 
+
+ NX   Using `implicitDependencies` for global implicit dependencies configuration is no longer supported.
+
+Use "namedInputs" instead. You can run "nx repair" to automatically migrate your configuration.
+For more information about the usage of "namedInputs" see https://nx.dev/deprecated/global-implicit-dependencies#global-implicit-dependencies
+
+[NX Daemon Server] - 2024-05-17T12:02:57.043Z - [REQUEST]: Responding to the client with an error. Error when preparing serialized project graph. Failed to process project graph. Run "nx reset" to fix this. Please report the issue if you keep seeing it.
+Failed to process project graph. Run "nx reset" to fix this. Please report the issue if you keep seeing it.
+  MultipleProjectsWithSameNameError: The following projects are defined in multiple locations:
+  - solhint: 
+    - apps/solhint
+    - remix-project/apps/solhint
+  - ghaction-helper: 
+    - libs/ghaction-helper
+    - remix-project/libs/ghaction-helper
+  - remix-analyzer: 
+    - libs/remix-analyzer
+    - remix-project/libs/remix-analyzer
+  - remix-astwalker: 
+    - libs/remix-astwalker
+    - remix-project/libs/remix-astwalker
+  - remix-core-plugin: 
+    - libs/remix-core-plugin
+    - remix-project/libs/remix-core-plugin
+  - remix-debug: 
+    - libs/remix-debug
+    - remix-project/libs/remix-debug
+  - remix-lib: 
+    - libs/remix-lib
+    - remix-project/libs/remix-lib
+  - remix-simulator: 
+    - libs/remix-simulator
+    - remix-project/libs/remix-simulator
+  - remix-solidity: 
+    - libs/remix-solidity
+    - remix-project/libs/remix-solidity
+  - remix-tests: 
+    - libs/remix-tests
+    - remix-project/libs/remix-tests
+  - remix-url-resolver: 
+    - libs/remix-url-resolver
+    - remix-project/libs/remix-url-resolver
+  - remix-ws-templates: 
+    - libs/remix-ws-templates
+    - remix-project/libs/remix-ws-templates
+  - remixd: 
+    - libs/remixd
+    - remix-project/libs/remixd
+  - circuit-compiler: 
+    - apps/circuit-compiler
+    - remix-project/apps/circuit-compiler
+  - debugger: 
+    - apps/debugger
+    - remix-project/apps/debugger
+  - doc-gen: 
+    - apps/doc-gen
+    - remix-project/apps/doc-gen
+  - doc-viewer: 
+    - apps/doc-viewer
+    - remix-project/apps/doc-viewer
+  - etherscan: 
+    - apps/etherscan
+    - remix-project/apps/etherscan
+  - learneth: 
+    - apps/learneth
+    - remix-project/apps/learneth
+  - remix-ide: 
+    - apps/remix-ide
+    - remix-project/apps/remix-ide
+  - plugin_api: 
+    - apps/remix-ide-e2e/src/local-plugin
+    - remix-project/apps/remix-ide-e2e/src/local-plugin
+  - solidity-compiler: 
+    - apps/solidity-compiler
+    - remix-project/apps/solidity-compiler
+  - vyper: 
+    - apps/vyper
+    - remix-project/apps/vyper
+  - walletconnect: 
+    - apps/walletconnect
+    - remix-project/apps/walletconnect
+  - remix-ui: 
+    - libs/remix-ui
+    - remix-project/libs/remix-ui
+  
+  To fix this, set a unique name for each project in a project.json inside the project's root. If the project does not currently have a project.json, you can create one that contains only a name.
+      at validateAndNormalizeProjectRootMap (C:\Users\Legion\GitHub\remix-project\node_modules\.pnpm\nx@19.0.4\node_modules\nx\src\project-graph\utils\project-configuration-utils.js:419:15)
+      at C:\Users\Legion\GitHub\remix-project\node_modules\.pnpm\nx@19.0.4\node_modules\nx\src\project-graph\utils\project-configuration-utils.js:298:13
+      at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+      at async processFilesAndCreateAndSerializeProjectGraph (C:\Users\Legion\GitHub\remix-project\node_modules\.pnpm\nx@19.0.4\node_modules\nx\src\daemon\server\project-graph-incremental-recomputation.js:148:43)
+      at async getCachedSerializedProjectGraphPromise (C:\Users\Legion\GitHub\remix-project\node_modules\.pnpm\nx@19.0.4\node_modules\nx\src\daemon\server\project-graph-incremental-recomputation.js:46:16)
+      at async handleRequestProjectGraph (C:\Users\Legion\GitHub\remix-project\node_modules\.pnpm\nx@19.0.4\node_modules\nx\src\daemon\server\handle-request-project-graph.js:12:24)
+      at async handleResult (C:\Users\Legion\GitHub\remix-project\node_modules\.pnpm\nx@19.0.4\node_modules\nx\src\daemon\server\server.js:107:16)
+      at async handleMessage (C:\Users\Legion\GitHub\remix-project\node_modules\.pnpm\nx@19.0.4\node_modules\nx\src\daemon\server\server.js:78:9)
+      at async C:\Users\Legion\GitHub\remix-project\node_modules\.pnpm\nx@19.0.4\node_modules\nx\src\daemon\server\server.js:45:9
+[NX Daemon Server] - 2024-05-17T12:02:57.073Z - Time taken for 'Load Nx Plugin: C:\Users\Legion\GitHub\remix-project\node_modules\.pnpm\nx@19.0.4\node_modules\nx\src\plugins\project-json\build-nodes\package-json-next-to-project-json' 334.11370000243187ms
+[NX Daemon Server] - 2024-05-17T12:02:57.073Z - Done responding to the client null
+[NX Daemon Server] - 2024-05-17T12:02:57.073Z - Handled REQUEST_PROJECT_GRAPH. Handling time: 4809. Response time: 31.
+[NX Daemon Server] - 2024-05-17T12:02:57.120Z - [REQUEST]: Responding to the client. handleRequestFileData
+[NX Daemon Server] - 2024-05-17T12:02:57.122Z - Done responding to the client handleRequestFileData
+[NX Daemon Server] - 2024-05-17T12:02:57.122Z - Handled REQUEST_FILE_DATA. Handling time: 16. Response time: 2.
+[NX Daemon Server] - 2024-05-17T12:02:57.154Z - Closed a connection. Number of open connections: 0
+[NX Daemon Server] - 2024-05-17T15:02:58.640Z - [WATCHER]: Stopping the watcher for c:\Users\Legion\GitHub\remix-project (sources)
+[NX Daemon Server] - 2024-05-17T15:02:58.733Z - [WATCHER]: Stopping the watcher for c:\Users\Legion\GitHub\remix-project (outputs)
+[NX Daemon Server] - 2024-05-17T15:02:58.734Z - Server stopped because: "10800000ms of inactivity"
