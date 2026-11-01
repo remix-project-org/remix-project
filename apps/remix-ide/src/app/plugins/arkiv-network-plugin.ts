@@ -6,6 +6,7 @@ import { addr, str } from '@arkiv-network/sdk/attr'
 import { eq, and } from '@arkiv-network/sdk/query'
 import { tiramisu } from '@arkiv-network/sdk/chains'
 import { http, type Hex } from 'viem'
+import { bytesToHex, sha256Hex } from './arkiv-utils'
 
 // Update when Tiramisu gets an official block explorer
 const SCAN_BASE_URL = 'https://scan.tiramisu.testnet.arkiv.network'
@@ -103,10 +104,6 @@ export class ArkivNetworkPlugin extends Plugin {
     await (this as any).call('terminal', 'log', { type: 'error', value: `[Arkiv] ${message}` })
   }
 
-  private _bytesToHex(bytes: Uint8Array): string {
-    return '0x' + Array.from(bytes).map(b => b.toString(16).padStart(2, '0')).join('')
-  }
-
   /** Shows a modal with a retention-period picker. Returns null if the user cancels. */
   private _pickExpiry(
     title: string,
@@ -180,7 +177,7 @@ export class ArkivNetworkPlugin extends Plugin {
     const ext = filePath.split('.').pop()?.toLowerCase() ?? ''
     const contentType = CONTENT_TYPES[ext] ?? 'application/octet-stream'
 
-    const payload = this._bytesToHex(new TextEncoder().encode(fileContent))
+    const payload = bytesToHex(new TextEncoder().encode(fileContent))
 
     // ── 3. Ensure the arkiv signing session is open ─────────────────────────
     try {
@@ -234,8 +231,10 @@ export class ArkivNetworkPlugin extends Plugin {
     name: string
     abi: any[]
     walletAddress: string
+    compilerVersion?: string
+    sourcePath?: string
   }): Promise<{ entityKey: string; txHash: string }> {
-    const { address, chainId, name, abi, walletAddress } = params
+    const { address, chainId, name, abi, walletAddress, compilerVersion, sourcePath } = params
 
     // ── 1. Pick retention period ─────────────────────────────────────────────
     const short = `${address.slice(0, 8)}…${address.slice(-4)}`
@@ -260,6 +259,15 @@ export class ArkivNetworkPlugin extends Plugin {
 
     const abiHash = await this._computeAbiHash(abi)
 
+    // Compute source hash if a source path was provided
+    let sourceHash = '0x' + '00'.repeat(32)
+    if (sourcePath) {
+      try {
+        const src: string = await (this as any).call('fileManager', 'readFile', sourcePath)
+        sourceHash = await sha256Hex(new TextEncoder().encode(src))
+      } catch { /* source not available — leave as zero hash */ }
+    }
+
     // ── 3. Upsert: query for existing, then create or patch ──────────────────
     const pub = this._getPubClient()
     let existingKey: string | undefined
@@ -267,6 +275,7 @@ export class ArkivNetworkPlugin extends Plugin {
       const existing = await pub
         .select({ key: true })
         .where(and(
+          eq('app', str('remix')),
           eq('wallet_address', addr(walletAddress as Hex)),
           eq('chain_id', str(chainId)),
           eq('address', addr(address as Hex)),
@@ -279,7 +288,7 @@ export class ArkivNetworkPlugin extends Plugin {
       // query failure is non-fatal; fall through to create
     }
 
-    const payloadHex = this._bytesToHex(new TextEncoder().encode(JSON.stringify(abi)))
+    const payloadHex = bytesToHex(new TextEncoder().encode(JSON.stringify(abi)))
     const savedAt = BigInt(Date.now()).toString()
     const contractName = name.slice(0, 42)
 
@@ -289,12 +298,19 @@ export class ArkivNetworkPlugin extends Plugin {
       const patchResult: { txHash: string } = await (this as any).call('arkivBasic', 'patchEntity', {
         entityKey: existingKey,
         set: {
-          abi_hash:     { type: 'bytes32', value: abiHash },
-          saved_at:     { type: 'u64', value: savedAt },
-          contract_name: { type: 'str', value: contractName },
-          expiry_label: { type: 'str', value: choice.label },
+          abi_hash:          { type: 'bytes32', value: abiHash },
+          source_hash:       { type: 'bytes32', value: sourceHash },
+          saved_at:          { type: 'u64', value: savedAt },
+          contract_name:     { type: 'str', value: contractName },
+          compiler_version:  { type: 'str', value: compilerVersion ?? '' },
+          expiry_label:      { type: 'str', value: choice.label },
         },
         payload: payloadHex,
+      })
+      // Extend the on-chain expiry to match the user's chosen retention period
+      await (this as any).call('arkivBasic', 'extendEntity', {
+        entityKey: existingKey,
+        expires: choice.expires,
       })
       result = { entityKey: existingKey, txHash: patchResult.txHash }
     } else {
@@ -302,16 +318,18 @@ export class ArkivNetworkPlugin extends Plugin {
         payload: payloadHex,
         contentType: 'application/json',
         attributes: {
-          app:            { type: 'str', value: 'remix' },
-          type:           { type: 'str', value: 'remix-deployed-contract' },
-          schema_version: { type: 'str', value: '1' },
-          wallet_address: { type: 'addr', value: walletAddress },
-          chain_id:       { type: 'str', value: chainId },
-          address:        { type: 'addr', value: address },
-          contract_name:  { type: 'str', value: contractName },
-          abi_hash:       { type: 'bytes32', value: abiHash },
-          saved_at:       { type: 'u64', value: savedAt },
-          expiry_label:   { type: 'str', value: choice.label },
+          app:              { type: 'str',     value: 'remix' },
+          type:             { type: 'str',     value: 'remix-deployed-contract' },
+          schema_version:   { type: 'str',     value: '1' },
+          wallet_address:   { type: 'addr',    value: walletAddress },
+          chain_id:         { type: 'str',     value: chainId },
+          address:          { type: 'addr',    value: address },
+          contract_name:    { type: 'str',     value: contractName },
+          compiler_version: { type: 'str',     value: compilerVersion ?? '' },
+          abi_hash:         { type: 'bytes32', value: abiHash },
+          source_hash:      { type: 'bytes32', value: sourceHash },
+          saved_at:         { type: 'u64',     value: savedAt },
+          expiry_label:     { type: 'str',     value: choice.label },
         },
         expires: choice.expires,
       })
@@ -337,6 +355,7 @@ export class ArkivNetworkPlugin extends Plugin {
     let builder = pub
       .select({ key: true, attributes: true, payload: true })
       .where(and(
+        eq('app', str('remix')),
         eq('wallet_address', addr(params.walletAddress as Hex)),
         eq('type', str('remix-deployed-contract')),
       ))

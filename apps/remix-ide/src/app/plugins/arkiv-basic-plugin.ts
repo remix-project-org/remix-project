@@ -23,6 +23,7 @@ import { tiramisu } from '@arkiv-network/sdk/chains'
 import { privateKeyToAccount } from 'viem/accounts'
 import type { Hex } from 'viem'
 import { http } from 'viem'
+import { hexToBytes, bytesToHex } from './arkiv-utils'
 
 // 0x9E3213DA03f78861B3F29c1917EB7BF40Ea5d43c
 const BASIC_PRIVATE_KEY: Hex = '0x8f73e53cb020fffe5fdaf22f9447eee003983d87b46f18fadfac33f974183d05'
@@ -124,18 +125,6 @@ const profile = {
 }
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
-
-function hexToBytes(hex: string): Uint8Array {
-  const h = hex.startsWith('0x') ? hex.slice(2) : hex
-  if (h.length % 2 !== 0) throw new Error(`Arkiv: invalid hex string length: ${hex}`)
-  const arr = new Uint8Array(h.length / 2)
-  for (let i = 0; i < arr.length; i++) arr[i] = parseInt(h.slice(i * 2, i * 2 + 2), 16)
-  return arr
-}
-
-function bytesToHex(bytes: Uint8Array): string {
-  return '0x' + Array.from(bytes).map(b => b.toString(16).padStart(2, '0')).join('')
-}
 
 function toExpiry(input: ExpiresInput): Expiry {
   if (input === 'permanent')    return ExpirationTime.permanent()

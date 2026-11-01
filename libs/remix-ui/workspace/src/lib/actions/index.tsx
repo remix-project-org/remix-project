@@ -132,6 +132,26 @@ const basicWorkspaceInit = async (workspaces: { name: string; isGitRepo: boolean
   }
 }
 
+async function loadArkivEntity(entityKey: string, workspaces: any, workspaceProvider: any, plugin: any, dispatch: any, lifecycle: any) {
+  try {
+    await plugin.call('arkivBasic', 'unlock')
+    const entity = await plugin.call('arkivBasic', 'getEntity', entityKey)
+    const fileName = (entity.attributes?.name?.value as string) || entityKey
+    const filePath = (entity.attributes?.path?.value as string) || fileName
+    const content = entity.text ?? ''
+    const workspaceName = `arkiv-${await generateRandomSuffix(entityKey)}`
+    await createWorkspaceTemplate(workspaceName, 'code-template')
+    plugin.setWorkspace({ name: workspaceName, isLocalhost: false })
+    dispatch(setCurrentWorkspace({ name: workspaceName, isGitRepo: false }))
+    await workspaceProvider.set(filePath, content)
+    lifecycle.when(all('EDITOR_MOUNTED', 'WORKSPACE_INITIALIZED'), async () => {
+      await plugin.fileManager.openFile(filePath)
+    })
+  } catch (error) {
+    await basicWorkspaceInit(workspaces, workspaceProvider)
+  }
+}
+
 export const initWorkspace = (filePanelPlugin) => async (reducerDispatch: React.Dispatch<Actions>) => {
   if (filePanelPlugin) {
     plugin = filePanelPlugin
@@ -173,24 +193,7 @@ export const initWorkspace = (filePanelPlugin) => async (reducerDispatch: React.
         await plugin.fileManager.openFile(filePath)
       })
     } else if (params.arkiv) {
-      const entityKey = params.arkiv
-      try {
-        await plugin.call('arkivBasic', 'unlock')
-        const entity = await plugin.call('arkivBasic', 'getEntity', entityKey)
-        const fileName = (entity.attributes?.name?.value as string) || entityKey
-        const filePath = (entity.attributes?.path?.value as string) || fileName
-        const content = entity.text ?? ''
-        const workspaceName = `arkiv-${await generateRandomSuffix(entityKey)}`
-        await createWorkspaceTemplate(workspaceName, 'code-template')
-        plugin.setWorkspace({ name: workspaceName, isLocalhost: false })
-        dispatch(setCurrentWorkspace({ name: workspaceName, isGitRepo: false }))
-        await workspaceProvider.set(filePath, content)
-        lifecycle.when(all('EDITOR_MOUNTED', 'WORKSPACE_INITIALIZED'), async () => {
-          await plugin.fileManager.openFile(filePath)
-        })
-      } catch (error) {
-        await basicWorkspaceInit(workspaces, workspaceProvider)
-      }
+      await loadArkivEntity(params.arkiv, workspaces, workspaceProvider, plugin, dispatch, lifecycle)
     } else if (params.address && params.blockscout) {
       if (params.address.startsWith('0x') && params.address.length === 42 && params.blockscout.length > 0) {
         const contractAddress = params.address
@@ -341,24 +344,7 @@ export const initWorkspace = (filePanelPlugin) => async (reducerDispatch: React.
         await plugin.fileManager.openFile(filePath)
       })
     } else if (params.arkiv) {
-      const entityKey = params.arkiv
-      try {
-        await plugin.call('arkivBasic', 'unlock')
-        const entity = await plugin.call('arkivBasic', 'getEntity', entityKey)
-        const fileName = (entity.attributes?.name?.value as string) || entityKey
-        const filePath = (entity.attributes?.path?.value as string) || fileName
-        const content = entity.text ?? ''
-        const workspaceName = `arkiv-${await generateRandomSuffix(entityKey)}`
-        await createWorkspaceTemplate(workspaceName, 'code-template')
-        plugin.setWorkspace({ name: workspaceName, isLocalhost: false })
-        dispatch(setCurrentWorkspace({ name: workspaceName, isGitRepo: false }))
-        await workspaceProvider.set(filePath, content)
-        lifecycle.when(all('EDITOR_MOUNTED', 'WORKSPACE_INITIALIZED'), async () => {
-          await plugin.fileManager.openFile(filePath)
-        })
-      } catch (error) {
-        await basicWorkspaceInit(workspaces, workspaceProvider)
-      }
+      await loadArkivEntity(params.arkiv, workspaces, workspaceProvider, plugin, dispatch, lifecycle)
     } else if (params.address && params.blockscout) {
       if (params.address.startsWith('0x') && params.address.length === 42 && params.blockscout.length > 0) {
         const contractAddress = params.address

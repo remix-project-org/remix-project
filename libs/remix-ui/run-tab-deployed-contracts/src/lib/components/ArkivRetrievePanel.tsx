@@ -157,7 +157,7 @@ export const ArkivRetrievePanel: React.FC<ArkivRetrievePanelProps> = ({ onClose 
                     <span className="fw-bold text-truncate">{record.name}</span>
                     {verified && (
                       <a
-                        href={`https://sourcify.dev/#/lookup/${record.address}`}
+                        href={`https://sourcify.dev/#/lookup/${record.address}/${record.chainId}`}
                         target="_blank"
                         rel="noopener noreferrer"
                         title={`Verified on Sourcify (${verified} match)`}

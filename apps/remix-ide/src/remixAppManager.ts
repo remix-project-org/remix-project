@@ -137,7 +137,7 @@ let requiredModules = [
   'udappTransactions',
   'udappEez',
   'txRunner',
-  'arkiv',
+  'arkivBasic',
   'arkivNetwork',
   'betaCornerWidget',
   'lifecycle',
