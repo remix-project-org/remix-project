@@ -140,6 +140,71 @@ export interface SlitherReport {
   results?: { detectors?: SlitherDetector[] }
 }
 
+/** The relative import path (`./x.sol`, `../a/b.sol`) from the file `from` to the file `to`. */
+export function relativePath (from: string, to: string): string {
+  const fromDir = from.split('/').slice(0, -1)
+  const target = to.split('/')
+  let common = 0
+  while (common < fromDir.length && common < target.length - 1 && fromDir[common] === target[common]) common++
+  const up = fromDir.length - common
+  return (up ? '../'.repeat(up) : './') + target.slice(common).join('/')
+}
+
+/**
+ * The sources with every non-relative import (`@openzeppelin/...`, `contracts/B.sol`) rewritten to a
+ * relative path. The Slither service writes the sources under `src/` and builds them with Foundry
+ * without remappings, so only relative imports resolve there. Each import's resolved path and position
+ * come from the compiled AST; only the quoted path changes, so line numbers stay the same.
+ */
+export function relativeImports (sources: Record<string, { content: string }>, astSources: Record<string, { ast?: any }> = {}): Record<string, { content: string }> {
+  const encoder = new TextEncoder()
+  const decoder = new TextDecoder()
+  const out: Record<string, { content: string }> = {}
+  for (const [path, { content }] of Object.entries(sources)) {
+    const imports = (astSources[path]?.ast?.nodes || [])
+      .filter((node) => node.nodeType === 'ImportDirective' && node.absolutePath && node.file && !node.file.startsWith('.'))
+      .map((node) => ({ node, start: Number(node.src.split(':')[0]), length: Number(node.src.split(':')[1]) }))
+      .sort((a, b) => b.start - a.start)
+    if (!imports.length) {
+      out[path] = { content }
+      continue
+    }
+    // solc positions are byte offsets: edit the UTF-8 bytes, last import first so earlier offsets hold
+    let bytes = encoder.encode(content)
+    for (const { node, start, length } of imports) {
+      const statement = decoder.decode(bytes.slice(start, start + length))
+      const rewritten = statement.replace(/(["'])([^"']*)\1/, (match, quote, file) => file === node.file ? `${quote}${relativePath(path, node.absolutePath)}${quote}` : match)
+      bytes = new Uint8Array([...bytes.slice(0, start), ...encoder.encode(rewritten), ...bytes.slice(start + length)])
+    }
+    out[path] = { content: decoder.decode(bytes) }
+  }
+  return out
+}
+
+/**
+ * The `analysis` field of the Slither service's answer. When Slither can't compile the sources the
+ * service still answers, with Slither's console log in place of the JSON report: that becomes a
+ * failed report whose error is the compiler's first specific message.
+ */
+export function parseSlitherAnalysis (analysis: string | SlitherReport): SlitherReport {
+  if (typeof analysis !== 'string') return analysis
+  try {
+    return JSON.parse(analysis)
+  } catch (e) {
+    return { success: false, error: slitherLogError(analysis) }
+  }
+}
+
+function slitherLogError (log: string): string {
+  for (const line of log.split('\n')) {
+    const match = line.replace(/^stderr:\s*/, '').match(/^(\w*Error)(?: \(\d+\))?:\s*(.+)$/)
+    if (!match || /^Compiler run failed/.test(match[2])) continue
+    const message = match[2].replace(/\/tmp\/slither-sandbox-[^/\s"]*\/?/g, '').replace(/\bsrc\//g, '').replace(/\s*Searched the following locations:.*$/, '')
+    return `Slither could not compile the contract: ${message}`
+  }
+  return 'Slither could not compile the contract'
+}
+
 /**
  * Findings of a Slither report. The service compiles the sources under `src/`, so that prefix is
  * removed to get back the workspace path. A clean run has no `detectors`.

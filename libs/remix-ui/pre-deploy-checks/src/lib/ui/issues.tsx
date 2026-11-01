@@ -2,8 +2,9 @@ import React, { useEffect, useRef, useState } from 'react'
 import { FormattedMessage, useIntl } from 'react-intl'
 import { SOURCE_LABELS } from '../report'
 import { SEVERITIES } from '../severity'
-import { Finding, IgnoreReason, Severity } from '../types'
+import { Finding, FindingSource, IgnoreReason, Severity } from '../types'
 import { ToolLine } from '../verdict'
+import { activeFilters, FileFilter, filterOptions, FilterOptions, IssueFilter, isFiltering, matchesFilter, NO_FILTER } from './filter'
 import { splitPath, toolList } from './format'
 import { PreDeployChecksActions } from './types'
 
@@ -47,9 +48,8 @@ interface IssueProps {
   plugin: PreDeployChecksActions
 }
 
-/** "Ignore ▾": a small menu of reasons under a heading. */
-function IgnoreMenu ({ dataId, onIgnore }: { dataId: string, onIgnore: (reason: IgnoreReason) => void }) {
-  const [open, setOpen] = useState(false)
+/** Closes a menu on a click outside the element the returned ref is put on. */
+function useCloseOutside (open: boolean, setOpen: (open: boolean) => void) {
   const ref = useRef<HTMLDivElement>(null)
   useEffect(() => {
     if (!open) return
@@ -59,6 +59,13 @@ function IgnoreMenu ({ dataId, onIgnore }: { dataId: string, onIgnore: (reason: 
     document.addEventListener('mousedown', close)
     return () => document.removeEventListener('mousedown', close)
   }, [open])
+  return ref
+}
+
+/** "Ignore ▾": a small menu of reasons under a heading. */
+function IgnoreMenu ({ dataId, onIgnore }: { dataId: string, onIgnore: (reason: IgnoreReason) => void }) {
+  const [open, setOpen] = useState(false)
+  const ref = useCloseOutside(open, setOpen)
   return (
     <div className="pdc-issue-actions justify-content-end">
       <div className="pdc-ignore" ref={ref}>
@@ -172,6 +179,88 @@ function ToolLineRow ({ line, plugin }: { line: ToolLine, plugin: PreDeployCheck
   )
 }
 
+const toggled = <T, >(list: T[], value: T): T[] => list.includes(value) ? list.filter((v) => v !== value) : [...list, value]
+
+/** Checkboxes for severity and tool, a choice of files; each group only when it offers a choice. */
+function FilterMenu ({ options, filter, setFilter, file }: { options: FilterOptions, filter: IssueFilter, setFilter: (filter: IssueFilter) => void, file: string }) {
+  const intl = useIntl()
+  const files: { value: FileFilter, label: string }[] = [
+    { value: 'all', label: intl.formatMessage({ id: 'preDeployChecks.filter.allFiles' }) },
+    { value: 'this', label: splitPath(file).name },
+    { value: 'imports', label: intl.formatMessage({ id: 'preDeployChecks.filter.imports' }) }
+  ]
+  return (
+    <div className="pdc-ignore-menu pdc-filter-menu" data-id="preDeployChecks-filterMenu">
+      {options.severities.length > 1 && <>
+        <div className="pdc-ignore-menu-head"><FormattedMessage id="preDeployChecks.filter.severity" /></div>
+        {options.severities.map(({ value, count }) => (
+          <label key={value} className="pdc-filter-item" data-id={`preDeployChecks-filter-severity-${value}`}>
+            <input type="checkbox" className="form-check-input" checked={filter.severities.includes(value)} onChange={() => setFilter({ ...filter, severities: toggled(filter.severities, value) })} />
+            <i className={`${SEVERITY_ICON[value]} pdc-sev-${value}`} aria-hidden="true"></i>
+            <span className="text-truncate"><FormattedMessage id={`preDeployChecks.severity.${value}`} /></span>
+            <span className="pdc-filter-count">{count}</span>
+          </label>
+        ))}
+      </>}
+      {options.sources.length > 1 && <>
+        <div className="pdc-ignore-menu-head"><FormattedMessage id="preDeployChecks.filter.tool" /></div>
+        {options.sources.map(({ value, count }) => (
+          <label key={value} className="pdc-filter-item" data-id={`preDeployChecks-filter-tool-${value}`}>
+            <input type="checkbox" className="form-check-input" checked={filter.sources.includes(value)} onChange={() => setFilter({ ...filter, sources: toggled<FindingSource>(filter.sources, value) })} />
+            <span className="text-truncate">{SOURCE_LABELS[value]}</span>
+            <span className="pdc-filter-count">{count}</span>
+          </label>
+        ))}
+      </>}
+      {options.files && <>
+        <div className="pdc-ignore-menu-head"><FormattedMessage id="preDeployChecks.filter.file" /></div>
+        {files.map(({ value, label }) => (
+          <label key={value} className="pdc-filter-item" data-id={`preDeployChecks-filter-file-${value}`}>
+            <input type="radio" className="form-check-input" name="pdc-filter-file" checked={filter.file === value} onChange={() => setFilter({ ...filter, file: value })} />
+            <span className="text-truncate">{label}</span>
+          </label>
+        ))}
+      </>}
+    </div>
+  )
+}
+
+/** Search over title, message and file, with the filters behind the button at its end. */
+function IssueSearch ({ options, filter, setFilter, file }: { options: FilterOptions, filter: IssueFilter, setFilter: (filter: IssueFilter) => void, file: string }) {
+  const intl = useIntl()
+  const [open, setOpen] = useState(false)
+  const ref = useCloseOutside(open, setOpen)
+  const active = activeFilters(filter)
+  const hasMenu = options.severities.length > 1 || options.sources.length > 1 || options.files
+  return (
+    <div className="pdc-search" ref={ref}>
+      <i className="fas fa-search pdc-search-icon" aria-hidden="true"></i>
+      <input
+        className="form-control form-control-sm"
+        data-id="preDeployChecks-search"
+        placeholder={intl.formatMessage({ id: 'preDeployChecks.filter.search' })}
+        aria-label={intl.formatMessage({ id: 'preDeployChecks.filter.search' })}
+        value={filter.query}
+        onChange={(e) => setFilter({ ...filter, query: e.target.value })}
+      />
+      {hasMenu && (
+        <button
+          className={`pdc-filter-btn ${open ? 'open' : ''} ${active ? 'on' : ''}`}
+          data-id="preDeployChecks-filterBtn"
+          onClick={() => setOpen(!open)}
+          aria-expanded={open}
+          aria-haspopup="menu"
+          title={intl.formatMessage({ id: 'preDeployChecks.filter.button' })}
+        >
+          <i className="fas fa-sliders-h" aria-hidden="true"></i>
+          {active > 0 && <span className="pdc-filter-badge">{active}</span>}
+        </button>
+      )}
+      {open && <FilterMenu options={options} filter={filter} setFilter={setFilter} file={file} />}
+    </div>
+  )
+}
+
 interface IssuesProps {
   file: string
   findings: Finding[]
@@ -184,6 +273,7 @@ interface IssuesProps {
 /** One flat list sorted by severity then line; compile errors first; ignored issues behind a toggle (design §4). */
 export function Issues ({ file, findings, compileErrors, lines, running, plugin }: IssuesProps) {
   const [showIgnored, setShowIgnored] = useState(false)
+  const [filter, setFilter] = useState<IssueFilter>(NO_FILTER)
   // the issue just ignored keeps its place for a few seconds with an Undo
   const [justIgnored, setJustIgnored] = useState<string | null>(null)
   useEffect(() => {
@@ -199,6 +289,12 @@ export function Issues ({ file, findings, compileErrors, lines, running, plugin 
   const open = [...compileErrors, ...findings.filter((f) => !f.ignored)]
   const rows = [...compileErrors, ...findings.filter((f) => !f.ignored || isJust(f))]
   const ignored = findings.filter((f) => f.ignored && !isJust(f))
+  // compile errors always show: nothing else matters until the file compiles
+  const filterable = findings.filter((f) => !f.ignored)
+  const filtering = isFiltering(filter)
+  const showSearch = filterable.length > 1 || filtering
+  const shown = filtering ? rows.filter((f, i) => i < compileErrors.length || isJust(f) || matchesFilter(f, filter, file)) : rows
+  const shownOpen = shown.filter((f) => !f.ignored).length
   const counts = SEVERITIES.map((severity) => ({ severity, count: open.filter((f) => f.severity === severity && !f.stale).length })).filter((c) => c.count)
 
   return (
@@ -211,15 +307,28 @@ export function Issues ({ file, findings, compileErrors, lines, running, plugin 
           ))}
         </span>
       </div>
+      {showSearch && <IssueSearch options={filterOptions(filterable, file)} filter={filter} setFilter={setFilter} file={file} />}
+      {filtering && shown.length > 0 && shownOpen < open.length && (
+        <div className="pdc-hint pdc-filter-summary" data-id="preDeployChecks-filterSummary">
+          <span className="text-truncate"><FormattedMessage id="preDeployChecks.filter.showing" values={{ shown: shownOpen, total: open.length }} /></span>
+          <span>·</span>
+          <button className="pdc-link-btn" data-id="preDeployChecks-clearFilters" onClick={() => setFilter(NO_FILTER)}><FormattedMessage id="preDeployChecks.filter.clear" /></button>
+        </div>
+      )}
       {lines.length > 0 && <div className="pdc-notes">{lines.map((line, i) => <ToolLineRow key={i} line={line} plugin={plugin} />)}</div>}
       {open.some((f) => f.stale) && <div className="pdc-hint"><FormattedMessage id="preDeployChecks.staleHint" /></div>}
       <div className="pdc-card pdc-list-card">
-        {rows.length > 0 ? (
+        {shown.length > 0 ? (
           <ul className="pdc-issues">
-            {rows.map((finding, i) => isJust(finding)
+            {shown.map((finding, i) => isJust(finding)
               ? <JustIgnored key={findingKey(finding)} finding={finding} index={i} onUndo={() => { plugin.restoreFinding(finding); setJustIgnored(null) }} />
-              : <Issue key={findingKey(finding)} finding={finding} index={i} file={file} ignorable={i >= compileErrors.length} onIgnore={ignore} plugin={plugin} />)}
+              : <Issue key={findingKey(finding)} finding={finding} index={i} file={file} ignorable={!compileErrors.includes(finding)} onIgnore={ignore} plugin={plugin} />)}
           </ul>
+        ) : filtering && rows.length > 0 ? (
+          <div className="pdc-empty-list" data-id="preDeployChecks-noMatch">
+            <i className="fas fa-search" aria-hidden="true"></i>
+            <span><FormattedMessage id="preDeployChecks.filter.noMatch" /> <button className="pdc-link-btn" onClick={() => setFilter(NO_FILTER)}><FormattedMessage id="preDeployChecks.filter.clear" /></button></span>
+          </div>
         ) : (
           <div className="pdc-empty-list" data-id="preDeployChecks-noIssues">
             <i className={running ? 'fas fa-circle-notch fa-spin' : 'fas fa-check-circle pdc-ok'} aria-hidden="true"></i>
@@ -234,7 +343,7 @@ export function Issues ({ file, findings, compileErrors, lines, running, plugin 
             </button>
             {showIgnored && (
               <ul className="pdc-issues" data-id="preDeployChecks-ignored">
-                {ignored.map((finding, i) => <IgnoredIssue key={findingKey(finding)} finding={finding} index={rows.length + i} plugin={plugin} />)}
+                {ignored.map((finding, i) => <IgnoredIssue key={findingKey(finding)} finding={finding} index={shown.length + i} plugin={plugin} />)}
               </ul>
             )}
           </>

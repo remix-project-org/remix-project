@@ -2,6 +2,9 @@
    Type scale: 14 title / 13 body / 12 secondary / 11 meta. Spacing on a 4px grid. */
 .pdc { display: flex; flex-direction: column; gap: 16px; min-height: 100%; padding: 12px 12px 24px; font-size: 13px; color: var(--bs-body-color); }
 .pdc .min-w-0 { min-width: 0; }
+/* the panel's scrolling wrapper keeps room for its scrollbar, so the content keeps its width when a short
+   (e.g. filtered) list stops scrolling */
+.pdc-scroller { scrollbar-gutter: stable; }
 
 /* severity colours per theme quality: the theme files only give a readable dark-mode text colour under
    [data-bs-theme=dark], which Remix doesn't set, so the panel carries its own tones */
@@ -82,7 +85,7 @@
 .pdc-issue-title { font-size: 13px; line-height: 18px; color: var(--bs-emphasis-color); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .pdc-issue-preview { font-size: 12px; line-height: 16px; color: var(--bs-secondary-color); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .pdc-issue-line { font-size: 11px; line-height: 18px; color: var(--bs-secondary-color); flex-shrink: 0; }
-.pdc-issue-chevron { font-size: 9px; line-height: 18px; color: var(--bs-secondary-color); opacity: .7; flex-shrink: 0; margin-left: -2px; }
+.pdc-issue-chevron { width: 10px; text-align: center; font-size: 9px; line-height: 18px; color: var(--bs-secondary-color); opacity: .7; flex-shrink: 0; margin-left: -2px; }
 .pdc-issue-row:hover .pdc-issue-chevron { opacity: 1; color: var(--bs-emphasis-color); }
 .pdc-issue-body { padding: 0 12px 12px 36px; background: var(--custom-onsurface-layer-2); font-size: 12px; line-height: 16px; }
 .pdc-issue-body p { margin: 0 0 8px; color: var(--bs-body-color); white-space: pre-wrap; word-break: break-word; }
@@ -112,6 +115,24 @@
 .pdc-ignored-toggle { width: 100%; display: flex; align-items: center; gap: 8px; background: none; border: 0; border-top: 1px solid var(--bs-border-color); padding: 8px 12px; font-size: 12px; color: var(--bs-secondary-color); text-align: left; }
 .pdc-ignored-toggle i { font-size: 9px; width: 14px; text-align: center; }
 .pdc-ignored-toggle:hover { color: var(--bs-emphasis-color); }
+/* search and filters. Widths are fixed or capped so filtering never changes the panel's width */
+.pdc-search { position: relative; margin-bottom: 8px; }
+.pdc-search .form-control { width: 100%; padding: 4px 40px 4px 28px; font-size: 12px; line-height: 18px; background: var(--custom-onsurface-layer-1); border-color: var(--bs-border-color); color: var(--bs-emphasis-color); }
+.pdc-search .form-control::placeholder { color: var(--bs-secondary-color); }
+.pdc-search-icon { position: absolute; left: 10px; top: 50%; transform: translateY(-50%); font-size: 11px; color: var(--bs-secondary-color); pointer-events: none; }
+.pdc-filter-btn { position: absolute; right: 2px; top: 50%; transform: translateY(-50%); width: 34px; height: 22px; display: inline-flex; align-items: center; justify-content: center; gap: 3px; background: none; border: 0; padding: 0; border-radius: 4px; font-size: 11px; color: var(--bs-secondary-color); }
+.pdc-filter-btn:hover, .pdc-filter-btn.open { background: var(--pdc-layer-3); color: var(--bs-emphasis-color); }
+.pdc-filter-btn.on { color: var(--custom-primary); }
+.pdc-filter-badge { font-size: 10px; font-weight: 600; line-height: 1; }
+.pdc-filter-menu { width: 220px; max-width: 100%; }
+.pdc-filter-menu .pdc-ignore-menu-head:not(:first-child) { border-top: 1px solid var(--bs-border-color); margin-top: 4px; }
+.pdc-filter-item { display: flex; align-items: center; gap: 8px; margin: 0; padding: 5px 12px; min-width: 0; font-size: 12px; color: var(--bs-emphasis-color); cursor: pointer; }
+.pdc-filter-item:hover { background: var(--pdc-layer-3); }
+.pdc-filter-item .form-check-input { margin: 0; flex-shrink: 0; }
+.pdc-filter-item i { width: 12px; text-align: center; font-size: 11px; flex-shrink: 0; }
+.pdc-filter-count { margin-left: auto; padding-left: 8px; font-size: 11px; color: var(--bs-secondary-color); flex-shrink: 0; }
+.pdc-filter-summary { display: flex; align-items: baseline; gap: 4px; min-width: 0; }
+.pdc-filter-summary .pdc-link-btn { font-size: 11px; flex-shrink: 0; }
 .pdc-empty-list { display: flex; align-items: center; gap: 8px; padding: 12px; font-size: 12px; color: var(--bs-secondary-color); }
 
 /* outputs and deployment. Outputs (at most the flattened file and the report) stay pinned to the bottom of the

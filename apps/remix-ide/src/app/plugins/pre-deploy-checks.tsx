@@ -4,7 +4,7 @@ import { customAction } from '@remixproject/plugin-api'
 import { PluginViewWrapper } from '@remix-ui/helper'
 import { endpointUrls } from '@remix-endpoints-helper'
 import {
-  PreDeployChecksUI, PreDeployChecksViewState, CheckStore, CheckHost, Compilation, CompilerSummary, FileCheckState, SlitherReport,
+  PreDeployChecksUI, PreDeployChecksViewState, CheckStore, CheckHost, Compilation, CompilerSummary, FileCheckState, SlitherReport, parseSlitherAnalysis,
   Finding, IgnoreReason, Range, CheckStepId, StepToggles, DEFAULT_TOGGLES, collectFindings, contentHash, compilerMessages, compilerSettingsKey,
   withIssueKeys, ownFindings, runPipeline, blockingFindings, buildReport, reportFileName, summarize, ChecksSummary,
   AnalysisEvent, recordManualAnalysis, recordManualFlatten, VerificationEvent, isRecordedDeployment, verificationStep
@@ -216,7 +216,7 @@ export class PreDeployChecksPlugin extends ViewPlugin implements CheckHost {
     })
     if (!response.ok) throw new Error(`HTTP ${response.status}`)
     const { analysis } = await response.json()
-    return typeof analysis === 'string' ? JSON.parse(analysis) : analysis
+    return parseSlitherAnalysis(analysis)
   }
 
   // ---------------------------------------------------------------- events
@@ -478,7 +478,7 @@ export class PreDeployChecksPlugin extends ViewPlugin implements CheckHost {
   }
 
   render () {
-    return <div id="preDeployChecks" className="h-100"><PluginViewWrapper plugin={this} /></div>
+    return <div id="preDeployChecks" className="h-100 pdc-scroller"><PluginViewWrapper plugin={this} /></div>
   }
 
   updateComponent (view: PreDeployChecksViewState) {

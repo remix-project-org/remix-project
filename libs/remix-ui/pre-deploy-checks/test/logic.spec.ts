@@ -2,12 +2,13 @@ import * as assert from 'assert'
 import { aggregateFindings, blockingFindings, collectFindings, countBySeverity, issueKey, withIssueKeys } from '../src/lib/findings'
 import { remixSeverity, slitherSeverity, solhintSeverity, canonicalRule } from '../src/lib/severity'
 import { CheckStore, contentHash, isStale, needsRun, deployedFromOlderVersion, PlanContext } from '../src/lib/store'
-import { offsetToPosition, remixFindings, SlitherReport, slitherFindings, solhintFindings, aiFindings, compilerMessages, withoutDependencies } from '../src/lib/converters'
+import { offsetToPosition, parseSlitherAnalysis, relativeImports, relativePath, remixFindings, SlitherReport, slitherFindings, solhintFindings, aiFindings, compilerMessages, withoutDependencies } from '../src/lib/converters'
 import { buildReport, reportFileName } from '../src/lib/report'
 import { CheckHost, ownFindings, recordManualAnalysis, recordManualFlatten, runPipeline } from '../src/lib/runner'
 import { isRecordedDeployment, receiptOutcome, VerificationEvent, verificationStep } from '../src/lib/verification'
 import { deriveVerdict, summarize, toolLines, VerdictInput } from '../src/lib/verdict'
-import { DEFAULT_TOGGLES, FileCheckState, RawFinding } from '../src/lib/types'
+import { DEFAULT_TOGGLES, FileCheckState, Finding, RawFinding } from '../src/lib/types'
+import { activeFilters, filterOptions, isFiltering, matchesFilter, NO_FILTER } from '../src/lib/ui/filter'
 
 const FILE = 'contracts/Wallet.sol'
 const range = (line: number, endLine = line) => ({ start: { line, column: 0 }, end: { line: endLine, column: 0 } })
@@ -80,6 +81,36 @@ describe('converters', () => {
     assert.strictEqual(finding.nativeSeverity, 'Medium · Medium confidence')
     assert.strictEqual(finding.file, FILE)
     assert.deepStrictEqual(finding.range, { start: { line: 1, column: 4 }, end: { line: 2, column: 8 } })
+  })
+
+  it('rewrites non-relative imports to relative paths for the Slither service', () => {
+    assert.strictEqual(relativePath('contracts/A.sol', '@openzeppelin/contracts/access/Ownable.sol'), '../@openzeppelin/contracts/access/Ownable.sol')
+    assert.strictEqual(relativePath('contracts/A.sol', 'contracts/lib/B.sol'), './lib/B.sol')
+    assert.strictEqual(relativePath('A.sol', 'contracts/B.sol'), './contracts/B.sol')
+    // a multi-byte character before the imports checks that solc's byte offsets are honoured
+    const content = '// ünïcode\nimport "@oz/Ownable.sol";\nimport {B} from \'contracts/B.sol\';\nimport "./C.sol";\ncontract A {}\n'
+    const directive = (statement: string, file: string, absolutePath: string) => {
+      const start = Buffer.byteLength(content.slice(0, content.indexOf(statement)))
+      return { nodeType: 'ImportDirective', file, absolutePath, src: `${start}:${Buffer.byteLength(statement)}:0` }
+    }
+    const ast = { nodes: [
+      directive('import "@oz/Ownable.sol";', '@oz/Ownable.sol', '@oz/Ownable.sol'),
+      directive('import {B} from \'contracts/B.sol\';', 'contracts/B.sol', 'contracts/B.sol'),
+      directive('import "./C.sol";', './C.sol', 'contracts/C.sol')
+    ]}
+    const out = relativeImports({ [FILE]: { content }, 'contracts/B.sol': { content: 'contract B {}' } }, { [FILE]: { ast } })
+    assert.strictEqual(out[FILE].content, '// ünïcode\nimport "../@oz/Ownable.sol";\nimport {B} from \'./B.sol\';\nimport "./C.sol";\ncontract A {}\n')
+    assert.strictEqual(out['contracts/B.sol'].content, 'contract B {}')
+  })
+
+  it('turns a Slither log into a failed report with the compiler message', () => {
+    assert.deepStrictEqual(parseSlitherAnalysis('{"success":true,"results":{}}'), { success: true, results: {} })
+    const log = "'forge clean' running (wd: /tmp/slither-sandbox-Zr1lGp)\n'forge' returned non-zero exit code 1\nError: Compiler run failed:\n" +
+      'stderr: Error (6275): Source "@oz/Ownable.sol" not found: File not found. Searched the following locations: "/tmp/slither-sandbox-Zr1lGp".\nstderr:  --> src/contracts/A.sol:3:1:\nTraceback (most recent call last):'
+    assert.deepStrictEqual(parseSlitherAnalysis(log), { success: false, error: 'Slither could not compile the contract: Source "@oz/Ownable.sol" not found: File not found.' })
+    const version = "'forge' returned non-zero exit code 1\nError: Encountered invalid compiler version in src/contracts/A.sol: No compiler version exists that matches the version requirement: ^0.8.0\nTraceback"
+    assert.strictEqual(parseSlitherAnalysis(version).error, 'Slither could not compile the contract: Encountered invalid compiler version in contracts/A.sol: No compiler version exists that matches the version requirement: ^0.8.0')
+    assert.strictEqual(parseSlitherAnalysis('Traceback (most recent call last):').error, 'Slither could not compile the contract')
   })
 
   it('maps Solhint, AI and compiler output', () => {
@@ -548,5 +579,34 @@ describe('AI security check', () => {
     } } as any
     const lines = toolLines({ state, findings: [], toggles: { ...DEFAULT_TOGGLES, analysis: false, slither: false, ai: true, flatten: false }, runningStep: null })
     assert.deepStrictEqual(lines, [{ tools: ['ai'], kind: 'clear' }])
+  })
+})
+
+describe('issue filters', () => {
+  const issue = (severity: Finding['severity'], sources: Finding['sources'], file: string, title = 't', message = 'm'): Finding =>
+    ({ id: title, severity, title, message, file, sources, items: [], stale: false, keys: [title] })
+  const list = [
+    issue('high', ['slither', 'remix'], FILE, 'Reentrancy in withdraw()'),
+    issue('low', ['solhint'], FILE, 'func-visibility'),
+    issue('medium', ['slither'], 'contracts/lib/FeeMath.sol', 'divide-before-multiply', 'FeeMath.fee performs a multiplication')
+  ]
+
+  it('offers only the severities, tools and files present, with counts', () => {
+    const options = filterOptions(list, FILE)
+    assert.deepStrictEqual(options.severities, [{ value: 'high', count: 1 }, { value: 'medium', count: 1 }, { value: 'low', count: 1 }])
+    assert.deepStrictEqual(options.sources, [{ value: 'slither', count: 2 }, { value: 'remix', count: 1 }, { value: 'solhint', count: 1 }])
+    assert.strictEqual(options.files, true)
+    assert.strictEqual(filterOptions(list.slice(0, 2), FILE).files, false)
+  })
+
+  it('matches on severity, tool, file and search text together', () => {
+    const titles = (filter) => list.filter((f) => matchesFilter(f, filter, FILE)).map((f) => f.title)
+    assert.strictEqual(titles(NO_FILTER).length, 3)
+    assert.deepStrictEqual(titles({ ...NO_FILTER, severities: ['high', 'low'] }), ['Reentrancy in withdraw()', 'func-visibility'])
+    assert.deepStrictEqual(titles({ ...NO_FILTER, sources: ['slither'], file: 'this' }), ['Reentrancy in withdraw()'])
+    assert.deepStrictEqual(titles({ ...NO_FILTER, file: 'imports' }), ['divide-before-multiply'])
+    assert.deepStrictEqual(titles({ ...NO_FILTER, query: '  feemath ' }), ['divide-before-multiply'])
+    assert.strictEqual(activeFilters({ ...NO_FILTER, severities: ['high'], file: 'imports', query: 'x' }), 2)
+    assert.strictEqual(isFiltering({ ...NO_FILTER, query: '   ' }), false)
   })
 })

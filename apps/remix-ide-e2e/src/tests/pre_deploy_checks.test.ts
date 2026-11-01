@@ -203,6 +203,30 @@ module.exports = {
       .waitForElementVisible(status('gate'))
   },
 
+  'Should search and filter the issues #group2': function (browser: NightwatchBrowser) {
+    browser
+      .setValue('*[data-id="preDeployChecks-search"]', 'tx.origin')
+      .waitForElementVisible('*[data-id="preDeployChecks-filterSummary"]')
+      .assert.containsText(firstHigh, 'tx.origin')
+      .assert.not.elementPresent('*[data-id^="preDeployChecks-issue-"][data-severity="low"]')
+      .setValue('*[data-id="preDeployChecks-search"]', 'no such issue')
+      .waitForElementVisible('*[data-id="preDeployChecks-noMatch"]')
+      .click('*[data-id="preDeployChecks-noMatch"] button')
+      .waitForElementNotPresent('*[data-id="preDeployChecks-filterSummary"]')
+      .click('*[data-id="preDeployChecks-filterBtn"]')
+      .waitForElementVisible('*[data-id="preDeployChecks-filterMenu"]')
+      .click('*[data-id="preDeployChecks-filter-severity-high"] input')
+      .waitForElementVisible('*[data-id="preDeployChecks-filterSummary"]')
+      .assert.elementPresent(firstHigh)
+      .assert.not.elementPresent('*[data-id^="preDeployChecks-issue-"][data-severity="low"]')
+      // the counts above the list keep counting every issue
+      .assert.containsText('*[data-id="preDeployChecks-counts"]', 'low')
+      .click('*[data-id="preDeployChecks-filterBtn"]')
+      .waitForElementNotPresent('*[data-id="preDeployChecks-filterMenu"]')
+      .click('*[data-id="preDeployChecks-clearFilters"]')
+      .waitForElementPresent('*[data-id^="preDeployChecks-issue-"][data-severity="low"]')
+  },
+
   'Should deploy anyway after a confirmation and record it in the report #group2': function (browser: NightwatchBrowser) {
     browser
       .click('*[data-id="preDeployChecks-deployAnyway"]')

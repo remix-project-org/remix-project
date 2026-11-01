@@ -1,5 +1,5 @@
 import { CodeAnalysis } from '@remix-project/remix-analyzer'
-import { aiFindings, RemixAnalysisReport, remixFindings, SlitherReport, slitherFindings, SolhintHint, solhintFindings, withoutDependencies } from './converters'
+import { aiFindings, relativeImports, RemixAnalysisReport, remixFindings, SlitherReport, slitherFindings, SolhintHint, solhintFindings, withoutDependencies } from './converters'
 import { withIssueKeys } from './findings'
 import { CheckStore, compilerSettingsKey, contentHash, needsRun, PlanContext } from './store'
 import { CHECK_STEPS, CheckStepId, RawFinding, StepResult, StepToggles } from './types'
@@ -144,7 +144,7 @@ export function recordManualFlatten (host: CheckHost, file: string, path: string
 async function runSlither (host: CheckHost, file: string, compilation: Compilation): Promise<StepResult> {
   let report: SlitherReport
   try {
-    report = await host.runSlither(compilation.source.sources, compilation.version)
+    report = await host.runSlither(relativeImports(compilation.source.sources, compilation.data?.sources), compilation.version)
   } catch (e) {
     return result('failed', { note: `Slither service unavailable: ${errorMessage(e)}` })
   }
