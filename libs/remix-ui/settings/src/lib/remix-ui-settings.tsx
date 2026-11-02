@@ -1,7 +1,7 @@
 import { ViewPlugin } from '@remixproject/engine-web'
 import React, { useState, useReducer, useEffect, useContext, useMemo } from 'react' // eslint-disable-line
 import Fuse from 'fuse.js'
-import { EtherscanConfigDescription, GitHubCredentialsDescription, isEezEnabled, SindriCredentialsDescription, TheGraphConfigDescription, ZkVerifyCredentialsDescription } from '@remix-ui/helper'
+import { EtherscanConfigDescription, GitHubCredentialsDescription, SindriCredentialsDescription, TheGraphConfigDescription, ZkVerifyCredentialsDescription } from '@remix-ui/helper'
 import { AppConfig, FeatureGroup } from '@remix-api'
 import { AppContext, useAuth } from '@remix-ui/app'
 
@@ -431,9 +431,6 @@ export const RemixUiSettings = (props: RemixUiSettingsProps) => {
         if (section.key === 'account' && config['settings.account_management'] === false) {
           return false
         }
-        if (section.key === 'eez' && !isEezEnabled()) {
-          return false
-        }
         return true
       })
       .map(section => {
@@ -510,8 +507,7 @@ export const RemixUiSettings = (props: RemixUiSettingsProps) => {
     const onOpenSection = ({ sectionKey, subSectionTitle }: { sectionKey: string, subSectionTitle?: string }) => {
       // Validate section key exists; fallback to 'general'
       const keys = settingsSections.map(s => s.key)
-      const isHidden = sectionKey === 'eez' && !isEezEnabled()
-      const target = keys.includes(sectionKey) && !isHidden ? sectionKey : 'general'
+      const target = keys.includes(sectionKey) ? sectionKey : 'general'
       setSelected(target)
       const section = settingsSections.find(s => s.key === target)
       if (section) setFilteredSection(section)

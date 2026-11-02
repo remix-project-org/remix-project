@@ -4,7 +4,7 @@ import { createPortal } from 'react-dom'
 import { RunTabUI } from '@remix-ui/run-tab'
 import { trackMatomoEvent } from '@remix-api'
 import { ViewPlugin } from '@remixproject/engine-web'
-import { addressToString, isEezEnabled, PluginViewWrapper } from '@remix-ui/helper'
+import { addressToString, PluginViewWrapper } from '@remix-ui/helper'
 import * as packageJson from '../../../../../package.json'
 import { EventManager } from '@remix-project/remix-lib'
 import type { Blockchain } from '../../blockchain/blockchain'
@@ -29,21 +29,20 @@ const UDAPP_TAB_KEY = 'udapp.activeTab'
 const EV_DEPLOYED = 'udapp:deployedCountChanged'
 const EV_TX = 'udapp:txCountChanged'
 const EV_SWITCH_TAB = 'udapp:switchTab'
+const EV_EEZ_NETWORK = 'udapp:eezNetworkChanged'
+let isEezNetworkActive = false
 
 type UdappTab = 'deploy' | 'contracts' | 'history' | 'eez'
 
 function UdappBody() {
-  const [tab, setTab] = useState<UdappTab>(() => {
-    const stored = localStorage.getItem(UDAPP_TAB_KEY) as UdappTab
-    if (stored === 'eez' && !isEezEnabled()) return 'deploy'
-    return stored || 'deploy'
-  })
+  const [tab, setTab] = useState<UdappTab>(() => (localStorage.getItem(UDAPP_TAB_KEY) as UdappTab) || 'deploy')
+  const [isEezNetwork, setIsEezNetwork] = useState(isEezNetworkActive)
+  const activeTab: UdappTab = tab === 'eez' && !isEezNetwork ? 'deploy' : tab
   const [deployedCount, setDeployedCount] = useState(0)
   const [txCount, setTxCount] = useState(0)
   const prevUnpinnedRef = useRef(0)
 
   const switchTab = (next: UdappTab) => {
-    if (next === 'eez' && !isEezEnabled()) return
     setTab(next)
     localStorage.setItem(UDAPP_TAB_KEY, next)
   }
@@ -66,13 +65,18 @@ function UdappBody() {
       const nextTab = (e as CustomEvent<{ tab: UdappTab }>).detail?.tab
       if (nextTab) switchTab(nextTab)
     }
+    const onEezNetwork = (e: Event) => {
+      setIsEezNetwork((e as CustomEvent<{ isEezNetwork: boolean }>).detail.isEezNetwork)
+    }
     window.addEventListener(EV_DEPLOYED, onDeployed)
     window.addEventListener(EV_TX, onTx)
     window.addEventListener(EV_SWITCH_TAB, onSwitchTab)
+    window.addEventListener(EV_EEZ_NETWORK, onEezNetwork)
     return () => {
       window.removeEventListener(EV_DEPLOYED, onDeployed)
       window.removeEventListener(EV_TX, onTx)
       window.removeEventListener(EV_SWITCH_TAB, onSwitchTab)
+      window.removeEventListener(EV_EEZ_NETWORK, onEezNetwork)
     }
   }, [])
 
@@ -81,19 +85,19 @@ function UdappBody() {
       <div className="udapp-sticky-header">
         <div id="udappEnvComponent"></div>
         <nav className="udapp-tabs" role="tablist">
-          <button data-id="udappDeployTab" role="tab" aria-selected={tab === 'deploy'} className={`ms-3 udapp-tab${tab === 'deploy' ? ' active' : ''}`} onClick={() => switchTab('deploy')}>
+          <button data-id="udappDeployTab" role="tab" aria-selected={activeTab === 'deploy'} className={`ms-3 udapp-tab${activeTab === 'deploy' ? ' active' : ''}`} onClick={() => switchTab('deploy')}>
             Deploy
           </button>
-          <button data-id="udappDeployedContractsTab" role="tab" aria-selected={tab === 'contracts'} className={`udapp-tab${tab === 'contracts' ? ' active' : ''}`} onClick={() => switchTab('contracts')}>
+          <button data-id="udappDeployedContractsTab" role="tab" aria-selected={activeTab === 'contracts'} className={`udapp-tab${activeTab === 'contracts' ? ' active' : ''}`} onClick={() => switchTab('contracts')}>
             Deployed Contracts
             {deployedCount > 0 && <span className="udapp-tab-badge">{deployedCount}</span>}
           </button>
-          <button data-id="udappTransactionsHistoryTab" role="tab" aria-selected={tab === 'history'} className={`udapp-tab${tab === 'history' ? ' active' : ''}`} onClick={() => switchTab('history')}>
+          <button data-id="udappTransactionsHistoryTab" role="tab" aria-selected={activeTab === 'history'} className={`udapp-tab${activeTab === 'history' ? ' active' : ''}`} onClick={() => switchTab('history')}>
             Transaction History
             {txCount > 0 && <span className="udapp-tab-badge">{txCount}</span>}
           </button>
-          {isEezEnabled() && (
-            <button data-id="udappEezTab" role="tab" aria-selected={tab === 'eez'} className={`udapp-tab${tab === 'eez' ? ' active' : ''}`} onClick={() => switchTab('eez')}>
+          {isEezNetwork && (
+            <button data-id="udappEezTab" role="tab" aria-selected={activeTab === 'eez'} className={`udapp-tab${activeTab === 'eez' ? ' active' : ''}`} onClick={() => switchTab('eez')}>
               EEZ
             </button>
           )}
@@ -104,10 +108,10 @@ function UdappBody() {
         const header = target.closest('.udapp-body')?.querySelector('.udapp-sticky-header') as HTMLElement
         if (header) header.classList.toggle('scrolled', target.scrollTop > 0)
       }}>
-        <div id="udappDeployComponent" style={{ display: tab === 'deploy' ? '' : 'none' }}></div>
-        <div id="udappDeployedContractsComponent" style={{ display: tab === 'contracts' ? '' : 'none' }}></div>
-        <div id="udappTransactionsComponent" style={{ display: tab === 'history' ? '' : 'none' }}></div>
-        <div id="udappEezComponent" style={{ display: isEezEnabled() && tab === 'eez' ? '' : 'none' }}></div>
+        <div id="udappDeployComponent" style={{ display: activeTab === 'deploy' ? '' : 'none' }}></div>
+        <div id="udappDeployedContractsComponent" style={{ display: activeTab === 'contracts' ? '' : 'none' }}></div>
+        <div id="udappTransactionsComponent" style={{ display: activeTab === 'history' ? '' : 'none' }}></div>
+        <div id="udappEezComponent" style={{ display: activeTab === 'eez' ? '' : 'none' }}></div>
       </div>
     </div>
   )
@@ -160,8 +164,16 @@ export class RunTab extends ViewPlugin {
       if (profile.name === 'udappEez') {
         this.eezUI = await this.call('udappEez', 'getUI')
         this.renderComponent()
+        this.on('udappEez', 'networksChanged', (networks: any[]) => this.setEezNetwork(networks?.length > 0))
+        const networks = await this.call('udappEez', 'getNetworks').catch((): any[] => [])
+        this.setEezNetwork(networks?.length > 0)
       }
     })
+  }
+
+  private setEezNetwork(isEezNetwork: boolean) {
+    isEezNetworkActive = isEezNetwork
+    window.dispatchEvent(new CustomEvent(EV_EEZ_NETWORK, { detail: { isEezNetwork } }))
   }
 
   showPluginDetails() {
