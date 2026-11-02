@@ -40,7 +40,7 @@ function UdappBody() {
   })
   const [deployedCount, setDeployedCount] = useState(0)
   const [txCount, setTxCount] = useState(0)
-  const prevDeployedRef = useRef(0)
+  const prevUnpinnedRef = useRef(0)
 
   const switchTab = (next: UdappTab) => {
     if (next === 'eez' && !isEezEnabled()) return
@@ -50,13 +50,14 @@ function UdappBody() {
 
   useEffect(() => {
     const onDeployed = (e: Event) => {
-      const count = (e as CustomEvent<{ count: number }>).detail.count
+      const { count, unpinnedCount } = (e as CustomEvent<{ count: number; unpinnedCount: number }>).detail
       setDeployedCount(count)
-      if (count > prevDeployedRef.current) {
+      // pinned contracts reloaded on a network or workspace change are not new deployments
+      if (unpinnedCount > prevUnpinnedRef.current) {
         setTab('contracts')
         localStorage.setItem(UDAPP_TAB_KEY, 'contracts')
       }
-      prevDeployedRef.current = count
+      prevUnpinnedRef.current = unpinnedCount
     }
     const onTx = (e: Event) => {
       setTxCount((e as CustomEvent<{ count: number }>).detail.count)
@@ -145,7 +146,8 @@ export class RunTab extends ViewPlugin {
         this.deployedContractsUI = await this.call('udappDeployedContracts', 'getUI')
         this.renderComponent()
         this.on('udappDeployedContracts', 'deployedInstanceUpdated', (instances: any[]) => {
-          window.dispatchEvent(new CustomEvent(EV_DEPLOYED, { detail: { count: instances.length } }))
+          const unpinnedCount = instances.filter((instance) => !instance.isPinned).length
+          window.dispatchEvent(new CustomEvent(EV_DEPLOYED, { detail: { count: instances.length, unpinnedCount } }))
         })
       }
       if (profile.name === 'udappTransactions') {

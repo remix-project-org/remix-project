@@ -19,7 +19,7 @@ import {
 } from '@remix-ui/helper';
 // remixClient removed - using plugin from context instead
 import { trackMatomoEvent } from '@remix-api';
-import { endpointUrls } from '@remix-endpoints-helper';
+import { endpointUrls, ensDappParentName, ensWebsiteUrl } from '@remix-endpoints-helper';
 import EnsRegistrationModal from './EnsRegistrationModal';
 
 const REMIX_ENDPOINT_IPFS = endpointUrls.quickdappIpfs;
@@ -323,7 +323,7 @@ const BaseAppWizard: React.FC<BaseAppWizardProps> = ({ isConfigSaveInFlight, isD
         .replace(/>/g, '&gt;');
 
       const ensUrlForOG = savedWizardState.ensName
-        ? `https://${savedWizardState.ensName}.remixdapp.eth.limo`
+        ? ensWebsiteUrl(`${savedWizardState.ensName}.${ensDappParentName}`)
         : '';
 
       // Step 1: Capture screenshot & upload to IPFS to get a stable URL
@@ -554,7 +554,7 @@ const BaseAppWizard: React.FC<BaseAppWizardProps> = ({ isConfigSaveInFlight, isD
 
       if (!dappManager) throw new Error('DApp manager is unavailable.');
 
-      const fullDomain = `${savedWizardState.ensName}.remixdapp.eth`;
+      const fullDomain = `${savedWizardState.ensName}.${ensDappParentName}`;
       const updatedConfig = await dappManager.updateDappConfig(activeDapp.slug, {
         deployment: {
           ensDomain: fullDomain
@@ -578,7 +578,7 @@ const BaseAppWizard: React.FC<BaseAppWizardProps> = ({ isConfigSaveInFlight, isD
       } else if (mode === 'update') {
         setSuccessModalContent({
           title: 'Update Published!',
-          body: `New code deployed to IPFS and ENS record updated.\nChanges should appear shortly at: https://${savedWizardState.ensName}.remixdapp.eth.limo`
+          body: `New code deployed to IPFS and ENS record updated.\nChanges should appear shortly at: ${ensWebsiteUrl(fullDomain) || `https://ipfs.io/ipfs/${newCid}`}`
         });
         setShowSuccessModal(true);
       }
@@ -627,7 +627,7 @@ const BaseAppWizard: React.FC<BaseAppWizardProps> = ({ isConfigSaveInFlight, isD
     setShowResetWarning(false);
   };
 
-  const ensUrl = `https://${savedWizardState.ensName}.remixdapp.eth.limo`;
+  const ensUrl = ensWebsiteUrl(`${savedWizardState.ensName}.${ensDappParentName}`);
   const latestCid = savedWizardState.history[0]?.cid || activeDapp?.deployment?.ipfsCid;
   const ipfsUrl = latestCid ? `https://ipfs.io/ipfs/${latestCid}` : '';
 
@@ -690,8 +690,8 @@ const BaseAppWizard: React.FC<BaseAppWizardProps> = ({ isConfigSaveInFlight, isD
             </Card.Header>
             <Card.Body>
               <div className="text-center py-3 bg-light rounded mb-4 border">
-                <h5 className="fw-bold mb-1 text-dark">{savedWizardState.ensName}.remixdapp.eth</h5>
-                <a href={ensUrl} target="_blank" rel="noreferrer" className="small text-decoration-none fw-bold">
+                <h5 className="fw-bold mb-1 text-dark">{savedWizardState.ensName}.{ensDappParentName}</h5>
+                <a href={ensUrl || ipfsUrl || undefined} target="_blank" rel="noreferrer" className="small text-decoration-none fw-bold">
                 Open Live App <i className="fas fa-external-link-alt ms-1"></i>
                 </a>
               </div>
@@ -716,14 +716,14 @@ const BaseAppWizard: React.FC<BaseAppWizardProps> = ({ isConfigSaveInFlight, isD
                 <h6 className="fw-bold text-muted small mb-2"><i className="fas fa-share-alt me-1"></i>Share</h6>
                 <div className="d-flex align-items-center bg-light border rounded p-2 mb-2">
                   <code className="text-truncate flex-grow-1 small" style={{ color: '#0d6efd' }}>
-                    {ensUrl}
+                    {ensUrl || ipfsUrl}
                   </code>
                   <Button
                     variant="link"
                     size="sm"
                     className="flex-shrink-0 p-0 ms-2"
                     onClick={() => {
-                      navigator.clipboard.writeText(ensUrl);
+                      navigator.clipboard.writeText(ensUrl || ipfsUrl);
                       setCopiedField('url');
                       setTimeout(() => setCopiedField(''), 2000);
                     }}
@@ -735,7 +735,7 @@ const BaseAppWizard: React.FC<BaseAppWizardProps> = ({ isConfigSaveInFlight, isD
                   <Button
                     variant="dark"
                     size="sm"
-                    onClick={() => window.open(`https://x.com/intent/post?text=${encodeURIComponent(`AI-generated DApp, powered by @EthereumRemix QuickDApp ⚡\n\n${ensUrl}`)}`, '_blank')}
+                    onClick={() => window.open(`https://x.com/intent/post?text=${encodeURIComponent(`AI-generated DApp, powered by @EthereumRemix QuickDApp ⚡\n\n${ensUrl || ipfsUrl}`)}`, '_blank')}
                   >
                     <i className="fab fa-x-twitter me-1"></i> Post on X
                   </Button>
@@ -842,7 +842,7 @@ const BaseAppWizard: React.FC<BaseAppWizardProps> = ({ isConfigSaveInFlight, isD
                   <div className="fade-in" data-id="wizard-step-2-deploy">
                     <h6 className="fw-bold mb-2">Step 2: Deployment & ENS</h6>
                     <Alert variant="info" className="small p-2 mb-3">
-                    Deploy your app to IPFS and register an ENS subdomain (`.remixdapp.eth`).
+                    Deploy your app to IPFS and register an ENS subdomain (.{ensDappParentName}).
                     </Alert>
                     {hasGraphGateway && (
                       <Alert variant="info" className="small p-2 mb-3">
@@ -860,7 +860,7 @@ const BaseAppWizard: React.FC<BaseAppWizardProps> = ({ isConfigSaveInFlight, isD
                           onChange={e => handleInputChange('ensName', e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ''))}
                           disabled={savedWizardState.currentStep >= 4}
                         />
-                        <InputGroup.Text>.remixdapp.eth</InputGroup.Text>
+                        <InputGroup.Text>.{ensDappParentName}</InputGroup.Text>
                         {savedWizardState.currentStep >= 4 && (
                           <Button
                             variant="warning"
@@ -910,7 +910,7 @@ const BaseAppWizard: React.FC<BaseAppWizardProps> = ({ isConfigSaveInFlight, isD
                       <label className="small fw-bold text-muted mb-1">Your ENS URL (paste this into Base.dev)</label>
                       <div className="d-flex align-items-center bg-light border rounded p-2">
                         <code className="text-truncate flex-grow-1 small" style={{ color: '#0d6efd' }}>
-                          {ensUrl}
+                          {ensUrl || 'ENS website links require mainnet.'}
                         </code>
                         <Button
                           variant="link"

@@ -23,7 +23,7 @@ import {
 } from '@remix-ui/helper';
 // remixClient removed - using plugin from context instead
 import { trackMatomoEvent } from '@remix-api';
-import { endpointUrls } from '@remix-endpoints-helper';
+import { endpointUrls, ensDappParentName, ensWebsiteUrl, ensSepolia, ensTransactionUrl } from '@remix-endpoints-helper';
 
 import BaseAppWizard from './BaseAppWizard';
 import EnsRegistrationModal from './EnsRegistrationModal';
@@ -448,7 +448,7 @@ function DeployPanel({ isDeleteInFlight, publishRequestId = 0 }: DeployPanelProp
         .replace(/>/g, '&gt;');
 
       const ogUrl = activeDapp?.deployment?.ensDomain
-        ? `https://${activeDapp.deployment.ensDomain}.limo`
+        ? ensWebsiteUrl(activeDapp.deployment.ensDomain)
         : '';
 
       // Step 1: Capture screenshot & upload to IPFS to get a stable URL
@@ -929,7 +929,7 @@ function DeployPanel({ isDeleteInFlight, publishRequestId = 0 }: DeployPanelProp
           </Card.Header>
           <Collapse in={isEnsOpen}>
             <Card.Body>
-              <Alert variant="info">Register a <strong>.remixdapp.eth</strong> name for this DApp.</Alert>
+              <Alert variant="info">Register a <strong>.{ensDappParentName}</strong> name for this DApp.</Alert>
               <Form.Group className="mb-2">
                 <div className="input-group qd-ens-input-group">
                   <Form.Control type="text" placeholder="myapp" value={ensName} onChange={(e) => {
@@ -938,7 +938,7 @@ function DeployPanel({ isDeleteInFlight, publishRequestId = 0 }: DeployPanelProp
                     setEnsResult({ ...ensResult, success: '' });
                     setEnsNameError(validateEnsName(val));
                   }} />
-                  <span className="input-group-text qd-ens-suffix">.remixdapp.eth</span>
+                  <span className="input-group-text qd-ens-suffix">.{ensDappParentName}</span>
                 </div>
                 {ensNameError && <small className="text-danger mt-1 d-block">{ensNameError}</small>}
               </Form.Group>
@@ -1030,19 +1030,19 @@ function DeployPanel({ isDeleteInFlight, publishRequestId = 0 }: DeployPanelProp
                   </div>
                   <div>
                     <a
-                      href={`https://${currentEnsDomain}.limo`}
+                      href={ensWebsiteUrl(currentEnsDomain) || undefined}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="text-decoration-underline fw-bold"
                     >
-                      https://{currentEnsDomain}.limo
+                      {ensWebsiteUrl(currentEnsDomain) || currentEnsDomain}
                     </a>
                   </div>
                   {ensResult.txHash && (
                     <div className="mt-2 small">
                       <span className="text-muted">Tx: </span>
                       <a
-                        href={`https://arbiscan.io/tx/${ensResult.txHash}`}
+                        href={ensTransactionUrl(ensResult.txHash, true)}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="text-muted text-decoration-none"
@@ -1053,7 +1053,7 @@ function DeployPanel({ isDeleteInFlight, publishRequestId = 0 }: DeployPanelProp
                   )}
                   <small className="d-block mt-2 text-muted">
                     <i className="fas fa-info-circle me-1"></i>
-                    It may take a few minutes for the ENS link to become accessible. If not available yet, try the IPFS gateway link above.
+                    {ensSepolia ? 'Open your DApp using the IPFS link above.' : 'It may take a few minutes for the ENS link to become accessible. If not available yet, try the IPFS gateway link above.'}
                   </small>
                 </Alert>
               )}
@@ -1081,14 +1081,14 @@ function DeployPanel({ isDeleteInFlight, publishRequestId = 0 }: DeployPanelProp
             <Card.Body>
               <div className="d-flex align-items-center bg-light border rounded p-2 mb-3">
                 <code className="text-truncate flex-grow-1 small" style={{ color: '#0d6efd' }}>
-                  https://{currentEnsDomain}.limo
+                  {ensWebsiteUrl(currentEnsDomain) || currentEnsDomain}
                 </code>
                 <Button
                   variant="link"
                   size="sm"
                   className="flex-shrink-0 p-0 ms-2"
                   onClick={() => {
-                    navigator.clipboard.writeText(`https://${currentEnsDomain}.limo`);
+                    navigator.clipboard.writeText(ensWebsiteUrl(currentEnsDomain) || currentEnsDomain);
                     setCopiedField('url');
                     setTimeout(() => setCopiedField(''), 2000);
                   }}
@@ -1100,7 +1100,7 @@ function DeployPanel({ isDeleteInFlight, publishRequestId = 0 }: DeployPanelProp
                 <Button
                   variant="dark"
                   size="sm"
-                  onClick={() => window.open(`https://x.com/intent/post?text=${encodeURIComponent(`AI-generated DApp, powered by @EthereumRemix QuickDApp ⚡\n\nhttps://${currentEnsDomain}.limo`)}`, '_blank')}
+                  onClick={() => window.open(`https://x.com/intent/post?text=${encodeURIComponent(`AI-generated DApp, powered by @EthereumRemix QuickDApp ⚡\n\n${ensWebsiteUrl(currentEnsDomain) || currentEnsDomain}`)}`, '_blank')}
                 >
                   <i className="fab fa-x-twitter me-1"></i> Post on X
                 </Button>

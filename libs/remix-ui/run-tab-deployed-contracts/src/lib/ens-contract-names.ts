@@ -1,38 +1,14 @@
-import { endpointUrls } from '@remix-endpoints-helper'
+import { getEnsEndpoint, ensParentName, ensSepolia } from '@remix-endpoints-helper'
 import type { Hex } from 'viem'
 import type { DeployedContract } from './types'
 
-export const PARENT_NAME = 'remixcontract.eth'
-export const ETHERSCAN_BASE = 'https://etherscan.io'
-export const ENS_APP_BASE = 'https://app.ens.domains'
+export const PARENT_NAME = ensParentName
+export const ENS_APP_BASE = ensSepolia ? 'https://sepolia.app.ens.domains' : 'https://app.ens.domains'
 export const POLL_INTERVAL = 2000
 export const DEBOUNCE_MS = 600
 
 export const ENS_REVERSE_REGISTRAR_L1 = '0xa58E81fe9b61B5c3fE2AFD33CF304c454AbFc7Cb' as Hex
 export const ENS_REVERSE_REGISTRAR_L2 = '0x0000000000D8e504002cC26E3Ec46D81971C1664' as Hex
-export const ENS_REGISTRY_L1 = '0x00000000000C2E074eC69A0dFb2997BA6C7d2e1e' as Hex
-export const ENS_PUBLIC_RESOLVER_L1 = '0xF29100983E058B709F3D539b0c765937B804AC15' as Hex
-export const ZERO_ADDRESS = '0x0000000000000000000000000000000000000000' as Hex
-
-export const ENS_REGISTRY_READ_ABI = [
-  {
-    name: 'resolver',
-    type: 'function',
-    stateMutability: 'view',
-    inputs: [{ name: 'node', type: 'bytes32' }],
-    outputs: [{ name: '', type: 'address' }],
-  },
-] as const
-
-export const RESOLVER_NAME_ABI = [
-  {
-    name: 'name',
-    type: 'function',
-    stateMutability: 'view',
-    inputs: [{ name: 'node', type: 'bytes32' }],
-    outputs: [{ name: '', type: 'string' }],
-  },
-] as const
 
 export const REVERSE_REGISTRAR_READ_ABI = [
   {
@@ -45,6 +21,13 @@ export const REVERSE_REGISTRAR_READ_ABI = [
 ] as const
 
 export const REVERSE_REGISTRAR_ABI_L1 = [
+  {
+    name: 'defaultResolver',
+    type: 'function',
+    stateMutability: 'view',
+    inputs: [],
+    outputs: [{ name: '', type: 'address' }],
+  },
   {
     name: 'setNameForAddr',
     type: 'function',
@@ -83,6 +66,7 @@ export const OWNABLE_ABI = [
 ] as const
 
 export const SUPPORTED_CHAINS = new Map<number, string>([
+  [11155111, 'Sepolia'],
   [1, 'Ethereum Mainnet'],
   [8453, 'Base'],
   [42161, 'Arbitrum One'],
@@ -92,6 +76,7 @@ export const SUPPORTED_CHAINS = new Map<number, string>([
 ])
 
 export const CHAIN_EXPLORERS: Record<number, { url: string; name: string }> = {
+  11155111: { url: 'https://sepolia.etherscan.io', name: 'Etherscan (Sepolia)' },
   1: { url: 'https://etherscan.io', name: 'Etherscan' },
   8453: { url: 'https://basescan.org', name: 'Basescan' },
   42161: { url: 'https://arbiscan.io', name: 'Arbiscan' },
@@ -103,7 +88,7 @@ export const CHAIN_EXPLORERS: Record<number, { url: string; name: string }> = {
 export type PreflightStatus =
   | 'idle' | 'checking' | 'available' | 'available_for_chain'
   | 'current' | 'taken' | 'unsupported_chain' | 'parent_not_owned'
-  | 'name_not_controlled' | 'project_not_controlled' | 'validation_only'
+  | 'name_not_controlled' | 'project_not_controlled' | 'validation_only' | 'read_only'
   | 'error'
 
 export type JobStep = 'pending' | 'checking' | 'creating_project' | 'creating_label' | 'setting_forward' | 'completed' | 'failed'
@@ -230,7 +215,10 @@ export const JOB_STEP_LABELS: Record<string, string> = {
   failed: 'Registration failed',
 }
 
+export const isL1EnsChain = (cid: number): boolean => cid === 1 || (ensSepolia && cid === 11155111)
+
 export const getReverseRegistrar = (cid: number): Hex => {
+  if (ensSepolia && cid === 11155111) return '0xA0a1AbcDAe1a2a4A2EF8e9113Ff0e02DD81DC0C6'
   if (cid === 1) return ENS_REVERSE_REGISTRAR_L1
   return ENS_REVERSE_REGISTRAR_L2
 }
@@ -256,7 +244,7 @@ export const formatEth = (wei: string): string => {
 
 export const friendlyEnsError = (raw: string): string => {
   if (!raw) return 'An unknown error occurred.'
-  if (raw.includes('User rejected') || raw.includes('user rejected') || raw.includes('denied')) {
+  if (/user rejected|user denied (?:transaction|signature)|ACTION_REJECTED/i.test(raw)) {
     return 'Transaction was rejected in your wallet.'
   }
   if (raw.includes('name_not_controlled')) return 'This name exists but is not controlled by the Remix server.'
@@ -276,7 +264,7 @@ export const friendlyEnsError = (raw: string): string => {
   return raw
 }
 
-const apiBase = (): string => endpointUrls.ensContractNames
+const apiBase = (): string => getEnsEndpoint('ensContractNames')
 
 async function readJsonError(response: Response): Promise<string> {
   const fallback = `Server error (${response.status})`
@@ -324,7 +312,7 @@ export async function fetchEnsJobStatus(jobId: string): Promise<JobResult> {
 }
 
 export async function lookupPrimaryEnsName(params: {
-  name: string
+  name?: string
   chainId: number
   contractAddress: string
 }): Promise<PrimaryEnsLookupResult> {

@@ -9,7 +9,7 @@ import { checksumAddressesInValue } from '@remix-ui/utils'
 import { FuncABI } from '@remix-project/core-plugin'
 import { DeployedContractsAppContext } from '../contexts'
 import { DeployedContract } from '../types'
-import { runTransactions, checkCrossChainProxy, traceCrossChainCall, CrossChainProxyInfo, CrossChainTraceResult } from '../actions'
+import { runTransactions, pinContract, checkCrossChainProxy, getCrossChainDestinations, quoteCrossChainFee, traceCrossChainCall, CrossChainDestination, CrossChainProxyInfo, CrossChainTraceResult, EezNetworkEntry } from '../actions'
 import { ContractKebabMenu } from './ContractKebabMenu'
 import { EnsNaming } from './EnsNaming'
 import { QuickDappContractSelector, QuickDappFigmaPreparationResult, QuickDappSetupOptions, QuickDappModelChoice } from '@remix-ui/quick-dapp-v2'
@@ -27,6 +27,8 @@ const txFormat = remixLib.execution.txFormat
 const highlightedContracts = new Set<string>()
 
 const REMIX_VM_DAPP_WORKSPACE_MESSAGE = 'Creating another DApp from a DApp workspace is not supported with Remix VM. Switch to a persistent network, deploy the contract there, and try again.'
+// The cross-chain preview relies on debug_traceCall, which the EEZ composer does not support yet.
+const CROSS_CHAIN_PREVIEW_ENABLED = false
 interface DeployedContractItemProps {
   contract: DeployedContract
   index: number
@@ -69,6 +71,7 @@ export function DeployedContractItem({ contract, index, collapseSignal, register
   const [quickDappEnvironmentId, setQuickDappEnvironmentId] = useState<string>()
   const [quickDappModelChoices, setQuickDappModelChoices] = useState<QuickDappModelChoice[]>([])
   const [crossChainProxyInfo, setCrossChainProxyInfo] = useState<CrossChainProxyInfo | null>(null)
+  const [crossChainDestinations, setCrossChainDestinations] = useState<CrossChainDestination[]>([])
   const [tracePreview, setTracePreview] = useState<{
     key: string
     onConfirm: () => void
@@ -78,14 +81,17 @@ export function DeployedContractItem({ contract, index, collapseSignal, register
       } | null>(null)
 
   useEffect(() => {
-    plugin.call('udappEnv', 'getNetwork').then((net) => {
+    plugin.call('udappEnv', 'getNetwork').then(async (net) => {
       if (net && net.name) {
         const networkName = net.name === 'VM' ? 'Remix VM' : net.name
 
         setNetworkName(networkName)
+        const eezNetworks: EezNetworkEntry[] = await plugin.call('udappEez', 'getNetworks').catch(() => null)
+        const eezNetwork = eezNetworks?.find((n) => String(n.chainId) === String(net.chainId))
+        if (eezNetwork) setNetworkName(eezNetwork.label)
       }
     })
-  }, [])
+  }, [eezNetworksVersion])
 
   useEffect(() => {
     if (!contract.abi) {
@@ -102,7 +108,9 @@ export function DeployedContractItem({ contract, index, collapseSignal, register
     checkCrossChainProxy(plugin, contract.address).then((info) => {
       if (cancelled) return
       setCrossChainProxyInfo(info)
-      if (info) setGasLimit((current) => (current === 0 ? 5000000 : current))
+    })
+    getCrossChainDestinations(plugin).then((destinations) => {
+      if (!cancelled) setCrossChainDestinations(destinations)
     })
     return () => {
       cancelled = true
@@ -214,30 +222,7 @@ export function DeployedContractItem({ contract, index, collapseSignal, register
       dispatch({ type: 'UNPIN_CONTRACT', payload: index })
       return
     }
-    const provider = await plugin.call('blockchain', 'getProviderObject')
-
-    if (!provider.config.statePath && provider.config.isRpcForkedState) {
-      // we can't pin a contract in the following case:
-      // - state is not persisted
-      // - future state is browser stored (e.g it's not just a simple RPC provider)
-      plugin.call('notification', 'toast', 'Cannot pin this contract in the current context: state is not persisted. Please fork this provider to start pinning a contract to it.')
-      return
-    }
-
-    const workspace = await plugin.call('filePanel', 'getCurrentWorkspace')
-
-    const objToSave = {
-      name: contract.name,
-      address: contract.address,
-      timestamp: contract.timestamp,
-      abi: contract.abi || contract.contractData?.abi,
-      filePath: contract.filePath || `${workspace.name}/${contract.contractData?.contract?.file}`,
-      pinnedAt: Date.now()
-    }
-
-    await plugin.call('fileManager', 'writeFile', `.deploys/pinned-contracts/${providerName}/${contract.address}.json`, JSON.stringify(objToSave, null, 2))
-
-    dispatch({ type: 'PIN_CONTRACT', payload: { index, pinnedAt: objToSave.pinnedAt, filePath: objToSave.filePath } })
+    await pinContract(plugin, dispatch, contract, index)
   }
 
   const handleContractClick = () => {
@@ -352,7 +337,7 @@ export function DeployedContractItem({ contract, index, collapseSignal, register
   }
 
   const previewThenExecute = async (key: string, calldata: string | null, sendValue: bigint, onConfirm: () => void) => {
-    if (!crossChainProxyInfo || !calldata) {
+    if (!CROSS_CHAIN_PREVIEW_ENABLED || !crossChainProxyInfo || !calldata) {
       onConfirm()
       return
     }
@@ -365,6 +350,13 @@ export function DeployedContractItem({ contract, index, collapseSignal, register
     } catch (e: any) {
       setTracePreview({ key, onConfirm, isLoading: false, result: null, error: e?.message || 'Failed to preview this transaction.' })
     }
+  }
+
+  const quoteFeeIfCrossChain = async (calldata: string | null, sendValue: bigint) => {
+    if (!crossChainProxyInfo) return undefined
+    if (calldata === null) throw new Error('Unable to encode the call data to quote the cross-chain fee.')
+    const from = await plugin.call('udappEnv', 'getSelectedAccount')
+    return await quoteCrossChainFee(plugin, contract.address, is0XPrefixed(calldata) ? calldata : `0x${calldata}`, from, sendValue)
   }
 
   const confirmTracePreview = () => {
@@ -496,6 +488,7 @@ export function DeployedContractItem({ contract, index, collapseSignal, register
         await plugin.call('terminal', 'log', { type: 'error', value: `Cannot continue the execution, no code found at address ${contract.address}` })
         return
       }
+      const quotedFee = lookupOnly ? undefined : await quoteFeeIfCrossChain(buildCalldataForPreview(funcIndex), sendValue)
       await runTransactions(
         plugin,
         dispatch,
@@ -505,7 +498,7 @@ export function DeployedContractItem({ contract, index, collapseSignal, register
         inputsValues,
         contract,
         funcIndex,
-        { value: sendValue, gasLimit: gasLimitValue }
+        { value: sendValue, gasLimit: gasLimitValue, quotedFee }
       )
     } catch (error) {
       const functionName =
@@ -564,6 +557,7 @@ export function DeployedContractItem({ contract, index, collapseSignal, register
 
     const doSend = async () => {
       try {
+        const quotedFee = await quoteFeeIfCrossChain(calldataForSend || '0x', sendValue)
         await runTransactions(
           plugin,
           dispatch,
@@ -573,7 +567,7 @@ export function DeployedContractItem({ contract, index, collapseSignal, register
           calldataForSend,
           contract,
           -1, // Use -1 for low level interactions
-          { value: sendValue, gasLimit: gasLimitValue }
+          { value: sendValue, gasLimit: gasLimitValue, quotedFee }
         )
       } catch (error) {
         const functionName =
@@ -832,6 +826,20 @@ For Inline mode, preserve the existing /frontend overwrite confirmation flow. Co
     }
   }
 
+  const handleCreateCrossChainProxy = (contract: DeployedContract, destinationId: string) => {
+    if (onKebabMenuToggle) {
+      onKebabMenuToggle(false)
+    }
+    plugin.call('udappEez', 'createProxyFor', contract.address, destinationId, contract.abi || contract.contractData?.abi, contract.name)
+  }
+
+  const handleInteractThroughProxy = (contract: DeployedContract, destinationId: string) => {
+    if (onKebabMenuToggle) {
+      onKebabMenuToggle(false)
+    }
+    plugin.call('udappEez', 'interactThroughProxy', contract.address, destinationId, contract.abi || contract.contractData?.abi, contract.name)
+  }
+
   const handleSaveABI = async (contract: DeployedContract) => {
     if (onKebabMenuToggle) {
       onKebabMenuToggle(false)
@@ -1054,7 +1062,7 @@ For Inline mode, preserve the existing /frontend overwrite confirmation flow. Co
                       placement="top"
                       tooltipClasses="text-nowrap"
                       tooltipId={`udapp_crossChainProxyTooltip-${index}`}
-                      tooltipText={`Cross-chain proxy for ${crossChainProxyInfo.originalAddress} on ${crossChainProxyInfo.originNetworkLabel || `rollup ${crossChainProxyInfo.originalRollupId}`} — interacting with it sends a cross-chain call. Gas limit was auto-set to custom since it can't be estimated.`}
+                      tooltipText={`Cross-chain proxy for ${crossChainProxyInfo.originalAddress} on ${crossChainProxyInfo.originNetworkLabel || `rollup ${crossChainProxyInfo.originalRollupId}`} — interacting with it sends a cross-chain call, which includes a small cross-chain fee.`}
                     >
                       <span
                         className="badge d-inline-flex align-items-center gap-1"
@@ -1091,6 +1099,9 @@ For Inline mode, preserve the existing /frontend overwrite confirmation flow. Co
               }}
               contract={contract}
               onCreateDapp={handleCreateDapp}
+              crossChainDestinations={crossChainDestinations}
+              onCreateCrossChainProxy={handleCreateCrossChainProxy}
+              onInteractThroughProxy={handleInteractThroughProxy}
               onNameContract={networkName !== 'Remix VM' ? handleNameContract : undefined}
               onCopyABI={handleCopyABI}
               onSaveABI={handleSaveABI}
@@ -1195,7 +1206,7 @@ For Inline mode, preserve the existing /frontend overwrite confirmation flow. Co
                                         style={{ fontSize: '11px', fontWeight: 600, padding: '3px 12px' }}
                                         onClick={executeHandler}
                                       >
-                                        {crossChainProxyInfo ? 'Preview' : intl.formatMessage({ id: 'udapp.transactButton' })}
+                                        {crossChainProxyInfo && CROSS_CHAIN_PREVIEW_ENABLED ? 'Preview' : intl.formatMessage({ id: 'udapp.transactButton' })}
                                       </button>
                                     )}
                                   </div>
@@ -1225,7 +1236,7 @@ For Inline mode, preserve the existing /frontend overwrite confirmation flow. Co
                                             style={{ fontSize: '11px', fontWeight: 600 }}
                                             onClick={executeHandler}
                                           >
-                                            {crossChainProxyInfo ? 'Preview' : intl.formatMessage({ id: 'udapp.transactButton' })}
+                                            {crossChainProxyInfo && CROSS_CHAIN_PREVIEW_ENABLED ? 'Preview' : intl.formatMessage({ id: 'udapp.transactButton' })}
                                           </button>
                                         </div>
                                       ) : (
@@ -1273,7 +1284,7 @@ For Inline mode, preserve the existing /frontend overwrite confirmation flow. Co
                                             style={{ fontSize: '11px', fontWeight: 600, padding: '3px 12px' }}
                                             onClick={executeHandler}
                                           >
-                                            {crossChainProxyInfo ? 'Preview' : intl.formatMessage({ id: 'udapp.transactButton' })}
+                                            {crossChainProxyInfo && CROSS_CHAIN_PREVIEW_ENABLED ? 'Preview' : intl.formatMessage({ id: 'udapp.transactButton' })}
                                           </button>
                                         )}
                                       </div>
@@ -1543,7 +1554,7 @@ For Inline mode, preserve the existing /frontend overwrite confirmation flow. Co
                       borderRadius: '4px'
                     }}
                   >
-                    {crossChainProxyInfo ? 'Preview' : intl.formatMessage({ id: 'udapp.transactButton' })}
+                    {crossChainProxyInfo && CROSS_CHAIN_PREVIEW_ENABLED ? 'Preview' : intl.formatMessage({ id: 'udapp.transactButton' })}
                   </button>
                 )}
                 {showLowLevel && renderTracePreview('lowLevel')}
