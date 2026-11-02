@@ -4960,3 +4960,22 @@ a.pm-alert__btn {
     grid-template-columns: 1fr;
   }
 }
+
+/* "What you can do with your credits" — reuses the quotas panel layout. */
+.pm-capacity__detail {
+  font-family: var(--bs-font-sans-serif);
+  font-size: 12px;
+  color: var(--bs-secondary-color);
+  margin-top: 4px;
+}
+
+.pm-capacity__note {
+  font-family: var(--bs-font-sans-serif);
+  font-size: 11px;
+  color: var(--bs-secondary-color);
+  margin-top: 12px;
+}
+
+.pm-topup__capacity {
+  color: var(--bs-body-color);
+}

@@ -65,6 +65,7 @@ import {
 } from './plan-manager-machine'
 import { LoginModal, startSignInFlow, OtpDigitInput, OtpDigitInputHandle } from '@remix-ui/login'
 import { planManagerLogger } from './plan-manager-logger'
+import { TASK_COSTS, TaskCapacity, capacitySummary, isStale, pluralTitle, taskCapacity } from './ai-task-costs'
 
 import './plan-manager.css'
 
@@ -4325,6 +4326,64 @@ function formatResetTime(iso: string, period: QuotaEntry['period'], now: number 
   }
   // month → "Resets Jun 1, 2026"
   return `Resets ${d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}`
+}
+
+/**
+ * "What you can do with your credits": the balance expressed as typical AI
+ * tasks, from costs the AI cost benchmark measured (see ai-task-costs.ts).
+ * Hidden until a measurement exists. With unlimited included usage there is
+ * no balance to divide, so it shows what each task typically costs instead.
+ */
+const CreditCapacityPanel: React.FC<{ credits: number | null }> = ({ credits }) => {
+  const rows = taskCapacity(credits)
+  if (rows.length === 0) return null
+
+  const { models, measuredAt } = TASK_COSTS
+  const defaultLabel = models.default?.label ?? 'the default model'
+  const tierNote = (row: TaskCapacity, tier: 'fast' | 'premium'): string | null => {
+    const label = models[tier]?.label
+    if (!label || row.costs[tier] === undefined) return null
+    return credits === null
+      ? `~${row.costs[tier].toLocaleString()} on ${label}`
+      : `≈ ${(row.counts[tier] ?? 0).toLocaleString()} on ${label}`
+  }
+
+  return (
+    <section className="pm-quotas pm-capacity" aria-label="What you can do with your credits" data-id="pm-credit-capacity">
+      <div className="pm-quotas__head">
+        <div>
+          <div className="pm-quotas__eyebrow">{credits === null ? 'Typical cost' : 'With your balance'}</div>
+          <h3 className="pm-quotas__title">What you can do with your credits</h3>
+        </div>
+        <div className="pm-quotas__hint">
+          Measured {measuredAt}{isStale() ? ' · may be outdated' : ''}
+        </div>
+      </div>
+      <div className="pm-quotas__list">
+        {rows.map((row) => {
+          const count = row.counts.default ?? 0
+          const details = [
+            `~${(row.costs.default ?? 0).toLocaleString()} credits each`,
+            tierNote(row, 'fast'),
+            tierNote(row, 'premium')
+          ].filter(Boolean).join(' · ')
+          return (
+            <div className="pm-quota" key={row.id} data-id={`pm-credit-capacity-${row.id}`}>
+              <div className="pm-quota__label">
+                <span className="pm-quota__name">
+                  {credits === null ? row.title : `≈ ${count.toLocaleString()} ${pluralTitle(row.title, count)}`}
+                </span>
+                <span className="pm-capacity__detail">{details}</span>
+              </div>
+            </div>
+          )
+        })}
+      </div>
+      <div className="pm-capacity__note">
+        Typical runs on {defaultLabel}. Actual cost depends on the contract and the conversation.
+      </div>
+    </section>
+  )
 }
 
 const QuotasPanel: React.FC<{

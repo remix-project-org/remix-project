@@ -105,3 +105,4 @@ libs/remix-ai-core/test/*
 
 SESSIONS.md
 TODO.md
+tests/benchmarks/ai-cost/results/
