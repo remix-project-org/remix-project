@@ -33,8 +33,8 @@ module.exports = {
     browser
       .click('*[data-id="preDeployChecks-openSettings"]')
       .waitForElementVisible('*[data-id="preDeployChecks-settings"]')
-      .assert.elementPresent('*[data-id="preDeployChecks-toggle-aiSwitch"] .fa-toggle-off')
-      .assert.elementPresent('*[data-id="preDeployChecks-toggle-analysisSwitch"] .fa-toggle-on')
+      .assert.elementPresent('*[data-id="preDeployChecks-toggle-aiSwitch"][aria-checked="false"]')
+      .assert.elementPresent('*[data-id="preDeployChecks-toggle-analysisSwitch"][aria-checked="true"]')
       .click('*[data-id="preDeployChecks-back"]')
       .waitForElementVisible('*[data-id="preDeployChecks-intro"]')
   },

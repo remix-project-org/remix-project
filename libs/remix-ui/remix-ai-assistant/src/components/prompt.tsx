@@ -7,6 +7,7 @@ import { Features } from '@remix-api';
 import { useAuth } from '@remix-ui/app'
 import { TrackingContext } from '@remix-ide/tracking'
 import { CustomTooltip } from '@remix-ui/helper'
+import { ToggleSwitch } from '@remix-ui/toggle'
 import { AIModel } from '@remix/remix-ai-core'
 import { PromptDefault } from "./promptDefault";
 import { AutocompletePanel, AVAILABLE_COMMANDS, Command } from './AutocompletePanel'
@@ -973,20 +974,22 @@ export const PromptArea: React.FC<PromptAreaProps> = ({
                         : 'Show only low-cost models in the selector — the cheapest tier across all providers, to make your credits last longer.'
                   }
                 >
-                  <button
-                    type="button"
-                    onClick={() => onToggleCheapModels?.()}
-                    disabled={!hasCheapModels}
-                    className={`btn btn-text btn-sm small font-weight-light border-0 rounded align-self-center d-flex flex-row flex-nowrap align-items-center justify-content-center ${cheapModelsOnly ? 'text-success' : 'text-secondary'}`}
+                  <span
+                    className={`small font-weight-light align-self-center d-flex align-items-center px-2 ${cheapModelsOnly ? 'text-body' : 'text-secondary'}`}
+                    style={{ fontSize: '0.75rem', lineHeight: 1 }}
                     data-id="ai-cheap-models-toggle"
                     data-active={cheapModelsOnly ? 'true' : 'false'}
                     data-available={hasCheapModels ? 'true' : 'false'}
-                    aria-pressed={cheapModelsOnly}
-                    aria-label="Show only low-cost models"
                   >
-                    <i className={`fa-solid ${cheapModelsOnly ? 'fa-toggle-on' : 'fa-toggle-off'} me-1`} style={{ fontSize: '1.15rem', lineHeight: 1, verticalAlign: 'middle' }}></i>
-                    <span style={{ fontSize: '0.75rem', lineHeight: 1, whiteSpace: 'nowrap', verticalAlign: 'middle' }}>low-cost AI</span>
-                  </button>
+                    <ToggleSwitch
+                      id="aiCheapModels"
+                      size="sm"
+                      isOn={cheapModelsOnly}
+                      disabled={!hasCheapModels}
+                      onClick={() => onToggleCheapModels?.()}
+                      label="low-cost AI"
+                    />
+                  </span>
                 </CustomTooltip>
                 {selectedModel?.provider === 'ollama' && ollamaModels.length > 0 && (
                   <button

@@ -138,6 +138,9 @@
   --custom-onsurface-layer-1:#f8fafe;
   --custom-onsurface-layer-2:#fff;
   --custom-primary: #007aa6;
+  --custom-switch-off: #c3c8d2;
+  --custom-switch-knob-off: #fff;
+  --custom-switch-knob-on: #fff;
   --fws-desktop-color: #E67065;
   --fws-desktop-color-rgb: 230, 112, 101;
 }
@@ -200,6 +203,9 @@
   --custom-onsurface-layer-1:#f8fafe;
   --custom-onsurface-layer-2:#fff;
   --custom-primary: #007aa6;
+  --custom-switch-off: #c3c8d2;
+  --custom-switch-knob-off: #fff;
+  --custom-switch-knob-on: #fff;
   --fws-desktop-color: #E67065;
   --fws-desktop-color-rgb: 230, 112, 101;
 }

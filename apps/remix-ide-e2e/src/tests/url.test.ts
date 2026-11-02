@@ -296,7 +296,7 @@ module.exports = {
       .clickLaunchIcon('udapp')
       .selectContract('MyToken')
       .waitForElementPresent('[data-id="contractGUIDeployWithProxyLabel"]')
-      .waitForElementPresent('[data-id="contractGUIDeployWithProxy"] button i.fa-toggle-on')
+      .waitForElementPresent('[data-id="contractGUIDeployWithProxy"] button[aria-checked="true"]')
   },
 
   'Should select upgrade with proxy option from URL params #group2': function (browser: NightwatchBrowser) {
@@ -316,7 +316,7 @@ module.exports = {
       .clickLaunchIcon('udapp')
       .selectContract('MyToken')
       .waitForElementPresent('[data-id="contractGUIUpgradeImplementationLabel"]')
-      .waitForElementPresent('[data-id="contractGUIUpgradeImplementation"] button i.fa-toggle-on')
+      .waitForElementPresent('[data-id="contractGUIUpgradeImplementation"] button[aria-checked="true"]')
   },
 
   'Should load using various URL compiler params #group2': function (browser: NightwatchBrowser) {
