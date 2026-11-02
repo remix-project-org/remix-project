@@ -208,7 +208,7 @@ export default function DeployedContractsPortraitView() {
               }}
               style={{ background: 'none', border: 'none', padding: '2px 6px' }}
             >
-              <i className="fas fa-cloud-download-alt" aria-hidden="true"></i>
+              <i className="fas fa-cloud-download-alt text-primary" aria-hidden="true"></i>
             </button>
           </CustomTooltip>
           {deployedContracts.length > 0 && (

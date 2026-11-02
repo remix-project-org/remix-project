@@ -1,4 +1,5 @@
 import React, { useContext, useEffect, useState } from 'react'
+import { CustomTooltip } from '@remix-ui/helper'
 import { DeployedContractsAppContext } from '../contexts'
 
 interface SavedContractRecord {
@@ -130,10 +131,12 @@ export const ArkivRetrievePanel: React.FC<ArkivRetrievePanelProps> = ({ onClose 
   return (
     <div className="m-3 mt-0 p-3 rounded" style={{ backgroundColor: 'var(--custom-onsurface-layer-2)' }} data-id="arkivRetrievePanel">
       <div className="d-flex justify-content-between align-items-center mb-2">
-        <p className="mb-0 fw-bold" style={{ fontSize: '0.9rem' }}>
-          <i className="fas fa-cloud-download-alt me-2 text-primary"></i>
-          Contracts saved on Arkiv
-        </p>
+        <CustomTooltip placement="top" tooltipId="arkivPanelTitleTooltip" tooltipText="Only for testing purposes">
+          <p className="mb-0 fw-bold" style={{ fontSize: '0.9rem' }}>
+            <i className="fas fa-cloud-download-alt me-2 text-primary"></i>
+            Contracts saved on Arkiv
+          </p>
+        </CustomTooltip>
         <button
           className="btn btn-sm"
           onClick={onClose}
@@ -200,7 +203,7 @@ export const ArkivRetrievePanel: React.FC<ArkivRetrievePanelProps> = ({ onClose 
                   </span>
                 </div>
                 <button
-                  className="btn btn-sm btn-outline-primary flex-shrink-0"
+                  className="btn btn-primary btn-sm small d-flex align-items-center gap-1 flex-nowrap flex-shrink-0"
                   style={{ fontSize: '0.7rem' }}
                   disabled={loadingKey === record.entityKey}
                   onClick={() => handleLoad(record)}
@@ -208,7 +211,8 @@ export const ArkivRetrievePanel: React.FC<ArkivRetrievePanelProps> = ({ onClose 
                 >
                   {loadingKey === record.entityKey
                     ? <i className="fa fa-spinner fa-spin"></i>
-                    : 'Load'}
+                    : <i className="fa-solid fa-plus"></i>}
+                  <span className="text-nowrap">Load</span>
                 </button>
               </div>
             )
