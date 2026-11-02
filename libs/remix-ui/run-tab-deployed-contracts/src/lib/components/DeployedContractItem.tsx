@@ -880,10 +880,18 @@ For Inline mode, preserve the existing /frontend overwrite confirmation flow. Co
         await plugin.call('notification', 'toast', 'Please connect a wallet to save contracts to Arkiv')
         return
       }
+      console.log('Saving deployed contract to Arkiv:', c)
+      const parseMetadata = (raw: any) => {
+        if (!raw) return null
+        if (typeof raw === 'string') { try { return JSON.parse(raw) } catch { return null } }
+        return raw
+      }
+      const parsedMetadata =
+        parseMetadata((c.contractData as any)?.metadata) ||
+        parseMetadata((c.contractData as any)?.object?.metadata)
       const compilerVersion: string =
         (c.contractData as any)?.compilerVersion ||
-        (c.contractData as any)?.metadata?.compiler?.version ||
-        (c.contractData as any)?.object?.metadata?.compiler?.version ||
+        parsedMetadata?.compiler?.version ||
         ''
       const sourcePath: string =
         c.filePath ||
