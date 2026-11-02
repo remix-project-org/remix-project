@@ -862,6 +862,55 @@ For Inline mode, preserve the existing /frontend overwrite confirmation flow. Co
     }
   }
 
+  const handleSaveToArkiv = async (c: DeployedContract) => {
+    if (onKebabMenuToggle) onKebabMenuToggle(false)
+    const abi = c.abi || c.contractData?.abi
+    if (!abi) {
+      await plugin.call('notification', 'toast', 'No ABI available for this contract')
+      return
+    }
+    try {
+      const network = await plugin.call('udappEnv', 'getNetwork')
+      if (!network?.chainId || network.name === 'VM') {
+        await plugin.call('notification', 'toast', 'Connect to a persistent network to save contracts to Arkiv')
+        return
+      }
+      const walletAddress = await plugin.call('udappEnv', 'getSelectedAccount')
+      if (!walletAddress) {
+        await plugin.call('notification', 'toast', 'Please connect a wallet to save contracts to Arkiv')
+        return
+      }
+      console.log('Saving deployed contract to Arkiv:', c)
+      const parseMetadata = (raw: any) => {
+        if (!raw) return null
+        if (typeof raw === 'string') { try { return JSON.parse(raw) } catch { return null } }
+        return raw
+      }
+      const parsedMetadata =
+        parseMetadata((c.contractData as any)?.metadata) ||
+        parseMetadata((c.contractData as any)?.object?.metadata)
+      const compilerVersion: string =
+        (c.contractData as any)?.compilerVersion ||
+        parsedMetadata?.compiler?.version ||
+        ''
+      const sourcePath: string =
+        c.filePath ||
+        (c.contractData as any)?.contract?.file ||
+        ''
+      await (plugin as any).call('arkivNetwork', 'saveDeployedContract', {
+        address: c.address,
+        chainId: network.chainId,
+        name: c.name,
+        abi,
+        walletAddress,
+        compilerVersion,
+        sourcePath,
+      })
+    } catch (e: any) {
+      await plugin.call('notification', 'toast', `Failed to save to Arkiv: ${e?.message || String(e)}`)
+    }
+  }
+
   const handleCopyDeployedBytecode = async (contract: DeployedContract) => {
     if (onKebabMenuToggle) {
       onKebabMenuToggle(false)
@@ -1108,6 +1157,7 @@ For Inline mode, preserve the existing /frontend overwrite confirmation flow. Co
               onCopyBytecode={handleCopyDeployedBytecode}
               onOpenInExplorer={handleOpenInExplorer}
               onClear={handleClear}
+              onSaveToArkiv={handleSaveToArkiv}
             />
             {isExpanded && (
               <div className="p-3" style={{ background: 'var(--custom-onsurface-layer-1)' }} onClick={(e) => e.stopPropagation()}>

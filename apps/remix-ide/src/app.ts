@@ -34,6 +34,8 @@ import { ContractFlattener } from './app/plugins/contractFlattener'
 import { WalkthroughService } from './walkthroughService'
 
 import { OffsetToLineColumnConverter, CompilerMetadata, CompilerArtefacts, FetchAndCompile, CompilerImports, GistHandler, AmpPlugin, ChartJsPlugin } from '@remix-project/core-plugin'
+import { ArkivBasicPlugin } from './app/plugins/arkiv-basic-plugin'
+import { ArkivNetworkPlugin } from './app/plugins/arkiv-network-plugin'
 
 import { Registry, AppLifecycle, LifecyclePlugin, all } from '@remix-project/remix-lib'
 import { ConfigPlugin } from './app/plugins/config'
@@ -435,6 +437,12 @@ class AppComponent {
     // ----------------- vega (generate visualization) ------------------------
     // const vega = new VegaPlugin()
 
+    // ----------------- arkiv (on-chain entity storage) ----
+    const arkivPlugin = new ArkivBasicPlugin()
+
+    // ----------------- arkiv network (Arkiv-specific product features) -------
+    const arkivNetworkPlugin = new ArkivNetworkPlugin()
+
     // ----------------- chart (generate visualization) ------------------------
     const chartjs = new ChartJsPlugin()
 
@@ -595,6 +603,8 @@ class AppComponent {
       quickDappV2,
       theGraphPlugin,
       walletConnect,
+      arkivPlugin,
+      arkivNetworkPlugin,
       amp,
       // vega,
       chartjs,
@@ -814,6 +824,8 @@ class AppComponent {
     await this.appManager.activatePlugin(['feedback'])
     await this.appManager.activatePlugin(['settings'])
 
+    await this.appManager.activatePlugin(['arkivBasic'])
+    await this.appManager.activatePlugin(['arkivNetwork'])
     await this.appManager.activatePlugin(['storage', 'storageMonitor', 'search', 'compileAndRun', 'dgitApi', 'dgit', 'helpPlugin', 'planManager'])
     await this.appManager.activatePlugin(['solidity-script', 'remix-templates'])
 
