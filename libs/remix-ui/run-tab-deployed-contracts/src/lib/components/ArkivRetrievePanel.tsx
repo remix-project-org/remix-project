@@ -62,33 +62,51 @@ export const ArkivRetrievePanel: React.FC<ArkivRetrievePanelProps> = ({ onClose 
   const { plugin } = useContext(DeployedContractsAppContext)
   const [contracts, setContracts] = useState<SavedContractRecord[]>([])
   const [isLoading, setIsLoading] = useState(false)
+  const [isLoadingMore, setIsLoadingMore] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [loadingKey, setLoadingKey] = useState<string | null>(null)
   const [sourcify, setSourcify] = useState<Record<string, SourcifyVerification>>({})
+  const [cursor, setCursor] = useState<string | undefined>(undefined)
+  const [hasMore, setHasMore] = useState(false)
+  const walletRef = React.useRef<string>('')
 
-  useEffect(() => {
-    const load = async () => {
+  const loadContracts = async (nextCursor?: string) => {
+    const isInitial = !nextCursor
+    if (isInitial) {
       setIsLoading(true)
       setError(null)
-      try {
-        const account = await plugin.call('udappEnv', 'getSelectedAccount')
-        if (!account) {
-          setError('No wallet connected. Please connect a wallet.')
-          return
-        }
-        const result = await (plugin as any).call('arkivNetwork', 'retrieveDeployedContracts', { walletAddress: account })
-        const loaded: SavedContractRecord[] = result.contracts || []
-        setContracts(loaded)
-        // Fire Sourcify checks in the background — don't block the panel render
-        checkSourcify(loaded).then(setSourcify)
-      } catch (e: any) {
-        setError(`Failed to retrieve: ${e?.message || String(e)}`)
-      } finally {
-        setIsLoading(false)
-      }
+    } else {
+      setIsLoadingMore(true)
     }
-    load()
-  }, [])
+    try {
+      const account = isInitial
+        ? await plugin.call('udappEnv', 'getSelectedAccount')
+        : walletRef.current
+      if (!account) {
+        setError('No wallet connected. Please connect a wallet.')
+        return
+      }
+      walletRef.current = account
+      const result = await (plugin as any).call('arkivNetwork', 'retrieveDeployedContracts', {
+        walletAddress: account,
+        cursor: nextCursor,
+      })
+      const loaded: SavedContractRecord[] = result.contracts || []
+      setContracts(prev => isInitial ? loaded : [...prev, ...loaded])
+      setCursor(result.cursor)
+      setHasMore(result.hasMore ?? false)
+      checkSourcify(loaded).then(fresh =>
+        setSourcify(prev => ({ ...prev, ...fresh }))
+      )
+    } catch (e: any) {
+      setError(`Failed to retrieve: ${e?.message || String(e)}`)
+    } finally {
+      if (isInitial) setIsLoading(false)
+      else setIsLoadingMore(false)
+    }
+  }
+
+  useEffect(() => { loadContracts() }, [])
 
   const handleLoad = async (record: SavedContractRecord) => {
     setLoadingKey(record.entityKey)
@@ -195,6 +213,19 @@ export const ArkivRetrievePanel: React.FC<ArkivRetrievePanelProps> = ({ onClose 
               </div>
             )
           })}
+          {hasMore && (
+            <button
+              className="btn btn-sm btn-outline-secondary w-100 mt-1"
+              style={{ fontSize: '0.75rem' }}
+              disabled={isLoadingMore}
+              onClick={() => loadContracts(cursor)}
+              data-id="arkivLoadMore"
+            >
+              {isLoadingMore
+                ? <><i className="fa fa-spinner fa-spin me-1"></i>Loading…</>
+                : 'Load more'}
+            </button>
+          )}
         </div>
       )}
     </div>
