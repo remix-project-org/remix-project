@@ -40,7 +40,7 @@ async function checkSourcify(
           signal: AbortSignal.timeout(8000),
           headers: { 'User-Agent': 'Remix IDE (https://remix.ethereum.org)' },
         })
-        if (!resp.ok) return  // 404 = not verified; other errors ignored
+        if (!resp.ok) return // 404 = not verified; other errors ignored
         const data = await resp.json()
         const match: string = data?.match ?? data?.matchType ?? ''
         results[`${c.chainId}:${c.address.toLowerCase()}`] =

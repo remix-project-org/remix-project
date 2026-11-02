@@ -35,10 +35,10 @@ const SHARE_WARNING =
 type ExpiresInput = 'permanent' | { days: number }
 
 const EXPIRY_OPTIONS: Array<{ value: string; label: string; expires: ExpiresInput }> = [
-  { value: '7',         label: '7 days',    expires: { days: 7 } },
-  { value: '30',        label: '30 days',   expires: { days: 30 } },
-  { value: '90',        label: '90 days',   expires: { days: 90 } },
-  { value: '365',       label: '1 year',    expires: { days: 365 } },
+  { value: '7', label: '7 days', expires: { days: 7 } },
+  { value: '30', label: '30 days', expires: { days: 30 } },
+  { value: '90', label: '90 days', expires: { days: 90 } },
+  { value: '365', label: '1 year', expires: { days: 365 } },
   { value: 'permanent', label: 'Permanent', expires: 'permanent' },
 ]
 
@@ -318,18 +318,18 @@ export class ArkivNetworkPlugin extends Plugin {
         payload: payloadHex,
         contentType: 'application/json',
         attributes: {
-          app:              { type: 'str',     value: 'remix' },
-          type:             { type: 'str',     value: 'remix-deployed-contract' },
-          schema_version:   { type: 'str',     value: '1' },
-          wallet_address:   { type: 'addr',    value: walletAddress },
-          chain_id:         { type: 'str',     value: chainId },
-          address:          { type: 'addr',    value: address },
-          contract_name:    { type: 'str',     value: contractName },
-          compiler_version: { type: 'str',     value: compilerVersion ?? '' },
+          app:              { type: 'str', value: 'remix' },
+          type:             { type: 'str', value: 'remix-deployed-contract' },
+          schema_version:   { type: 'str', value: '1' },
+          wallet_address:   { type: 'addr', value: walletAddress },
+          chain_id:         { type: 'str', value: chainId },
+          address:          { type: 'addr', value: address },
+          contract_name:    { type: 'str', value: contractName },
+          compiler_version: { type: 'str', value: compilerVersion ?? '' },
           abi_hash:         { type: 'bytes32', value: abiHash },
           source_hash:      { type: 'bytes32', value: sourceHash },
-          saved_at:         { type: 'u64',     value: savedAt },
-          expiry_label:     { type: 'str',     value: choice.label },
+          saved_at:         { type: 'u64', value: savedAt },
+          expiry_label:     { type: 'str', value: choice.label },
         },
         expires: choice.expires,
       })

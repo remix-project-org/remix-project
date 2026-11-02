@@ -38,22 +38,22 @@ export type ExpiresInput =
   | { weeks: number }
   | { months: number }
   | { blocks: number }
-  | { atBlock: string }   // decimal bigint string
+  | { atBlock: string } // decimal bigint string
   | 'permanent'
 
 export type AttrInput =
   | string
   | number
   | boolean
-  | { type: 'str';     value: string }
-  | { type: 'i32';     value: number }
-  | { type: 'bool';    value: boolean }
-  | { type: 'u64';     value: string }
-  | { type: 'u256';    value: string }
-  | { type: 'dec';     value: string }
+  | { type: 'str'; value: string }
+  | { type: 'i32'; value: number }
+  | { type: 'bool'; value: boolean }
+  | { type: 'u64'; value: string }
+  | { type: 'u256'; value: string }
+  | { type: 'dec'; value: string }
   | { type: 'bytes32'; value: string }
-  | { type: 'addr';    value: string }
-  | { type: 'key';     value: string }
+  | { type: 'addr'; value: string }
+  | { type: 'key'; value: string }
 
 export interface CreateEntityParams {
   payload: string
@@ -127,33 +127,33 @@ const profile = {
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
 function toExpiry(input: ExpiresInput): Expiry {
-  if (input === 'permanent')    return ExpirationTime.permanent()
-  if ('seconds' in input)       return ExpirationTime.fromSeconds(input.seconds)
-  if ('minutes' in input)       return ExpirationTime.fromMinutes(input.minutes)
-  if ('hours'   in input)       return ExpirationTime.fromHours(input.hours)
-  if ('days'    in input)       return ExpirationTime.fromDays(input.days)
-  if ('weeks'   in input)       return ExpirationTime.fromWeeks(input.weeks)
-  if ('months'  in input)       return ExpirationTime.fromMonths(input.months)
-  if ('blocks'  in input)       return ExpirationTime.fromBlocks(input.blocks)
-  if ('atBlock' in input)       return ExpirationTime.atBlock(BigInt(input.atBlock))
+  if (input === 'permanent') return ExpirationTime.permanent()
+  if ('seconds' in input) return ExpirationTime.fromSeconds(input.seconds)
+  if ('minutes' in input) return ExpirationTime.fromMinutes(input.minutes)
+  if ('hours' in input) return ExpirationTime.fromHours(input.hours)
+  if ('days' in input) return ExpirationTime.fromDays(input.days)
+  if ('weeks' in input) return ExpirationTime.fromWeeks(input.weeks)
+  if ('months' in input) return ExpirationTime.fromMonths(input.months)
+  if ('blocks' in input) return ExpirationTime.fromBlocks(input.blocks)
+  if ('atBlock' in input) return ExpirationTime.atBlock(BigInt(input.atBlock))
   throw new Error('Arkiv: unrecognised expires input')
 }
 
 function toAttrSdkValue(v: AttrInput): AttributeInputs[string] {
-  if (typeof v === 'string')  return v
-  if (typeof v === 'number')  return v
+  if (typeof v === 'string') return v
+  if (typeof v === 'number') return v
   if (typeof v === 'boolean') return v
   switch (v.type) {
-    case 'str':     return str(v.value)
-    case 'i32':     return i32(v.value)
-    case 'bool':    return boolAttr(v.value)
-    case 'u64':     return u64(BigInt(v.value))
-    case 'u256':    return u256(BigInt(v.value))
-    case 'dec':     return dec(v.value)
-    case 'bytes32': return bytes32(v.value as Hex)
-    case 'addr':    return addrAttr(v.value)
-    case 'key':     return keyAttr(v.value as Hex)
-    default:        throw new Error(`Arkiv: unsupported attribute type: ${(v as { type: string }).type}`)
+  case 'str': return str(v.value)
+  case 'i32': return i32(v.value)
+  case 'bool': return boolAttr(v.value)
+  case 'u64': return u64(BigInt(v.value))
+  case 'u256': return u256(BigInt(v.value))
+  case 'dec': return dec(v.value)
+  case 'bytes32': return bytes32(v.value as Hex)
+  case 'addr': return addrAttr(v.value)
+  case 'key': return keyAttr(v.value as Hex)
+  default: throw new Error(`Arkiv: unsupported attribute type: ${(v as { type: string }).type}`)
   }
 }
 
@@ -165,18 +165,18 @@ function resolveAttrs(attrs: Record<string, AttrInput>): AttributeInputs {
 
 function serializeAttrValue(v: { type: string; value: unknown }): { type: string; value: unknown } {
   if (v.value instanceof Uint8Array) return { type: v.type, value: bytesToHex(v.value) }
-  if (typeof v.value === 'bigint')   return { type: v.type, value: v.value.toString() }
+  if (typeof v.value === 'bigint') return { type: v.type, value: v.value.toString() }
   return { type: v.type, value: v.value }
 }
 
 function serializeEntity(entity: FullEntity): SerializedEntity {
   const out: SerializedEntity = {}
-  if (entity.key        !== undefined) out.key        = entity.key
-  if (entity.owner      !== undefined) out.owner      = entity.owner
-  if (entity.creator    !== undefined) out.creator    = entity.creator
-  if (entity.createdAt  !== undefined) out.createdAt  = entity.createdAt.toString()
-  if (entity.updatedAt  !== undefined) out.updatedAt  = entity.updatedAt.toString()
-  if (entity.expiresAt  !== undefined) out.expiresAt  = entity.expiresAt.toString()
+  if (entity.key !== undefined) out.key = entity.key
+  if (entity.owner !== undefined) out.owner = entity.owner
+  if (entity.creator !== undefined) out.creator = entity.creator
+  if (entity.createdAt !== undefined) out.createdAt = entity.createdAt.toString()
+  if (entity.updatedAt !== undefined) out.updatedAt = entity.updatedAt.toString()
+  if (entity.expiresAt !== undefined) out.expiresAt = entity.expiresAt.toString()
   if (entity.contentType !== undefined) out.contentType = entity.contentType
   if (entity.payload !== undefined) {
     out.payload = bytesToHex(entity.payload)
@@ -274,8 +274,8 @@ export class ArkivBasicPlugin extends Plugin {
 
     const args: PatchEntityParameters = {
       entityKey: params.entityKey as Hex,
-      ...(params.set    ? { set: resolveAttrs(params.set) }        : {}),
-      ...(params.unset  ? { unset: params.unset }                  : {}),
+      ...(params.set ? { set: resolveAttrs(params.set) } : {}),
+      ...(params.unset ? { unset: params.unset } : {}),
       ...(params.payload ? { payload: hexToBytes(params.payload) } : {}),
     }
 
@@ -314,7 +314,7 @@ export class ArkivBasicPlugin extends Plugin {
   async query(params: QueryParams): Promise<ArkivQueryResult> {
     const { pub } = this._requireClients()
     const result = await pub.query(params.query, {
-      ...(params.limit  ? { limit: params.limit }  : {}),
+      ...(params.limit ? { limit: params.limit } : {}),
       ...(params.cursor ? { cursor: params.cursor } : {}),
     })
     return {
