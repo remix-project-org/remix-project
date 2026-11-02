@@ -478,7 +478,7 @@ export class PreDeployChecksPlugin extends ViewPlugin implements CheckHost {
   }
 
   render () {
-    return <div id="preDeployChecks" className="h-100 pdc-scroller"><PluginViewWrapper plugin={this} /></div>
+    return <div id="preDeployChecks" className="h-100"><PluginViewWrapper plugin={this} /></div>
   }
 
   updateComponent (view: PreDeployChecksViewState) {
