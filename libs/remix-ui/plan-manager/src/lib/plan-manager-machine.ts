@@ -52,7 +52,7 @@ export type ActiveAlert =
   | null
 
 export type CheckoutResultKind = 'processing' | 'success' | 'closed' | 'error'
-export type CheckoutIntent = 'subscription' | 'topup' | 'feature' | 'cancel' | 'reactivate'
+export type CheckoutIntent = 'subscription' | 'topup' | 'feature' | 'cancel' | 'reactivate' | 'payment_method'
 
 export interface CheckoutResult {
   kind: CheckoutResultKind
@@ -109,6 +109,12 @@ export interface CheckoutNotice {
   message: string
   /** Optional recovery action rendered as a button inside the notice. */
   action?: 'open_hosted'
+  /**
+   * Sticky notices (declined payment, waiting for wallet approval) survive
+   * Paddle's price recalculations; they clear on dismiss or the next payment
+   * attempt. Non-sticky notices clear on any successful recalculation.
+   */
+  sticky?: boolean
 }
 
 /** Snapshot the UI consumes — purely derived, never mutated outside the machine. */
@@ -143,6 +149,11 @@ export interface PlanManagerSnapshot {
   resumeCheckouts: PendingCheckout[]
   /** User dismissed the resume nudge for this session. */
   resumeNudgeDismissed: boolean
+  /**
+   * Paddle refused to price for the visitor's location
+   * (`address_location_not_allowed`) — checkout cannot work from here.
+   */
+  paymentsBlockedInRegion: boolean
   errorMessage: string | null
   /**
    * Why the panel was opened. Set on the most recent OPEN_OVERLAY when a
@@ -284,6 +295,7 @@ interface MachineContext {
   // resume abandoned checkouts (out-of-band from account data)
   resumeCheckouts: PendingCheckout[]
   resumeNudgeDismissed: boolean
+  paymentsBlockedInRegion: boolean
   // overlay routing
   openIntent: OpenIntent | null
   // confirm dialog
@@ -312,7 +324,7 @@ export type PlanManagerEvent =
   | { type: 'CHECKOUT_CLOSED' }
   | { type: 'CHECKOUT_ERROR'; message?: string; transactionId?: string; meta?: Record<string, string> }
   // Recoverable, non-destructive in-frame message — checkout stays open.
-  | { type: 'CHECKOUT_NOTICE'; level: 'warning' | 'error'; message: string; action?: CheckoutNotice['action'] }
+  | { type: 'CHECKOUT_NOTICE'; level: 'warning' | 'error'; message: string; action?: CheckoutNotice['action']; sticky?: boolean }
   | { type: 'CHECKOUT_NOTICE_DISMISS' }
   | { type: 'CHECKOUT_RESULT_DISMISS' }
   // Cart
@@ -322,6 +334,8 @@ export type PlanManagerEvent =
   // Resume abandoned checkouts
   | { type: 'RESUME_CHECKOUTS_LOADED'; checkouts: PendingCheckout[] }
   | { type: 'RESUME_NUDGE_DISMISS' }
+  | { type: 'REGION_PAYMENTS_BLOCKED' }
+  | { type: 'CHECKOUT_RESULT_META'; meta: Record<string, string> }
   // Plugin-side signal: backend confirmed the purchase + we just refreshed
   // permissions/credits/sub. Promotes 'processing' → 'success' regardless of
   // current data substate (DATA_LOADED alone only fires inside `refreshing`).
@@ -354,6 +368,7 @@ const initialContext: MachineContext = {
   cartItems: [],
   resumeCheckouts: [],
   resumeNudgeDismissed: false,
+  paymentsBlockedInRegion: false,
   openIntent: null,
   confirmDialog: null,
   lastError: null
@@ -428,11 +443,17 @@ export const planManagerMachine = setup({
       context.checkoutBreakdown = event.breakdown
       // A successful recalculation means the user changed something valid —
       // clear any recoverable notice so it doesn't linger after they've fixed it.
-      context.checkoutNotice = null
+      // Sticky notices (decline reason, waiting for approval) stay put.
+      if (!context.checkoutNotice?.sticky) context.checkoutNotice = null
     },
     setCheckoutNotice: ({ context, event }) => {
       if (event.type !== 'CHECKOUT_NOTICE') return
-      context.checkoutNotice = { level: event.level, message: event.message, ...(event.action && { action: event.action }) }
+      context.checkoutNotice = {
+        level: event.level,
+        message: event.message,
+        ...(event.action && { action: event.action }),
+        ...(event.sticky && { sticky: true })
+      }
     },
     clearCheckoutNotice: ({ context }) => {
       context.checkoutNotice = null
@@ -527,6 +548,13 @@ export const planManagerMachine = setup({
     },
     dismissResumeNudge: ({ context }) => {
       context.resumeNudgeDismissed = true
+    },
+    setPaymentsBlockedInRegion: ({ context }) => {
+      context.paymentsBlockedInRegion = true
+    },
+    mergeCheckoutResultMeta: ({ context, event }) => {
+      if (event.type !== 'CHECKOUT_RESULT_META' || !context.checkoutResult) return
+      context.checkoutResult = { ...context.checkoutResult, meta: { ...(context.checkoutResult.meta ?? {}), ...event.meta } }
     }
   }
 }).createMachine({
@@ -727,7 +755,9 @@ export const planManagerMachine = setup({
     CONFIRM_DISMISS: { actions: ['clearConfirmDialog']},
     PURCHASE_CONFIRMED: { actions: ['setCheckoutSuccess']},
     RESUME_CHECKOUTS_LOADED: { actions: ['setResumeCheckouts']},
-    RESUME_NUDGE_DISMISS: { actions: ['dismissResumeNudge']}
+    RESUME_NUDGE_DISMISS: { actions: ['dismissResumeNudge']},
+    REGION_PAYMENTS_BLOCKED: { actions: ['setPaymentsBlockedInRegion']},
+    CHECKOUT_RESULT_META: { actions: ['mergeCheckoutResultMeta']}
   }
 })
 
@@ -767,6 +797,7 @@ export function snapshotFromActor(actor: AnyActorRef): PlanManagerSnapshot {
     cartItems: ctx.cartItems,
     resumeCheckouts: ctx.resumeCheckouts,
     resumeNudgeDismissed: ctx.resumeNudgeDismissed,
+    paymentsBlockedInRegion: ctx.paymentsBlockedInRegion,
     errorMessage: ctx.lastError,
     isTrialEligible: ctx.isTrialEligible,
     openIntent: ctx.openIntent,
@@ -789,6 +820,8 @@ export interface PlanState {
   trialDaysRemaining: number | null
   trialTotalDays: number | null
   trialEndsOn: string | null
+  /** Renewal payment failed and Paddle is retrying (`status === 'past_due'`). */
+  isPastDue?: boolean
 }
 
 const MS_PER_DAY = 1000 * 60 * 60 * 24
@@ -912,7 +945,8 @@ export function selectPlanState(snap: PlanManagerSnapshot, now: number = Date.no
     isInTrial,
     trialDaysRemaining,
     trialTotalDays,
-    trialEndsOn
+    trialEndsOn,
+    isPastDue: sub.status === 'past_due'
   }
 }
 

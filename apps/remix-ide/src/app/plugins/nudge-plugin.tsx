@@ -345,6 +345,11 @@ export class NudgePlugin extends Plugin {
 
     // Plan purchased — user is no longer on free plan, retire the upgrade nudge
     this.on('planManager' as any, 'purchaseConfirmed', (info?: { intent?: string; label?: string }) => {
+      if (info?.intent === 'payment_method') {
+        this.engine_.unfire('user:payment_past_due')
+        this.engine_.disableRule('payment-past-due')
+        return
+      }
       this.engine_.unfire('user:on_free_plan')
       this.engine_.disableRule('free-plan-upgrade')
       this.engine_.disableRule('regional-pricing-offer')
@@ -546,11 +551,51 @@ export class NudgePlugin extends Plugin {
         // Non-beta logged-in user — check if they're on the free plan
         // and show an upgrade nudge with live discount copy.
         this._checkFreePlanNudge().catch(() => {})
+        // Renewal failed → prompt to update the payment method (recovers
+        // involuntary churn; most failures are `not_enough_balance`).
+        this._checkPastDueNudge().catch(() => {})
         // First registration only: introduce the free features via the help guide.
         this._maybeShowFreeWelcome(opts).catch(() => {})
       }
     } catch {
       // Permissions not available — skip beta check
+    }
+  }
+
+  /**
+   * Subscribed user whose renewal failed (`past_due`): Paddle keeps retrying
+   * for a while and then cancels, so prompt them to update their payment
+   * method in-app. The action opens Paddle's update-payment-method checkout.
+   */
+  private async _checkPastDueNudge(): Promise<void> {
+    try {
+      const billingApi = await this.call('auth' as any, 'getBillingApi')
+      const resp = await billingApi.getSubscription()
+      const sub = resp?.data?.subscription
+      if (sub?.status !== 'past_due') return
+      const planName: string = sub.planName || 'your plan'
+      this.log('[NudgePlugin] subscription past_due — prompting payment method update', sub.planSlug)
+      this.engine_.addRule({
+        id: 'payment-past-due',
+        condition: 'user:payment_past_due',
+        action: {
+          type: 'widget',
+          position: 'right',
+          hidePermanentDismiss: true,
+          title: 'Your renewal payment failed',
+          message: `We couldn't charge your payment method for ${planName}. Update it to keep your monthly AI credits and paid features — we'll retry right away.`,
+          actionLabel: 'Update payment method',
+          actionTarget: 'planManager::updatePaymentMethod',
+          icon: 'fas fa-credit-card',
+          widgetColor: '#ef4444',
+          widgetBg: 'rgba(239, 68, 68, 0.1)'
+        },
+        showOnce: 'session',
+        priority: 21
+      })
+      this.engine_.fire('user:payment_past_due')
+    } catch (err) {
+      this.log('[NudgePlugin] _checkPastDueNudge failed', err)
     }
   }
 

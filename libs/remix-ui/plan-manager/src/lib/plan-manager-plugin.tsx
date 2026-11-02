@@ -24,7 +24,7 @@ import { initPaddle, getPaddle, openCheckoutWithTransaction, onPaddleEvent, offP
 import { reportCheckoutTelemetry, setCheckoutTelemetryToken, setCheckoutTelemetryEnv } from './checkout-telemetry'
 import { endpointUrls } from '@remix-endpoints-helper'
 import type { Paddle, PaddleEventData } from '@paddle/paddle-js'
-import type { CreditsUsageQuery, FeatureGroup, UsageReport, PendingCheckout } from '@remix-api'
+import type { CreditsUsageQuery, FeatureGroup, UsageReport, PendingCheckout, TransactionPaymentStatusResponse } from '@remix-api'
 import { Features, FEATURE_LABELS, trackMatomoEvent } from '@remix-api'
 import type { CheckoutEvent } from '@remix-api'
 import * as packageJson from '../../../../../package.json'
@@ -74,7 +74,7 @@ const profile = {
   name: 'planManager',
   displayName: 'Plan & Credits',
   description: 'Manage your subscription, top up credits and review AI usage',
-  methods: ['open', 'close', 'toggle', 'setCheckoutResult', 'reportCreditsExhausted', 'requireAICredits', 'refresh', 'purchaseCredits', 'subscribeToPlan', 'changePlan', 'cancelSubscription', 'reactivateSubscription', 'resolveConfirm', 'cancelCheckout', 'resumeCheckout', 'dismissResumeNudge', 'getPendingCheckouts', 'discardCheckout', 'getBillingLocale'],
+  methods: ['open', 'close', 'toggle', 'setCheckoutResult', 'reportCreditsExhausted', 'requireAICredits', 'refresh', 'purchaseCredits', 'subscribeToPlan', 'changePlan', 'cancelSubscription', 'reactivateSubscription', 'resolveConfirm', 'cancelCheckout', 'resumeCheckout', 'dismissResumeNudge', 'getPendingCheckouts', 'discardCheckout', 'getBillingLocale', 'updatePaymentMethod'],
   events: ['opened', 'closed', 'checkoutResultChanged', 'pendingCheckoutsChanged', 'purchaseConfirmed', 'billingLocaleResolved'],
   icon: PLAN_ICON,
   location: 'sidePanel',
@@ -909,6 +909,7 @@ export class PlanManagerPlugin extends ViewPlugin {
       return normalizePricePreview(result, resolved)
     } catch (err) {
       planManagerLogger.warn('[PlanManager] previewCartPrices failed', err)
+      this.noteRegionBlocked(err)
       return null
     }
   }
@@ -955,6 +956,7 @@ export class PlanManagerPlugin extends ViewPlugin {
       return out
     } catch (err) {
       planManagerLogger.warn('[PlanManager] previewProductPrices failed', err)
+      this.noteRegionBlocked(err)
       return null
     }
   }
@@ -1056,6 +1058,7 @@ export class PlanManagerPlugin extends ViewPlugin {
       return preview
     } catch (err) {
       planManagerLogger.warn('[PlanManager] previewCatalogPrices failed', err)
+      this.noteRegionBlocked(err)
       return null
     }
   }
@@ -1614,11 +1617,13 @@ export class PlanManagerPlugin extends ViewPlugin {
   }
 
   /**
-   * Resolve the public Paddle client config. `GET {billing}/config` is
-   * unauthenticated, so fetch it directly first — going through the `auth`
-   * plugin queues behind any slow call on that plugin (token refresh, login
-   * popup) and the engine rejects it after 10s, which is what produced most
-   * `paddle.config.missing` events. The auth plugin stays as a fallback.
+   * Resolve the public Paddle client config. Two sources race in parallel and
+   * the first token wins:
+   *   - `GET {billing}/config` directly (unauthenticated, normally ~200ms), and
+   *   - the `auth` plugin's getPaddleConfig (same endpoint via the API client).
+   * Telemetry showed the old sequential version (direct with an 8s abort, then
+   * auth) leaving users without Paddle for 15–60s during IDE startup, when the
+   * browser is congested; racing with a generous timeout removes that stall.
    * Every failure reason is returned so telemetry can say WHY it failed.
    */
   private async fetchPaddleConfig(): Promise<{
@@ -1626,52 +1631,66 @@ export class PlanManagerPlugin extends ViewPlugin {
     source: 'direct' | 'auth' | null
     directStatus?: number
     directError?: string
+    directContentType?: string | null
+    directBodyKeys?: string[] | null
     authError?: string
     authReturned?: boolean
   }> {
-    let directStatus: number | undefined
-    let directError: string | undefined
-    try {
+    type Config = { clientToken: string; environment: 'sandbox' | 'production' }
+    const diag: {
+      directStatus?: number
+      directError?: string
+      directContentType?: string | null
+      directBodyKeys?: string[] | null
+      authError?: string
+      authReturned?: boolean
+    } = {}
+
+    const direct = (async (): Promise<Config | null> => {
       const ctrl = typeof AbortController !== 'undefined' ? new AbortController() : null
-      const timer = ctrl ? setTimeout(() => ctrl.abort(), 8000) : null
+      const timer = ctrl ? setTimeout(() => ctrl.abort(), PADDLE_CONFIG_TIMEOUT_MS) : null
       try {
         const res = await fetch(`${endpointUrls.billing}/config`, { signal: ctrl?.signal })
-        directStatus = res.status
-        if (res.ok) {
-          const body: any = await res.json().catch(() => null)
-          const token = body?.paddle?.token
-          if (typeof token === 'string' && token) {
-            return {
-              config: { clientToken: token, environment: body.paddle.environment === 'production' ? 'production' : 'sandbox' },
-              source: 'direct',
-              directStatus,
-            }
-          }
-          directError = 'no_token_in_response'
-        } else {
-          directError = `http_${res.status}`
+        diag.directStatus = res.status
+        diag.directContentType = res.headers?.get?.('content-type') ?? null
+        if (!res.ok) { diag.directError = `http_${res.status}`; return null }
+        const body: any = await res.json().catch(() => null)
+        const token = body?.paddle?.token
+        if (typeof token === 'string' && token) {
+          return { clientToken: token, environment: body.paddle.environment === 'production' ? 'production' : 'sandbox' }
         }
+        // 200 without a token (seen in telemetry) — record what we did get.
+        diag.directError = body ? 'no_token_in_response' : 'unparseable_response'
+        diag.directBodyKeys = body && typeof body === 'object' ? Object.keys(body).slice(0, 10) : null
+        return null
+      } catch (err: any) {
+        diag.directError = err?.name === 'AbortError' ? 'timeout' : (err?.message || String(err))
+        return null
       } finally {
         if (timer) clearTimeout(timer)
       }
-    } catch (err: any) {
-      directError = err?.name === 'AbortError' ? 'timeout' : (err?.message || String(err))
-    }
+    })()
 
-    let authError: string | undefined
-    const viaAuth = await this.call('auth', 'getPaddleConfig').catch((err: any) => {
-      authError = typeof err === 'string' ? err : (err?.message || String(err))
-      return null
-    }) as { clientToken: string | null; environment: 'sandbox' | 'production' } | null
-    if (viaAuth?.clientToken) {
-      return {
-        config: { clientToken: viaAuth.clientToken, environment: viaAuth.environment },
-        source: 'auth',
-        directStatus,
-        directError,
+    const viaAuth = (async (): Promise<Config | null> => {
+      const cfg = await this.call('auth', 'getPaddleConfig').catch((err: any) => {
+        diag.authError = typeof err === 'string' ? err : (err?.message || String(err))
+        return null
+      }) as { clientToken: string | null; environment: 'sandbox' | 'production' } | null
+      diag.authReturned = !!cfg
+      return cfg?.clientToken ? { clientToken: cfg.clientToken, environment: cfg.environment } : null
+    })()
+
+    // First source to produce a token wins; null only when both came back empty.
+    const winner = await new Promise<{ config: Config; source: 'direct' | 'auth' } | null>((resolve) => {
+      let pending = 2
+      const settle = (config: Config | null, source: 'direct' | 'auth') => {
+        if (config) { resolve({ config, source }); return }
+        if (--pending === 0) resolve(null)
       }
-    }
-    return { config: null, source: null, directStatus, directError, authError, authReturned: !!viaAuth }
+      direct.then(c => settle(c, 'direct'))
+      viaAuth.then(c => settle(c, 'auth'))
+    })
+    return winner ? { ...winner, ...diag } : { config: null, source: null, ...diag }
   }
 
   private async doInitPaddleSingleton(): Promise<void> {
@@ -1700,6 +1719,8 @@ export class PlanManagerPlugin extends ViewPlugin {
               configReturned: !!fetched.authReturned,
               directStatus: fetched.directStatus ?? null,
               directError: fetched.directError ?? null,
+              directContentType: fetched.directContentType ?? null,
+              directBodyKeys: fetched.directBodyKeys ?? null,
               authError: fetched.authError ?? null,
               msElapsed: Date.now() - startedAt,
             },
@@ -1725,16 +1746,19 @@ export class PlanManagerPlugin extends ViewPlugin {
         // — reporting every healthy session would flood the checkout table.
         this.paddleInitOkReported = true
         const recoveredFrom = this.lastPaddleInitIssue
-        if (fetched.source !== 'direct' || recoveredFrom) {
+        const elapsedMs = Date.now() - startedAt
+        if (fetched.source !== 'direct' || recoveredFrom || elapsedMs > 5_000) {
           reportCheckoutTelemetry('paddle.init.ok', {
             paddleEnv: config.environment,
-            message: `Paddle ready via ${fetched.source}${recoveredFrom ? ` after ${recoveredFrom}` : ''}`,
+            message: `Paddle ready via ${fetched.source}${recoveredFrom ? ` after ${recoveredFrom}` : ''} in ${elapsedMs}ms`,
             detail: {
               configSource: fetched.source,
               recoveredFrom,
               directStatus: fetched.directStatus ?? null,
               directError: fetched.directError ?? null,
-              msElapsed: Date.now() - startedAt,
+              directContentType: fetched.directContentType ?? null,
+              directBodyKeys: fetched.directBodyKeys ?? null,
+              msElapsed: elapsedMs,
             },
           })
         }
@@ -2266,6 +2290,7 @@ export class PlanManagerPlugin extends ViewPlugin {
     // we still capture everything even if a specific field path shifts.
     this.reportPaddleTelemetry(event)
     this.trackCheckoutStage(event?.name as string | undefined)
+    this.onPaymentLifecycleEvent(event)
     const transactionId = (event as any)?.data?.transaction_id as string | undefined
     switch (event.name) {
     // Fired once when the checkout iframe loads, then on every change the
@@ -2290,7 +2315,14 @@ export class PlanManagerPlugin extends ViewPlugin {
     }
     case 'checkout.completed': {
       this.clearCheckoutLoadWatchdog()
+      // Already confirmed via the background poll (async payment methods can
+      // land before — or instead of — Paddle's event). Don't confirm twice.
+      if (this.store.getSnapshot().checkoutResult || this.checkoutContext?.confirmed) break
       const pendingIntent = this.store.getSnapshot().pendingCheckout?.intent ?? 'subscription'
+      if (pendingIntent === 'payment_method') {
+        void this.confirmPaymentMethodUpdate(transactionId)
+        break
+      }
       this.trackCheckout('completed', pendingIntent, transactionId)
       this.store.send({ type: 'CHECKOUT_COMPLETED', transactionId })
       planManagerLogger.log('[plan-manager:poll] triggered from paddle checkout.completed', { intent: pendingIntent, transactionId })
@@ -2545,6 +2577,296 @@ export class PlanManagerPlugin extends ViewPlugin {
       ctx.paymentFailures += 1
       break
     }
+  }
+
+  // ==================== Payment lifecycle (async confirm, approvals, declines) ====================
+
+  /**
+   * React to Paddle's payment events for the checkout in flight:
+   *  - `payment.initiated` → start a background webhook-confirmation poll
+   *    (UPI/WeChat/PayPal can be captured without Paddle.js ever emitting
+   *    `checkout.completed`) and arm the "waiting for approval" check.
+   *  - `payment.failed`    → look up *why* (live from Paddle) and explain it.
+   */
+  private onPaymentLifecycleEvent(event: PaddleEventData): void {
+    const ctx = this.checkoutContext
+    const name = event?.name as string | undefined
+    if (!ctx || !name) return
+    const method: string | undefined = (event as any)?.data?.payment?.method_details?.type
+    switch (name) {
+    case 'checkout.payment.initiated':
+      if (method) ctx.paymentMethod = method
+      // A fresh attempt supersedes an earlier decline / approval notice.
+      if (this.store.getSnapshot().checkoutNotice?.sticky) this.store.send({ type: 'CHECKOUT_NOTICE_DISMISS' })
+      this.startBackgroundConfirm(ctx)
+      this.armApprovalWatch(ctx)
+      break
+    case 'checkout.payment.failed':
+    case 'checkout.payment.error':
+      this.clearApprovalWatch(ctx)
+      void this.explainPaymentFailure(ctx)
+      break
+    case 'checkout.completed':
+    case 'checkout.closed':
+      this.clearApprovalWatch(ctx)
+      break
+    }
+  }
+
+  /** The checkout is still open and waiting on a payment outcome. */
+  private isCheckoutAwaitingPayment(ctx: CheckoutContext): boolean {
+    const snap = this.store.getSnapshot()
+    return this.checkoutContext === ctx && !!snap.pendingCheckout && !snap.checkoutResult && !ctx.confirmed
+  }
+
+  /**
+   * Poll our webhook mirror (`GET /billing/transaction/:id`, DB-only and
+   * cheap) while a payment is in flight. If the webhook says `completed`
+   * before Paddle.js does, confirm the purchase ourselves — otherwise a paid
+   * user stares at a frozen form (seen in telemetry: UPI user re-clicking
+   * "Pay" 8× for 7 minutes after being charged).
+   */
+  private startBackgroundConfirm(ctx: CheckoutContext): void {
+    if (ctx.backgroundConfirm || !ctx.transactionId || ctx.intent === 'payment_method') return
+    ctx.backgroundConfirm = true
+    const transactionId = ctx.transactionId
+    void (async () => {
+      const billingApi: any = await this.call('auth', 'getBillingApi').catch(() => null)
+      if (!billingApi?.getTransactionStatus) return
+      const deadline = Date.now() + BACKGROUND_CONFIRM_MAX_MS
+      while (Date.now() < deadline) {
+        await new Promise(r => setTimeout(r, BACKGROUND_CONFIRM_INTERVAL_MS))
+        if (!this.isCheckoutAwaitingPayment(ctx)) return
+        const resp = await billingApi.getTransactionStatus(transactionId).catch(() => null)
+        if (resp?.data?.status === 'completed' && this.isCheckoutAwaitingPayment(ctx)) {
+          this.confirmCheckoutFromWebhook(ctx)
+          return
+        }
+      }
+    })()
+  }
+
+  private confirmCheckoutFromWebhook(ctx: CheckoutContext): void {
+    ctx.confirmed = true
+    this.clearApprovalWatch(ctx)
+    const intent: CheckoutIntent = this.store.getSnapshot().pendingCheckout?.intent ?? 'subscription'
+    reportCheckoutTelemetry('checkout.confirmed_async', {
+      transactionId: ctx.transactionId,
+      message: 'Payment confirmed by webhook before Paddle.js emitted checkout.completed',
+      detail: { intent, method: ctx.paymentMethod ?? null, msSinceOpen: ctx.openedAt ? Date.now() - ctx.openedAt : null },
+    })
+    this.trackCheckout('confirmed_async', intent, ctx.paymentMethod)
+    this.trackCheckout('completed', intent, ctx.transactionId)
+    this.store.send({ type: 'CHECKOUT_COMPLETED', transactionId: ctx.transactionId })
+    // The transaction is already `completed`, so this resolves on its first tick.
+    void this.pollPaymentConfirmation(intent, ctx.transactionId)
+  }
+
+  private armApprovalWatch(ctx: CheckoutContext): void {
+    this.clearApprovalWatch(ctx)
+    ctx.approvalTimer = window.setTimeout(() => { void this.checkPendingApproval(ctx) }, APPROVAL_HINT_DELAY_MS)
+  }
+
+  private clearApprovalWatch(ctx: CheckoutContext): void {
+    if (ctx.approvalTimer !== undefined) {
+      window.clearTimeout(ctx.approvalTimer)
+      ctx.approvalTimer = undefined
+    }
+  }
+
+  /** One live lookup of the transaction's latest payment attempt. */
+  private async fetchPaymentStatus(ctx: CheckoutContext): Promise<TransactionPaymentStatusResponse | null> {
+    if (!ctx.transactionId) return null
+    const billingApi: any = await this.call('auth', 'getBillingApi').catch(() => null)
+    if (!billingApi?.getTransactionPayment) return null
+    const resp = await billingApi.getTransactionPayment(ctx.transactionId).catch(() => null)
+    return resp?.ok ? (resp.data as TransactionPaymentStatusResponse) : null
+  }
+
+  /**
+   * A payment was started ~45s ago and nothing has happened. Ask Paddle what
+   * the attempt is doing: a decline gets explained, a capture is left to the
+   * background confirm, and anything else (`action_required` — PayPal /
+   * Google Pay / UPI / 3-D Secure waiting on the user) gets a hint with an
+   * escape hatch, instead of an endlessly spinning form.
+   */
+  private async checkPendingApproval(ctx: CheckoutContext): Promise<void> {
+    ctx.approvalTimer = undefined
+    if (!this.isCheckoutAwaitingPayment(ctx) || ctx.stage !== 'payment_initiated') return
+    const payment = await this.fetchPaymentStatus(ctx)
+    if (!this.isCheckoutAwaitingPayment(ctx) || ctx.stage !== 'payment_initiated') return
+    const last = payment?.lastPayment
+    if (last?.status === 'error') {
+      this.showDeclineNotice(ctx, last.errorCode)
+      return
+    }
+    if (last?.status === 'captured' || payment?.status === 'paid' || payment?.status === 'completed') return
+    const method = ctx.paymentMethod ?? last?.methodType ?? null
+    reportCheckoutTelemetry('checkout.awaiting_approval', {
+      transactionId: ctx.transactionId,
+      message: `No payment outcome ${APPROVAL_HINT_DELAY_MS / 1000}s after payment.initiated`,
+      detail: { method, paymentStatus: last?.status ?? null, attempts: payment?.attempts ?? null, intent: ctx.intent },
+    })
+    this.trackCheckout('awaiting_approval', ctx.intent as CheckoutIntent, method ?? 'unknown')
+    this.store.send({
+      type: 'CHECKOUT_NOTICE',
+      level: 'warning',
+      sticky: true,
+      message: approvalHintMessage(method, !!ctx.checkoutUrl),
+      ...(ctx.checkoutUrl ? { action: 'open_hosted' as const } : {}),
+    })
+  }
+
+  /** After a failed attempt: fetch the decline reason once and explain it. */
+  private async explainPaymentFailure(ctx: CheckoutContext): Promise<void> {
+    if (ctx.declineLookup) return
+    ctx.declineLookup = true
+    // Which failure this lookup belongs to — if the user retries while we wait,
+    // the answer would describe the wrong attempt and stick over the new one.
+    const failureNo = ctx.paymentFailures
+    try {
+      // Give Paddle a moment to record the failed attempt on the transaction.
+      await new Promise(r => setTimeout(r, 1500))
+      if (ctx.stage !== 'payment_failed' || ctx.paymentFailures !== failureNo) return
+      const payment = await this.fetchPaymentStatus(ctx)
+      if (!this.isCheckoutAwaitingPayment(ctx)) return
+      if (ctx.stage !== 'payment_failed' || ctx.paymentFailures !== failureNo) return
+      const last = payment?.lastPayment
+      this.showDeclineNotice(ctx, last?.status === 'error' ? last.errorCode : null)
+    } finally {
+      ctx.declineLookup = false
+    }
+  }
+
+  private showDeclineNotice(ctx: CheckoutContext, errorCode: string | null): void {
+    const snap = this.store.getSnapshot()
+    const hasAddOns = snap.cartItems.length > 1
+    // Cheapest paid plan, offered when funds were short on a pricier plan.
+    const pendingPlanId = snap.pendingCheckout?.productId
+    const paidPlans = snap.catalogPlans.filter(p => (p.priceUsd ?? 0) > 0).sort((a, b) => (a.priceUsd ?? 0) - (b.priceUsd ?? 0))
+    const cheapest = paidPlans[0]
+    const cheaperPlanName = ctx.intent === 'subscription' && cheapest && pendingPlanId && cheapest.id !== pendingPlanId ? cheapest.name : null
+    reportCheckoutTelemetry('checkout.decline_reason', {
+      transactionId: ctx.transactionId,
+      errorCode: errorCode ?? 'unknown',
+      message: `Payment declined (${errorCode ?? 'unknown'})`,
+      detail: { method: ctx.paymentMethod ?? null, failures: ctx.paymentFailures, intent: ctx.intent, hasAddOns, offeredCheaperPlan: cheaperPlanName },
+    })
+    this.trackCheckout('decline_reason', ctx.intent as CheckoutIntent, errorCode ?? 'unknown')
+    this.store.send({
+      type: 'CHECKOUT_NOTICE',
+      level: 'error',
+      sticky: true,
+      message: declineMessage(errorCode, { hasAddOns, cheaperPlanName }),
+    })
+  }
+
+  /**
+   * Recover a subscription whose renewal failed (`past_due`): open Paddle's
+   * "update payment method" transaction inline. Paddle retries the
+   * outstanding renewal with the new method once it's saved.
+   */
+  async updatePaymentMethod(): Promise<void> {
+    if (this.isDesktop()) {
+      this.trackCheckout('desktop_handoff', 'payment_method')
+      this.openBillingOnWeb('plans')
+      return
+    }
+    await this.open()
+    const snap = this.store.getSnapshot()
+    if (!snap.isAuthenticated) return
+    const planState = selectPlanState(snap)
+    const planName = planState.kind === 'paid' ? planState.planName : 'your plan'
+    this.trackCheckout('intent', 'payment_method', planName)
+    reportCheckoutTelemetry('subscription.payment_method_update_started', {
+      detail: { planId: planState.planId, pastDue: !!planState.isPastDue },
+    })
+    this.store.send({ type: 'CHECKOUT_INTENT', intent: 'payment_method', itemLabel: planName, productId: planState.planId ?? undefined })
+    const ctx = this.beginCheckoutContext({ intent: 'payment_method', itemLabel: planName })
+    try {
+      const billingApi: any = await this.call('auth', 'getBillingApi').catch(() => null)
+      const resp = billingApi?.updatePaymentMethod ? await billingApi.updatePaymentMethod() : null
+      const transactionId: string | undefined = resp?.ok ? resp.data?.transactionId : undefined
+      if (!transactionId) {
+        const code = resp?.data?.error || resp?.error || 'update_payment_method_failed'
+        reportCheckoutTelemetry('transaction.error', { errorCode: code, message: 'update-payment-method returned no transaction', detail: { intent: 'payment_method' } })
+        this.store.send({ type: 'CHECKOUT_ERROR', message: 'We couldn’t start the payment method update. Please try again in a moment.' })
+        return
+      }
+      ctx.transactionId = transactionId
+      if (!this.paddle && !getPaddle()) await this.initPaddleSingleton()
+      const paddleInstance = this.paddle ?? getPaddle()
+      if (!paddleInstance) {
+        this.store.send({ type: 'CHECKOUT_ERROR', message: 'The secure payment form couldn’t load. Disable ad/tracking blockers for this site and try again.', transactionId })
+        return
+      }
+      reportCheckoutTelemetry('transaction.created', { transactionId, detail: { intent: 'payment_method', displayMode: 'inline' } })
+      const opened = await this.openInlineCheckout(paddleInstance, ctx)
+      if (opened === 'no_container') {
+        this.store.send({ type: 'CHECKOUT_ERROR', message: 'Could not open the payment form. Please try again.', transactionId })
+      }
+    } catch (err: any) {
+      planManagerLogger.error('[PlanManager] updatePaymentMethod failed', err)
+      this.store.send({ type: 'CHECKOUT_ERROR', message: err?.message || 'We couldn’t start the payment method update.' })
+    }
+  }
+
+  /**
+   * The new payment method is saved. Paddle now retries the failed renewal;
+   * wait briefly for the subscription to leave `past_due` so the result
+   * screen can say whether the renewal already went through.
+   */
+  private async confirmPaymentMethodUpdate(transactionId?: string): Promise<void> {
+    this.trackCheckout('completed', 'payment_method', transactionId)
+    reportCheckoutTelemetry('subscription.payment_method_updated', { transactionId })
+    const label = this.store.getSnapshot().pendingCheckout?.itemLabel
+    this.store.send({ type: 'CHECKOUT_COMPLETED', transactionId })
+    // Captured before waiting: the user may dismiss the processing screen or
+    // start another checkout meanwhile, which changes the snapshot.
+    const ctx = this.checkoutContext
+    const billingApi: any = await this.call('auth', 'getBillingApi').catch(() => null)
+    let recovered = false
+    const start = Date.now()
+    while (billingApi && Date.now() - start < PAYMENT_METHOD_RECOVERY_WAIT_MS) {
+      const resp = await billingApi.getSubscription().catch(() => null)
+      const status = resp?.data?.subscription?.status
+      if (resp?.ok && status && status !== 'past_due') { recovered = true; break }
+      await new Promise(r => setTimeout(r, 4000))
+    }
+    reportCheckoutTelemetry('subscription.past_due_recovery', {
+      transactionId,
+      message: recovered ? 'Renewal recovered after payment method update' : 'Payment method updated; renewal retry still pending',
+      detail: { recovered, waitedMs: Date.now() - start },
+    })
+    const confirmed = { intent: 'payment_method' as CheckoutIntent, label, items: [] as CartItem[] }
+    // A different checkout started while we waited — refresh data quietly and
+    // announce this update, but don't touch that checkout's state.
+    if (this.checkoutContext !== ctx && this.store.getSnapshot().pendingCheckout) {
+      void this.loadAccountData()
+      this.emit('purchaseConfirmed', { intent: confirmed.intent, label, items: [] as CartItem[] })
+      return
+    }
+    this.store.send({ type: 'CHECKOUT_RESULT_META', meta: { renewal: recovered ? 'recovered' : 'retrying' } })
+    await this.completePurchaseRefresh(confirmed)
+  }
+
+  /**
+   * Paddle refuses to price for some locations (sanctioned / unsupported:
+   * `address_location_not_allowed`). The inline checkout can't work there,
+   * so flag it once and let the UI say so up front instead of a dead form.
+   */
+  private noteRegionBlocked(err: unknown): void {
+    let text = ''
+    try { text = JSON.stringify(err) } catch { /* circular */ }
+    text += ` ${(err as any)?.message ?? ''} ${(err as any)?.error?.code ?? ''} ${(err as any)?.code ?? ''}`
+    if (!/address_location_not_allowed|unsupported location/i.test(text)) return
+    if (this.store.getSnapshot().paymentsBlockedInRegion) return
+    this.store.send({ type: 'REGION_PAYMENTS_BLOCKED' })
+    reportCheckoutTelemetry('checkout.region_blocked', {
+      errorCode: 'address_location_not_allowed',
+      message: 'Paddle PricePreview refused the visitor location',
+    })
+    this.trackCheckout('region_blocked', undefined, this.billingLocale?.countryCode ?? 'unknown')
   }
 
   /** Cancel a pending load watchdog (checkout reached a terminal state). */
@@ -2930,7 +3252,15 @@ export class PlanManagerPlugin extends ViewPlugin {
    * permissions cache, and the credits counter. These drive the top-bar
    * avatar menu and feature-gated UI elsewhere in the IDE.
    */
-  private async completePurchaseRefresh(): Promise<void> {
+  private async completePurchaseRefresh(
+    /**
+     * What was confirmed, when the caller already knows it. Used by flows that
+     * wait before refreshing (payment-method recovery): the user may dismiss
+     * the processing screen or start another checkout meanwhile, so the
+     * snapshot can no longer be trusted to describe this purchase.
+     */
+    confirmed?: { intent: CheckoutIntent; label?: string; items: CartItem[] }
+  ): Promise<void> {
     const LOG = '[plan-manager:refresh]'
     planManagerLogger.log(LOG, 'start')
     await Promise.all([
@@ -2946,18 +3276,20 @@ export class PlanManagerPlugin extends ViewPlugin {
     await this.call('auth', 'refreshCredits').catch(err => planManagerLogger.warn(LOG, 'refreshCredits failed', err))
     // Read what was bought BEFORE PURCHASE_CONFIRMED — it clears the cart and
     // the in-flight intent, which is where the purchased items live.
-    const items = this.resolvePurchasedItems()
+    const items = confirmed ? confirmed.items : this.resolvePurchasedItems()
     // Promote 'processing' → 'success' in the panel. DATA_LOADED alone won't
     // do it because the data state is usually 'ready' (not 'refreshing') by
     // the time we get here; PURCHASE_CONFIRMED is handled at machine root.
     this.store.send({ type: 'PURCHASE_CONFIRMED' })
     const cr = this.store.getSnapshot().checkoutResult
+    const intent = confirmed ? confirmed.intent : cr?.intent
+    const label = confirmed ? confirmed.label : cr?.itemLabel
     // Single source of truth for a fully-confirmed, account-refreshed purchase.
-    this.trackCheckout('confirmed', cr?.intent, cr?.itemLabel)
-    this.emit('purchaseConfirmed', { intent: cr?.intent, label: cr?.itemLabel, items })
+    this.trackCheckout('confirmed', intent, label)
+    this.emit('purchaseConfirmed', { intent, label, items })
     if (items.some(isStarterCreditPack)) {
       this.pendingCheapModelsAnnouncement = true
-      this.trackCheckout('cheap_models', 'armed', cr?.itemLabel)
+      this.trackCheckout('cheap_models', 'armed', label)
     }
     planManagerLogger.log(LOG, 'done')
   }
@@ -3390,6 +3722,7 @@ const PlanManagerOverlay: React.FC<{
             plugin={plugin}
             plans={visiblePlans}
             localizedPrices={catalogPrices?.byPaddlePriceId ?? null}
+            paymentsBlocked={snap.paymentsBlockedInRegion}
           />
         )}
 
@@ -3455,6 +3788,7 @@ const PlanManagerOverlay: React.FC<{
             {/* Alerts are credit/plan-oriented — only meaningful when
               at least one of those surfaces is visible. Shown above nav
               so urgent warnings are never buried. */}
+            {!checkoutActive && snap.paymentsBlockedInRegion && <RegionBlockedNotice />}
             {!checkoutActive && ui.anyVisible && activeAlert === 'beta-transition' && (
               <BetaTransitionAlert
                 planCtx={planCtx}
@@ -3468,6 +3802,7 @@ const PlanManagerOverlay: React.FC<{
                 planCtx={planCtx}
                 onRenew={() => setActiveSection('plans')}
                 onUpgrade={() => setActiveSection('plans')}
+                onUpdatePayment={() => { void plugin.updatePaymentMethod() }}
               />
             )}
 
@@ -4615,6 +4950,16 @@ interface CheckoutContext {
   loaded: boolean
   stage: CheckoutStage
   paymentFailures: number
+  /** Payment method of the latest attempt (Paddle `method_details.type`). */
+  paymentMethod?: string
+  /** Background webhook-confirmation poll is running for this checkout. */
+  backgroundConfirm?: boolean
+  /** Confirmed via the background poll — ignore a late Paddle `checkout.completed`. */
+  confirmed?: boolean
+  /** "Waiting for approval" check after a payment attempt. */
+  approvalTimer?: number
+  /** A decline-reason lookup is in flight (one per failed attempt). */
+  declineLookup?: boolean
 }
 
 /** Shared settings for the inline Paddle frame (fresh + resumed checkouts). */
@@ -4624,6 +4969,87 @@ const INLINE_CHECKOUT_SETTINGS = {
   frameTarget: 'paddle-checkout-container',
   frameInitialHeight: 700,
   frameStyle: 'width: 100%; min-width: 312px; min-height: 700px; background-color: transparent; border: none;',
+}
+
+/** Background webhook-confirmation poll after a payment attempt (DB-only endpoint). */
+const BACKGROUND_CONFIRM_INTERVAL_MS = 4_000
+const BACKGROUND_CONFIRM_MAX_MS = 15 * 60_000
+/** Abort the direct billing/config fetch after this long (the auth path races it). */
+const PADDLE_CONFIG_TIMEOUT_MS = 20_000
+/** How long a payment may sit without an outcome before we explain what's happening. */
+const APPROVAL_HINT_DELAY_MS = 45_000
+/** How long to wait for a past_due renewal to recover after a payment method update. */
+const PAYMENT_METHOD_RECOVERY_WAIT_MS = 30_000
+
+/** Human label for a Paddle payment method type (`google_pay` / `google-pay` …). */
+function paymentMethodLabel(method: string | null | undefined): string {
+  const m = (method || '').toLowerCase().replace(/-/g, '_')
+  const labels: Record<string, string> = {
+    paypal: 'PayPal',
+    google_pay: 'Google Pay',
+    apple_pay: 'Apple Pay',
+    upi: 'UPI',
+    wechat_pay: 'WeChat Pay',
+    alipay: 'Alipay',
+    blik: 'BLIK',
+    ideal: 'iDEAL',
+    bancontact: 'Bancontact',
+    kakao_pay: 'KakaoPay',
+    naver_pay: 'Naver Pay',
+  }
+  return labels[m] || 'your payment provider'
+}
+
+/** Copy for a payment that has been waiting on the user for a while. */
+function approvalHintMessage(method: string | null | undefined, canOpenHosted: boolean): string {
+  const m = (method || '').toLowerCase()
+  const escape = canOpenHosted
+    ? 'If nothing appeared, open the secure checkout in a new tab or choose another payment method.'
+    : 'If nothing appeared, choose another payment method.'
+  if (!m || m === 'card') {
+    return `Waiting for your bank to confirm this payment. Approve it in your banking app or the verification pop-up. ${escape}`
+  }
+  const label = paymentMethodLabel(m)
+  const where = /upi|wechat|alipay|blik|kakao|naver/.test(m) ? `in your ${label} app` : `in the ${label} window`
+  return `Waiting for ${label} to confirm your payment — approve it ${where}. ${escape}`
+}
+
+/**
+ * Explain a declined payment from Paddle's payment-attempt `error_code` and
+ * suggest the most likely way through. Codes seen in production:
+ * not_enough_balance, declined, declined_not_retryable, transaction_not_permitted,
+ * authentication_failed, psp_error, fraud.
+ */
+function declineMessage(
+  errorCode: string | null,
+  opts: { hasAddOns: boolean; cheaperPlanName: string | null }
+): string {
+  const tryOther = 'Try another card, or pay with PayPal or Google Pay.'
+  switch (errorCode) {
+  case 'not_enough_balance': {
+    const cheaper = [
+      opts.hasAddOns ? 'remove the credit add-ons' : null,
+      opts.cheaperPlanName ? `start with ${opts.cheaperPlanName}` : null,
+    ].filter(Boolean)
+    return `Your bank declined this payment for insufficient funds. ${tryOther}${cheaper.length ? ` You can also ${cheaper.join(' or ')} to lower the total.` : ''}`
+  }
+  case 'transaction_not_permitted':
+    return 'This card isn’t enabled for online or international payments. You can usually switch that on in your banking app — or try another card or PayPal.'
+  case 'authentication_failed':
+    return 'Your bank’s security check (3-D Secure) didn’t complete. Try again and approve the payment in your banking app.'
+  case 'expired_card':
+    return `This card has expired. ${tryOther}`
+  case 'psp_error':
+    return `The payment network had a temporary problem. Please try again in a moment. ${tryOther}`
+  case 'declined':
+  case 'declined_not_retryable':
+    return `Your bank declined this payment. ${tryOther} Your bank can tell you why it was declined.`
+  case 'fraud':
+  case 'blocked_card':
+    return `This payment couldn’t be processed. ${tryOther}`
+  default:
+    return `This payment didn’t go through. ${tryOther}`
+  }
 }
 
 /** A single product's localized list price from the batched catalog preview. */
@@ -5943,8 +6369,35 @@ const PlanLifecycleAlert: React.FC<{
   planCtx: PlanState
   onRenew: () => void
   onUpgrade: () => void
-}> = ({ planCtx, onRenew, onUpgrade }) => {
+  onUpdatePayment: () => void
+}> = ({ planCtx, onRenew, onUpgrade, onUpdatePayment }) => {
   if (planCtx.lifecycle === 'active') return null
+  if (planCtx.isPastDue) {
+    return (
+      <section className="pm-alert pm-alert--plan pm-alert--plan-expired pm-alert--past-due" data-id="pm-past-due-alert">
+        <div className="pm-alert__glow" aria-hidden />
+        <div className="pm-alert__icon">
+          <i className="fas fa-credit-card"></i>
+        </div>
+        <div className="pm-alert__body">
+          <div className="pm-alert__eyebrow">Payment failed</div>
+          <div className="pm-alert__title">We couldn’t renew your {planCtx.planName} plan</div>
+          <p className="pm-alert__desc">
+            Your last renewal payment didn’t go through — usually because the card was short on funds or blocked by the bank.
+            Update your payment method to keep your monthly AI credits and paid features. We’ll retry the payment right away.
+          </p>
+        </div>
+        <div className="pm-alert__actions">
+          <a className="pm-alert__btn pm-alert__btn--ghost" href={DISCORD_URL} target="_blank" rel="noreferrer">
+            <i className="fab fa-discord"></i> Get help
+          </a>
+          <button className="pm-alert__btn pm-alert__btn--solid" data-id="pm-update-payment-method" onClick={onUpdatePayment}>
+            <i className="fas fa-credit-card"></i> Update payment method
+          </button>
+        </div>
+      </section>
+    )
+  }
   const copy = PLAN_ALERT_COPY[planCtx.lifecycle]
   const variant = planCtx.lifecycle
   const isTrial = variant === 'trial'
@@ -6101,12 +6554,29 @@ const PlanManagerSkeleton: React.FC = () => (
  * `startSignInFlow` handles desktop (system browser) vs web (in-app modal),
  * and `LoginModal` is the shared provider-picker UI.
  */
+/**
+ * Paddle refused to price for the visitor's location, so card/wallet checkout
+ * can't open from here. Say so up front rather than letting people walk into
+ * a payment form that never loads (seen in telemetry: 6 retries in 11 min).
+ */
+const RegionBlockedNotice: React.FC = () => (
+  <div className="pm-region-blocked" role="status" data-id="pm-region-blocked">
+    <i className="fas fa-globe" aria-hidden></i>
+    <div>
+      <strong>Payments aren’t available in your region yet.</strong>{' '}
+      Our payment provider can’t accept payments from your current location. If you’re using a VPN, try turning it off.{' '}
+      Questions? <a href={DISCORD_URL} target="_blank" rel="noreferrer">Reach out on Discord</a>.
+    </div>
+  </div>
+)
+
 const SignInPromptScreen: React.FC<{
   plugin: any
   /** Public catalog, rendered display-only below the prompt. */
   plans: any[]
   localizedPrices: Record<string, LocalizedCatalogPrice> | null
-}> = ({ plugin, plans, localizedPrices }) => {
+  paymentsBlocked?: boolean
+}> = ({ plugin, plans, localizedPrices, paymentsBlocked }) => {
   const [showLoginModal, setShowLoginModal] = React.useState(false)
   const [pending, setPending] = React.useState(false)
 
@@ -6157,6 +6627,7 @@ const SignInPromptScreen: React.FC<{
             </span>
           </div>
           <section className="pm-signin-catalog" data-id="pm-signin-catalog">
+            {paymentsBlocked && <RegionBlockedNotice />}
             <PlansSection
               plans={plans}
               currentPlanId={null}
@@ -6616,22 +7087,27 @@ const CHECKOUT_COPY: Record<CheckoutResultKind, {
       ? `Cancelling ${item || 'your subscription'}…`
       : intent === 'reactivate'
         ? `Reactivating ${item || 'your subscription'}…`
-        : 'Confirming your payment…',
+        : intent === 'payment_method'
+          ? 'Retrying your renewal…'
+          : 'Confirming your payment…',
     body: (intent, item) => intent === 'cancel'
       ? `We’re processing your cancellation${item ? ` of ${item}` : ''}. This usually takes just a moment.`
       : intent === 'reactivate'
         ? `We’re removing the scheduled cancellation${item ? ` for ${item}` : ''}. This usually takes just a moment.`
-        : `We're waiting for confirmation from the payment processor${item ? ` for ${item}` : ''}. This usually takes a few seconds — feel free to keep this open or close it; we'll notify you when it lands.`
+        : intent === 'payment_method'
+          ? 'Your new payment method is saved. We’re retrying your renewal with it now — this usually takes a few seconds.'
+          : `We're waiting for confirmation from the payment processor${item ? ` for ${item}` : ''}. This usually takes a few seconds — feel free to keep this open or close it; we'll notify you when it lands.`
   },
   success: {
     eyebrow: 'Payment confirmed',
     icon: 'fas fa-check',
-    title: (intent, item) =>
+    title: (intent, item, meta) =>
       intent === 'topup' ? `${item || 'Credits'} added to your account` :
         intent === 'subscription' ? `Welcome to ${/^remix/i.test(item || '') ? item : `Remix ${item || 'Pro'}`}!` :
           intent === 'cancel' ? `${item || 'Subscription'} cancelled` :
             intent === 'reactivate' ? `${item || 'Subscription'} reactivated` :
-              'Purchase confirmed',
+              intent === 'payment_method' ? (meta?.renewal === 'recovered' ? `${item || 'Your plan'} is active again` : 'Payment method updated') :
+                'Purchase confirmed',
     body: (intent, _item, meta) =>
       intent === 'topup'
         ? 'Your balance has been updated. AI workflows are ready to go.'
@@ -6643,7 +7119,11 @@ const CHECKOUT_COPY: Record<CheckoutResultKind, {
               : 'Your subscription has been cancelled and you’re back on the Free plan. Any unused paid credits stay in your account and keep working.')
             : intent === 'reactivate'
               ? 'Your subscription will renew as normal — the scheduled cancellation has been removed and you keep every paid feature and credit.'
-              : 'You can start using your new entitlements right away.'
+              : intent === 'payment_method'
+                ? (meta?.renewal === 'recovered'
+                  ? 'Your renewal went through with your new payment method. Your monthly AI credits and paid features are back — thanks for staying with us!'
+                  : 'Your new payment method is saved and we’re retrying your renewal with it. Your plan reactivates automatically as soon as the payment goes through — usually within a few minutes.')
+                : 'You can start using your new entitlements right away.'
   },
   closed: {
     eyebrow: 'Checkout cancelled',
@@ -6652,7 +7132,9 @@ const CHECKOUT_COPY: Record<CheckoutResultKind, {
     body: (intent) =>
       intent === 'topup'
         ? 'You closed the checkout before completing the purchase. No card was charged. Pick a top-up amount whenever you\'re ready.'
-        : 'You closed the checkout before completing the upgrade. Your current plan is unchanged. Take another look at the options below when you\'re ready.'
+        : intent === 'payment_method'
+          ? 'Your payment method wasn’t changed and your renewal is still pending. You can update it any time from Plan & Credits.'
+          : 'You closed the checkout before completing the upgrade. Your current plan is unchanged. Take another look at the options below when you\'re ready.'
   },
   error: {
     eyebrow: 'Payment failed',
@@ -6667,7 +7149,9 @@ const CHECKOUT_COPY: Record<CheckoutResultKind, {
         ? 'We couldn’t cancel your subscription'
         : intent === 'reactivate'
           ? 'We couldn’t reactivate your subscription'
-          : 'We couldn’t complete your payment'
+          : intent === 'payment_method'
+            ? 'We couldn’t update your payment method'
+            : 'We couldn’t complete your payment'
     },
     body: (intent, _item, meta) => {
       if (meta?.flow === 'plan-change-preview') {
@@ -6678,6 +7162,7 @@ const CHECKOUT_COPY: Record<CheckoutResultKind, {
       if (intent === 'topup') return 'Your top-up didn\'t go through. No credits were added and no card was charged.'
       if (intent === 'cancel') return 'Your cancellation request didn’t go through. Your subscription is unchanged. Please try again or contact support if the problem persists.'
       if (intent === 'reactivate') return 'Your reactivation request didn’t go through. The scheduled cancellation is still in place. Please try again or contact support if the problem persists.'
+      if (intent === 'payment_method') return 'Your payment method is unchanged and your renewal is still pending. Please try again, or reach out to us on Discord if it keeps failing.'
       return 'Your subscription change didn\'t go through. Your current plan is unchanged and no card was charged.'
     }
   }

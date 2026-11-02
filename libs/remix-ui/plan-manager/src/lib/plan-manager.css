@@ -2458,6 +2458,31 @@
 .pm-alert__btn--ghost:hover {
   background: var(--custom-onsurface-layer-2);
 }
+a.pm-alert__btn {
+  text-decoration: none;
+}
+
+/* Paddle can't take payments from the visitor's location */
+.pm-region-blocked {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin: 12px 28px;
+  padding: 10px 14px;
+  border-radius: var(--bs-border-radius);
+  border: 1px solid color-mix(in srgb, var(--bs-warning) 45%, transparent);
+  background: color-mix(in srgb, var(--bs-warning) 10%, transparent);
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--bs-body-color);
+}
+.pm-region-blocked > i {
+  margin-top: 2px;
+  color: var(--bs-warning);
+}
+.pm-region-blocked strong { color: var(--bs-heading-color); }
+.pm-region-blocked a { color: var(--bs-link-color); }
+.pm-signin-catalog .pm-region-blocked { margin: 0 0 12px; }
 
 .pm-alert__btn--solid {
   background: var(--pm-state);
