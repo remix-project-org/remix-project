@@ -175,10 +175,10 @@ function EezPortraitView() {
               Select the EEZ RPC in your wallet
             </p>
             <p className="mb-1">
-              The EEZ composer RPC was added to {currentNetworkLabel}, but your wallet is still using its previous RPC. To switch in MetaMask:
+              The EEZ composer RPC was added to {currentNetworkLabel}, but your wallet is still using its previous RPC. To switch in browser extension settings:
             </p>
             <ol className="mb-2 ps-3">
-              <li>Open the MetaMask network menu.</li>
+              <li>Open the browser extension's network menu.</li>
               <li>Click {currentNetworkLabel} to show its RPC list.</li>
               <li>Select <code className="text-break">{EEZ_COMPOSER_RPC_URLS[walletRpc.chainId]?.rpcUrl}</code>.</li>
               <li>Click "Check again" below.</li>
