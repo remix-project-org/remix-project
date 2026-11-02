@@ -1,7 +1,7 @@
 import * as packageJson from '../../../../../package.json'
 import { Plugin } from '@remixproject/engine';
 import { trackMatomoEvent, Features, ChatPromptMetadata } from '@remix-api'
-import { remixAILogger, RemoteInferencer, IRemoteModel, IParams, GenerationParams, AssistantParams, CodeExplainAgent, SecurityAgent, CompletionParams, OllamaInferencer } from '@remix/remix-ai-core';
+import { remixAILogger, isRemixAILoggingEnabled, getDriftStats, resetDriftStats, getBaselines, getModelCallStats, RemoteInferencer, IRemoteModel, IParams, GenerationParams, AssistantParams, CodeExplainAgent, SecurityAgent, CompletionParams, OllamaInferencer } from '@remix/remix-ai-core';
 import { CodeCompletionAgent, ContractAgent, workspaceAgent, IContextType, mcpDefaultServersConfig, mcpBasicServersConfig, mcpWebSearchServersConfig } from '@remix/remix-ai-core';
 import { MCPInferencer, DeepAgentInferencer, onApiKeysChange, DeepAgentErrorType } from '@remix/remix-ai-core';
 import { IMCPServer, IMCPConnectionStatus } from '@remix/remix-ai-core';
@@ -51,6 +51,7 @@ const profile = {
     'onToolApprovalRequired', 'ollamaModelDiscovered',
     'aiScreenshotCaptured', 'onAIFileChanged',
     'onInactivityTimeout', 'onModelUsed',
+    'onStreamReplace', 'onModelDegraded',
     'requestCancelled'
   ],
   icon: 'assets/img/remix-logo-blue.png',
@@ -324,6 +325,10 @@ export class RemixAIPlugin extends Plugin {
   }
 
   async onActivation(): Promise<void> {
+    // DevTools handle on the drift / model telemetry, debug sessions only.
+    if (isRemixAILoggingEnabled() && typeof window !== 'undefined') {
+      (window as any).__remixAI = { getDriftStats, resetDriftStats, getBaselines, getModelCallStats }
+    }
     const { hasBasicMcp, hasWebSearch } = await this.checkMCPAccess()
     let mcpPermissionSyncInFlight = false
 

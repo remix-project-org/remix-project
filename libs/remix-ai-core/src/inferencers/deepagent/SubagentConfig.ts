@@ -1,5 +1,6 @@
 import { SubAgent, CompiledSubAgent, createDeepAgent } from 'deepagents'
 import type { DynamicStructuredTool } from '@langchain/core/tools'
+import type { AgentMiddleware } from 'langchain'
 import { BaseChatModel } from '@langchain/core/language_models/chat_models'
 import {
   FRONTEND_SPECIALIST_SUBAGENT_PROMPT,
@@ -55,6 +56,8 @@ export async function buildSubagentConfigs(
   tools: DynamicStructuredTool[],
   model: BaseChatModel,
   filesystemBackend: any,
+  /** Fresh per subagent: the drift monitor keeps per-agent loop state. */
+  createMonitorMiddleware: () => AgentMiddleware[] = () => [],
 ): Promise<(SubAgent | CompiledSubAgent)[]> {
   // Check permissions
   const plugin = filesystemBackend.plugin
@@ -254,7 +257,7 @@ export async function buildSubagentConfigs(
   const multimodalMiddleware = [new RemixTurnAttachmentsMiddleware(), new RemixVisionMiddleware()]
   for (const agent of agents) {
     if ('runnable' in agent) continue
-    agent.middleware = [...(agent.middleware ?? []), ...multimodalMiddleware]
+    agent.middleware = [...(agent.middleware ?? []), ...multimodalMiddleware, ...createMonitorMiddleware()]
   }
 
   remixAILogger.log('[SubagentConfig] ' + agents.map((a: any) => `${a.name}=${a.model?.model ?? '?'}`).join(' '))

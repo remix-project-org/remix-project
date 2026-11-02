@@ -132,7 +132,7 @@
     "@gradio/client": "^0.10.1",
     "@isomorphic-git/lightning-fs": "^4.4.1",
     "@langchain/aws": "^1.4.2",
-    "@langchain/core": "^1.2.9",
+    "@langchain/core": "^1.2.14",
     "@langchain/langgraph": "^1.4.10",
     "@langchain/langgraph-checkpoint": "^1.1.5",
     "@langchain/langgraph-sdk": "^1.9.23",
@@ -188,7 +188,7 @@
     "cors": "^2.8.5",
     "create-hash": "^1.2.0",
     "deep-equal": "^1.0.1",
-    "deepagents": "^1.13.1",
+    "deepagents": "^1.15.1",
     "document-register-element": "1.13.1",
     "dompurify": "^3.2.5",
     "driver.js": "^1.4.0",
@@ -456,7 +456,7 @@
     "webpack-cli": "^4.10.0"
   },
   "resolutions": {
-    "@langchain/core": "^1.2.9",
+    "@langchain/core": "^1.2.14",
     "@metamask/eth-sig-util/@ethereumjs/util": "^8.1.0",
     "@types/react": "^18.2.0",
     "@ethereumjs/blockchain": "^10.1.1",

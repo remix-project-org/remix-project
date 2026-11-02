@@ -6081,15 +6081,15 @@
     "@aws-sdk/client-kendra" "^3.1078.0"
     "@aws-sdk/credential-provider-node" "^3.972.61"
 
-"@langchain/core@^1.2.9":
-  version "1.2.9"
-  resolved "https://registry.yarnpkg.com/@langchain/core/-/core-1.2.9.tgz#4f5fb27ba07c51ce4fb8e1dc32eb36945737afa1"
-  integrity sha512-conzSEj9Zu1AyXJLXsSbgrtxtxinmI1yGqQ5CIJZSoV5rvv+yvQE/vgBnoySpBQ/bl3YPgj2FL/gbDjWykLSfg==
+"@langchain/core@^1.2.14":
+  version "1.2.19"
+  resolved "https://registry.yarnpkg.com/@langchain/core/-/core-1.2.19.tgz#e9265a1a183ebee5248e82f21b139e8b50a0c9d9"
+  integrity sha512-8WbT7Ep1x4ljG4BpGrI4d/bDA/LKWV3uMUjUTxjhreH3mlyWHmcQCF/Ba5wyRwyTAD1vjNJUOvq7kVT16xdX+Q==
   dependencies:
     "@cfworker/json-schema" "^4.0.2"
     "@standard-schema/spec" "^1.1.0"
     js-tiktoken "^1.0.12"
-    langsmith ">=0.5.0 <1.0.0"
+    langsmith ">=0.11.0 <1.0.0"
     mustache "^4.2.0"
     p-queue "^6.6.2"
     zod "^3.25.76 || ^4"
@@ -17033,10 +17033,10 @@ deep-is@^0.1.3:
   resolved "https://registry.yarnpkg.com/deep-is/-/deep-is-0.1.4.tgz#a6f2dce612fadd2ef1f519b73551f17e85199831"
   integrity sha512-oIPzksmTg4/MriiaYGO+okXDT7ztn/w3Eptv/+gSIdMdKsJo0u4CfYNFJPy+4SKMuCqGw2wxnA+URMg3t8a/bQ==
 
-deepagents@^1.13.1:
-  version "1.13.1"
-  resolved "https://registry.yarnpkg.com/deepagents/-/deepagents-1.13.1.tgz#3214dec8f49cd743a71d1f1b343dc0496699678e"
-  integrity sha512-DB8dkbrd4cqejroU90qAGTtY7ZvIchsMSaOMjE7TWnsi/6IrpBPxg3xN0Vxjuq/x8jkufkIqk3I57RbZmdSJFw==
+deepagents@^1.15.1:
+  version "1.15.1"
+  resolved "https://registry.yarnpkg.com/deepagents/-/deepagents-1.15.1.tgz#df22c5aa84fbb825d94ef3f03a6769e0a3a28f80"
+  integrity sha512-lnzyRxD9006EtejOJrKmbNX90rCIRwEOtiB/MVUI0gOjVoE8csNMnlStrmsgSfZTbskH1131S+z4Iwpi6rLD5A==
   dependencies:
     fast-glob "^3.3.3"
     micromatch "^4.0.8"
@@ -24215,6 +24215,13 @@ langfuse@^3.38.20:
   integrity sha512-MAmBAASSzJtmK1O9HQegA1mFsQhT8Yf+OJRGvE7FXkyv3g/eiBE0glLD0Ohg3pkxhoPdggM5SejK7ue9ctlaMA==
   dependencies:
     langfuse-core "^3.38.20"
+
+"langsmith@>=0.11.0 <1.0.0":
+  version "0.11.0"
+  resolved "https://registry.yarnpkg.com/langsmith/-/langsmith-0.11.0.tgz#63f493faec6268fab81ca57d827639d97755b1ef"
+  integrity sha512-NMyaEhfHKAVPdXR8jqP1in4BAr2RhJTmBsH+ZzhvBDTxWUsuaprnJxkRe/3NY5d2+wCaPtzbDK2Myhh6vg2q7w==
+  dependencies:
+    p-queue "6.6.2"
 
 "langsmith@>=0.5.0 <1.0.0":
   version "0.5.16"
