@@ -3,7 +3,7 @@ import { FormattedMessage } from 'react-intl'
 import * as ethJSUtil from '@ethereumjs/util'
 import { DeployedContractsAppContext } from '../contexts'
 import { DeployedContractItem } from '../components/DeployedContractItem'
-import { checkSumWarning } from '@remix-ui/helper'
+import { checkSumWarning, CustomTooltip } from '@remix-ui/helper'
 import { loadAddress } from '../actions'
 import { TrackingContext } from '@remix-ide/tracking'
 import { ArkivRetrievePanel } from '../components/ArkivRetrievePanel'
@@ -192,20 +192,25 @@ export default function DeployedContractsPortraitView() {
             <i className="fa-solid fa-plus me-1"></i>
             <span className="text-nowrap">Add Contract</span>
           </button>
-          <button
-            className="btn btn-sm btn-outline-secondary"
-            title="Retrieve contracts saved on Arkiv"
-            data-id="retrieveFromArkiv"
-            onClick={() => {
-              trackMatomoEvent?.({ category: 'udapp', action: 'deployedContractRetrieveArkiv', name: 'clicked', isClick: true })
-              setShowRetrievePanel(prev => !prev)
-              dispatch({ type: 'SHOW_ADD_DIALOG', payload: false })
-              dispatch({ type: 'SHOW_CLEAR_ALL_DIALOG', payload: false })
-            }}
-            style={{ background: 'none', border: 'none', padding: '2px 6px' }}
+          <CustomTooltip
+            placement="top"
+            tooltipId="retrieveFromArkivTooltip"
+            tooltipText="Retrieve contracts saved on Arkiv"
           >
-            <i className="fas fa-cloud-download-alt" aria-hidden="true"></i>
-          </button>
+            <button
+              className="btn btn-sm btn-outline-secondary"
+              data-id="retrieveFromArkiv"
+              onClick={() => {
+                trackMatomoEvent?.({ category: 'udapp', action: 'deployedContractRetrieveArkiv', name: 'clicked', isClick: true })
+                setShowRetrievePanel(prev => !prev)
+                dispatch({ type: 'SHOW_ADD_DIALOG', payload: false })
+                dispatch({ type: 'SHOW_CLEAR_ALL_DIALOG', payload: false })
+              }}
+              style={{ background: 'none', border: 'none', padding: '2px 6px' }}
+            >
+              <i className="fas fa-cloud-download-alt" aria-hidden="true"></i>
+            </button>
+          </CustomTooltip>
           {deployedContracts.length > 0 && (
             <button
               className="btn btn-outline-danger btn-sm pe-0"

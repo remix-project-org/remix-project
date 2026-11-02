@@ -135,9 +135,16 @@ export class ArkivNetworkPlugin extends Plugin {
       select,
     )
 
+    const testingBanner = React.createElement(
+      'p',
+      { style: { fontSize: '0.75rem', color: 'var(--bs-warning)', marginBottom: 10 } },
+      '⚠ For testing purposes only.',
+    )
+
     const message = React.createElement(
       'div',
       null,
+      testingBanner,
       topContent
         ? React.createElement('p', { style: { whiteSpace: 'pre-line', marginBottom: 12, fontSize: '0.85rem' } }, topContent)
         : null,
