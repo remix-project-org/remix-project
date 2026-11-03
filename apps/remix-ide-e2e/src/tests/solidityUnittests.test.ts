@@ -347,7 +347,7 @@ module.exports = {
       .switchEnvironment('vm-cancun', 'Remix_VM')
       .clickLaunchIcon('solidity')
       .setSolidityCompilerVersion('builtin')
-      .click('.remixui_compilerConfigSection')
+      .click('*[data-id="scConfigExpander"]')
       .setValue('#evmVersionSelector', 'cancun') // Temporary fix
       .clickLaunchIcon('filePanel')
       .click('*[data-id="treeViewLitreeViewItemcontracts"]')

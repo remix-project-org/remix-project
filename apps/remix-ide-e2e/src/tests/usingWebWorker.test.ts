@@ -32,6 +32,7 @@ module.exports = {
       // using autocompile when switching compilers quickly confuses the process and results in a wrong compiler version being used or results displayed
       .waitForElementVisible('[for="autoCompile"]')
       .click('[for="autoCompile"]')
+      .click('*[data-id="scConfigExpander"]')
       .waitForElementVisible('[data-id="compilerNightliesBuild"]')
       .click('[data-id="compilerNightliesBuild"]')
       .addFile('basic.sol', sources[0]['basic.sol'])      

@@ -56,7 +56,7 @@ module.exports = {
       .setSolidityCompilerVersion('soljson-v0.8.1+commit.df193b15.js')
       .addFile('ContractStackLimit.sol', { content: contractStackLimit })
       .clickLaunchIcon('solidity')
-      .waitForElementContainsText('*[data-id="compiledErrors"]', 'CompilerError: Stack too deep when compiling inline assembly: Variable headStart is 1 slot(s) too deep inside the stack.', 60000)
+      .waitForElementContainsText('*[data-id="compiledErrors"]', 'Stack too deep when compiling inline assembly: Variable headStart is 1 slot(s) too deep inside the stack.', 60000)
   },
 
   'Should compile Yul contract and get no remapping errors #group1': function (browser: NightwatchBrowser) {
