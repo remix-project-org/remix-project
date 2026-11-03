@@ -159,6 +159,8 @@ export class PlanManagerPlugin extends ViewPlugin {
   // Plan a signed-out visitor picked via "Sign up & get <plan>". Consumed on
   // the next successful login to drop them straight into that plan's checkout.
   private pendingPlanAfterSignIn: { planId: string; priceId?: number; at: number } | null = null
+  // Server-side payments-availability check runs once per session.
+  private paymentsAvailabilityChecked = false
   // Panel was opened by a generic "Sign In" (top bar) while signed out — once
   // the login lands, get out of the way unless the user picked a plan.
   private closeAfterSignIn = false
@@ -429,6 +431,7 @@ export class PlanManagerPlugin extends ViewPlugin {
     })
     this.store.send({ type: 'OPEN_OVERLAY', intent: resolved })
     this.closeAfterSignIn = resolved?.reason === 'sign-in' && !snapBefore.isAuthenticated
+    void this.checkPaymentsAvailability()
     // Refresh on every open — catalog (plans/packages) and, when signed
     // in, account-scoped data (credits/quotas, subscription, permissions).
     // This keeps the panel consistent with the API instead of relying on
@@ -625,6 +628,7 @@ export class PlanManagerPlugin extends ViewPlugin {
     const itemLabel = pkg ? `${pkg.credits.toLocaleString()} credits${pkg.name ? ` (${pkg.name})` : ''}` : packageId
     this.trackCheckout('intent', 'topup', itemLabel)
     this.store.send({ type: 'CHECKOUT_INTENT', intent: 'topup', itemLabel, productId: packageId })
+    if (this.blockCheckoutForRegion('topup', itemLabel)) return
     // Credit-package purchases stay on the legacy /billing/purchase-credits
     // endpoint for now (it already produces a Paddle transaction); the
     // optional `priceId` is forwarded for multi-price packages once the
@@ -803,6 +807,7 @@ export class PlanManagerPlugin extends ViewPlugin {
 
     this.trackCheckout('intent', 'subscription', `${itemLabel} (${cart.length} item${cart.length !== 1 ? 's' : ''})`)
     this.store.send({ type: 'CHECKOUT_INTENT', intent: 'subscription', itemLabel, productId })
+    if (this.blockCheckoutForRegion('subscription', itemLabel)) return
 
     await this.runCheckout('subscription', itemLabel, async () => {
       const productsApi: any = await this.call('auth', 'getProductsApi').catch(() => null)
@@ -2085,6 +2090,7 @@ export class PlanManagerPlugin extends ViewPlugin {
       transactionId,
       resumed: true,
     })
+    if (this.blockCheckoutForRegion(intent, itemLabel, transactionId)) return
 
     try {
       if (!this.paddle && !getPaddle()) {
@@ -2147,6 +2153,25 @@ export class PlanManagerPlugin extends ViewPlugin {
     this.armCheckoutLoadWatchdog(ctx)
     this.store.send({ type: 'CHECKOUT_OPENED' })
     return 'opened'
+  }
+
+  /**
+   * Refuse to start a checkout when we already know Paddle won't accept
+   * payments from this location — otherwise we create a draft transaction and
+   * open a form that can only fail ("Cannot create address with an
+   * unsupported location").
+   */
+  private blockCheckoutForRegion(intent: CheckoutIntent, itemLabel?: string, transactionId?: string): boolean {
+    if (!this.store.getSnapshot().paymentsBlockedInRegion) return false
+    this.trackCheckout('error', intent, 'region_blocked')
+    reportCheckoutTelemetry('transaction.error', {
+      transactionId,
+      errorCode: 'region_blocked',
+      message: 'Checkout not started — payments unavailable in visitor region',
+      detail: { intent, itemLabel },
+    })
+    this.store.send({ type: 'CHECKOUT_ERROR', message: REGION_BLOCKED_MESSAGE, meta: { flow: 'region-blocked' } })
+    return true
   }
 
   /**
@@ -2342,9 +2367,17 @@ export class PlanManagerPlugin extends ViewPlugin {
     case 'checkout.error' as any: {
       const isWarning = event.name === ('checkout.warning' as any)
       this.clearCheckoutLoadWatchdog()
-      const message = (event as any)?.error?.message
-        || (event as any)?.data?.error?.message
-        || 'Payment failed'
+      const raw = this.extractPaddleErrorMessage(event)
+      // Paddle refuses the visitor's location (sanctions / unsupported
+      // country). Nothing in the form can fix that — say so plainly and stop
+      // further checkouts from this session.
+      if (raw && REGION_BLOCKED_RE.test(raw)) {
+        this.markRegionBlocked('checkout_error')
+        this.trackCheckout('error', this.store.getSnapshot().pendingCheckout?.intent, 'region_blocked')
+        this.store.send({ type: 'CHECKOUT_ERROR', message: REGION_BLOCKED_MESSAGE, meta: { flow: 'region-blocked' } })
+        break
+      }
+      const message = raw || 'Payment failed'
       this.trackCheckout('error', this.store.getSnapshot().pendingCheckout?.intent, message)
       this.store.send({ type: 'CHECKOUT_NOTICE', level: isWarning ? 'warning' : 'error', message })
       break
@@ -2754,6 +2787,7 @@ export class PlanManagerPlugin extends ViewPlugin {
       detail: { planId: planState.planId, pastDue: !!planState.isPastDue },
     })
     this.store.send({ type: 'CHECKOUT_INTENT', intent: 'payment_method', itemLabel: planName, productId: planState.planId ?? undefined })
+    if (this.blockCheckoutForRegion('payment_method', planName)) return
     const ctx = this.beginCheckoutContext({ intent: 'payment_method', itemLabel: planName })
     try {
       const billingApi: any = await this.call('auth', 'getBillingApi').catch(() => null)
@@ -2830,15 +2864,49 @@ export class PlanManagerPlugin extends ViewPlugin {
   private noteRegionBlocked(err: unknown): void {
     let text = ''
     try { text = JSON.stringify(err) } catch { /* circular */ }
-    text += ` ${(err as any)?.message ?? ''} ${(err as any)?.error?.code ?? ''} ${(err as any)?.code ?? ''}`
-    if (!/address_location_not_allowed|unsupported location/i.test(text)) return
+    text += ` ${(err as any)?.message ?? ''} ${(err as any)?.error?.code ?? ''} ${(err as any)?.code ?? ''} ${(err as any)?.detail ?? ''}`
+    if (!REGION_BLOCKED_RE.test(text)) return
+    this.markRegionBlocked('price_preview')
+  }
+
+  /**
+   * Flag (once) that Paddle won't take payments from the visitor's location.
+   * Sources: a refused price preview, an `unsupported location` checkout
+   * error, or the billing server's payments-availability check (which also
+   * covers countries Paddle prices but refuses to sell to, e.g. Venezuela).
+   */
+  private markRegionBlocked(source: 'price_preview' | 'checkout_error' | 'server_check', countryCode?: string | null): void {
     if (this.store.getSnapshot().paymentsBlockedInRegion) return
     this.store.send({ type: 'REGION_PAYMENTS_BLOCKED' })
+    const country = countryCode ?? this.billingLocale?.countryCode ?? null
     reportCheckoutTelemetry('checkout.region_blocked', {
       errorCode: 'address_location_not_allowed',
-      message: 'Paddle PricePreview refused the visitor location',
+      message: `Paddle won't accept payments from this location (${source})`,
+      detail: { source, countryCode: country },
     })
-    this.trackCheckout('region_blocked', undefined, this.billingLocale?.countryCode ?? 'unknown')
+    this.trackCheckout('region_blocked', undefined, country ?? 'unknown')
+  }
+
+  /**
+   * Ask the billing server whether Paddle can take payments from this
+   * visitor. Server-side because Paddle.js is an unreliable signal: some
+   * countries price fine but can't buy (Venezuela, Somalia, …), and blocked
+   * ones only fail once the form is open. Once per session; best-effort.
+   */
+  private async checkPaymentsAvailability(): Promise<void> {
+    if (this.paymentsAvailabilityChecked || this.store.getSnapshot().paymentsBlockedInRegion) return
+    this.paymentsAvailabilityChecked = true
+    try {
+      const ctrl = typeof AbortController !== 'undefined' ? new AbortController() : null
+      const timer = ctrl ? setTimeout(() => ctrl.abort(), 8000) : null
+      const res = await fetch(`${endpointUrls.billing}/payments-availability`, { signal: ctrl?.signal }).finally(() => { if (timer) clearTimeout(timer) })
+      if (!res.ok) { this.paymentsAvailabilityChecked = false; return }
+      const body: any = await res.json().catch(() => null)
+      if (body?.available === false) this.markRegionBlocked('server_check', body?.countryCode ?? null)
+    } catch {
+      // Endpoint unavailable (older API) or offline — allow a later retry.
+      this.paymentsAvailabilityChecked = false
+    }
   }
 
   /** Cancel a pending load watchdog (checkout reached a terminal state). */
@@ -4939,6 +5007,10 @@ const BACKGROUND_CONFIRM_INTERVAL_MS = 4_000
 const BACKGROUND_CONFIRM_MAX_MS = 15 * 60_000
 /** Abort the direct billing/config fetch after this long (the auth path races it). */
 const PADDLE_CONFIG_TIMEOUT_MS = 20_000
+
+/** Paddle's "we can't sell to this location" signals (price preview / checkout error). */
+const REGION_BLOCKED_RE = /address_location_not_allowed|unsupported location/i
+const REGION_BLOCKED_MESSAGE = 'Payments aren’t available in your region. Our payment provider can’t accept payments from your current location. If you’re using a VPN, turn it off or connect via another country and try again.'
 /** How long a payment may sit without an outcome before we explain what's happening. */
 const APPROVAL_HINT_DELAY_MS = 45_000
 /** How long to wait for a past_due renewal to recover after a payment method update. */
@@ -7135,6 +7207,32 @@ const CheckoutResultScreen: React.FC<{
   onViewPlans: () => void
   onViewTopUps: () => void
 }> = ({ result, onDismiss, onViewPlans, onViewTopUps }) => {
+  // Payments can't work from this location at all — not a failed payment, so
+  // no "Payment failed" framing, no reference and no pointless "Try again".
+  if (result.kind === 'error' && result.meta?.flow === 'region-blocked') {
+    return (
+      <section className="pm-result pm-result--error pm-result--region" data-id="pm-result-region-blocked">
+        <div className="pm-result__halo pm-result__halo--error" aria-hidden />
+        <div className="pm-result__icon pm-result__icon--error">
+          <i className="fas fa-globe"></i>
+        </div>
+        <div className="pm-result__eyebrow">Region not supported</div>
+        <h2 className="pm-result__title">Payments aren’t available in your region</h2>
+        <p className="pm-result__body">
+          Our payment provider can’t accept payments from your current location, so no checkout was started and nothing was charged.
+          If you’re using a VPN, turn it off or connect via another country, then reload Remix and try again.
+        </p>
+        <div className="pm-result__actions">
+          <button className="pm-result__btn pm-result__btn--primary" onClick={onViewPlans}>
+            <i className="fas fa-arrow-left"></i> Back to plans
+          </button>
+          <a className="pm-result__btn pm-result__btn--ghost" href={DISCORD_URL} target="_blank" rel="noreferrer">
+            <i className="fab fa-discord"></i> Ask us on Discord
+          </a>
+        </div>
+      </section>
+    )
+  }
   const copy = CHECKOUT_COPY[result.kind]
   const isCancel = result.intent === 'cancel'
   const isUnsupportedDowngrade = result.kind === 'error' && result.meta?.errorCode === 'downgrade_not_supported'
