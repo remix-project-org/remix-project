@@ -20,6 +20,7 @@ export interface FileExplorerEvent extends MatomoEventBase {
     | 'importFromIpfs'
     | 'importFromLocalFileSystem'
     | 'importFromHttps'
+    | 'addAISkills'
     | 'workspaceMenu'
     | 'fileAction'
     | 'deleteKey'
