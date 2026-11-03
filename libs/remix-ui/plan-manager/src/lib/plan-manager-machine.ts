@@ -107,8 +107,6 @@ export interface CheckoutBreakdown {
 export interface CheckoutNotice {
   level: 'warning' | 'error'
   message: string
-  /** Optional recovery action rendered as a button inside the notice. */
-  action?: 'open_hosted'
   /**
    * Sticky notices (declined payment, waiting for wallet approval) survive
    * Paddle's price recalculations; they clear on dismiss or the next payment
@@ -324,7 +322,7 @@ export type PlanManagerEvent =
   | { type: 'CHECKOUT_CLOSED' }
   | { type: 'CHECKOUT_ERROR'; message?: string; transactionId?: string; meta?: Record<string, string> }
   // Recoverable, non-destructive in-frame message — checkout stays open.
-  | { type: 'CHECKOUT_NOTICE'; level: 'warning' | 'error'; message: string; action?: CheckoutNotice['action']; sticky?: boolean }
+  | { type: 'CHECKOUT_NOTICE'; level: 'warning' | 'error'; message: string; sticky?: boolean }
   | { type: 'CHECKOUT_NOTICE_DISMISS' }
   | { type: 'CHECKOUT_RESULT_DISMISS' }
   // Cart
@@ -451,7 +449,6 @@ export const planManagerMachine = setup({
       context.checkoutNotice = {
         level: event.level,
         message: event.message,
-        ...(event.action && { action: event.action }),
         ...(event.sticky && { sticky: true })
       }
     },

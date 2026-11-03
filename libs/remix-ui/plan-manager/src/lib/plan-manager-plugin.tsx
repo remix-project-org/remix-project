@@ -1829,7 +1829,7 @@ export class PlanManagerPlugin extends ViewPlugin {
         this.store.send({ type: 'CHECKOUT_ERROR', message: response?.error || 'Could not start checkout.' })
         return
       }
-      const { transactionId, checkoutUrl } = response.data as { transactionId?: string; checkoutUrl?: string; immediate?: boolean }
+      const { transactionId } = response.data as { transactionId?: string; checkoutUrl?: string; immediate?: boolean }
       // Immediate-grant path (e.g. free plan via /products/purchase) — no
       // Paddle hand-off; the backend already granted the membership.
       if ((response.data as any).immediate === true) {
@@ -1857,7 +1857,6 @@ export class PlanManagerPlugin extends ViewPlugin {
         return
       }
       ctx.transactionId = transactionId
-      ctx.checkoutUrl = checkoutUrl
       const paddleInstance = this.paddle ?? getPaddle()
       if (paddleInstance && transactionId) {
         // Backend produced a transaction and Paddle is ready — record it so a
@@ -1871,24 +1870,19 @@ export class PlanManagerPlugin extends ViewPlugin {
         if (opened === 'opened') {
           this.trackCheckout('opened', intent, transactionId)
         } else if (opened === 'no_container') {
-          if (checkoutUrl) {
-            this.openHostedCheckout(ctx, 'container_missing')
-          } else {
-            this.trackCheckout('error', intent, 'container_missing')
-            reportCheckoutTelemetry('transaction.error', {
-              transactionId,
-              errorCode: 'container_missing',
-              message: 'Inline checkout container never mounted.',
-              detail: { intent, itemLabel },
-            })
-            this.store.send({ type: 'CHECKOUT_ERROR', message: 'Could not open the checkout. Please try again.', transactionId })
-          }
+          this.trackCheckout('error', intent, 'container_missing')
+          reportCheckoutTelemetry('transaction.error', {
+            transactionId,
+            errorCode: 'container_missing',
+            message: 'Inline checkout container never mounted.',
+            detail: { intent, itemLabel },
+          })
+          this.store.send({ type: 'CHECKOUT_ERROR', message: 'Could not open the checkout. Please try again.', transactionId })
         }
-      } else if (checkoutUrl) {
-        // Hosted-checkout fallback — we won't get Paddle events back, so
-        // surface a "processing" state immediately and poll the backend
-        // until the webhook lands.
-        this.openHostedCheckout(ctx, this.lastPaddleInitIssue ?? 'no_inline_sdk')
+      } else if (transactionId) {
+        // Paddle.js isn't available (blocked script / config failure). The
+        // inline frame is our only checkout surface, so explain how to fix it.
+        this.reportPaddleUnavailable(intent, itemLabel, transactionId)
       } else {
         this.trackCheckout('error', intent, 'no_checkout_reference')
         reportCheckoutTelemetry('transaction.error', {
@@ -1987,8 +1981,8 @@ export class PlanManagerPlugin extends ViewPlugin {
   /**
    * Resume a previously abandoned checkout. Verifies ownership first (so a
    * stale transaction can't open someone else's checkout), then opens the
-   * inline Paddle overlay for the transaction. Falls back to the hosted
-   * `resume_link` when the inline SDK isn't available.
+   * inline Paddle overlay for the transaction (the only checkout surface we
+   * support — no hosted fallback).
    */
   async resumeCheckout(transactionId: string, source: 'banner' | 'cart' = 'banner'): Promise<void> {
     planManagerLogger.log('[PlanManager:resume] resumeCheckout called', { transactionId, source })
@@ -2089,7 +2083,6 @@ export class PlanManagerPlugin extends ViewPlugin {
       intent,
       itemLabel,
       transactionId,
-      checkoutUrl: checkout.resume_link ?? undefined,
       resumed: true,
     })
 
@@ -2106,18 +2099,10 @@ export class PlanManagerPlugin extends ViewPlugin {
         })
         const opened = await this.openInlineCheckout(paddleInstance, ctx)
         if (opened === 'no_container') {
-          if (ctx.checkoutUrl) {
-            this.openHostedCheckout(ctx, 'container_missing')
-            return
-          }
           this.store.send({ type: 'CHECKOUT_ERROR', message: 'Could not reopen this checkout.', transactionId })
         }
-      } else if (ctx.checkoutUrl) {
-        // Inline SDK unavailable (blocked/desktop) — fall back to the hosted
-        // resume link Paddle handed us.
-        this.openHostedCheckout(ctx, this.lastPaddleInitIssue ?? 'no_inline_sdk')
       } else {
-        this.store.send({ type: 'CHECKOUT_ERROR', message: 'Could not reopen this checkout.', transactionId })
+        this.reportPaddleUnavailable(intent, itemLabel, transactionId, true)
       }
     } catch (err: any) {
       planManagerLogger.error('[PlanManager] resumeCheckout failed', err)
@@ -2126,7 +2111,7 @@ export class PlanManagerPlugin extends ViewPlugin {
   }
 
   /** Start a fresh correlation context for a new (or resumed) checkout. */
-  private beginCheckoutContext(init: Partial<Pick<CheckoutContext, 'transactionId' | 'intent' | 'itemLabel' | 'checkoutUrl' | 'resumed'>>): CheckoutContext {
+  private beginCheckoutContext(init: Partial<Pick<CheckoutContext, 'transactionId' | 'intent' | 'itemLabel' | 'resumed'>>): CheckoutContext {
     this.clearCheckoutLoadWatchdog()
     const ctx: CheckoutContext = {
       ...init,
@@ -2165,35 +2150,24 @@ export class PlanManagerPlugin extends ViewPlugin {
   }
 
   /**
-   * Open the hosted Paddle checkout (`?_ptxn=` payment link / resume link) in
-   * a new tab. We get no Paddle events back from it, so surface "processing"
-   * immediately and poll the backend until the webhook lands.
+   * Paddle.js never became available (blocked by an ad/tracking blocker, or
+   * its config failed to load). The inline frame is the only checkout we
+   * support, so stop with an actionable message rather than a dead form.
    */
-  private openHostedCheckout(ctx: CheckoutContext, reason: string): void {
-    if (!ctx.checkoutUrl) return
-    const intent = (ctx.intent as CheckoutIntent) ?? 'subscription'
-    this.clearCheckoutLoadWatchdog()
-    reportCheckoutTelemetry('checkout.hosted_fallback', {
-      transactionId: ctx.transactionId,
-      message: `Opened hosted checkout in a new tab (${reason}).`,
-      detail: { intent: ctx.intent, itemLabel: ctx.itemLabel, resumed: !!ctx.resumed, reason, stage: ctx.stage },
+  private reportPaddleUnavailable(intent: CheckoutIntent, itemLabel: string | undefined, transactionId: string, resumed = false): void {
+    const reason = this.lastPaddleInitIssue ?? 'no_inline_sdk'
+    this.trackCheckout('error', intent, `paddle_unavailable:${reason}`)
+    reportCheckoutTelemetry('transaction.error', {
+      transactionId,
+      errorCode: 'paddle_unavailable',
+      message: `Paddle.js unavailable (${reason}) — inline checkout cannot open.`,
+      detail: { intent, itemLabel, reason, resumed },
     })
-    window.open(ctx.checkoutUrl, '_blank', 'noopener,noreferrer')
-    this.trackCheckout('opened', intent, 'hosted_url')
-    this.store.send({ type: 'CHECKOUT_COMPLETED', transactionId: ctx.transactionId })
-    planManagerLogger.log('[plan-manager:poll] triggered from hosted-url fallback', { intent, transactionId: ctx.transactionId, reason })
-    void this.pollPaymentConfirmation(intent, ctx.transactionId)
-  }
-
-  /**
-   * Escape hatch offered by the load-timeout notice: the inline frame never
-   * rendered, so let the user finish the same transaction on Paddle's hosted
-   * checkout. Must run synchronously from the click so popup blockers allow it.
-   */
-  openStalledCheckoutInNewTab(): void {
-    const ctx = this.checkoutContext
-    if (!ctx?.checkoutUrl || !this.store.getSnapshot().pendingCheckout) return
-    this.openHostedCheckout(ctx, 'load_timeout')
+    this.store.send({
+      type: 'CHECKOUT_ERROR',
+      message: 'The secure payment form couldn’t load. An ad or tracking blocker may be stopping it — allow this site (and paddle.com) and try again.',
+      transactionId,
+    })
   }
 
   /**
@@ -2470,8 +2444,8 @@ export class PlanManagerPlugin extends ViewPlugin {
    * within `checkoutLoadTimeoutMs`, the overlay silently failed to render and
    * we emit `checkout.load_timeout` — the signal for "backend gave us a
    * transaction but the user never saw a payment form". The user also gets a
-   * notice offering the hosted checkout in a new tab, since the frame often
-   * never recovers (ad/tracking blockers).
+   * notice explaining the likely cause (ad/tracking blockers); it clears
+   * itself if the frame loads late.
    */
   private armCheckoutLoadWatchdog(ctx: CheckoutContext): void {
     this.clearCheckoutLoadWatchdog()
@@ -2489,7 +2463,6 @@ export class PlanManagerPlugin extends ViewPlugin {
       // render stall). `frameTarget` is the container class we passed to
       // Paddle.Checkout.open.
       const probe = this.probeCheckoutFrame('paddle-checkout-container')
-      const canOfferHosted = !!c.checkoutUrl && !!this.store.getSnapshot().pendingCheckout
       reportCheckoutTelemetry('checkout.load_timeout', {
         transactionId: c.transactionId,
         message: `Paddle checkout.loaded not received within ${this.checkoutLoadTimeoutMs}ms — overlay likely failed to render.`,
@@ -2499,16 +2472,15 @@ export class PlanManagerPlugin extends ViewPlugin {
           resumed: !!c.resumed,
           waitedMs: this.checkoutLoadTimeoutMs,
           paddleGlobalPresent: typeof (globalThis as any).Paddle !== 'undefined',
-          offeredHostedFallback: canOfferHosted,
           ...probe,
         },
       })
-      if (canOfferHosted) {
+      if (this.store.getSnapshot().pendingCheckout) {
+        c.loadTimeoutNotice = true
         this.store.send({
           type: 'CHECKOUT_NOTICE',
           level: 'warning',
-          message: 'The secure payment form is taking longer than usual to load. An ad or tracking blocker may be stopping it.',
-          action: 'open_hosted',
+          message: 'The secure payment form is taking longer than usual to load. An ad or tracking blocker may be stopping it — allow this site (and paddle.com), then close this checkout and try again.',
         })
       }
     }, this.checkoutLoadTimeoutMs)
@@ -2555,8 +2527,9 @@ export class PlanManagerPlugin extends ViewPlugin {
     }
     this.clearCheckoutLoadWatchdog()
     // A slow frame that eventually rendered no longer needs the timeout notice.
-    if (this.store.getSnapshot().checkoutNotice?.action === 'open_hosted') {
-      this.store.send({ type: 'CHECKOUT_NOTICE_DISMISS' })
+    if (ctx?.loadTimeoutNotice) {
+      ctx.loadTimeoutNotice = false
+      if (this.store.getSnapshot().checkoutNotice) this.store.send({ type: 'CHECKOUT_NOTICE_DISMISS' })
     }
   }
 
@@ -2712,8 +2685,7 @@ export class PlanManagerPlugin extends ViewPlugin {
       type: 'CHECKOUT_NOTICE',
       level: 'warning',
       sticky: true,
-      message: approvalHintMessage(method, !!ctx.checkoutUrl),
-      ...(ctx.checkoutUrl ? { action: 'open_hosted' as const } : {}),
+      message: approvalHintMessage(method),
     })
   }
 
@@ -4087,15 +4059,6 @@ const PlanManagerOverlay: React.FC<{
                             <i className={`fas ${snap.checkoutNotice.level === 'error' ? 'fa-circle-exclamation' : 'fa-triangle-exclamation'}`}></i>
                             <div className="pm-inline-checkout__notice-body">
                               <span>{snap.checkoutNotice.message}</span>
-                              {snap.checkoutNotice.action === 'open_hosted' && (
-                                <button
-                                  type="button"
-                                  className="pm-inline-checkout__notice-action"
-                                  onClick={() => plugin.openStalledCheckoutInNewTab()}
-                                >
-                                  <i className="fas fa-external-link-alt"></i> Open secure checkout in a new tab
-                                </button>
-                              )}
                               <span className="pm-inline-checkout__notice-help">
                                 Having trouble?{' '}
                                 <a href={DISCORD_URL} target="_blank" rel="noreferrer">
@@ -4941,8 +4904,8 @@ interface CheckoutContext {
   transactionId?: string
   intent?: string
   itemLabel?: string
-  /** Hosted checkout / resume link — the escape hatch when the inline frame stalls. */
-  checkoutUrl?: string
+  /** The load-timeout warning is showing (dismissed if the frame loads late). */
+  loadTimeoutNotice?: boolean
   resumed?: boolean
   startedAt: number
   /** When the inline frame was handed to Paddle (0 = not yet opened). */
@@ -5001,11 +4964,9 @@ function paymentMethodLabel(method: string | null | undefined): string {
 }
 
 /** Copy for a payment that has been waiting on the user for a while. */
-function approvalHintMessage(method: string | null | undefined, canOpenHosted: boolean): string {
+function approvalHintMessage(method: string | null | undefined): string {
   const m = (method || '').toLowerCase()
-  const escape = canOpenHosted
-    ? 'If nothing appeared, open the secure checkout in a new tab or choose another payment method.'
-    : 'If nothing appeared, choose another payment method.'
+  const escape = 'If nothing appeared, try paying again or choose another payment method.'
   if (!m || m === 'card') {
     return `Waiting for your bank to confirm this payment. Approve it in your banking app or the verification pop-up. ${escape}`
   }
