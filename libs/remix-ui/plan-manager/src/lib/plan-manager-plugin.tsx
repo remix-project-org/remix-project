@@ -237,6 +237,9 @@ export class PlanManagerPlugin extends ViewPlugin {
       const open = this.store.getSnapshot().isOpen
       if (open !== wasOpen) {
         wasOpen = open
+        // Lets the CSS height tiers hide the global promo banner while the
+        // panel is open on shorter screens (it repeats the panel's pitch).
+        if (typeof document !== 'undefined') document.body.classList.toggle('pm-overlay-open', open)
         this.emit(open ? 'opened' : 'closed')
         this.renderComponent()
       }
@@ -401,6 +404,7 @@ export class PlanManagerPlugin extends ViewPlugin {
 
   onDeactivation(): void {
     this.clearCheckoutLoadWatchdog()
+    if (typeof document !== 'undefined') document.body.classList.remove('pm-overlay-open')
     if (this.paddleEventHandler) {
       offPaddleEvent(this.paddleEventHandler)
       this.paddleEventHandler = null

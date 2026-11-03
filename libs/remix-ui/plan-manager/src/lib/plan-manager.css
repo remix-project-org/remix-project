@@ -3717,6 +3717,70 @@
   .pm-free-plan__price-num { font-size: 30px; }
 }
 
+/* ─── Height tiers ───────────────────────────────────────────────────────────
+   Tall (> 900px viewport): the full, loud design above — untouched.
+   Medium (≤ 900px, e.g. 13" MacBooks at ~840px): same look, tighter rhythm,
+   and the global promo banner steps aside while the panel is open.
+   Short (≤ 760px, e.g. 1536×864 / 1366×768 laptops at ~640–740px): condensed
+   so every Buy button and the monthly upsell sit above the fold. */
+@media (max-height: 900px) {
+  body.pm-overlay-open [data-id^="nudgeBanner-"] { display: none !important; }
+  .pm-shell { max-height: calc(100vh - 24px); }
+  .pm-main { padding: 24px 28px; }
+
+  .pm-alert { padding: 16px 22px; margin: 14px 28px 0; gap: 18px; }
+  .pm-alert__icon { width: 42px; height: 42px; font-size: 16px; }
+  .pm-alert__title { font-size: 18px; }
+  .pm-alert__desc { font-size: 12px; margin-top: 4px; }
+
+  .pm-topup { gap: 16px; }
+  .pm-topup__intro h3 { font-size: 20px; }
+  .pm-topup__card { padding: 14px 16px 12px; gap: 6px; }
+  .pm-topup__credits-num { font-size: 26px; }
+  .pm-topup__price { font-size: 20px; }
+  .pm-topup-upgrade { padding: 14px 18px; gap: 18px; }
+}
+
+@media (max-height: 760px) {
+  .pm-shell { max-height: calc(100vh - 16px); }
+  .pm-main { padding: 16px 24px; }
+  .pm-footer { padding: 10px 24px; }
+
+  /* Out-of-credits alert collapses to one row: icon, title, actions. */
+  .pm-alert { padding: 10px 16px; margin: 10px 24px 0; gap: 14px; }
+  .pm-alert__icon { width: 34px; height: 34px; font-size: 14px; }
+  .pm-alert__eyebrow,
+  .pm-alert__desc { display: none; }
+  .pm-alert__title { font-size: 15px; }
+  .pm-alert__btn { padding: 7px 12px; font-size: 12px; }
+
+  .pm-topup { gap: 12px; }
+  .pm-topup__intro h3 { font-size: 17px; margin-bottom: 2px; }
+  .pm-topup__intro p { font-size: 12px; }
+  .pm-topup__balance { padding: 5px 10px; }
+  .pm-topup__balance-num { font-size: 14px; }
+  .pm-topup__grid { gap: 12px; }
+  .pm-topup__card { padding: 12px 14px 10px; gap: 5px; }
+  .pm-topup__badges { min-height: 0; }
+  .pm-topup__credits-num { font-size: 22px; }
+  .pm-topup__credits i { font-size: 13px; }
+  .pm-topup__meter { height: 4px; }
+  .pm-topup__price { font-size: 18px; margin-top: 2px; }
+  .pm-topup__perk { font-size: 11px; }
+  .pm-topup__buy { margin-top: 4px; padding: 6px 10px; }
+
+  /* Monthly upsell: keep the pitch, price and CTA; drop the perk list. */
+  .pm-topup-upgrade { padding: 12px 16px; gap: 16px; }
+  .pm-topup-upgrade__title { font-size: 15px; }
+  .pm-topup-upgrade__perks { display: none; }
+  .pm-topup-upgrade__side { min-width: 170px; gap: 6px; }
+  .pm-topup-upgrade__price-now { font-size: 22px; }
+  .pm-topup-upgrade__cta { padding: 8px 14px; }
+
+  .pm-topup-welcome { padding-top: 14px; padding-bottom: 14px; }
+  .pm-topup-welcome__desc { display: none; }
+}
+
 @media (max-width: 720px) {
   .pm-signin { margin: 16px; }
   .pm-signin__inner { padding: 28px 24px 24px; }
