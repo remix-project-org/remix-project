@@ -5998,9 +5998,9 @@ const ALERT_COPY: Record<Exclude<CreditState, 'healthy' | 'unknown'>, {
     icon: 'fas fa-exclamation-triangle'
   },
   empty: {
-    eyebrow: 'Out of credits',
-    title: () => 'You\'ve used all your credits',
-    body: (r) => `AI features are paused until you top up or upgrade to a paid plan (Starter or Pro) that includes a sign-up gift of AI credits.`,
+    eyebrow: 'Out of AI credits',
+    title: () => 'Recharge to keep building with RemixAI',
+    body: () => 'AI requests are paused until you add credits. Top up in seconds, or go monthly for fresh credits every month.',
     icon: 'fas fa-bolt'
   }
 }
@@ -6062,9 +6062,10 @@ const CreditAlert: React.FC<{
   if (status.state === 'healthy' || status.state === 'unknown') return null
   const copy = ALERT_COPY[status.state]
   const remaining = status.availableRemaining
+  const isEmpty = status.state === 'empty'
 
   return (
-    <section className={`pm-alert pm-alert--${status.state}`}>
+    <section className={`pm-alert pm-alert--${status.state}`} data-id={`pm-credit-alert-${status.state}`}>
       <div className="pm-alert__glow" aria-hidden />
       <div className="pm-alert__icon">
         <i className={copy.icon}></i>
@@ -6077,11 +6078,11 @@ const CreditAlert: React.FC<{
       <div className="pm-alert__actions">
         {canUpgrade && (
           <button className="pm-alert__btn pm-alert__btn--ghost" onClick={onUpgrade}>
-            <i className="fas fa-arrow-up"></i> Upgrade plan
+            <i className={isEmpty ? 'fas fa-calendar-check' : 'fas fa-arrow-up'}></i> {isEmpty ? 'Go monthly' : 'Upgrade plan'}
           </button>
         )}
         <button className="pm-alert__btn pm-alert__btn--solid" onClick={onTopUp}>
-          <i className="fas fa-bolt"></i> Buy AI credits
+          <i className="fas fa-bolt"></i> {isEmpty ? 'Recharge credits' : 'Buy AI credits'}
         </button>
       </div>
     </section>

@@ -2673,10 +2673,17 @@
 }
 
 .pm-alert--critical { --pm-state: var(--bs-warning); }
+
+/* Out of credits — urgent but friendly: the warm amber→pink "energy" look
+   shared with the Top up upgrade card instead of an error-red wall. */
 .pm-alert--empty {
-  --pm-state: var(--bs-danger);
-  border-color: color-mix(in srgb, var(--pm-state) 50%, transparent);
-  background: color-mix(in srgb, var(--pm-state) 10%, var(--custom-onsurface-layer-1));
+  --pm-state: #f59e0b;
+  border: 1px solid color-mix(in srgb, #f59e0b 50%, transparent);
+  background:
+    radial-gradient(120% 180% at 0% 0%, color-mix(in srgb, #f59e0b 20%, transparent) 0%, transparent 55%),
+    radial-gradient(120% 180% at 100% 100%, color-mix(in srgb, #ec4899 16%, transparent) 0%, transparent 60%),
+    var(--custom-onsurface-layer-1);
+  box-shadow: 0 14px 36px -24px color-mix(in srgb, #f59e0b 90%, transparent);
 }
 
 /* Resume abandoned checkout — informational, not urgent. Uses the primary
@@ -2720,11 +2727,15 @@
   display: none;
 }
 
-.pm-alert--empty .pm-alert__glow { animation: pm-pulse-glow 2.4s ease-in-out infinite; }
-
-@keyframes pm-pulse-glow {
-  0%, 100% { opacity: 0.7; }
-  50%      { opacity: 1; }
+/* Empty: a slow shine sweep keeps it noticeable without flashing. */
+.pm-alert--empty .pm-alert__glow {
+  display: block;
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  transform: translateX(-100%);
+  background: linear-gradient(100deg, transparent 20%, rgba(255, 255, 255, 0.10) 50%, transparent 80%);
+  animation: pm-shine-sweep 4.5s ease-in-out 600ms infinite;
 }
 
 .pm-alert__icon {
@@ -2742,7 +2753,38 @@
 }
 
 .pm-alert--empty .pm-alert__icon {
-  animation: pm-icon-pulse 1.6s ease-in-out infinite;
+  border: none;
+  background: linear-gradient(135deg, #fbbf24, #f472b6);
+  color: #1a1325;
+  font-size: 20px;
+  animation: pm-icon-pulse 2s ease-in-out infinite, pm-gift-wiggle 3.4s ease-in-out 1s infinite;
+}
+
+.pm-alert--empty .pm-alert__eyebrow {
+  font-weight: 700;
+  letter-spacing: 0.08em;
+}
+
+.pm-alert--empty .pm-alert__btn--solid {
+  background: linear-gradient(135deg, #fbbf24, #f472b6);
+  color: #1a1325;
+  font-weight: 700;
+  box-shadow: 0 8px 22px -10px color-mix(in srgb, #f59e0b 90%, transparent);
+  transition: transform .15s ease, filter .15s ease;
+}
+
+.pm-alert--empty .pm-alert__btn--solid:hover {
+  background: linear-gradient(135deg, #fbbf24, #f472b6);
+  transform: translateY(-1px);
+  filter: brightness(1.06);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pm-alert--empty .pm-alert__glow,
+  .pm-alert--empty .pm-alert__icon {
+    animation: none !important;
+  }
+  .pm-alert--empty .pm-alert__btn--solid:hover { transform: none; }
 }
 
 @keyframes pm-icon-pulse {
