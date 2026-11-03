@@ -5818,7 +5818,9 @@ const UsageSection: React.FC<{ plugin: PlanManagerPlugin }> = ({ plugin }) => {
       } catch (err: any) {
         if (cancelled) return
         setReport(null)
-        setError(err?.message || 'Failed to load usage report.')
+        // Keep backend details (SQL/stack text) out of the UI — log them instead.
+        planManagerLogger.warn('[PlanManager:usage] failed to load usage report', err?.message ?? err)
+        setError('Your usage breakdown is temporarily unavailable. Please try again in a moment.')
       } finally {
         if (!cancelled) setLoading(false)
       }
@@ -5872,11 +5874,11 @@ const UsageSection: React.FC<{ plugin: PlanManagerPlugin }> = ({ plugin }) => {
 
   if (error && !report) {
     return (
-      <div className="pm-empty pm-empty--error">
+      <div className="pm-empty">
         <div className="pm-empty__icon">
-          <i className="fas fa-cloud-exclamation"></i>
+          <i className="fas fa-chart-line"></i>
         </div>
-        <div className="pm-empty__title">Could not load usage</div>
+        <div className="pm-empty__title">Usage breakdown unavailable</div>
         <p className="pm-empty__body">{error}</p>
         <div className="pm-empty__actions">
           <button className="pm-empty__btn pm-empty__btn--primary" onClick={() => setReloadKey((v) => v + 1)}>
