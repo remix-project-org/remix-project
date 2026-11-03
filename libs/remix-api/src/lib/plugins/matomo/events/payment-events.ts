@@ -45,6 +45,9 @@ export interface CheckoutEvent extends MatomoEventBase {
     | 'awaiting_approval' // payment stuck waiting on the user ~45s after initiation (value = method)
     | 'decline_reason'    // payment declined; value = Paddle error_code
     | 'region_blocked'    // Paddle refused to price for the visitor's location (value = country)
+    | 'signup_free' // signed-out visitor clicked "Start free" on the free card
+    | 'free_welcome' // post-sign-up top-up welcome shown (name = new|returning)
+    | 'topup_upgrade' // upgrade CTA on the top-up screen (name = plan slug, value = welcome|topup)
     // low-cost-models hand-off after a starter-pack purchase (name = armed|announced)
     | 'cheap_models';
 }

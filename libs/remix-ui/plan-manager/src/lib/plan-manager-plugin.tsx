@@ -128,9 +128,6 @@ export class PlanManagerPlugin extends ViewPlugin {
 
   // Memo to detect repeated AUTH events (auth-plugin re-emits a lot).
   private lastAuthSig = ''
-  // Prevent the free-plan welcome nudge from firing more than once per session
-  // (it fires on every loadAccountData otherwise).
-  private freePlanAutoOpenFired = false
   // Guard so we only auto-load the resume list once per auth session.
   private resumeCheckoutsLoaded = false
   // Starter-pack purchase confirmed; the low-cost-models modal waits until the
@@ -161,6 +158,9 @@ export class PlanManagerPlugin extends ViewPlugin {
   private pendingPlanAfterSignIn: { planId: string; priceId?: number; at: number } | null = null
   // Server-side payments-availability check runs once per session.
   private paymentsAvailabilityChecked = false
+  // Signed-out visitor picked "Start free". Consumed on the next successful
+  // login to land them on the top-up screen (with an upgrade option).
+  private pendingFreeAfterSignIn: { at: number } | null = null
   // Panel was opened by a generic "Sign In" (top bar) while signed out — once
   // the login lands, get out of the way unless the user picked a plan.
   private closeAfterSignIn = false
@@ -362,11 +362,12 @@ export class PlanManagerPlugin extends ViewPlugin {
         // The country is usually already known (cached or probed while
         // anonymous) — persist it now that there's an account to attach it to.
         void this.syncBillingLocaleToAccount()
-        if (this.closeAfterSignIn && !this.pendingPlanAfterSignIn) {
+        if (this.closeAfterSignIn && !this.pendingPlanAfterSignIn && !this.pendingFreeAfterSignIn) {
           this.close()
         }
         this.closeAfterSignIn = false
         void this.continuePendingPlanAfterSignIn()
+        void this.continueFreeAfterSignIn(!!(s as any).isNewUser)
       }
     }
     try {
@@ -644,8 +645,19 @@ export class PlanManagerPlugin extends ViewPlugin {
    */
   rememberPlanForSignIn(planId: string, priceId?: number): void {
     if (!planId) return
+    this.pendingFreeAfterSignIn = null
     this.pendingPlanAfterSignIn = { planId, priceId, at: Date.now() }
     this.trackCheckout('signup_to_buy', planId)
+  }
+
+  /**
+   * Signed-out "Start free" — remember it so the login that follows lands on
+   * the top-up screen (credits to get going, plus a one-click upgrade).
+   */
+  rememberFreeForSignIn(): void {
+    this.pendingPlanAfterSignIn = null
+    this.pendingFreeAfterSignIn = { at: Date.now() }
+    this.trackCheckout('signup_free')
   }
 
   /** Resolve once `predicate` holds for the store snapshot, or `false` after `timeoutMs`. */
@@ -693,6 +705,31 @@ export class PlanManagerPlugin extends ViewPlugin {
     if (planState.kind === 'paid' && planState.planId === pending.planId) return
     if (snap.pendingCheckout || snap.cartItems.length > 0) return
     await this.subscribeToPlan(pending.planId, pending.priceId)
+  }
+
+  /**
+   * After a sign-up started from the free card, wait for the account data,
+   * then open the top-up screen in its welcome state. Someone who turns out
+   * to already be on a paid plan just gets the panel's normal landing view.
+   */
+  private async continueFreeAfterSignIn(isNewUser: boolean): Promise<void> {
+    const pending = this.pendingFreeAfterSignIn
+    if (!pending) return
+    this.pendingFreeAfterSignIn = null
+    if (Date.now() - pending.at > 15 * 60_000) return
+
+    await this.waitForStore(
+      s => s.isAuthenticated && s.dataState === 'ready' && !!s.permissions,
+      20_000
+    )
+    const snap = this.store.getSnapshot()
+    if (!snap.isAuthenticated) return
+    if (selectPlanState(snap).kind === 'paid') {
+      await this.open()
+      return
+    }
+    this.trackCheckout('free_welcome', isNewUser ? 'new' : 'returning')
+    await this.open({ reason: 'free-signup', initialSection: 'topup', isNewUser })
   }
 
   /**
@@ -3404,47 +3441,8 @@ export class PlanManagerPlugin extends ViewPlugin {
         return
       }
 
-      // Auto-open to the Plans section for free-plan users so they see what's
-      // available and are motivated to upgrade or top up. Only fires once per
-      // session (not on every data refresh) and only when the plans surface is
-      // enabled by the backend.
-      const canShowPlans = hasFeature(permissions, Features.UI_SHOW_PLANS)
-      const snap = this.store.getSnapshot()
-      const planState = selectPlanState(snap)
-      const isFreePlan = planState.kind === 'no_subscription'
-      const freePlanGateDiagnosis = !canShowPlans
-        ? 'skip: ui:show-plans feature not enabled'
-        : !isFreePlan
-          ? `skip: user has plan (kind=${planState.kind}, planId=${planState.planId ?? 'none'}) — no upgrade prompt`
-          : this.freePlanAutoOpenFired
-            ? 'skip: already fired once this session'
-            : panelAlreadyOpen
-              ? 'skip: panel already open — not interrupting active session'
-              : 'FIRE: free plan user, panel not open, first time this session'
-      planManagerLogger.log('[PlanManager:free-plan-gate]', {
-        diagnosis: freePlanGateDiagnosis,
-        canShowPlans,
-        planKind: planState.kind,
-        planId: planState.planId ?? null,
-        isFreePlan,
-        alreadyFired: this.freePlanAutoOpenFired,
-        panelAlreadyOpen
-      })
-      if (canShowPlans && isFreePlan && !this.freePlanAutoOpenFired && !panelAlreadyOpen) {
-        this.freePlanAutoOpenFired = true
-        planManagerLogger.log('[PlanManager:free-plan-gate] auto-opening panel → free plan')
-        // Don't show upgrade modal to Pro users (even if they appear as free plan due to special access)
-        const hasProGroup = permissions?.feature_groups?.some?.((g: any) => g.name === 'pro')
-        const hasProFeature = permissions?.features?.['ai:auditor']?.is_enabled === true
-        if (Math.random() < 0.60 && !hasProGroup && !hasProFeature) {
-          this.call('nudgePlugin', 'fire', 'app:time-to-promote-plans')
-        }
-        // Catalog wasn't loaded as part of this path — fetch it now so plans
-        // are visible immediately without having to close and reopen the panel.
-        this.store.send({ type: 'CATALOG_LOAD' })
-        void this.loadCatalog()
-        this.call('menuicons', 'select', 'planManager').catch(() => { /* noop */ })
-      }
+      // Free-plan users are taken to plan pricing by the nudge plugin
+      // (on load and during heavy AI chat use) — see nudge-plugin.tsx.
     } catch (err: any) {
       this.store.send({ type: 'DATA_FAILED', message: err?.message ?? 'Failed to load account data' })
     }
@@ -3581,6 +3579,9 @@ const PlanManagerOverlay: React.FC<{
   const activeAlert: ActiveAlert = useMemo(() => selectActiveAlert(snap), [snap])
   const visiblePlans = useMemo(() => selectVisiblePlans(snap), [snap])
   const visiblePackages = useMemo(() => selectVisiblePackages(snap), [snap])
+  // Just signed up via "Start free" — the top-up screen greets them instead
+  // of warning that a balance they never had is empty.
+  const isFreeWelcome = intent?.reason === 'free-signup'
   const quotas = useMemo(() => selectQuotas(snap), [snap])
   const canUpgrade = useMemo(() => selectCanUpgrade(snap), [snap])
   const checkoutResult = selectCheckoutResult(snap)
@@ -3846,7 +3847,7 @@ const PlanManagerOverlay: React.FC<{
               />
             )}
 
-            {!checkoutActive && ui.showCredits && activeAlert === 'credit' && (
+            {!checkoutActive && ui.showCredits && activeAlert === 'credit' && !(isFreeWelcome && activeSection === 'topup') && (
               <CreditAlert
                 status={status}
                 refreshDate={refreshDate}
@@ -4180,6 +4181,13 @@ const PlanManagerOverlay: React.FC<{
                   localizedPrices={catalogPrices?.byPaddlePriceId ?? null}
                   onPurchase={(packageId) => plugin.purchaseCredits(packageId)}
                   totalAvailable={status.hasUnlimitedIncluded ? null : status.paidRemaining + status.includedRemaining}
+                  welcome={isFreeWelcome ? { isNewUser: !!intent?.isNewUser } : null}
+                  upgradePlans={ui.showPlans && planCtx.kind === 'no_subscription' ? visiblePlans : []}
+                  onUpgrade={(planId, priceId) => {
+                    trackMatomoEvent(plugin, { category: 'checkout', action: 'topup_upgrade', name: planId, value: isFreeWelcome ? 'welcome' : 'topup', isClick: true })
+                    void plugin.subscribeToPlan(planId, priceId)
+                  }}
+                  onComparePlans={() => setActiveSection('plans')}
                 />
               )}
               {ui.showUsage && activeSection === 'usage' && <UsageSection plugin={plugin} />}
@@ -5950,6 +5958,9 @@ const PlansSection: React.FC<{
   )
 }
 
+const compactCredits = (n: number) =>
+  new Intl.NumberFormat('en', { notation: 'compact', maximumFractionDigits: 1 }).format(n)
+
 const TopUpSection: React.FC<{
   packages: any[]
   purchasingId: string | null
@@ -5958,80 +5969,254 @@ const TopUpSection: React.FC<{
   localizedPrices: Record<string, LocalizedCatalogPrice> | null
   /** Total spendable credits (included + paid); null means unlimited. */
   totalAvailable: number | null
-}> = ({ packages, purchasingId, onPurchase, localizedPrices, totalAvailable }) => {
-  if (packages.length === 0) {
-    return (
-      <div className="pm-empty">
-        <p>No top-up packages available during the Free plan.</p>
-      </div>
-    )
-  }
+  /** Set right after a "Start free" sign-up: greet them instead of a plain shop header. */
+  welcome?: { isNewUser: boolean } | null
+  /** Catalog plans; the cheapest paid one is pitched as the monthly alternative. Empty = no upgrade card. */
+  upgradePlans?: any[]
+  onUpgrade?: (planId: string, priceId?: number) => void
+  onComparePlans?: () => void
+}> = ({ packages, purchasingId, onPurchase, localizedPrices, totalAvailable, welcome, upgradePlans, onUpgrade, onComparePlans }) => {
+  const animatedBalance = useCountUp(totalAvailable ?? 0)
   const anyPurchasing = purchasingId !== null
+
+  // ── Price basis ──────────────────────────────────────────────────────
+  // Value comparisons (best rate, savings, plan vs top-up) only make sense in
+  // one currency: the localized one when every pack resolved to the same
+  // currency, USD cents otherwise.
+  const rows = packages.map(t => {
+    // Defensive coercion — a missing/non-numeric `credits` or `priceUsd`
+    // would otherwise throw in `.toLocaleString()` / division below and
+    // take down the entire panel.
+    const credits = Number(t?.credits) || 0
+    const priceCents = Number(t?.priceUsd) || 0
+    const pkgPrices: any[] = Array.isArray(t?.prices) ? t.prices : []
+    const pkgPrice = pkgPrices.find((pr: any) => pr.is_default) ?? pkgPrices[0] ?? null
+    const pkgPaddleId = paddlePriceIdOf(pkgPrice, t)
+    const loc = pkgPaddleId ? localizedPrices?.[pkgPaddleId] ?? null : null
+    return { t, credits, priceCents, loc }
+  })
+  const currency = rows.length > 0 && rows.every(r => r.loc) && new Set(rows.map(r => r.loc!.currencyCode)).size === 1
+    ? rows[0].loc!.currencyCode
+    : null
+  const amountOf = (r: typeof rows[number]) => currency ? r.loc!.rawMinor : r.priceCents
+  const fmt = (minor: number) => currency ? formatPaddleMinor(minor, currency) : `$${(minor / 100).toFixed(2)}`
+  const priced = rows.filter(r => r.credits > 0 && r.priceCents > 0 && amountOf(r) > 0)
+  const rateOf = (r: typeof rows[number]) => amountOf(r) / r.credits
+  const baseRate = priced.length ? Math.max(...priced.map(rateOf)) : 0
+  const bestRate = priced.length ? Math.min(...priced.map(rateOf)) : 0
+  // Only call out a "best value" pack when it is meaningfully cheaper per credit.
+  const hasRealBest = priced.length > 1 && bestRate < baseRate * 0.97
+  const maxCredits = priced.length ? Math.max(...priced.map(r => r.credits)) : 0
+
+  // ── Monthly alternative: the cheapest paid plan ──────────────────────
+  const upgrade = (() => {
+    if (!onUpgrade) return null
+    const candidates = (upgradePlans ?? []).filter(p => (Number(p?.priceUsd) || 0) > 0 && (Number(p?.creditsPerMonth) || 0) > 0)
+    if (candidates.length === 0) return null
+    const plan = [...candidates].sort((a, b) => a.priceUsd - b.priceUsd)[0]
+    const prices: any[] = Array.isArray(plan.prices) ? plan.prices.filter((pr: any) => pr.is_active !== false) : []
+    const price = prices.find((pr: any) => pr.is_default) ?? prices[0] ?? null
+    const paddleId = paddlePriceIdOf(price, plan)
+    const loc = paddleId ? localizedPrices?.[paddleId] ?? null : null
+    const planCents = Number(price?.price_cents ?? plan.priceUsd) || 0
+    const credits = Number(plan.creditsPerMonth) || 0
+
+    // Intro offer: percentage discounts work in any currency; fixed-amount
+    // ones are USD, so they only apply on the USD basis.
+    const intro = (plan.introDiscounts ?? [])[0] ?? null
+    const discounted = (base: number, isUsd: boolean): number | null => {
+      if (!intro || base <= 0) return null
+      if (intro.discountType === 'percentage') {
+        const v = Math.max(0, Math.floor(base * (1 - intro.amount / 100)))
+        return v < base ? v : null
+      }
+      if (!isUsd) return null
+      const v = Math.max(0, base - Math.round(intro.amount * 100))
+      return v < base ? v : null
+    }
+    const displayBase = loc ? loc.rawMinor : planCents
+    const displayFmt = (m: number) => loc ? formatPaddleMinor(m, loc.currencyCode) : `$${(m / 100).toFixed(2)}`
+    const displayDiscounted = discounted(displayBase, !loc)
+
+    // Same credits bought as one-off packs, at the rate of the biggest pack
+    // that fits inside the plan's monthly amount (what you'd realistically buy).
+    const planAmount = currency
+      ? (loc && loc.currencyCode === currency ? (discounted(loc.rawMinor, false) ?? loc.rawMinor) : null)
+      : (discounted(planCents, true) ?? planCents)
+    let topupEquivalent: number | null = null
+    if (planAmount != null && priced.length > 0) {
+      const bySize = [...priced].sort((a, b) => b.credits - a.credits)
+      const fitting = bySize.find(r => r.credits <= credits) ?? bySize[bySize.length - 1]
+      topupEquivalent = Math.round(rateOf(fitting) * credits)
+    }
+    const savePct = topupEquivalent && planAmount != null && topupEquivalent > planAmount
+      ? Math.round((1 - planAmount / topupEquivalent) * 100)
+      : 0
+
+    return {
+      plan,
+      priceId: typeof price?.id === 'number' ? price.id as number : undefined,
+      fullPriceLabel: displayFmt(displayBase),
+      discountedPriceLabel: displayDiscounted != null ? displayFmt(displayDiscounted) : null,
+      cadence: plan.billingInterval === 'year' ? '/yr' : '/mo',
+      credits,
+      compare: savePct >= 5 && topupEquivalent != null && planAmount != null
+        ? { topup: fmt(topupEquivalent), plan: fmt(planAmount), savePct }
+        : null,
+      features: (plan.features ?? []) as string[]
+    }
+  })()
+
+  const upgradeCard = upgrade && (
+    <section className={`pm-topup-upgrade ${welcome ? 'is-welcome' : ''}`} data-id="pm-topup-upgrade">
+      <div className="pm-topup-upgrade__shine" aria-hidden />
+      <div className="pm-topup-upgrade__body">
+        <div className="pm-topup-upgrade__eyebrow">
+          <i className="fas fa-crown" aria-hidden></i>
+          <span>Better value — go monthly</span>
+          {upgrade.compare && <span className="pm-topup-upgrade__save">Save {upgrade.compare.savePct}%</span>}
+        </div>
+        <div className="pm-topup-upgrade__title">
+          Get <span className="pm-topup-upgrade__credits">+{compactCredits(upgrade.credits)}</span> AI credits every month with {upgrade.plan.name}
+        </div>
+        {upgrade.compare && (
+          <div className="pm-topup-upgrade__compare">
+            {compactCredits(upgrade.credits)} credits as top-ups: <s>{upgrade.compare.topup}</s>
+            <i className="fas fa-arrow-right" aria-hidden></i>
+            <strong>{upgrade.compare.plan}</strong> on {upgrade.plan.name}, refilled every month
+          </div>
+        )}
+        {upgrade.features.length > 0 && (
+          <ul className="pm-topup-upgrade__perks">
+            {upgrade.features.slice(0, 4).map(f => (
+              <li key={f}><i className="fas fa-check" aria-hidden></i><span>{f}</span></li>
+            ))}
+          </ul>
+        )}
+      </div>
+      <div className="pm-topup-upgrade__side">
+        <div className="pm-topup-upgrade__price">
+          {upgrade.discountedPriceLabel && <s className="pm-topup-upgrade__price-strike">{upgrade.fullPriceLabel}</s>}
+          <span className="pm-topup-upgrade__price-now">{upgrade.discountedPriceLabel ?? upgrade.fullPriceLabel}</span>
+          <span className="pm-topup-upgrade__price-cad">{upgrade.cadence}</span>
+        </div>
+        <button
+          className="pm-topup-upgrade__cta"
+          data-id="pm-topup-upgrade-cta"
+          disabled={anyPurchasing}
+          onClick={() => onUpgrade!(upgrade.plan.id, upgrade.priceId)}
+        >
+          {purchasingId === upgrade.plan.id
+            ? <><i className="fas fa-spinner fa-spin"></i> Opening…</>
+            : <><i className="fas fa-bolt"></i> Upgrade to {upgrade.plan.name}</>}
+        </button>
+        {onComparePlans && (
+          <button className="pm-topup-upgrade__link" data-id="pm-topup-compare-plans" onClick={onComparePlans}>
+            Compare all plans <i className="fas fa-arrow-right" aria-hidden></i>
+          </button>
+        )}
+      </div>
+    </section>
+  )
+
   return (
     <div className="pm-topup">
-      <div className="pm-topup__intro">
-        <h3>One-off credits</h3>
-        <p>Top up without changing your plan. Credits never expire.</p>
-        <span className="pm-topup__total-num">
-          Currently {totalAvailable === null ? '∞' : totalAvailable.toLocaleString()}
-        </span>
-        <span className="pm-topup__total-label"> Credits available</span>
+      {welcome && (
+        <section className="pm-topup-welcome" data-id="pm-topup-welcome">
+          <div className="pm-topup-welcome__sparkles" aria-hidden><span /><span /><span /><span /><span /></div>
+          <div className="pm-topup-welcome__icon"><i className="fas fa-rocket" aria-hidden></i></div>
+          <div className="pm-topup-welcome__body">
+            <div className="pm-topup-welcome__eyebrow">{welcome.isNewUser ? 'Account created' : 'Signed in'} · Free plan</div>
+            <h3 className="pm-topup-welcome__title">
+              {welcome.isNewUser ? 'You’re in — welcome to RemixAI!' : 'Welcome back to RemixAI'}
+            </h3>
+            <p className="pm-topup-welcome__desc">
+              Add AI credits to put the premium models to work, or go monthly for fresh credits every month plus the Security Auditor and Gas Saver agents.
+            </p>
+          </div>
+        </section>
+      )}
+
+      {welcome && upgradeCard}
+
+      <div className="pm-topup__head">
+        <div className="pm-topup__intro">
+          <h3>{welcome ? 'Pick a credit pack' : 'Top up AI credits'}</h3>
+          <p>One-off packs — no subscription, and credits never expire.</p>
+        </div>
+        <div className="pm-topup__balance" data-id="pm-topup-balance">
+          <i className="fas fa-bolt" aria-hidden></i>
+          <span className="pm-topup__balance-num">
+            {totalAvailable === null ? '∞' : Math.round(animatedBalance).toLocaleString()}
+          </span>
+          <span className="pm-topup__balance-label">credits available</span>
+        </div>
       </div>
-      <div className="pm-topup__grid">
-        {packages.map(t => {
-          // Defensive coercion — a missing/non-numeric `credits` or `priceUsd`
-          // would otherwise throw in `.toLocaleString()` / division below and
-          // take down the entire panel.
-          const credits = Number(t?.credits) || 0
-          const priceCents = Number(t?.priceUsd) || 0
-          const isPopular = t.popular === true || t.popular === 1 || t.popular === '1'
-          // Localized price for this package (batched Paddle PricePreview),
-          // with USD fallback while it loads / when Paddle is unavailable.
-          const pkgPrices: any[] = Array.isArray(t?.prices) ? t.prices : []
-          const pkgPrice = pkgPrices.find((pr: any) => pr.is_default) ?? pkgPrices[0] ?? null
-          const pkgPaddleId = paddlePriceIdOf(pkgPrice, t)
-          const loc = pkgPaddleId ? localizedPrices?.[pkgPaddleId] ?? null : null
-          const price = loc ? loc.formatted : `$${(priceCents / 100).toFixed(2)}`
-          const perKLabel = credits <= 0
-            ? 'Pricing unavailable'
-            : loc
-              ? `${formatPaddleMinor(loc.rawMinor / (credits / 1000), loc.currencyCode)} per 1k credits`
-              : `$${((priceCents / 100) / (credits / 1000)).toFixed(2)} per 1k credits`
-          const isPurchasing = purchasingId === t.id
-          // Disable cards we can't price/buy meaningfully so the click handler
-          // never sends a malformed purchase.
-          const isUnavailable = credits <= 0 || priceCents <= 0
-          const disabled = anyPurchasing || isUnavailable
-          return (
-            <button
-              key={t.id}
-              className={`pm-topup__card ${isPopular ? 'is-popular' : ''} ${isPurchasing ? 'is-purchasing' : ''}`}
-              disabled={disabled}
-              onClick={() => { if (!disabled) onPurchase(t.id) }}
-              title={isUnavailable ? 'Pricing not available right now' : undefined}
-            >
-              {isPopular && (
-                <div className="pm-topup__pop">
-                  <i className="fas fa-star" aria-hidden></i> Best value
+
+      {packages.length === 0 ? (
+        <div className="pm-empty">
+          <p>No top-up packages available during the Free plan.</p>
+        </div>
+      ) : (
+        <div className="pm-topup__grid">
+          {rows.map(r => {
+            const { t, credits, priceCents, loc } = r
+            const isPopular = t.popular === true || t.popular === 1 || t.popular === '1'
+            const price = loc ? loc.formatted : `$${(priceCents / 100).toFixed(2)}`
+            const perKLabel = credits <= 0
+              ? 'Pricing unavailable'
+              : loc
+                ? `${formatPaddleMinor(loc.rawMinor / (credits / 1000), loc.currencyCode)} per 1k credits`
+                : `$${((priceCents / 100) / (credits / 1000)).toFixed(2)} per 1k credits`
+            const isPurchasing = purchasingId === t.id
+            // Disable cards we can't price/buy meaningfully so the click handler
+            // never sends a malformed purchase.
+            const isUnavailable = credits <= 0 || priceCents <= 0
+            const disabled = anyPurchasing || isUnavailable
+            const isPriced = priced.includes(r)
+            const isBest = hasRealBest ? (isPriced && rateOf(r) <= bestRate * 1.001) : isPopular
+            const savePct = isPriced && baseRate > 0 ? Math.round((1 - rateOf(r) / baseRate) * 100) : 0
+            // sqrt keeps the smallest pack visible next to the largest.
+            const meterPct = maxCredits > 0 && credits > 0 ? Math.max(8, Math.round(Math.sqrt(credits / maxCredits) * 100)) : 0
+            return (
+              <button
+                key={t.id}
+                className={`pm-topup__card ${isBest ? 'is-best' : ''} ${isPurchasing ? 'is-purchasing' : ''}`}
+                disabled={disabled}
+                onClick={() => { if (!disabled) onPurchase(t.id) }}
+                title={isUnavailable ? 'Pricing not available right now' : undefined}
+                data-id={`pm-topup-card-${t.id}`}
+              >
+                <div className="pm-topup__badges">
+                  {isBest && <span className="pm-topup__pop"><i className="fas fa-star" aria-hidden></i> Best value</span>}
+                  {!isBest && isPopular && <span className="pm-topup__pop pm-topup__pop--popular"><i className="fas fa-fire" aria-hidden></i> Popular</span>}
+                  {savePct >= 5 && <span className="pm-topup__save">Save {savePct}%</span>}
                 </div>
-              )}
-              <div className="pm-topup__price">{price}</div>
-              <div className="pm-topup__credits">
-                <span className="pm-topup__credits-num">{credits.toLocaleString()}</span>
-                <span className="pm-topup__credits-unit">credits</span>
-              </div>
-              <div className="pm-topup__perk">{perKLabel}</div>
-              <span className="pm-topup__buy">
-                {isPurchasing
-                  ? <><i className="fas fa-spinner fa-spin"></i> Opening…</>
-                  : isUnavailable
-                    ? <>Unavailable</>
-                    : <>Buy <i className="fas fa-arrow-right"></i></>}
-              </span>
-            </button>
-          )
-        })}
-      </div>
+                <div className="pm-topup__credits">
+                  <i className="fas fa-bolt" aria-hidden></i>
+                  <span className="pm-topup__credits-num">{credits > 0 ? compactCredits(credits) : '—'}</span>
+                  <span className="pm-topup__credits-unit">AI credits</span>
+                </div>
+                <div className="pm-topup__meter" aria-hidden>
+                  <span style={{ width: `${meterPct}%` }} />
+                </div>
+                <div className="pm-topup__price">{price}</div>
+                <div className="pm-topup__perk">{perKLabel}</div>
+                <span className="pm-topup__buy">
+                  {isPurchasing
+                    ? <><i className="fas fa-spinner fa-spin"></i> Opening…</>
+                    : isUnavailable
+                      ? <>Unavailable</>
+                      : <>Buy {credits > 0 ? compactCredits(credits) : ''} <i className="fas fa-arrow-right"></i></>}
+                </span>
+              </button>
+            )
+          })}
+        </div>
+      )}
+
+      {!welcome && upgradeCard}
+
       <div className="pm-topup__custom">
         <span>Need a custom amount?</span>
         <a href="https://remix.live/contact" target="_blank" rel="noopener noreferrer">Contact us</a>
@@ -6092,7 +6277,9 @@ const UsageSection: React.FC<{ plugin: PlanManagerPlugin }> = ({ plugin }) => {
       } catch (err: any) {
         if (cancelled) return
         setReport(null)
-        setError(err?.message || 'Failed to load usage report.')
+        // Keep backend details (SQL/stack text) out of the UI — log them instead.
+        planManagerLogger.warn('[PlanManager:usage] failed to load usage report', err?.message ?? err)
+        setError('Your usage breakdown is temporarily unavailable. Please try again in a moment.')
       } finally {
         if (!cancelled) setLoading(false)
       }
@@ -6146,11 +6333,11 @@ const UsageSection: React.FC<{ plugin: PlanManagerPlugin }> = ({ plugin }) => {
 
   if (error && !report) {
     return (
-      <div className="pm-empty pm-empty--error">
+      <div className="pm-empty">
         <div className="pm-empty__icon">
-          <i className="fas fa-cloud-exclamation"></i>
+          <i className="fas fa-chart-line"></i>
         </div>
-        <div className="pm-empty__title">Could not load usage</div>
+        <div className="pm-empty__title">Usage breakdown unavailable</div>
         <p className="pm-empty__body">{error}</p>
         <div className="pm-empty__actions">
           <button className="pm-empty__btn pm-empty__btn--primary" onClick={() => setReloadKey((v) => v + 1)}>
@@ -6270,9 +6457,9 @@ const ALERT_COPY: Record<Exclude<CreditState, 'healthy' | 'unknown'>, {
     icon: 'fas fa-exclamation-triangle'
   },
   empty: {
-    eyebrow: 'Out of credits',
-    title: () => 'You\'ve used all your credits',
-    body: (r) => `AI features are paused until you top up or upgrade to a paid plan (Starter or Pro) that includes a sign-up gift of AI credits.`,
+    eyebrow: 'Out of AI credits',
+    title: () => 'Recharge to keep building with RemixAI',
+    body: () => 'AI requests are paused until you add credits. Top up in seconds, or go monthly for fresh credits every month.',
     icon: 'fas fa-bolt'
   }
 }
@@ -6334,9 +6521,10 @@ const CreditAlert: React.FC<{
   if (status.state === 'healthy' || status.state === 'unknown') return null
   const copy = ALERT_COPY[status.state]
   const remaining = status.availableRemaining
+  const isEmpty = status.state === 'empty'
 
   return (
-    <section className={`pm-alert pm-alert--${status.state}`}>
+    <section className={`pm-alert pm-alert--${status.state}`} data-id={`pm-credit-alert-${status.state}`}>
       <div className="pm-alert__glow" aria-hidden />
       <div className="pm-alert__icon">
         <i className={copy.icon}></i>
@@ -6349,11 +6537,11 @@ const CreditAlert: React.FC<{
       <div className="pm-alert__actions">
         {canUpgrade && (
           <button className="pm-alert__btn pm-alert__btn--ghost" onClick={onUpgrade}>
-            <i className="fas fa-arrow-up"></i> Upgrade plan
+            <i className={isEmpty ? 'fas fa-calendar-check' : 'fas fa-arrow-up'}></i> {isEmpty ? 'Go monthly' : 'Upgrade plan'}
           </button>
         )}
         <button className="pm-alert__btn pm-alert__btn--solid" onClick={onTopUp}>
-          <i className="fas fa-bolt"></i> Buy AI credits
+          <i className="fas fa-bolt"></i> {isEmpty ? 'Recharge credits' : 'Buy AI credits'}
         </button>
       </div>
     </section>
@@ -6624,6 +6812,11 @@ const SignInPromptScreen: React.FC<{
     handleSignIn()
   }
 
+  const handleStartFree = () => {
+    plugin.rememberFreeForSignIn()
+    handleSignIn()
+  }
+
   const legal = (
     <p className="pm-signin__legal">
       By continuing, you agree to the&nbsp;
@@ -6672,7 +6865,7 @@ const SignInPromptScreen: React.FC<{
               localizedPrices={localizedPrices}
               readOnly
               onSignUp={handleSignUpForPlan}
-              onStartFree={handleSignIn}
+              onStartFree={handleStartFree}
               onSubscribe={() => { /* display only — the sign-up CTAs are the entry points */ }}
               onCancel={() => { /* display only */ }}
               onReactivate={() => { /* display only */ }}

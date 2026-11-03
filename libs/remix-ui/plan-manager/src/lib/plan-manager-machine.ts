@@ -219,6 +219,8 @@ export type OpenReason =
   | 'manual'
   /** Generic "Sign In" (top bar) — the panel closes itself once login succeeds. */
   | 'sign-in'
+  /** Just signed up via the free card — top-up screen opens in its welcome state. */
+  | 'free-signup'
 
 /** Payload accepted by `OPEN_OVERLAY`. All fields are optional. */
 export interface OpenIntent {
@@ -227,6 +229,8 @@ export interface OpenIntent {
   requiredFeature?: string
   /** Section to focus when the panel transitions to ready. */
   initialSection?: 'plans' | 'topup' | 'usage'
+  /** 'free-signup' only: the login created a brand-new account. */
+  isNewUser?: boolean
 }
 
 // ─── Machine context + events ───────────────────────────────────────
