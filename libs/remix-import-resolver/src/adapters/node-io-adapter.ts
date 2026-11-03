@@ -5,6 +5,7 @@ import { toHttpUrls } from '../utils/to-http-url'
 import {
   isHttpUrl,
   isDepsPath,
+  jailDepsPath,
   DEPS_DIR,
   DEPS_HTTP_DIR,
   DEPS_NPM_DIR,
@@ -24,8 +25,9 @@ export class NodeIOAdapter implements IOAdapter {
   }
 
   async setFile(path: string, content: string): Promise<void> {
-    await fs.mkdir(dirname(path), { recursive: true })
-    await fs.writeFile(path, content, 'utf8')
+    const dest = jailDepsPath(path)
+    await fs.mkdir(dirname(dest), { recursive: true })
+    await fs.writeFile(dest, content, 'utf8')
   }
 
   async exists(path: string): Promise<boolean> {
@@ -84,6 +86,7 @@ export class NodeIOAdapter implements IOAdapter {
       // Ensure all resolver-managed artifacts live under .deps
       dest = `${DEPS_DIR}${dest}`
     }
+    dest = jailDepsPath(dest)
 
     // If cache is enabled and file exists, return cached content from disk
     if (this.cacheEnabled) {

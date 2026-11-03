@@ -72,6 +72,36 @@ export function isDepsPath(path: string): boolean {
   return path.startsWith(DEPS_DIR)
 }
 
+/**
+ * Canonicalize a resolver save path and reject anything that leaves `.deps`.
+ * `path.join` / `path.normalize` treat `src/../..` as a write outside the tree.
+ * Keep this string-only so the browser adapter does not pull Node `path`.
+ */
+export function jailDepsPath(dest: string): string {
+  if (!dest || dest.includes('\0')) {
+    throw new Error(`Import save path is invalid: ${dest}`)
+  }
+  if (dest.startsWith('/') || /^[A-Za-z]:[\\/]/.test(dest)) {
+    throw new Error(`Import save path must be relative: ${dest}`)
+  }
+  const out: string[] = []
+  for (const part of dest.replace(/\\/g, '/').split('/')) {
+    if (!part || part === '.') continue
+    if (part === '..') {
+      if (out.length === 0) {
+        throw new Error(`Import save path escapes .deps: ${dest}`)
+      }
+      out.pop()
+      continue
+    }
+    out.push(part)
+  }
+  if (out[0] !== '.deps') {
+    throw new Error(`Import save path escapes .deps: ${dest}`)
+  }
+  return out.join('/')
+}
+
 /** Check if a path is in the npm deps directory */
 export function isNpmDepsPath(path: string): boolean {
   return path.startsWith(DEPS_NPM_DIR)
