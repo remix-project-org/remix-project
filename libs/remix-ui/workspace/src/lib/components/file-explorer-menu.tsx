@@ -2,9 +2,10 @@ import React, {useState, useContext, useRef, useEffect} from 'react' //eslint-di
 
 import { FileExplorerMenuProps } from '../types'
 import { FileSystemContext } from '../contexts'
-import { appActionTypes, AppContext, appPlatformTypes, platformContext } from '@remix-ui/app'
+import { appActionTypes, AppContext, appPlatformTypes, platformContext, useAuth } from '@remix-ui/app'
 import { TrackingContext } from '@remix-ide/tracking'
-import { MatomoEvent, FileExplorerEvent, MatomoCategories } from '@remix-api'
+import { MatomoEvent, FileExplorerEvent, MatomoCategories, Features } from '@remix-api'
+import { FormattedMessage, useIntl } from 'react-intl'
 import { Button, Dropdown } from 'react-bootstrap'
 import { createNewFile } from '../actions'
 
@@ -12,6 +13,9 @@ export const FileExplorerMenu = (props: FileExplorerMenuProps) => {
   const global = useContext(FileSystemContext)
   const platform = useContext(platformContext)
   const appContext = useContext(AppContext)
+  const intl = useIntl()
+  const { features } = useAuth()
+  const hasSkillsPermission = features[Features.AI_SKILLS]?.is_enabled === true
   const { trackMatomoEvent: baseTrackEvent } = useContext(TrackingContext)
   const trackMatomoEvent = <T extends MatomoEvent = FileExplorerEvent>(event: T) => {
     baseTrackEvent?.<T>(event)
@@ -681,6 +685,35 @@ export const FileExplorerMenu = (props: FileExplorerMenuProps) => {
                     )
                   })
                 }
+                <Dropdown.Item
+                  data-id="fileExplorerCreateButton-addAISkills"
+                  title={hasSkillsPermission ? undefined : intl.formatMessage({ id: 'filePanel.addAISkillsLocked' })}
+                  onClick={() => {
+                    // opens the Skills Explorer, which writes EthSkills packs into skills/<name>/
+                    if (!hasSkillsPermission) {
+                      global.plugin.call('planManager', 'open', { reason: 'feature-required', requiredFeature: Features.SKILLS_BASIC })
+                    } else {
+                      appContext.appStateDispatch({ type: appActionTypes.showSkillsModal, payload: true })
+                    }
+                    trackMatomoEvent({
+                      category: MatomoCategories.FILE_EXPLORER,
+                      action: 'addAISkills',
+                      name: hasSkillsPermission ? 'open' : 'locked',
+                      isClick: true
+                    })
+                  }}
+                >
+                  <span className="text-decoration-none d-flex">
+                    <i className="fas fa-wand-magic-sparkles mt-1"></i>
+                    <span className="ps-2">
+                      <span className="d-block">
+                        <FormattedMessage id="filePanel.addAISkills" />
+                        {!hasSkillsPermission && <i className="fas fa-lock ms-2 small text-secondary" aria-hidden="true"></i>}
+                      </span>
+                      <small className="d-block text-secondary"><FormattedMessage id="filePanel.addAISkillsSub" /></small>
+                    </span>
+                  </span>
+                </Dropdown.Item>
               </Dropdown.Menu>
             </Dropdown>
           </span>
