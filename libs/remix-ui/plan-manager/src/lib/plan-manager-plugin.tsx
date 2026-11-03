@@ -128,9 +128,6 @@ export class PlanManagerPlugin extends ViewPlugin {
 
   // Memo to detect repeated AUTH events (auth-plugin re-emits a lot).
   private lastAuthSig = ''
-  // Prevent the free-plan welcome nudge from firing more than once per session
-  // (it fires on every loadAccountData otherwise).
-  private freePlanAutoOpenFired = false
   // Guard so we only auto-load the resume list once per auth session.
   private resumeCheckoutsLoaded = false
   // Starter-pack purchase confirmed; the low-cost-models modal waits until the
@@ -3032,47 +3029,8 @@ export class PlanManagerPlugin extends ViewPlugin {
         return
       }
 
-      // Auto-open to the Plans section for free-plan users so they see what's
-      // available and are motivated to upgrade or top up. Only fires once per
-      // session (not on every data refresh) and only when the plans surface is
-      // enabled by the backend.
-      const canShowPlans = hasFeature(permissions, Features.UI_SHOW_PLANS)
-      const snap = this.store.getSnapshot()
-      const planState = selectPlanState(snap)
-      const isFreePlan = planState.kind === 'no_subscription'
-      const freePlanGateDiagnosis = !canShowPlans
-        ? 'skip: ui:show-plans feature not enabled'
-        : !isFreePlan
-          ? `skip: user has plan (kind=${planState.kind}, planId=${planState.planId ?? 'none'}) — no upgrade prompt`
-          : this.freePlanAutoOpenFired
-            ? 'skip: already fired once this session'
-            : panelAlreadyOpen
-              ? 'skip: panel already open — not interrupting active session'
-              : 'FIRE: free plan user, panel not open, first time this session'
-      planManagerLogger.log('[PlanManager:free-plan-gate]', {
-        diagnosis: freePlanGateDiagnosis,
-        canShowPlans,
-        planKind: planState.kind,
-        planId: planState.planId ?? null,
-        isFreePlan,
-        alreadyFired: this.freePlanAutoOpenFired,
-        panelAlreadyOpen
-      })
-      if (canShowPlans && isFreePlan && !this.freePlanAutoOpenFired && !panelAlreadyOpen) {
-        this.freePlanAutoOpenFired = true
-        planManagerLogger.log('[PlanManager:free-plan-gate] auto-opening panel → free plan')
-        // Don't show upgrade modal to Pro users (even if they appear as free plan due to special access)
-        const hasProGroup = permissions?.feature_groups?.some?.((g: any) => g.name === 'pro')
-        const hasProFeature = permissions?.features?.['ai:auditor']?.is_enabled === true
-        if (Math.random() < 0.60 && !hasProGroup && !hasProFeature) {
-          this.call('nudgePlugin', 'fire', 'app:time-to-promote-plans')
-        }
-        // Catalog wasn't loaded as part of this path — fetch it now so plans
-        // are visible immediately without having to close and reopen the panel.
-        this.store.send({ type: 'CATALOG_LOAD' })
-        void this.loadCatalog()
-        this.call('menuicons', 'select', 'planManager').catch(() => { /* noop */ })
-      }
+      // Free-plan users are taken to plan pricing by the nudge plugin
+      // (on load and during heavy AI chat use) — see nudge-plugin.tsx.
     } catch (err: any) {
       this.store.send({ type: 'DATA_FAILED', message: err?.message ?? 'Failed to load account data' })
     }
