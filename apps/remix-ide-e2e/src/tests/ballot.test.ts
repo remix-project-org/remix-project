@@ -172,7 +172,7 @@ module.exports = {
       .addFile('sample.yul', { content: yulSample })
       .clickLaunchIcon('solidity')
       .waitForElementVisible('*[data-id="scConfigExpander"]')
-      .click('*[data-id="scManualConfiguration"]')
+      .click('*[data-id="scFileConfiguration"]') // switch the configuration file off
       .waitForElementVisible('select[id="compilerLanguageSelector"]', 10000)
       .click('select[id="compilerLanguageSelector"]')
       .click('select[id="compilerLanguageSelector"] option[value=Yul]')
