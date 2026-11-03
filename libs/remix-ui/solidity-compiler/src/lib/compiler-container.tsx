@@ -3,14 +3,15 @@ import { FormattedMessage, useIntl } from 'react-intl'
 import semver from 'semver'
 import { CompilerContainerProps } from './types'
 import { ConfigurationSettings } from '@remix-project/remix-lib'
-import { checkSpecialChars, CustomTooltip, extractNameFromKey, RenderIf } from '@remix-ui/helper'
+import { checkSpecialChars } from '@remix-ui/helper'
 import { canUseWorker, urlFromVersion, pathToURL } from '@remix-project/remix-solidity'
 import { compilerReducer, compilerInitialState } from './reducers/compiler'
 import { listenToEvents } from './actions/compiler'
 import { getValidLanguage } from '@remix-project/remix-solidity'
-import { CopyToClipboard } from '@remix-ui/clipboard'
+import { ToggleSwitch } from '@remix-ui/toggle'
+import copy from 'copy-to-clipboard'
 import { configFileContent } from './compilerConfiguration'
-import { appPlatformTypes, platformContext, onLineContext, AppContext, appActionTypes, useAuth } from '@remix-ui/app'
+import { appPlatformTypes, platformContext, onLineContext, useAuth } from '@remix-ui/app'
 import { TrackingContext } from '@remix-ide/tracking'
 import { CompilerEvent, CompilerContainerEvent, Features } from '@remix-api'
 import * as packageJson from '../../../../../package.json'
@@ -18,7 +19,11 @@ import * as packageJson from '../../../../../package.json'
 import './css/style.css'
 
 import { CompilerDropdown } from './components/compiler-dropdown'
+import { CompilerHeader, CompileWith, CompileButton, CompileWithValue, frameworkNames } from './components/compiler-header'
+import { CompilerSettings } from './components/compiler-settings'
+import { AiReviewCard, AiReviewRow } from './components/ai-review'
 const remixConfigPath = 'remix.config.json'
+const aiCardDismissedParam = 'solidity-compiler-ai-card-dismissed'
 
 export const CompilerContainer = (props: CompilerContainerProps) => {
   const online = useContext(onLineContext)
@@ -43,7 +48,6 @@ export const CompilerContainer = (props: CompilerContainerProps) => {
   } = props // eslint-disable-line
 
   const [state, setState] = useState({
-    hideWarnings: false,
     autoCompile: false,
     useFileConfiguration: false,
     matomoAutocompileOnce: true,
@@ -66,6 +70,9 @@ export const CompilerContainer = (props: CompilerContainerProps) => {
     updatedVersionSelectorFromUrlQuery: false,
   })
   const [toggleExpander, setToggleExpander] = useState<boolean>(false)
+  const [compiling, setCompiling] = useState<boolean>(false)
+  const [aiCardDismissed, setAiCardDismissed] = useState<boolean>(true)
+  const [hardhatConfigFile, setHardhatConfigFile] = useState<string>('hardhat.config.js')
   const [disableCompileButton, setDisableCompileButton] = useState<boolean>(false)
   const compileIcon = useRef(null)
   const promptMessageInput = useRef(null)
@@ -73,9 +80,7 @@ export const CompilerContainer = (props: CompilerContainerProps) => {
   const [hhCompilation, sethhCompilation] = useState(false)
   const [truffleCompilation, setTruffleCompilation] = useState(false)
   const [compilerContainer, dispatch] = useReducer(compilerReducer, compilerInitialState)
-  const { appStateDispatch } = useContext(AppContext)
   const { features } = useAuth()
-  const hasSkillsPermission = features[Features.AI_SKILLS]?.is_enabled === true
   const hasAuditorPermission = features[Features.AI_AUDITOR]?.is_enabled === true
 
   useEffect(() => {
@@ -97,6 +102,18 @@ export const CompilerContainer = (props: CompilerContainerProps) => {
   }, [props.workspaceReloadFlag])
 
   const intl = useIntl()
+
+  useEffect(() => {
+    ;(async () => {
+      const dismissed = ((await api.getAppParameter(aiCardDismissedParam)) as boolean) || false
+      setAiCardDismissed(dismissed)
+    })()
+  }, [])
+
+  useEffect(() => {
+    if (!isHardhatProject) return
+    api.fileExists('hardhat.config.ts').then((ts) => setHardhatConfigFile(ts ? 'hardhat.config.ts' : 'hardhat.config.js'))
+  }, [isHardhatProject, props.workspaceReloadFlag])
 
   useEffect(() => {
     if (online && state.onlyDownloaded){
@@ -143,7 +160,6 @@ export const CompilerContainer = (props: CompilerContainerProps) => {
     ;(async () => {
       if (compileTabLogic && compileTabLogic.compiler) {
         const autocompile = ((await api.getAppParameter('autoCompile')) as boolean) || false
-        const hideWarnings = ((await api.getAppParameter('hideWarnings')) as boolean) || false
         const includeNightlies = ((await api.getAppParameter('includeNightlies')) as boolean) || false
         const useFileConfiguration = ((await api.getAppParameter('useFileConfiguration')) as boolean) || false
 
@@ -156,7 +172,6 @@ export const CompilerContainer = (props: CompilerContainerProps) => {
 
           return {
             ...prevState,
-            hideWarnings: hideWarnings,
             autoCompile: autocompile,
             includeNightlies: includeNightlies,
             useFileConfiguration: useFileConfiguration,
@@ -360,6 +375,7 @@ export const CompilerContainer = (props: CompilerContainerProps) => {
   }
 
   const startingCompilation = () => {
+    setCompiling(true)
     if (!compileIcon.current) return
     compileIcon.current.setAttribute('title', intl.formatMessage({ id: 'solidity.compilingTitle' }))
     compileIcon.current.classList.remove('remixui_bouncingIcon')
@@ -421,6 +437,7 @@ export const CompilerContainer = (props: CompilerContainerProps) => {
   }
 
   const compilationFinished = () => {
+    setCompiling(false)
     if (!compileIcon.current) return
     compileIcon.current.setAttribute('title', intl.formatMessage({ id: 'solidity.idleTitle' }))
     compileIcon.current.classList.remove('remixui_spinningIcon')
@@ -464,6 +481,7 @@ export const CompilerContainer = (props: CompilerContainerProps) => {
     else if (truffleCompilation) externalCompType = 'truffle'
     else if (foundryCompilation) externalCompType = 'foundry'
     compileTabLogic.runCompiler(externalCompType).catch((error) => {
+      setCompiling(false)
       tooltip(error.message)
       compileIcon.current.classList.remove('remixui_bouncingIcon')
       compileIcon.current.classList.remove('remixui_spinningIcon')
@@ -514,6 +532,7 @@ export const CompilerContainer = (props: CompilerContainerProps) => {
     else if (truffleCompilation) externalCompType = 'truffle'
     api.runScriptAfterCompilation(currentFile)
     compileTabLogic.runCompiler(externalCompType).catch((error) => {
+      setCompiling(false)
       tooltip(error.message)
       compileIcon.current.classList.remove('remixui_bouncingIcon')
       compileIcon.current.classList.remove('remixui_spinningIcon')
@@ -650,9 +669,7 @@ export const CompilerContainer = (props: CompilerContainerProps) => {
     }
   }
 
-  const handleAutoCompile = (e) => {
-    const checked = e.target.checked
-
+  const handleAutoCompile = (checked: boolean) => {
     // Track auto-compile toggle
     trackMatomoEvent({ category: 'compilerContainer', action: 'autoCompile', name: checked ? 'enabled' : 'disabled', isClick: false })
 
@@ -696,22 +713,7 @@ export const CompilerContainer = (props: CompilerContainerProps) => {
     })
   }
 
-  const handleHideWarningsChange = (e) => {
-    const checked = e.target.checked
-
-    // Track hide warnings toggle
-    trackMatomoEvent({ category: 'compilerContainer', action: 'hideWarnings', name: checked ? 'enabled' : 'disabled', isClick: false })
-
-    api.setAppParameter('hideWarnings', checked)
-    state.autoCompile && compile()
-    setState((prevState) => {
-      return { ...prevState, hideWarnings: checked }
-    })
-  }
-
-  const handleNightliesChange = (e) => {
-    const checked = e.target.checked
-
+  const handleNightliesChange = (checked: boolean) => {
     // Track include nightlies toggle
     trackMatomoEvent({ category: 'compilerContainer', action: 'includeNightlies', name: checked ? 'enabled' : 'disabled', isClick: false })
 
@@ -722,9 +724,7 @@ export const CompilerContainer = (props: CompilerContainerProps) => {
     })
   }
 
-  const handleOnlyDownloadedChange = (e) => {
-    const checked = e.target.checked
-
+  const handleOnlyDownloadedChange = (checked: boolean) => {
     // Track downloaded compilers only toggle - we can use compilerSelection for this
     trackMatomoEvent({ category: 'compilerContainer', action: 'compilerSelection', name: checked ? 'downloadedOnly' : 'allVersions', isClick: false })
 
@@ -762,37 +762,14 @@ export const CompilerContainer = (props: CompilerContainerProps) => {
     })
   }
 
-  const updatehhCompilation = (event) => {
-    const checked = event.target.checked
-    if (checked) sethhCompilation(false) // wayaround to reset the variable
-    sethhCompilation(checked)
-    api.setAppParameter('hardhat-compilation', checked)
-    if (checked){
-      // @ts-ignore
-      api.call('notification', 'toast', intl.formatMessage({ id: 'solidity.useHardhatConfig' }), 4000)
-    }
-  }
-
-  const updateFoundryCompilation = (event) => {
-    const checked = event.target.checked
-    if (checked) setFoundryCompilation(false) // wayaround to reset the variable
-    setFoundryCompilation(checked)
-    api.setAppParameter('foundry-compilation', checked)
-    if (checked){
-      // @ts-ignore
-      api.call('notification', 'toast', intl.formatMessage({ id: 'solidity.useFoundryConfig' }), 4000)
-    }
-  }
-
-  const updateTruffleCompilation = (event) => {
-    const checked = event.target.checked
-    if (checked) setTruffleCompilation(false) // wayaround to reset the variable
-    setTruffleCompilation(checked)
-    api.setAppParameter('truffle-compilation', checked)
-    if (checked){
-      // @ts-ignore
-      api.call('notification', 'toast', intl.formatMessage({ id: 'solidity.useTruffleConfig' }), 4000)
-    }
+  const handleCompileWith = (value: CompileWithValue) => {
+    trackMatomoEvent({ category: 'compilerContainer', action: 'compileWith', name: value, isClick: false })
+    sethhCompilation(value === 'hardhat')
+    setFoundryCompilation(value === 'foundry')
+    setTruffleCompilation(value === 'truffle')
+    api.setAppParameter('hardhat-compilation', value === 'hardhat')
+    api.setAppParameter('foundry-compilation', value === 'foundry')
+    api.setAppParameter('truffle-compilation', value === 'truffle')
   }
 
   /*
@@ -807,16 +784,21 @@ export const CompilerContainer = (props: CompilerContainerProps) => {
     onChangeRuns(settings.runs)
   }
 
-  const loadAISkills = () => {
-    if (!hasSkillsPermission) {
-      ;(api as any).call('planManager', 'open', { reason: 'feature-required', requiredFeature: Features.SKILLS_BASIC })
-    } else {
-      trackMatomoEvent({ category: 'compilerContainer', action: 'loadAISkills', name: '', isClick: true })
-      appStateDispatch({ type: appActionTypes.showSkillsModal, payload: true })
-    }
+  const dismissAiCard = () => {
+    trackMatomoEvent({ category: 'compilerContainer', action: 'dismissAIReviewCard', name: '', isClick: true })
+    api.setAppParameter(aiCardDismissedParam, true)
+    setAiCardDismissed(true)
+  }
+
+  const copyDevRunScriptTag = () => {
+    trackMatomoEvent({ category: 'compilerContainer', action: 'copyDevRunScriptTag', name: '', isClick: true })
+    copy('@custom:dev-run-script file_path')
+    tooltip(intl.formatMessage({ id: 'solidity.devRunScriptTagCopied' }))
   }
 
   const toggleConfigurations = () => {
+    // Track advanced configuration toggle
+    trackMatomoEvent({ category: 'compilerContainer', action: 'advancedConfigToggle', name: !toggleExpander ? 'expanded' : 'collapsed', isClick: true })
     setToggleExpander(!toggleExpander)
   }
 
@@ -825,523 +807,85 @@ export const CompilerContainer = (props: CompilerContainerProps) => {
     await api.open(remixConfigPath)
   }
 
-  return (
-    <section>
-      <article>
-        <div className="pt-0 px-4">
-          <div className="mb-1">
-            <label className="remixui_compilerLabel form-check-label" htmlFor="versionSelector">
-              <FormattedMessage id="solidity.compiler" />
-            </label>
+  const compileWith: CompileWithValue = hhCompilation ? 'hardhat' : foundryCompilation ? 'foundry' : truffleCompilation ? 'truffle' : 'remix'
+  const viaFramework = compileWith !== 'remix'
+  const frameworks = [
+    isHardhatProject && { value: 'hardhat' as const, configFile: hardhatConfigFile },
+    isFoundryProject && { value: 'foundry' as const, configFile: 'foundry.toml' },
+    isTruffleProject && { value: 'truffle' as const, configFile: 'truffle-config.js' }
+  ].filter(Boolean)
+  const showAiCard = !aiCardDismissed && isSolFileSelected(compiledFileName)
 
-            <CustomTooltip
-              placement="bottom"
-              tooltipId="promptCompilerTooltip"
-              tooltipClasses="text-nowrap"
-              tooltipText={<FormattedMessage id="solidity.addACustomCompilerWithURL" />}
-            >
-              <span
-                className={`fas fa-plus border-0 p-0 ms-3 ${(hhCompilation || foundryCompilation) ? 'text-muted' : ''}`}
-                onClick={() => !(hhCompilation || foundryCompilation) && promptCompiler()}
-                style={{
-                  cursor: (hhCompilation || foundryCompilation) ? 'not-allowed' : 'pointer',
-                  opacity: (hhCompilation || foundryCompilation) ? 0.5 : 1
-                }}
-              ></span>
-            </CustomTooltip>
-            <CustomTooltip
-              placement="bottom"
-              tooltipId="showCompilerTooltip"
-              tooltipClasses="text-nowrap"
-              tooltipText={<FormattedMessage id="solidity.seeCompilerLicense" />}
-            >
-              <span
-                className={`far fa-file-certificate border-0 p-0 ms-2 ${(hhCompilation || foundryCompilation) ? 'text-muted' : ''}`}
-                onClick={() => !(hhCompilation || foundryCompilation) && showCompilerLicense()}
-                style={{
-                  cursor: (hhCompilation || foundryCompilation) ? 'not-allowed' : 'pointer',
-                  opacity: (hhCompilation || foundryCompilation) ? 0.5 : 1
-                }}
-              ></span>
-            </CustomTooltip>
-            { !hhCompilation && !foundryCompilation && solJsonBinData && solJsonBinData.selectorList && solJsonBinData.selectorList.length > 0 ? (
-              <div style={{
-                pointerEvents: (hhCompilation || foundryCompilation) ? 'none' : 'auto'
-              }}>
-                <CompilerDropdown
-                  allversions={solJsonBinData.selectorList}
-                  customVersions={state.customVersions}
-                  selectedVersion={state.selectedVersion}
-                  defaultVersion={state.defaultVersion}
-                  handleLoadVersion={handleLoadVersion}
-                  _shouldBeAdded={_shouldBeAdded}
-                  onlyDownloaded={state.onlyDownloaded}
-                  disabled={hhCompilation || foundryCompilation}
-                ></CompilerDropdown>
-              </div>
-            ):null}
-          </div>
-          {!hhCompilation && !foundryCompilation && <div className={`mb-2 flex-row-reverse d-flex flex-row form-check ${(hhCompilation || foundryCompilation) ? 'text-muted' : ''}`}>
-            <label htmlFor="nightlies" data-id="compilerNightliesBuild" className="pt-0 form-check-label">
-              <FormattedMessage id="solidity.includeNightlyBuilds" />
-            </label>
-            <input
-              className="me-2 form-check-input"
-              id="nightlies"
-              type="checkbox"
-              onChange={handleNightliesChange}
-              checked={state.includeNightlies}
-              disabled={hhCompilation || foundryCompilation}
-              style={{
-                cursor: (hhCompilation || foundryCompilation) ? 'not-allowed' : 'pointer',
-                opacity: (hhCompilation || foundryCompilation) ? 0.5 : 1
-              }}
+  return (
+    <section className="sc-section" data-id="compilerSection">
+      <CompilerHeader
+        showMenu={!viaFramework}
+        onAddCustomCompiler={promptCompiler}
+        onCompileAndRun={compileAndRun}
+        compileAndRunDisabled={disableCompileButton}
+        onCopyDevRunScriptTag={copyDevRunScriptTag}
+        onShowLicense={showCompilerLicense}
+      />
+
+      {frameworks.length > 0 && (
+        <CompileWith value={compileWith} frameworks={frameworks} onChange={handleCompileWith} onOpenConfigFile={(file) => api.open(file)} />
+      )}
+
+      {!viaFramework && (
+        <>
+          {solJsonBinData && solJsonBinData.selectorList && solJsonBinData.selectorList.length > 0 && (
+            <CompilerDropdown
+              allversions={solJsonBinData.selectorList}
+              customVersions={state.customVersions}
+              selectedVersion={state.selectedVersion}
+              defaultVersion={state.defaultVersion}
+              handleLoadVersion={handleLoadVersion}
+              _shouldBeAdded={_shouldBeAdded}
+              onlyDownloaded={state.onlyDownloaded}
+              disabled={false}
             />
-          </div>}
-          {platform === appPlatformTypes.desktop && !foundryCompilation && !hhCompilation && !truffleCompilation ?
-            <div className={`mb-2 flex-row-reverse d-flex flex-row form-check ${(hhCompilation || foundryCompilation) ? 'text-muted' : ''}`}>
-              <label htmlFor="downloadedcompilers" data-id="compilerNightliesBuild" className="form-check-label">
-                <FormattedMessage id="solidity.downloadedCompilers" />
-              </label>
-              <input
-                className="me-2 form-check-input"
-                id="downloadedcompilers"
-                type="checkbox"
-                onChange={handleOnlyDownloadedChange}
-                checked={state.onlyDownloaded}
-                disabled={hhCompilation || foundryCompilation}
-                style={{
-                  cursor: (hhCompilation || foundryCompilation) ? 'not-allowed' : 'pointer',
-                  opacity: (hhCompilation || foundryCompilation) ? 0.5 : 1
-                }}
-              />
-            </div>:null}
-          <div className="mt-2 remixui_compilerConfig form-check">
-            <input
-              className="form-check-input"
-              type="checkbox"
-              onChange={handleAutoCompile}
-              data-id="compilerContainerAutoCompile"
-              id="autoCompile"
-              checked={state.autoCompile}
-            />
-            <label className="form-check-label" htmlFor="autoCompile">
-              <FormattedMessage id="solidity.autoCompile" />
-            </label>
-          </div>
-          <div className="mt-1 mb-2 remixui_compilerConfig form-check">
-            <input
-              className="form-check-input"
-              onChange={handleHideWarningsChange}
-              id="hideWarningsBox"
-              type="checkbox"
-              checked={state.hideWarnings}
-            />
-            <label className="form-check-label" htmlFor="hideWarningsBox">
-              <FormattedMessage id="solidity.hideWarnings" />
-            </label>
-          </div>
-          {isFoundryProject && (
-            <div className="mt-3 remixui_compilerConfig form-check">
-              <input
-                className="form-check-input"
-                onChange={updateFoundryCompilation}
-                id="enableFoundry"
-                type="checkbox"
-                title={intl.formatMessage({ id: 'solidity.enableFoundryTitle' })}
-                checked={foundryCompilation}
-              />
-              <label className="form-check-label" htmlFor="enableFoundry">
-                <FormattedMessage id="solidity.enableFoundry" />
-              </label>
-              <a className="mt-1 text-nowrap" href="https://remix-ide.readthedocs.io/en/latest/foundry.html#enable-foundry-compilation" target={'_blank'}>
-                <CustomTooltip
-                  placement={'right'}
-                  tooltipClasses="text-nowrap"
-                  tooltipId="overlay-tooltip-foundry"
-                  tooltipText={
-                    <span className="border bg-light text-dark p-1 pe-3" style={{ minWidth: '230px' }}>
-                      <FormattedMessage id="solidity.learnFoundry" />
-                    </span>
-                  }
-                >
-                  <i className={'ms-2 fas fa-info'} aria-hidden="true"></i>
-                </CustomTooltip>
-              </a>
-            </div>
           )}
-          {isHardhatProject && (
-            <div className="mt-3 remixui_compilerConfig form-check">
-              <input
-                className="form-check-input"
-                onChange={updatehhCompilation}
-                id="enableHardhat"
-                type="checkbox"
-                checked={hhCompilation}
-              />
-              <label className="form-check-label" htmlFor="enableHardhat">
-                <FormattedMessage id="solidity.enableHardhat" />
-              </label>
-              <a className="mt-1 text-nowrap" href="https://remix-ide.readthedocs.io/en/latest/hardhat.html#enable-hardhat-compilation" target={'_blank'}>
-                <CustomTooltip
-                  placement={'right'}
-                  tooltipClasses="text-nowrap"
-                  tooltipId="overlay-tooltip-hardhat"
-                  tooltipText={
-                    <span className="border bg-light text-dark p-1 pe-3" style={{ minWidth: '230px' }}>
-                      <FormattedMessage id="solidity.learnHardhat" />
-                    </span>
-                  }
-                >
-                  <i className={'ms-2 fas fa-info'} aria-hidden="true"></i>
-                </CustomTooltip>
-              </a>
-            </div>
-          )}
-          {isTruffleProject && (
-            <div className="mt-3 remixui_compilerConfig form-check">
-              <input
-                className="form-check-input"
-                onChange={updateTruffleCompilation}
-                id="enableTruffle"
-                type="checkbox"
-                checked={truffleCompilation}
-              />
-              <label className="form-check-label" htmlFor="enableTruffle">
-                <FormattedMessage id="solidity.enableTruffle" />
-              </label>
-              <a className="mt-1 text-nowrap" href="https://remix-ide.readthedocs.io/en/latest/truffle.html#enable-truffle-compilation" target={'_blank'}>
-                <CustomTooltip
-                  placement={'right'}
-                  tooltipClasses="text-nowrap"
-                  tooltipId="overlay-tooltip-truffle"
-                  tooltipText={
-                    <span className="border bg-light text-dark p-1 pe-3" style={{ minWidth: '230px' }}>
-                      <FormattedMessage id="solidity.learnTruffle" />
-                    </span>
-                  }
-                >
-                  <i style={{ fontSize: 'medium' }} className={'ms-2 fas fa-info'} aria-hidden="true"></i>
-                </CustomTooltip>
-              </a>
-            </div>
-          )}
-        </div>
-        <div
-          className={`d-flex px-4 remixui_compilerConfigSection justify-content-between ${(hhCompilation || foundryCompilation) ? 'text-muted' : ''}`}
-          onClick={() => {
-            if (hhCompilation || foundryCompilation) return
-            // Track advanced configuration toggle
-            trackMatomoEvent({ category: 'compilerContainer', action: 'advancedConfigToggle', name: !toggleExpander ? 'expanded' : 'collapsed', isClick: true })
-            toggleConfigurations()
-          }}
-          style={{
-            cursor: (hhCompilation || foundryCompilation) ? 'not-allowed' : 'pointer',
-            opacity: (hhCompilation || foundryCompilation) ? 0.5 : 1,
-            pointerEvents: (hhCompilation || foundryCompilation) ? 'none' : 'auto'
-          }}
-        >
-          <div className="d-flex">
-            <label className="remixui_compilerConfigSection">
-              <FormattedMessage id="solidity.advancedConfigurations" />
-            </label>
-          </div>
-          <div>
-            <span data-id="scConfigExpander" onClick={() => {
-              if (hhCompilation || foundryCompilation) return
-              // Track advanced configuration toggle
-              trackMatomoEvent({ category: 'compilerContainer', action: 'advancedConfigToggle', name: !toggleExpander ? 'expanded' : 'collapsed', isClick: true })
-              toggleConfigurations()
-            }}>
-              <i className={!toggleExpander ? 'fas fa-angle-right' : 'fas fa-angle-down'} aria-hidden="true"></i>
-            </span>
-          </div>
-        </div>
-        <div className={`px-4 pb-4 border-bottom flex-column ${toggleExpander ? 'd-flex' : 'd-none'}`}>
-          <div className="d-flex pb-1 remixui_compilerConfig form-check">
-            <input
-              className="form-check-input"
-              type="radio"
-              name="configradio"
-              value="manual"
-              onChange={toggleConfigType}
-              checked={!state.useFileConfiguration}
-              id="scManualConfig"
-            />
-            <label className="form-check-label ms-1" htmlFor="scManualConfig" data-id="scManualConfiguration">
-              <FormattedMessage id="solidity.compilerConfiguration" />
-            </label>
-          </div>
-          <div className={`flex-column 'd-flex'}`}>
-            <div className="mb-2 ms-4">
-              <label className="remixui_compilerLabel form-check-label" htmlFor="compilerLanguageSelector">
-                <FormattedMessage id="solidity.language" />
-              </label>
-              <CustomTooltip
-                placement="right"
-                tooltipId="compilerLabelTooltip"
-                tooltipClasses="text-nowrap"
-                tooltipText={
-                  <span>
-                    <FormattedMessage id="solidity.tooltipText6" />
-                  </span>
-                }
-              >
-                <div id="compilerLanguageSelectorWrapper">
-                  <select
-                    onChange={(e) => handleLanguageChange(e.target.value)}
-                    disabled={state.useFileConfiguration}
-                    value={state.language}
-                    className="form-select"
-                    id="compilerLanguageSelector"
-                    style={{
-                      pointerEvents: state.useFileConfiguration ? 'none' : 'auto'
-                    }}
-                  >
-                    <option data-sol-lang="solidity" data-id={state.language === 'Solidity' ? 'selected' : ''} value="Solidity">
-                      Solidity
-                    </option>
-                    <option data-sol-lang="yul" data-id={state.language === 'Yul' ? 'selected' : ''} value="Yul">
-                      Yul
-                    </option>
-                  </select>
-                </div>
-              </CustomTooltip>
-            </div>
-            <div className="mb-2 ms-4">
-              <label className="remixui_compilerLabel form-check-label" htmlFor="evmVersionSelector">
-                <FormattedMessage id="solidity.evmVersion" />
-              </label>
-              <select
-                value={state.evmVersion}
-                onChange={(e) => handleEvmVersionChange(e.target.value)}
-                disabled={state.useFileConfiguration}
-                className="form-select"
-                id="evmVersionSelector"
-              >
-                {compileTabLogic.evmVersions.map((version, index) => (
-                  <option key={index} data-id={state.evmVersion === version ? 'selected' : ''} value={version}>
-                    {version === 'default' ? `default (${compileTabLogic.evmVersions[index + 1]})` : version}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div className="mt-1 mt-3 border-dark pb-3 ms-4 remixui_compilerConfig ">
-              <div className="justify-content-between align-items-center d-flex">
-                <CustomTooltip
-                  placement="top"
-                  tooltipId="configfileOptimisationNumbeTooltip"
-                  tooltipClasses="text-nowrap"
-                  tooltipText={intl.formatMessage({ id: !state.optimize ? 'solidity.enableOptimizerTooltip' : 'solidity.disableOptimizerTooltip' })}
-                >
-                  <div className='form-check'>
-                    <input
-                      onChange={(e) => {
-                        handleOptimizeChange(e.target.checked)
-                      }}
-                      disabled={state.useFileConfiguration}
-                      className="form-check-input"
-                      id="optimize"
-                      type="checkbox"
-                      checked={state.optimize}
-                    />
-                    <label className="form-check-label" htmlFor="optimize">
-                      <FormattedMessage id="solidity.enableOptimization" />
-                    </label>
-                  </div>
-                </CustomTooltip>
-                <CustomTooltip
-                  placement="top"
-                  tooltipId="configfileOptimisationNumberTooltip"
-                  tooltipClasses="text-nowrap"
-                  tooltipText={intl.formatMessage({ id: 'solidity.inputTitle2' })}
-                >
-                  <input
-                    min="1"
-                    className="form-select ms-4"
-                    id="runs"
-                    placeholder="200"
-                    value={state.runs}
-                    type="number"
-                    onChange={(e) => onChangeRuns(e.target.value)}
-                    disabled={!state.optimize || state.useFileConfiguration}
-                  />
-                </CustomTooltip>
-              </div>
-            </div>
-          </div>
-          <div className="d-flex pb-1 remixui_compilerConfig form-check">
-            <input
-              className="form-check-input"
-              type="radio"
-              name="configradio"
-              value="file"
-              onChange={toggleConfigType}
-              checked={state.useFileConfiguration}
-              id="scFileConfig"
-            />
-            <label className="form-check-label ms-1" htmlFor="scFileConfig" data-id="scFileConfiguration">
-              <FormattedMessage id="solidity.useConfigurationFile" />
-            </label>
-          </div>
-          <RenderIf condition={state.useFileConfiguration}>
-            <a data-id="view-solidity-config" className="cursor-pointer text-decoration-none ms-4" href='#' onClick={(e) => {
-              e.preventDefault()
-              e.stopPropagation()
-              handleConfigFileClick()
-            }}>
-              <i className="text-secondary mt-1 pe-1 far fa-edit"></i> <FormattedMessage id="solidity.updateConfigFile" />
-            </a>
-          </RenderIf>
-        </div>
-        <div className="px-4">
-          <CustomTooltip
-            placement="auto"
-            tooltipId="overlay-tooltip-load-ai-skills"
-            tooltipText="Use web3/solidity skills and RemixAI to help you build your project"
-          >
-            <button
-              data-id="compilerContainerLoadAISkillsBtn"
-              className="btn btn-secondary btn-block d-block w-100 text-break mb-1 mt-1"
-              onClick={loadAISkills}
-            >
-              Load AI Skills
-            </button>
-          </CustomTooltip>
-          <button
-            id="compileBtn"
-            data-id="compilerContainerCompileBtn"
-            className="btn btn-primary btn-block d-block w-100 text-break remixui_disabled mb-1 mt-3"
-            onClick={compile}
-            disabled={disableCompileButton}
-          >
-            <CustomTooltip
-              placement="auto"
-              tooltipId="overlay-tooltip-compile"
-              tooltipText={
-                <div className="text-start">
-                  {(
-                    <div>
-                      <b>Ctrl+S</b> <FormattedMessage id="solidity.toCompile" /> {state.compiledFileName.endsWith('.sol') ? state.compiledFileName : null}{' '}
-                    </div>
-                  )}
-                </div>
-              }
-            >
-              <div className="d-flex align-items-center justify-content-center">
-                {<i ref={compileIcon} className="fas fa-sync me-2" aria-hidden="true"></i>}
-                <div className="text-truncate overflow-hidden text-nowrap">
-                  <span>
-                    <FormattedMessage id="solidity.compile" />
-                  </span>
-                  <span className="ms-1 text-nowrap">
-                    {typeof state.compiledFileName === 'string'
-                      ? extractNameFromKey(state.compiledFileName) ||
-                        `<${intl.formatMessage({
-                          id: 'solidity.noFileSelected'
-                        })}>`
-                      : `<${intl.formatMessage({
-                        id: 'solidity.noFileSelected'
-                      })}>`}
-                  </span>
-                </div>
-              </div>
-            </CustomTooltip>
-          </button>
-          <div className="d-flex gap-1 mb-1 mt-3">
-            <CustomTooltip
-              placement="auto"
-              tooltipId="overlay-tooltip-ai-audit"
-              tooltipText="AI-powered security audit: scans your contract for vulnerabilities and security risks"
-            >
-              <button
-                data-id="compilerContainerStartAIAuditBtn"
-                className="btn btn-ai btn-block d-block w-100 text-break text-nowrap"
-                onClick={() => startAudit('security')}
-              >
-                <img src="assets/img/remixAI_small.svg" alt="Remix AI" className="security-audit-icon me-1" />
-                Security Audit
-              </button>
-            </CustomTooltip>
-            <CustomTooltip
-              placement="auto"
-              tooltipId="overlay-tooltip-gas-audit"
-              tooltipText="AI-powered gas audit: analyzes your contract for gas inefficiencies and optimization opportunities"
-            >
-              <button
-                data-id="compilerContainerStartGasAuditBtn"
-                className="btn btn-ai btn-block d-block w-100 text-break text-nowrap"
-                onClick={() => startAudit('gas')}
-              >
-                <img src="assets/img/remixAI_small.svg" alt="Remix AI" className="gas-audit-icon me-1" />
-                Gas Audit
-              </button>
-            </CustomTooltip>
-          </div>
-          <div className="d-flex align-items-center">
-            <button
-              id="compileAndRunBtn"
-              data-id="compilerContainerCompileAndRunBtn"
-              className="btn btn-secondary btn-block d-block w-100 text-break  d-inline-block remixui_disabled mb-1 mt-1"
-              onClick={compileAndRun}
-              disabled={disableCompileButton}
-            >
-              <CustomTooltip
-                placement={'auto-end'}
-                tooltipId="overlay-tooltip-compile-run"
-                tooltipText={
-                  <div className="text-start">
-                    {(
-                      <div>
-                        <b>Ctrl+Shift+S</b> <FormattedMessage id="solidity.tooltipText3" />
-                      </div>
-                    )}
-                  </div>
-                }
-              >
-                <span>
-                  <FormattedMessage id="solidity.compileAndRunScript" />
-                </span>
-              </CustomTooltip>
-            </button>
-            <CustomTooltip
-              placement="top"
-              tooltipId="overlay-tooltip-compile-run-doc"
-              tooltipText={
-                <div className="text-start p-2">
-                  <div><FormattedMessage id="solidity.tooltipText1" /></div>
-                  <pre>
-                    <code>
-                      /**
-                      <br />
-                      * @title ContractName
-                      <br />
-                      * @dev ContractDescription
-                      <br />
-                      * @custom:dev-run-script file_path
-                      <br />
-                      */
-                      <br />
-                      contract ContractName {'{}'}
-                      <br />
-                    </code>
-                  </pre>
-                  <FormattedMessage id="solidity.tooltipText2" />
-                </div>
-              }
-            >
-              <a href="https://remix-ide.readthedocs.io/en/latest/running_js_scripts.html#compile-a-contract-and-run-a-script-on-the-fly" target="_blank">
-                <i className="ps-2 ms-2 fas fa-info text-dark"></i>
-              </a>
-            </CustomTooltip>
-            <CopyToClipboard tip={intl.formatMessage({ id: 'solidity.copyNatSpecTag' })} getContent={() => '@custom:dev-run-script file_path'} direction="top">
-              <button className="btn remixui_copyButton  ms-2 my-1 text-dark">
-                <i className="remixui_copyIcon far fa-copy" aria-hidden="true"></i>
-              </button>
-            </CopyToClipboard>
-          </div>
-        </div>
-      </article>
+          <CompilerSettings
+            open={toggleExpander}
+            onToggle={toggleConfigurations}
+            configFileName={remixConfigPath}
+            useFileConfiguration={state.useFileConfiguration}
+            onUseFileConfigurationChange={toggleConfigType}
+            onOpenConfigFile={handleConfigFileClick}
+            language={state.language}
+            onLanguageChange={handleLanguageChange}
+            evmVersion={state.evmVersion}
+            evmVersions={compileTabLogic.evmVersions}
+            onEvmVersionChange={handleEvmVersionChange}
+            optimize={state.optimize}
+            onOptimizeChange={handleOptimizeChange}
+            runs={state.runs}
+            onRunsChange={onChangeRuns}
+            includeNightlies={state.includeNightlies}
+            onNightliesChange={handleNightliesChange}
+            showOnlyDownloaded={platform === appPlatformTypes.desktop}
+            onlyDownloaded={state.onlyDownloaded}
+            onOnlyDownloadedChange={handleOnlyDownloadedChange}
+          />
+        </>
+      )}
+
+      <div className="sc-set-row sc-auto">
+        <label className="n" htmlFor="autoCompile"><FormattedMessage id="solidity.autoCompile" /></label>
+        <span data-id="compilerContainerAutoCompile">
+          <ToggleSwitch id="autoCompile" isOn={state.autoCompile} onClick={() => handleAutoCompile(!state.autoCompile)} />
+        </span>
+      </div>
+
+      <CompileButton fileName={state.compiledFileName} disabled={disableCompileButton} iconRef={compileIcon} onCompile={compile} />
+
+      {props.renderResults && props.renderResults({
+        compiling,
+        via: viaFramework ? frameworkNames[compileWith] : undefined,
+        footer: aiCardDismissed ? <AiReviewRow onAudit={startAudit} /> : null
+      })}
+
+      {showAiCard && <AiReviewCard fileName={state.compiledFileName} onAudit={startAudit} onDismiss={dismissAiCard} />}
     </section>
   )
 }

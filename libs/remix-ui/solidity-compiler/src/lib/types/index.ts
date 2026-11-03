@@ -1,3 +1,4 @@
+import React from 'react'
 import { ICompilerApi, ConfigurationSettings, iSolJsonBinData } from '@remix-project/remix-lib'
 import { CompileTabLogic } from '../logic/compileTabLogic'
 export type onCurrentFileChanged = (fileName: string) => void
@@ -25,12 +26,14 @@ export interface CompilerContainerProps {
   solJsonBinData: iSolJsonBinData,
   setCompileErrors: (errors: Record<string, CompileErrors>) => void
   setBadgeStatus: (badgeStatus: Record<string, { key: string | number; title?: string; type?: string }>) => void
+  // the compile results, rendered right under the Compile button
+  renderResults?: (opts: { compiling: boolean, via?: string, footer?: React.ReactNode }) => React.ReactNode
 }
 
 export interface ContractSelectionProps {
   api: ICompilerApi,
   compiledFileName: string,
-  contractList: { file: string, name: string }[],
+  contractList: { file: string, name: string, path?: string }[],
   compilerInput: Record<string, any>
   modal: (title: string, message: string | JSX.Element, okLabel: string, okFn: () => void, donotHideOnOkClick?: boolean, cancelLabel?: string, cancelFn?: () => void) => void,
   contractsDetails: Record<string, any>
@@ -49,7 +52,7 @@ export interface CompileErrors {
 }
 
 export interface CompilationDetails {
-  contractList: { file: string, name: string }[],
+  contractList: { file: string, name: string, path?: string }[],
   contractsDetails: Record<string, any>,
   target?: string,
   input?: Record<string, any>

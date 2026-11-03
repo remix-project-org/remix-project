@@ -3,6 +3,7 @@ import { appPlatformTypes, platformContext, onLineContext } from '@remix-ui/app'
 ;
 import React, { useEffect, useState, useRef, useReducer, useContext } from 'react' // eslint-disable-line
 import { Dropdown } from 'react-bootstrap';
+import { useIntl } from 'react-intl'
 import { CompilerMenu, CompilerMenuToggle } from './compiler-menu';
 
 export type compilerVersion = {
@@ -26,6 +27,10 @@ export const CompilerDropdown = (props: compilerDropdownProps) => {
   const online = useContext(onLineContext)
   const platform = useContext(platformContext)
   const { customVersions, selectedVersion, defaultVersion, allversions, handleLoadVersion, _shouldBeAdded, onlyDownloaded } = props
+  const intl = useIntl()
+  // the newest release (the list is newest first, after "builtin")
+  const latestPath = allversions.find((build) => build.path !== 'builtin' && !build.longVersion.includes('nightly'))?.path
+  const latest = <span className="sc-muted ms-1">({intl.formatMessage({ id: 'solidity.latest' })})</span>
   return (
     <Dropdown id="versionSelector" data-id="versionSelector">
       <Dropdown.Toggle
@@ -34,11 +39,6 @@ export const CompilerDropdown = (props: compilerDropdownProps) => {
         id="dropdown-custom-components"
         className="btn btn-light w-100 d-inline-block border form-select"
         icon={null}
-        style={{
-          opacity: props.disabled ? 0.5 : 1,
-          cursor: props.disabled ? 'not-allowed' : 'pointer',
-          pointerEvents: props.disabled ? 'none' : 'auto'
-        }}
       >
         <div style={{ flexGrow: 1, overflow: 'hidden', display:'flex', justifyContent:'left' }}>
           <div className={`text-truncate font-sm ${props.disabled ? 'text-muted' : ''}`}>
@@ -48,7 +48,7 @@ export const CompilerDropdown = (props: compilerDropdownProps) => {
             {allversions.map((build, i) => {
 
               if ((selectedVersion || defaultVersion) === build.path) {
-                return (<span data-id="selectedVersion" key={i}>{build.longVersion}</span>)
+                return (<span key={i}><span data-id="selectedVersion">{build.longVersion}</span>{build.path === latestPath && latest}</span>)
               }
             })}
           </div>
@@ -116,7 +116,7 @@ export const CompilerDropdown = (props: compilerDropdownProps) => {
                 {selectedVersion === build.path ? <span className='fas fa-check text-success me-2'></span> : null}
                 <div style={{ flexGrow: 1, overflow: 'hidden' }}>
                   <div className="text-truncate">
-                    {build.longVersion}
+                    {build.longVersion}{build.path === latestPath && latest}
                   </div>
                 </div>
                 {platform == appPlatformTypes.desktop ? (build.isDownloaded ? <div className='fas fa-arrow-circle-down text-success ms-auto'></div> : <div className='far fa-arrow-circle-down'></div>) : null}
