@@ -163,7 +163,7 @@ module.exports = {
       .waitForElementPresent('[data-id="generate-contract-metadataSwitch"]')
       .click('[data-id="generate-contract-metadataSwitch"]')
       .clickLaunchIcon('solidity')
-      .click('.remixui_compilerConfigSection')
+      .click('*[data-id="scConfigExpander"]')
       .setValue('#evmVersionSelector', 'london')
       .click('*[data-id="compilerContainerCompileBtn"]')
       .clickLaunchIcon('udapp')

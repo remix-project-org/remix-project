@@ -134,7 +134,7 @@ module.exports = {
   'Deploy "Owner" using an ether.js script, listen to event and check event are logged in the terminal #group4': function (browser: NightwatchBrowser) {
     browser
       .clickLaunchIcon('solidity')
-      .click('.remixui_compilerConfigSection')
+      .click('*[data-id="scConfigExpander"]')
       .setValue('#evmVersionSelector', 'london') // Set EVM version as fork version
       .waitForElementVisible('*[data-id="topbar-settingsIcon"]')
       .click('*[data-id="topbar-settingsIcon"]')
@@ -310,6 +310,7 @@ module.exports = {
       .openFile('contracts')
       .openFile('contracts/1_Storage.sol')
       .clickLaunchIcon('solidity')
+      .click('*[data-id="compilerMoreMenu"]')
       .click({
         selector: '*[data-id="compilerContainerCompileAndRunBtn"]',
       })
@@ -322,6 +323,7 @@ module.exports = {
       .click({
         selector: '[data-id="listenNetworkCheckInput"]',
       }) // start to listen
+      .click('*[data-id="compilerMoreMenu"]')
       .click({
         selector: '*[data-id="compilerContainerCompileAndRunBtn"]',
       })
@@ -342,6 +344,7 @@ module.exports = {
               .click({
                 selector: '*[data-id="terminalClearConsole"]',
               })
+              .click('*[data-id="compilerMoreMenu"]')
               .click({
                 selector: '*[data-id="compilerContainerCompileAndRunBtn"]',
               })

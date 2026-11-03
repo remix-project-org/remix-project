@@ -192,7 +192,7 @@ module.exports = {
   'Should Compile and Deploy a contract which define a custom error, the error should be logged in the terminal , using London VM Fork #group3': function (browser: NightwatchBrowser) {
     browser
       .clickLaunchIcon('solidity')
-      .click('.remixui_compilerConfigSection')
+      .click('*[data-id="scConfigExpander"]')
       .setValue('#evmVersionSelector', 'london') // Set EVM version as fork version
       .click('*[data-id="compilerContainerCompileBtn"]')
       .clearTransactions()

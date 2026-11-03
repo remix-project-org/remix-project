@@ -117,7 +117,7 @@ module.exports = {
     // the panel still shows Main.sol; Lib.sol, opened from the issue, was auto-compiled
     browser
       .clickLaunchIcon('solidity')
-      .waitForElementPresent('select[id="compiledContracts"] option[value=Lib]', 60000)
+      .waitForElementPresent('*[data-id="compiledContract-Lib"]', 60000)
       .click('*[data-id="compilerOpenPreDeployChecks"]')
       .waitForElementVisible('*[data-id="preDeployChecks-file"]')
       .waitForElementContainsText('*[data-id="preDeployChecks-file"]', 'Lib.sol')
@@ -142,7 +142,7 @@ module.exports = {
       .addFile('Main.sol', sources[0]['Main.sol'])
       .clickLaunchIcon('solidity')
       .click('*[id="compileBtn"]')
-      .waitForElementPresent('select[id="compiledContracts"] option[value=Main]', 60000)
+      .waitForElementPresent('*[data-id="compiledContract-Main"]', 60000)
       .clickLaunchIcon('solidityStaticAnalysis')
       .waitForElementPresent('#staticAnalysisRunBtn:enabled', 30000)
       .click('#staticAnalysisRunBtn')

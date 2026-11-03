@@ -278,7 +278,7 @@ const tests = {
       .clickLaunchIcon('solidity')
       .waitForElementVisible('*[data-id="compilerContainerCompileBtn"]')
       .click('*[data-id="compilerContainerCompileBtn"]')
-      .waitForElementPresent('*[data-id="compiledContracts"] option', 60000)
+      .waitForElementPresent('*[data-id^="compiledContract-"]', 60000)
       .clickLaunchIcon('remixaiassistant')
       .assistantWaitForReady()
       .assistantSetProvider('anthropic')
