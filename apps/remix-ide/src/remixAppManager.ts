@@ -137,6 +137,8 @@ let requiredModules = [
   'udappTransactions',
   'udappEez',
   'txRunner',
+  'arkivBasic',
+  'arkivNetwork',
   'betaCornerWidget',
   'lifecycle',
   'nudgePlugin',
@@ -158,7 +160,7 @@ const partnerPlugins = ['cookbookdev']
 const sensitiveCalls = {
   fileManager: ['writeFile', 'copyFile', 'rename', 'copyDir'],
   contentImport: ['resolveAndSave'],
-  web3Provider: ['sendAsync'],
+  web3Provider: ['sendAsync']
 }
 
 const isInjectedProvider = (name) => {
@@ -500,6 +502,17 @@ export class RemixAppManager extends BaseRemixAppManager {
       label: 'Create DApp from Subgraph Query',
       type: [],
       extension: ['.subgraph'],
+      path: [],
+      pattern: [],
+      group: 2,
+      multiselect: false
+    })
+    this.call('filePanel', 'registerContextMenuItem', {
+      id: 'arkivNetwork',
+      name: 'shareFile',
+      label: 'Share File with Arkiv',
+      type: ['file'],
+      extension: [],
       path: [],
       pattern: [],
       group: 2,

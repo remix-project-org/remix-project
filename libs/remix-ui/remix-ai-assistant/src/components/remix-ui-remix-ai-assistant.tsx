@@ -201,6 +201,9 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
   // Mirrored for sendPrompt, which is memoized without the route in its deps.
   const aiRouteRef = useRef<'initializing' | 'agent' | 'tools' | 'chat'>('initializing')
   useEffect(() => { aiRouteRef.current = aiRouteStatus.route }, [aiRouteStatus.route])
+  // Sustained slowdown of a served model, from the drift monitor. Keyed by the
+  // served model: under Auto one picked model can recover while another is slow.
+  const [degradedModels, setDegradedModels] = useState<Record<string, { modelId: string; detail: string }>>({})
 
   // Authentication signal — mirrored from the assistantState snapshot.
   // Drives the composer's sign-in CTA so an anonymous user gets a clear
@@ -276,6 +279,9 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
   const ollamaMenuRef = useRef<any>()
   const [ollamaModels, setOllamaModels] = useState<{ name: string; supported: boolean }[]>([])
   const [selectedModel, setSelectedModel] = useState<AIModel | null>(null)
+  const selectedModelDegradedDetail = selectedModel
+    ? Object.values(degradedModels).find(entry => entry.modelId === selectedModel.id)?.detail
+    : undefined
   // Set when a starter credit pack is confirmed; cleared once the switch to a
   // low-cost model has actually been applied (the catalogue is refreshed
   // asynchronously after the purchase, so the switch can't happen inline).
@@ -1040,6 +1046,31 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
       }
     }
 
+    // A drift countermeasure retried the answer: drop what the first attempt
+    // streamed. Only from the end of the bubble — anything else means the
+    // text moved on, and leaving it is safer than cutting the wrong part.
+    const handleStreamReplace = (data: { remove: string; threadId?: string }) => {
+      if (isStoppedRef.current || !data?.remove || !streamingAssistantIdRef.current) return
+      setMessages(prev =>
+        prev.map(m =>
+          m.id === streamingAssistantIdRef.current && m.content.endsWith(data.remove)
+            ? { ...m, content: m.content.slice(0, m.content.length - data.remove.length) }
+            : m
+        )
+      )
+    }
+
+    const handleModelDegraded = (data: { modelId: string; label: string; degraded: boolean; detail: string }) => {
+      if (!data?.modelId) return
+      const key = data.label || data.modelId
+      setDegradedModels(prev => {
+        const next = { ...prev }
+        if (data.degraded) next[key] = { modelId: data.modelId, detail: data.detail }
+        else delete next[key]
+        return next
+      })
+    }
+
     const handleModelUsed = (data: { model: string; threadId?: string }) => {
       if (isStoppedRef.current) return
       if (!isAutoModelId(selectedModelRef.current?.id)) return
@@ -1209,6 +1240,8 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
     props.plugin.on('remixAI', 'onStreamComplete', handleStreamComplete)
     props.plugin.on('remixAI', 'onThinking', handleThinking)
     props.plugin.on('remixAI', 'onModelUsed', handleModelUsed)
+    props.plugin.on('remixAI', 'onStreamReplace', handleStreamReplace)
+    props.plugin.on('remixAI', 'onModelDegraded', handleModelDegraded)
     props.plugin.on('remixAI', 'onToolCall', handleToolCall)
     props.plugin.on('remixAI', 'onSubagentStart', handleSubagentStart)
     props.plugin.on('remixAI', 'onSubagentComplete', handleSubagentComplete)
@@ -1507,6 +1540,8 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
       props.plugin.off('remixAI', 'onStreamComplete')
       props.plugin.off('remixAI', 'onThinking')
       props.plugin.off('remixAI', 'onModelUsed')
+      props.plugin.off('remixAI', 'onStreamReplace')
+      props.plugin.off('remixAI', 'onModelDegraded')
       props.plugin.off('remixAI', 'onToolCall')
       props.plugin.off('remixAI', 'onSubagentStart')
       props.plugin.off('remixAI', 'onSubagentComplete')
@@ -3470,6 +3505,7 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
             onAddApiKeyClick={handleOpenApiKeySettings}
             aiRoute={aiRouteStatus.route}
             aiRouteReady={aiRouteStatus.ready}
+            modelDegradedDetail={selectedModelDegradedDetail}
             isAuthenticated={isAuthenticated}
             onSignIn={handleSignIn}
             hasAuditorPermission={hasAuditorPermission}
@@ -3538,6 +3574,7 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
             onAddApiKeyClick={handleOpenApiKeySettings}
             aiRoute={aiRouteStatus.route}
             aiRouteReady={aiRouteStatus.ready}
+            modelDegradedDetail={selectedModelDegradedDetail}
             isAuthenticated={isAuthenticated}
             onSignIn={handleSignIn}
             hasAuditorPermission={hasAuditorPermission}

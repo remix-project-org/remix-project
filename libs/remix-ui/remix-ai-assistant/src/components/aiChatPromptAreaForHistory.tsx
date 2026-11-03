@@ -61,6 +61,7 @@ interface AiChatPromptAreaForHistoryProps {
       usingOwnApiKey?: boolean
       aiRoute?: 'initializing' | 'agent' | 'tools' | 'chat'
       aiRouteReady?: boolean
+      modelDegradedDetail?: string
       isAuthenticated?: boolean
       onSignIn?: () => void
       hasAuditorPermission?: boolean
@@ -211,6 +212,7 @@ export default function AiChatPromptAreaForHistory(props: AiChatPromptAreaForHis
         usingOwnApiKey={props.usingOwnApiKey}
         aiRoute={props.aiRoute}
         aiRouteReady={props.aiRouteReady}
+        modelDegradedDetail={props.modelDegradedDetail}
         isAuthenticated={props.isAuthenticated}
         onSignIn={props.onSignIn}
         isNewChat={props.messages.length === 0}

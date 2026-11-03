@@ -9,7 +9,7 @@ import { checksumAddressesInValue } from '@remix-ui/utils'
 import { FuncABI } from '@remix-project/core-plugin'
 import { DeployedContractsAppContext } from '../contexts'
 import { DeployedContract } from '../types'
-import { runTransactions, checkCrossChainProxy, getCrossChainDestinations, quoteCrossChainFee, traceCrossChainCall, CrossChainDestination, CrossChainProxyInfo, CrossChainTraceResult, EezNetworkEntry } from '../actions'
+import { runTransactions, pinContract, checkCrossChainProxy, getCrossChainDestinations, quoteCrossChainFee, traceCrossChainCall, CrossChainDestination, CrossChainProxyInfo, CrossChainTraceResult, EezNetworkEntry } from '../actions'
 import { ContractKebabMenu } from './ContractKebabMenu'
 import { EnsNaming } from './EnsNaming'
 import { QuickDappContractSelector, QuickDappFigmaPreparationResult, QuickDappSetupOptions, QuickDappModelChoice } from '@remix-ui/quick-dapp-v2'
@@ -222,30 +222,7 @@ export function DeployedContractItem({ contract, index, collapseSignal, register
       dispatch({ type: 'UNPIN_CONTRACT', payload: index })
       return
     }
-    const provider = await plugin.call('blockchain', 'getProviderObject')
-
-    if (!provider.config.statePath && provider.config.isRpcForkedState) {
-      // we can't pin a contract in the following case:
-      // - state is not persisted
-      // - future state is browser stored (e.g it's not just a simple RPC provider)
-      plugin.call('notification', 'toast', 'Cannot pin this contract in the current context: state is not persisted. Please fork this provider to start pinning a contract to it.')
-      return
-    }
-
-    const workspace = await plugin.call('filePanel', 'getCurrentWorkspace')
-
-    const objToSave = {
-      name: contract.name,
-      address: contract.address,
-      timestamp: contract.timestamp,
-      abi: contract.abi || contract.contractData?.abi,
-      filePath: contract.filePath || `${workspace.name}/${contract.contractData?.contract?.file}`,
-      pinnedAt: Date.now()
-    }
-
-    await plugin.call('fileManager', 'writeFile', `.deploys/pinned-contracts/${providerName}/${contract.address}.json`, JSON.stringify(objToSave, null, 2))
-
-    dispatch({ type: 'PIN_CONTRACT', payload: { index, pinnedAt: objToSave.pinnedAt, filePath: objToSave.filePath } })
+    await pinContract(plugin, dispatch, contract, index)
   }
 
   const handleContractClick = () => {
@@ -885,6 +862,55 @@ For Inline mode, preserve the existing /frontend overwrite confirmation flow. Co
     }
   }
 
+  const handleSaveToArkiv = async (c: DeployedContract) => {
+    if (onKebabMenuToggle) onKebabMenuToggle(false)
+    const abi = c.abi || c.contractData?.abi
+    if (!abi) {
+      await plugin.call('notification', 'toast', 'No ABI available for this contract')
+      return
+    }
+    try {
+      const network = await plugin.call('udappEnv', 'getNetwork')
+      if (!network?.chainId || network.name === 'VM') {
+        await plugin.call('notification', 'toast', 'Connect to a persistent network to save contracts to Arkiv')
+        return
+      }
+      const walletAddress = await plugin.call('udappEnv', 'getSelectedAccount')
+      if (!walletAddress) {
+        await plugin.call('notification', 'toast', 'Please connect a wallet to save contracts to Arkiv')
+        return
+      }
+      console.log('Saving deployed contract to Arkiv:', c)
+      const parseMetadata = (raw: any) => {
+        if (!raw) return null
+        if (typeof raw === 'string') { try { return JSON.parse(raw) } catch { return null } }
+        return raw
+      }
+      const parsedMetadata =
+        parseMetadata((c.contractData as any)?.metadata) ||
+        parseMetadata((c.contractData as any)?.object?.metadata)
+      const compilerVersion: string =
+        (c.contractData as any)?.compilerVersion ||
+        parsedMetadata?.compiler?.version ||
+        ''
+      const sourcePath: string =
+        c.filePath ||
+        (c.contractData as any)?.contract?.file ||
+        ''
+      await (plugin as any).call('arkivNetwork', 'saveDeployedContract', {
+        address: c.address,
+        chainId: network.chainId,
+        name: c.name,
+        abi,
+        walletAddress,
+        compilerVersion,
+        sourcePath,
+      })
+    } catch (e: any) {
+      await plugin.call('notification', 'toast', `Failed to save to Arkiv: ${e?.message || String(e)}`)
+    }
+  }
+
   const handleCopyDeployedBytecode = async (contract: DeployedContract) => {
     if (onKebabMenuToggle) {
       onKebabMenuToggle(false)
@@ -1131,6 +1157,7 @@ For Inline mode, preserve the existing /frontend overwrite confirmation flow. Co
               onCopyBytecode={handleCopyDeployedBytecode}
               onOpenInExplorer={handleOpenInExplorer}
               onClear={handleClear}
+              onSaveToArkiv={handleSaveToArkiv}
             />
             {isExpanded && (
               <div className="p-3" style={{ background: 'var(--custom-onsurface-layer-1)' }} onClick={(e) => e.stopPropagation()}>

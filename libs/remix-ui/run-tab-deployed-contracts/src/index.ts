@@ -1,3 +1,4 @@
 export { default as DeployedContractsWidget } from './lib/deployed-contracts'
 export type { DeployedContractsWidgetState, DeployedContractsAppContextType, Actions, DeployedContract } from './lib/types'
 export * from './lib/ens-contract-names'
+export { pinContract } from './lib/actions'

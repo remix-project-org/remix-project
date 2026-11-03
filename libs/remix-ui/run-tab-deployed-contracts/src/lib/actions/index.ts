@@ -283,6 +283,34 @@ export async function loadPinnedContracts (plugin: DeployedContractsPlugin, disp
   }
 }
 
+export async function pinContract (plugin: DeployedContractsPlugin, dispatch: React.Dispatch<Actions>, contract: DeployedContract, index: number): Promise<boolean> {
+  const network = await plugin.call('udappEnv', 'getNetwork')
+  const chainId = network?.chainId
+  const providerName = network?.name === 'VM' ? await plugin.call('udappEnv', 'getSelectedProvider') : chainId
+  const provider = await plugin.call('blockchain', 'getProviderObject')
+
+  if (!provider.config.statePath && provider.config.isRpcForkedState) {
+    plugin.call('notification', 'toast', 'Cannot pin this contract in the current context: state is not persisted. Please fork this provider to start pinning a contract to it.')
+    return false
+  }
+
+  const workspace = await plugin.call('filePanel', 'getCurrentWorkspace')
+
+  const objToSave = {
+    name: contract.name,
+    address: contract.address,
+    timestamp: contract.timestamp,
+    abi: contract.abi || contract.contractData?.abi,
+    filePath: contract.filePath || `${workspace.name}/${contract.contractData?.contract?.file}`,
+    pinnedAt: Date.now()
+  }
+
+  await plugin.call('fileManager', 'writeFile', `.deploys/pinned-contracts/${providerName}/${contract.address}.json`, JSON.stringify(objToSave, null, 2))
+
+  dispatch({ type: 'PIN_CONTRACT', payload: { index, pinnedAt: objToSave.pinnedAt, filePath: objToSave.filePath } })
+  return true
+}
+
 export async function refreshDeployedContractBalances (plugin: DeployedContractsPlugin, dispatch: React.Dispatch<Actions>) {
   const deployedContracts = plugin.getWidgetState?.()?.deployedContracts || []
 
