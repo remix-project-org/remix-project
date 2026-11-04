@@ -173,9 +173,8 @@ module.exports = {
       .clickLaunchIcon('solidity')
       .waitForElementVisible('*[data-id="scConfigExpander"]')
       .click('*[data-id="scFileConfiguration"]') // switch the configuration file off
-      .waitForElementVisible('select[id="compilerLanguageSelector"]', 10000)
-      .click('select[id="compilerLanguageSelector"]')
-      .click('select[id="compilerLanguageSelector"] option[value=Yul]')
+      .waitForElementVisible('#compilerLanguageSelector', 10000)
+      .setCompilerLanguage('Yul')
       .waitForElementContainsText('[data-id="compiledContracts"]', 'Contract', 65000)
       .clickLaunchIcon('udapp')
       .createContract('')

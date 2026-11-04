@@ -16,7 +16,7 @@ module.exports = {
       .clickLaunchIcon('solidity')
       .setSolidityCompilerVersion('soljson-v0.8.24+commit.e11b9ed9.js')
       .click('*[data-id="scConfigExpander"]')
-      .setValue('#evmVersionSelector', 'cancun') // set target compilation to cancun
+      .setEvmVersion('cancun') // set target compilation to cancun
       .clickLaunchIcon('solidity')
       .verifyContracts(['TestTransientStorage'])
       .clickLaunchIcon('udapp')

@@ -193,7 +193,7 @@ module.exports = {
     browser
       .clickLaunchIcon('solidity')
       .click('*[data-id="scConfigExpander"]')
-      .setValue('#evmVersionSelector', 'london') // Set EVM version as fork version
+      .setEvmVersion('london') // Set EVM version as fork version
       .click('*[data-id="compilerContainerCompileBtn"]')
       .clearTransactions()
       .switchEnvironment('vm-london', 'Remix_VM') // switch to London fork

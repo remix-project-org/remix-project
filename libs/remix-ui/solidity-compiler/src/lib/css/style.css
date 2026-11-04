@@ -284,10 +284,17 @@
 .sc-issue:hover .sc-copy-hover, .sc-issue:focus-within .sc-copy-hover { visibility: visible; }
 
 /* contract */
-.sc-picker { display: flex; align-items: baseline; gap: 8px; width: 100%; text-align: left; }
-.sc-picker .n { color: var(--bs-emphasis-color); white-space: nowrap; }
+.sc-picker { display: flex; align-items: baseline; gap: 8px; width: 100%; padding-right: 10px; background-image: none; text-align: left; }
+.sc-picker .n { min-width: 0; color: var(--bs-emphasis-color); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sc-picker-icon { margin-left: auto; align-self: center; flex-shrink: 0; color: var(--bs-secondary-color); }
 .sc-picker .p { font-size: 11px; color: var(--bs-secondary-color); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .sc-copy-row { display: flex; gap: 16px; padding: 0 2px; }
+/* both labels share one grid cell so the link keeps its width when it reads "Copied" */
+.sc-copy-link { display: inline-flex; align-items: baseline; gap: 4px; }
+.sc-copy-link .l { display: inline-grid; }
+.sc-copy-link .l > span { grid-area: 1 / 1; }
+.sc-copy-link .l > span[aria-hidden="true"] { visibility: hidden; }
+.sc-copy-link.copied, .sc-copy-link.copied:hover { color: var(--bs-success); text-decoration: none; }
 .sc-two { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
 .sc-btn-quiet { display: flex; align-items: center; justify-content: center; gap: 6px; padding: 6px 8px; font-size: 12px; background: var(--sc-layer-3); color: var(--bs-emphasis-color); border: 0; white-space: nowrap; overflow: hidden; }
 .sc-btn-quiet:hover { background: var(--sc-layer-3); color: var(--bs-emphasis-color); filter: brightness(1.15); }

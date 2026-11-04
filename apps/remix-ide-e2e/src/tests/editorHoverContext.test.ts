@@ -93,7 +93,7 @@ module.exports = {
             .clickLaunchIcon('solidity')
             .setSolidityCompilerVersion('soljson-v0.8.20+commit.a1b79de6.js')
             .click('*[data-id="scConfigExpander"]')
-            .setValue('#evmVersionSelector', 'berlin') // set target EVM for parser to berlin
+            .setEvmVersion('berlin') // set target EVM for parser to berlin
             .addFile('contracts/mytoken.sol', {
                 content: myToken
             }).useXpath().waitForElementVisible("//*[@class='view-line' and contains(.,'gas')]")
