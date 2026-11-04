@@ -135,7 +135,7 @@ module.exports = {
     browser
       .clickLaunchIcon('solidity')
       .click('*[data-id="scConfigExpander"]')
-      .setValue('#evmVersionSelector', 'london') // Set EVM version as fork version
+      .setEvmVersion('london') // Set EVM version as fork version
       .waitForElementVisible('*[data-id="topbar-settingsIcon"]')
       .click('*[data-id="topbar-settingsIcon"]')
       .clickLaunchIcon('udapp')

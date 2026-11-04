@@ -1,6 +1,7 @@
 import React from 'react'
 import { FormattedMessage, useIntl } from 'react-intl'
 import { ToggleSwitch } from '@remix-ui/toggle'
+import { Picker } from './picker'
 
 interface CompilerSettingsProps {
   open: boolean
@@ -74,28 +75,30 @@ export const CompilerSettings = (props: CompilerSettingsProps) => {
             <div className="sc-grid">
               <div className="sc-field" id="compilerLanguageSelectorWrapper">
                 <label className="sc-field-label" htmlFor="compilerLanguageSelector"><FormattedMessage id="solidity.language" /></label>
-                <select
+                <Picker
                   id="compilerLanguageSelector"
-                  className="form-select form-select-sm"
                   title={intl.formatMessage({ id: 'solidity.tooltipText6' })}
                   value={language}
-                  onChange={(e) => props.onLanguageChange(e.target.value)}
-                >
-                  <option data-sol-lang="solidity" data-id={language === 'Solidity' ? 'selected' : ''} value="Solidity">Solidity</option>
-                  <option data-sol-lang="yul" data-id={language === 'Yul' ? 'selected' : ''} value="Yul">Yul</option>
-                </select>
+                  onChange={props.onLanguageChange}
+                  options={[
+                    { value: 'Solidity', label: 'Solidity', itemProps: { 'data-sol-lang': 'solidity' } },
+                    { value: 'Yul', label: 'Yul', itemProps: { 'data-sol-lang': 'yul' } }
+                  ]}
+                />
               </div>
               <div className="sc-field">
                 <label className="sc-field-label" htmlFor="evmVersionSelector"><FormattedMessage id="solidity.evmVersion" /></label>
-                <select id="evmVersionSelector" className="form-select form-select-sm" value={evmVersion} onChange={(e) => props.onEvmVersionChange(e.target.value)}>
-                  {evmVersions.map((version, index) => (
-                    <option key={index} data-id={evmVersion === version ? 'selected' : ''} value={version}>
-                      {version === 'default'
-                        ? intl.formatMessage({ id: 'solidity.evmVersionDefault' }, { version: evmVersions[index + 1] })
-                        : version}
-                    </option>
-                  ))}
-                </select>
+                <Picker
+                  id="evmVersionSelector"
+                  value={evmVersion}
+                  onChange={props.onEvmVersionChange}
+                  options={evmVersions.map((version, index) => ({
+                    value: version,
+                    label: version === 'default'
+                      ? intl.formatMessage({ id: 'solidity.evmVersionDefault' }, { version: evmVersions[index + 1] })
+                      : version
+                  }))}
+                />
               </div>
             </div>
             <div className="sc-set-row">

@@ -331,8 +331,8 @@ module.exports = {
         selector: "//*[@data-id='selectedVersion' and contains(.,'0.8.16+commit.07a7930e')]",
         locateStrategy: 'xpath'
       })
-      .assert.containsText('#evmVersionSelector option[data-id="selected"]', 'istanbul')
-      .assert.containsText('#compilerLanguageSelector option[data-id="selected"]', 'Yul')
+      .assert.attributeEquals('#evmVersionSelector', 'data-value', 'istanbul')
+      .assert.attributeEquals('#compilerLanguageSelector', 'data-value', 'Yul')
       .verify.elementPresent('#optimize[aria-checked="true"]')
       .verify.elementPresent('#autoCompile[aria-checked="true"]')
       .verify.attributeEquals('#runs', 'value', '300')
@@ -365,7 +365,7 @@ module.exports = {
         locateStrategy: 'xpath'
       })
       // default values
-      .assert.containsText('#evmVersionSelector option[data-id="selected"]', 'default')
+      .assert.attributeEquals('#evmVersionSelector', 'data-value', 'default')
       .verify.elementPresent('#optimize')
       .assert.not.elementPresent('#optimize[aria-checked="true"]')
       .verify.elementPresent('#runs:disabled')

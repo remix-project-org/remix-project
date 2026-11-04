@@ -25,7 +25,7 @@ const test = {
       .switchEnvironment('vm-paris', 'Remix_VM') // this runtime doesn't have the PUSH0 opcode.
       .clickLaunchIcon('solidity')
       .click('*[data-id="scConfigExpander"]')
-      .setValue('#evmVersionSelector', 'paris') // set an evm version which doesn't have PUSH0 opcode.
+      .setEvmVersion('paris') // set an evm version which doesn't have PUSH0 opcode.
       .clickLaunchIcon('filePanel')
       .addFile('myTokenV1.sol', sources[0]['myTokenV1.sol'])
       .clickLaunchIcon('solidity')
