@@ -22,7 +22,8 @@ test('e2e-erc721-generation-with-form', async ({ page }) => {
     await page.getByTitle('Dismiss').click();
   } catch { /* not present */ }
   await page.getByRole('button', { name: 'Sign In', exact: true }).click();
-  await page.locator('[data-id="pm-free-plan-start"]').click();
+  // Plain sign-in: "Start free" keeps the panel open on the Top up welcome after login.
+  await page.locator('[data-id="planManagerSignIn"]').click();
   await page.getByRole('button', { name: 'E2E Test Pool', exact: false }).click();
   try {
     await page.getByTitle('Dismiss').waitFor({ state: 'visible', timeout: 30000 });

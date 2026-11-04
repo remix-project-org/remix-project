@@ -54,7 +54,8 @@ async function signIn(page: any, poolApiKey: string) {
     await page.getByTitle('Dismiss').click();
   } catch { /* not present */ }
   await page.locator('[data-id="login-button"]').click()
-  await page.locator('[data-id="pm-free-plan-start"]').click()
+  // Plain sign-in: "Start free" keeps the panel open on the Top up welcome after login.
+  await page.locator('[data-id="planManagerSignIn"]').click()
   await page.locator('[data-id="loginModalE2EPoolButton"]').click()
   await expect(page.locator('[data-id="user-menu-compact"]').first()).toBeVisible({ timeout: 30000 })
   await expect(page.locator('[data-id="planManagerStubOpenButton"]')).toBeVisible({ timeout: 10000 })

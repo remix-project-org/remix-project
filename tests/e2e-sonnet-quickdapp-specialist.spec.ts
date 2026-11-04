@@ -36,7 +36,8 @@ test('Sonnet identifies the QuickDapp Specialist subagent', async ({ page }) => 
 
   // --- 1. Sign in via topbar -----------------------------------------------
   await page.locator('[data-id="login-button"]').click()
-  await page.locator('[data-id="pm-free-plan-start"]').click()
+  // Plain sign-in: "Start free" keeps the panel open on the Top up welcome after login.
+  await page.locator('[data-id="planManagerSignIn"]').click()
   await page.locator('[data-id="loginModalE2EPoolButton"]').click()
   await expect(page.locator('[data-id="user-menu-compact"]').first()).toBeVisible({ timeout: 30000 })
 

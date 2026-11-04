@@ -13,7 +13,8 @@ test('test', async ({ page }) => {
   const url = `http://localhost:8080/?#e2e_feature_groups=e2e-free-with-quotas&e2e_pool_key=${encodeURIComponent(poolApiKey)}&lang=en&optimize&runs=200&evmVersion&version=soljson-v0.8.34+commit.80d5c536.js`
   await page.goto(url);
   await page.locator('[data-id="login-button"]').click();
-  await page.locator('[data-id="pm-free-plan-start"]').click();
+  // Plain sign-in: "Start free" keeps the panel open on the Top up welcome after login.
+  await page.locator('[data-id="planManagerSignIn"]').click();
   await page.locator('[data-id="loginModalE2EPoolButton"]').click();
   await page.locator('[data-id="user-menu-compact"]').first().click();
   await expect(page.getByText('[e2e]-free-with-quotas')).toBeVisible();
