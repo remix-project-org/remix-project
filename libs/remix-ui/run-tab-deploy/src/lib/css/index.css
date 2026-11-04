@@ -1,18 +1,6 @@
 .input-with-copy-hover:hover .copy-icon-hover {
     opacity: 1 !important;
   }
-.deploy-address-toggle:hover {
-    background-color: var(--custom-onsurface-layer-3) !important;
-}
-.contract-dropdown-item-hover:hover {
-    background-color: var(--custom-onsurface-layer-2) !important;
-    border-radius: 4px;
-    color: var(--theme-text-color, white) !important;
-}
-.unit-dropdown-item:hover, .unit-dropdown-item-hover:hover {
-    background-color: var(--bs-dropdown-link-hover-bg) !important;
-    color: var(--bs-dropdown-link-hover-color) !important;
-}
 
 /* Pre-deploy Checks status line above the Deploy button. The panel's own tones, readable in both theme qualities */
 .udapp-checks-status { width: 100%; display: flex; align-items: center; gap: 8px; margin-bottom: 8px; padding: 6px 10px; border: 0; border-radius: 4px; font-size: 12px; background: var(--custom-onsurface-layer-2); color: var(--bs-body-color); }
@@ -26,3 +14,6 @@
 .udapp-checks-warning > i { color: var(--udapp-checks-warning); }
 .udapp-checks-success > i { color: var(--udapp-checks-success); }
 .udapp-checks-neutral > i { color: var(--bs-secondary-color); }
+
+/* the contract list is wider than the picker so names, files and the compile badge fit */
+.deploy-contract-menu { width: max-content; min-width: 100%; max-width: min(320px, 90vw); }

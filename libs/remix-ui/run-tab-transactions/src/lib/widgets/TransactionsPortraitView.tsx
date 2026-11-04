@@ -1,9 +1,8 @@
 import React, { useMemo, useContext } from 'react'
 import { FormattedMessage, useIntl } from 'react-intl'
-import { Dropdown } from 'react-bootstrap'
-import { CustomToggle } from '@remix-ui/helper'
+import { Select } from '@remix-ui/helper'
 import { TransactionsAppContext } from '../contexts'
-import { TabType } from '../types'
+import { SortOrder, TabType } from '../types'
 import { TransactionRecordCard } from '../components/TransactionRecordCard'
 import { TransactionItem } from '../components/TransactionItem'
 import { TrackingContext } from '@remix-ide/tracking'
@@ -318,27 +317,20 @@ function TransactionsPortraitView() {
                 </li>
               </ul>
               <div className="transaction-recorder-filter">
-                <Dropdown>
-                  <Dropdown.Toggle
-                    as={CustomToggle}
-                    className="btn-sm border-0 p-1 text-secondary rounded"
-                    style={{ backgroundColor: 'var(--custom-onsurface-layer-1)', paddingLeft: '.5rem !important', color: themeQuality === 'dark' ? 'white' : 'black' }}
-                    icon="fas fa-caret-down ms-2"
-                    useDefaultIcon={false}
-                  >
-                    {sortOrder === 'newest' ? intl.formatMessage({ id: 'udapp.newestSortLabel' }) : intl.formatMessage({ id: 'udapp.oldestSortLabel' })}
-                  </Dropdown.Toggle>
-                  <Dropdown.Menu style={{ backgroundColor: 'var(--custom-onsurface-layer-2)', '--theme-text-color': themeQuality === 'dark' ? 'white' : 'black', padding: 0, '--bs-dropdown-min-width' : '5rem' } as React.CSSProperties}>
-                    <Dropdown.Item className="unit-dropdown-item-hover small" onClick={() => {
-                      trackMatomoEvent?.({ category: 'udapp', action: 'transactionsSortChange', name: 'newest', isClick: true })
-                      dispatch({ type: 'SET_SORT_ORDER', payload: 'newest' })
-                    }} style={{ color: themeQuality === 'dark' ? 'white' : 'black' }}><FormattedMessage id="udapp.newestSortLabel" /></Dropdown.Item>
-                    <Dropdown.Item className="unit-dropdown-item-hover small" onClick={() => {
-                      trackMatomoEvent?.({ category: 'udapp', action: 'transactionsSortChange', name: 'oldest', isClick: true })
-                      dispatch({ type: 'SET_SORT_ORDER', payload: 'oldest' })
-                    }} style={{ color: themeQuality === 'dark' ? 'white' : 'black' }}><FormattedMessage id="udapp.oldestSortLabel" /></Dropdown.Item>
-                  </Dropdown.Menu>
-                </Dropdown>
+                <Select
+                  id="transactionsSortOrder"
+                  compact
+                  align="end"
+                  value={sortOrder}
+                  options={[
+                    { value: 'newest', label: intl.formatMessage({ id: 'udapp.newestSortLabel' }) },
+                    { value: 'oldest', label: intl.formatMessage({ id: 'udapp.oldestSortLabel' }) }
+                  ]}
+                  onChange={(order) => {
+                    trackMatomoEvent?.({ category: 'udapp', action: 'transactionsSortChange', name: order, isClick: true })
+                    dispatch({ type: 'SET_SORT_ORDER', payload: order as SortOrder })
+                  }}
+                />
               </div>
             </div>
 

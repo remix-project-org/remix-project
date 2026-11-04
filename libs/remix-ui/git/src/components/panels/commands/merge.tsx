@@ -1,8 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { gitActionsContext } from "../../../state/context";
 import { gitPluginContext } from "../../gitui";
-import { selectStyles, selectTheme } from "../../../types/styles";
-import Select from 'react-select'
+import { Select, SelectOption } from "@remix-ui/helper";
 import GitUIButton from "../../buttons/gituibutton";
 import { FormattedMessage, useIntl } from "react-intl";
 
@@ -11,7 +10,7 @@ export const Merge = () => {
   const actions = React.useContext(gitActionsContext)
   const intl = useIntl()
   const [localBranch, setLocalBranch] = useState('')
-  const [localBranchOptions, setLocalBranchOptions] = useState<any>([]);
+  const [localBranchOptions, setLocalBranchOptions] = useState<SelectOption[]>([]);
 
   useEffect(() => {
     setLocalBranch(context.currentBranch.name)
@@ -32,7 +31,7 @@ export const Merge = () => {
       .map(repo => {
         return { value: repo.name, label: repo.name }
       })
-    setLocalBranchOptions(localBranches)
+    setLocalBranchOptions(localBranches || [])
 
   }, [context.branches])
 
@@ -45,14 +44,14 @@ export const Merge = () => {
 
       <label><FormattedMessage id="gitui.mergeFromBranch" /></label>
       <Select
+        id='commands-merge-branch-select'
         options={localBranchOptions}
-        isDisabled={context.branches.length === 0}
-        onChange={(e: any) => e && onLocalBranchChange(e.value)}
-        theme={selectTheme}
-        styles={selectStyles}
-        isClearable={true}
-        value={{ value: localBranch, label: localBranch }}
+        disabled={context.branches.length === 0}
+        onChange={onLocalBranchChange}
+        value={localBranch}
         placeholder={intl.formatMessage({ id: 'gitui.branchSearchPlaceholder' })}
+        searchable
+        searchPlaceholder={intl.formatMessage({ id: 'gitui.branchSearchPlaceholder' })}
       />
 
     </>)

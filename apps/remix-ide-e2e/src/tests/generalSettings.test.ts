@@ -109,7 +109,7 @@ module.exports = {
       .click('*[data-id="settingsTabDropdownItemnever"]')
       .pause(500)
       .assert.containsText('*[data-id="settingsTabDropdownToggleai-screen-capture-consent"]', 'Never allow')
-      .refresh()
+      .refreshPage()
       .waitForElementVisible('*[data-id="topbar-settingsIcon"]')
       .click('*[data-id="topbar-settingsIcon"]')
       .waitForElementVisible('*[data-id="settings-sidebar-ai"]')
