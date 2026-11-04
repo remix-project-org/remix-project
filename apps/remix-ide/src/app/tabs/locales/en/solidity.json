@@ -76,6 +76,7 @@
   "solidity.copyABI": "Copy ABI to clipboard",
   "solidity.copyBytecode": "Copy Bytecode to clipboard",
   "solidity.copied": "Copied",
+  "solidity.searchVersions": "Search versions",
   "solidity.unableToDisplay": "Unable to display",
   "solidity.download": "Download",
   "solidity.compileDetails": "Download compilation details (JSON format)",
