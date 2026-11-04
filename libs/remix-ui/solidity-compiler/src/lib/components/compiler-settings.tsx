@@ -1,7 +1,7 @@
 import React from 'react'
 import { FormattedMessage, useIntl } from 'react-intl'
 import { ToggleSwitch } from '@remix-ui/toggle'
-import { Picker } from './picker'
+import { Select } from '@remix-ui/helper'
 
 interface CompilerSettingsProps {
   open: boolean
@@ -75,7 +75,7 @@ export const CompilerSettings = (props: CompilerSettingsProps) => {
             <div className="sc-grid">
               <div className="sc-field" id="compilerLanguageSelectorWrapper">
                 <label className="sc-field-label" htmlFor="compilerLanguageSelector"><FormattedMessage id="solidity.language" /></label>
-                <Picker
+                <Select
                   id="compilerLanguageSelector"
                   title={intl.formatMessage({ id: 'solidity.tooltipText6' })}
                   value={language}
@@ -88,7 +88,7 @@ export const CompilerSettings = (props: CompilerSettingsProps) => {
               </div>
               <div className="sc-field">
                 <label className="sc-field-label" htmlFor="evmVersionSelector"><FormattedMessage id="solidity.evmVersion" /></label>
-                <Picker
+                <Select
                   id="evmVersionSelector"
                   value={evmVersion}
                   onChange={props.onEvmVersionChange}
