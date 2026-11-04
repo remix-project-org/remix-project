@@ -1,7 +1,7 @@
 import { Plugin } from '@remixproject/engine'
 import { endpointUrls } from '@remix-endpoints-helper'
 
-const PROXY_BASE_URL = endpointUrls.arkivProxy
+const PROXY_BASE_URL = endpointUrls.arkiv
 
 // ─── Wire types (JSON-serializable) ─────────────────────────────────────────
 

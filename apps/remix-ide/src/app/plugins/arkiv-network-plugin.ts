@@ -3,9 +3,7 @@ import { Plugin } from '@remixproject/engine'
 import { customAction } from '@remixproject/plugin-api'
 import { bytesToHex, hexToBytes, sha256Hex } from './arkiv-utils'
 
-// Update when Tiramisu gets an official block explorer
-const SCAN_BASE_URL = 'https://scan.tiramisu.testnet.arkiv.network'
-const SHARE_BASE_URL = 'https://app.remix.live'
+const SCAN_BASE_URL = 'https://rabdi.explorer.arkiv.network'
 
 const CONTENT_TYPES: Record<string, string> = {
   sol:  'text/x-solidity',
@@ -204,7 +202,7 @@ export class ArkivNetworkPlugin extends Plugin {
     }
 
     // ── 5. Log transaction and share link to terminal ────────────────────────
-    const shareUrl = `${SHARE_BASE_URL}?arkiv=${result.entityKey}`
+    const shareUrl = `${window.location.origin}?arkiv=${result.entityKey}`
     const scanUrl = `${SCAN_BASE_URL}/tx/${result.txHash}`
     const html =
       `<span>[Arkiv] "${fileName}" published (${choice.label}) — tx: ` +
