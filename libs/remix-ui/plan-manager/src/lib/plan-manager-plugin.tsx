@@ -65,7 +65,7 @@ import {
 } from './plan-manager-machine'
 import { LoginModal, startSignInFlow, OtpDigitInput, OtpDigitInputHandle } from '@remix-ui/login'
 import { planManagerLogger } from './plan-manager-logger'
-import { TASK_COSTS, TaskCapacity, capacitySummary, isStale, pluralTitle, taskCapacity } from './ai-task-costs'
+import { TASK_COSTS, capacityModel, capacitySummary, isStale, pluralTitle, profiledModels, taskCapacity } from './ai-task-costs'
 
 import './plan-manager.css'
 
@@ -4333,20 +4333,28 @@ function formatResetTime(iso: string, period: QuotaEntry['period'], now: number 
  * tasks, from costs the AI cost benchmark measured (see ai-task-costs.ts).
  * Hidden until a measurement exists. With unlimited included usage there is
  * no balance to divide, so it shows what each task typically costs instead.
+ * Costs differ by an order of magnitude between models, so the numbers are
+ * always for one profiled model, picked in the header.
  */
-const CreditCapacityPanel: React.FC<{ credits: number | null }> = ({ credits }) => {
-  const rows = taskCapacity(credits)
-  if (rows.length === 0) return null
+/** The profiled model picked in the capacity panel (the default one until a pick). */
+function useCapacityModel(): ReturnType<typeof profiledModels>[number] | undefined {
+  const tier = useSyncExternalStore(capacityModel.subscribe, capacityModel.get, capacityModel.get)
+  const models = profiledModels()
+  return models.find((m) => m.tier === tier) ?? models[0]
+}
 
-  const { models, measuredAt } = TASK_COSTS
-  const defaultLabel = models.default?.label ?? 'the default model'
-  const tierNote = (row: TaskCapacity, tier: 'fast' | 'premium'): string | null => {
-    const label = models[tier]?.label
-    if (!label || row.costs[tier] === undefined) return null
-    return credits === null
-      ? `~${row.costs[tier].toLocaleString()} on ${label}`
-      : `≈ ${(row.counts[tier] ?? 0).toLocaleString()} on ${label}`
-  }
+/** Plan and top-up card line for the picked model: "≈ 7 gas audits + 2 security audits on Auto". */
+function capacityLine(credits: number, model: ReturnType<typeof useCapacityModel>): string | null {
+  const summary = model ? capacitySummary(credits, 2, TASK_COSTS, model.tier) : null
+  return summary && model ? `${summary} on ${model.label}` : null
+}
+
+const CreditCapacityPanel: React.FC<{ credits: number | null }> = ({ credits }) => {
+  const models = profiledModels()
+  const model = useCapacityModel()
+  // Tasks the balance cannot fit even one run of are left out of the mix.
+  const rows = model ? taskCapacity(credits, TASK_COSTS, model.tier).filter((row) => credits === null || (row.counts[model.tier] ?? 0) > 0) : []
+  if (!model || rows.length === 0) return null
 
   return (
     <section className="pm-quotas pm-capacity" aria-label="What you can do with your credits" data-id="pm-credit-capacity">
@@ -4356,31 +4364,40 @@ const CreditCapacityPanel: React.FC<{ credits: number | null }> = ({ credits }) 
           <h3 className="pm-quotas__title">What you can do with your credits</h3>
         </div>
         <div className="pm-quotas__hint">
-          Measured {measuredAt}{isStale() ? ' · may be outdated' : ''}
+          Measured {TASK_COSTS.measuredAt}{isStale() ? ' · may be outdated' : ''}
         </div>
+      </div>
+      <div className="pm-capacity__model">
+        <span>This depends strongly on the AI model: the same task can cost ten times more on one model than on another. The numbers below are for</span>
+        <select
+          className="form-select form-select-sm pm-capacity__model-select"
+          value={model.tier}
+          onChange={(event) => capacityModel.set(event.target.value)}
+          aria-label="Model the numbers are for"
+          data-id="pm-credit-capacity-model"
+        >
+          {models.map((m) => <option key={m.tier} value={m.tier}>{m.label}</option>)}
+        </select>
       </div>
       <div className="pm-quotas__list">
         {rows.map((row) => {
-          const count = row.counts.default ?? 0
-          const details = [
-            `~${(row.costs.default ?? 0).toLocaleString()} credits each`,
-            tierNote(row, 'fast'),
-            tierNote(row, 'premium')
-          ].filter(Boolean).join(' · ')
+          const count = row.counts[model.tier] ?? 0
           return (
             <div className="pm-quota" key={row.id} data-id={`pm-credit-capacity-${row.id}`}>
               <div className="pm-quota__label">
                 <span className="pm-quota__name">
                   {credits === null ? row.title : `≈ ${count.toLocaleString()} ${pluralTitle(row.title, count)}`}
                 </span>
-                <span className="pm-capacity__detail">{details}</span>
+                <span className="pm-capacity__detail">~{(row.costs[model.tier] ?? 0).toLocaleString()} credits each</span>
               </div>
             </div>
           )
         })}
       </div>
       <div className="pm-capacity__note">
-        Typical runs on {defaultLabel}. Actual cost depends on the contract and the conversation.
+        {credits !== null && 'These counts are one mix that fits your credits together.'}
+        Typical runs on {model.label}
+        {model.mostlyServed ? ` (mostly answered by ${model.mostlyServed})` : ''}. Actual cost depends on the contract and the conversation.
       </div>
     </section>
   )
@@ -5682,6 +5699,7 @@ const PaidPlansPanel: React.FC<{
     ? currentPlanId
     : plans.find(p => p.id === 'lite')?.id ?? plans[0]?.id ?? null
   const [selectedId, setSelectedId] = React.useState<string | null>(defaultId)
+  const capacityFor = useCapacityModel()
   const selectedPlan = plans.find(p => p.id === selectedId) ?? plans[0] ?? null
   const animatedCredits = useCountUp(Number(selectedPlan?.creditsPerMonth) || 0)
   // On short screens fold the secondary features so price, credits and the

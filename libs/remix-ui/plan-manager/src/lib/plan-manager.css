@@ -4969,6 +4969,22 @@ a.pm-alert__btn {
   margin-top: 4px;
 }
 
+.pm-capacity__model {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px 10px;
+  font-family: var(--bs-font-sans-serif);
+  font-size: 13px;
+  color: var(--bs-secondary-color);
+  margin: -4px 0 16px;
+}
+
+.pm-capacity__model-select {
+  width: auto;
+  min-width: 200px;
+}
+
 .pm-capacity__note {
   font-family: var(--bs-font-sans-serif);
   font-size: 11px;

@@ -1,0 +1,364 @@
+{
+  "version": 1,
+  "measuredAt": "2026-11-04",
+  "models": {
+    "default": {
+      "id": "auto",
+      "label": "Auto LLM Mode",
+      "served": [
+        {
+          "model": "anthropic/claude-opus-5.5",
+          "share": 0.84
+        },
+        {
+          "model": "moonshotai/kimi-k3.1-pro",
+          "share": 0.15
+        },
+        {
+          "model": "z-ai/glm-5.3",
+          "share": 0.01
+        },
+        {
+          "model": "google/gemini-3.8-flash",
+          "share": 0
+        },
+        {
+          "model": "google/gemini-4-argon",
+          "share": 0
+        }
+      ]
+    },
+    "premium": {
+      "id": "sonnet-latest",
+      "label": "Anthropic Claude Sonnet Latest",
+      "served": [
+        {
+          "model": "anthropic/claude-sonnet-5.5",
+          "share": 0.99
+        },
+        {
+          "model": "anthropic/claude-sonnet-5",
+          "share": 0.01
+        }
+      ]
+    }
+  },
+  "tasks": [
+    {
+      "id": "gas-audit-simple",
+      "title": "gas audit (simple contract)",
+      "costs": {
+        "default": {
+          "medianCredits": 1035,
+          "p90Credits": 6458,
+          "runs": 9,
+          "successRate": 1,
+          "medianDurationMs": 138890,
+          "servedModels": [
+            {
+              "model": "anthropic/claude-opus-5.5",
+              "share": 0.8
+            },
+            {
+              "model": "moonshotai/kimi-k3.1-pro",
+              "share": 0.2
+            },
+            {
+              "model": "google/gemini-3.8-flash",
+              "share": 0
+            }
+          ]
+        },
+        "premium": {
+          "medianCredits": 1127,
+          "p90Credits": 2297,
+          "runs": 9,
+          "successRate": 1,
+          "medianDurationMs": 46850,
+          "servedModels": [
+            {
+              "model": "anthropic/claude-sonnet-5.5",
+              "share": 1
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "security-audit-complex",
+      "title": "security audit (complex contract)",
+      "costs": {
+        "default": {
+          "medianCredits": 3169,
+          "p90Credits": 3470,
+          "runs": 9,
+          "successRate": 1,
+          "medianDurationMs": 93855,
+          "servedModels": [
+            {
+              "model": "anthropic/claude-opus-5.5",
+              "share": 0.81
+            },
+            {
+              "model": "moonshotai/kimi-k3.1-pro",
+              "share": 0.18
+            },
+            {
+              "model": "z-ai/glm-5.3",
+              "share": 0.01
+            }
+          ]
+        },
+        "premium": {
+          "medianCredits": 4088,
+          "p90Credits": 5505,
+          "runs": 9,
+          "successRate": 1,
+          "medianDurationMs": 110036,
+          "servedModels": [
+            {
+              "model": "anthropic/claude-sonnet-5.5",
+              "share": 1
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "frontend-generation",
+      "title": "frontend generation",
+      "costs": {
+        "default": {
+          "medianCredits": 5130,
+          "p90Credits": 9157,
+          "runs": 3,
+          "successRate": 1,
+          "medianDurationMs": 247056,
+          "servedModels": [
+            {
+              "model": "anthropic/claude-opus-5.5",
+              "share": 0.87
+            },
+            {
+              "model": "moonshotai/kimi-k3.1-pro",
+              "share": 0.13
+            },
+            {
+              "model": "google/gemini-4-argon",
+              "share": 0
+            }
+          ]
+        },
+        "premium": {
+          "medianCredits": 2659,
+          "p90Credits": 2769,
+          "runs": 3,
+          "successRate": 1,
+          "medianDurationMs": 64682,
+          "servedModels": [
+            {
+              "model": "anthropic/claude-sonnet-5.5",
+              "share": 1
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "contract-generation-agent",
+      "title": "contract generation",
+      "costs": {
+        "default": {
+          "medianCredits": 1792,
+          "p90Credits": 3165,
+          "runs": 3,
+          "successRate": 0.67,
+          "medianDurationMs": 43340,
+          "servedModels": [
+            {
+              "model": "anthropic/claude-opus-5.5",
+              "share": 0.94
+            },
+            {
+              "model": "z-ai/glm-5.3",
+              "share": 0.06
+            }
+          ]
+        },
+        "premium": {
+          "medianCredits": 1355,
+          "p90Credits": 1370,
+          "runs": 3,
+          "successRate": 1,
+          "medianDurationMs": 32237,
+          "servedModels": [
+            {
+              "model": "anthropic/claude-sonnet-5.5",
+              "share": 1
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "contract-generation-generate",
+      "title": "contract generation (/generate)",
+      "costs": {
+        "default": {
+          "medianCredits": 81,
+          "p90Credits": 103,
+          "runs": 3,
+          "successRate": 1,
+          "medianDurationMs": 47222,
+          "servedModels": [
+            {
+              "model": "x-ai/grok-4.7",
+              "share": 0.41
+            },
+            {
+              "model": "google/gemini-3.8-flash",
+              "share": 0.41
+            },
+            {
+              "model": "minimax/minimax-m3.1-flash",
+              "share": 0.17
+            }
+          ]
+        },
+        "premium": {
+          "medianCredits": 166,
+          "p90Credits": 380,
+          "runs": 2,
+          "successRate": 1,
+          "medianDurationMs": 26171,
+          "servedModels": [
+            {
+              "model": "anthropic/claude-sonnet-5",
+              "share": 0.98
+            },
+            {
+              "model": "anthropic/claude-sonnet-5.5",
+              "share": 0.02
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "autofill-inputs",
+      "title": "deploy-input autofill",
+      "costs": {
+        "default": {
+          "medianCredits": 2,
+          "p90Credits": 8,
+          "runs": 3,
+          "successRate": 1,
+          "medianDurationMs": 2639,
+          "servedModels": [
+            {
+              "model": "google/gemini-3.8-flash",
+              "share": 0.73
+            },
+            {
+              "model": "minimax/minimax-m3.1-flash",
+              "share": 0.27
+            }
+          ]
+        },
+        "premium": {
+          "medianCredits": 25,
+          "p90Credits": 26,
+          "runs": 3,
+          "successRate": 1,
+          "medianDurationMs": 2656,
+          "servedModels": [
+            {
+              "model": "anthropic/claude-sonnet-5.5",
+              "share": 1
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "fix-compile-error",
+      "title": "compile error fix",
+      "costs": {
+        "default": {
+          "medianCredits": 82,
+          "p90Credits": 764,
+          "runs": 4,
+          "successRate": 1,
+          "medianDurationMs": 13571,
+          "servedModels": [
+            {
+              "model": "anthropic/claude-opus-5.5",
+              "share": 0.99
+            },
+            {
+              "model": "z-ai/glm-5.3",
+              "share": 0.01
+            },
+            {
+              "model": "anthropic/claude-haiku-5.5",
+              "share": 0
+            }
+          ]
+        },
+        "premium": {
+          "medianCredits": 311,
+          "p90Credits": 311,
+          "runs": 3,
+          "successRate": 1,
+          "medianDurationMs": 11569,
+          "servedModels": [
+            {
+              "model": "anthropic/claude-sonnet-5.5",
+              "share": 1
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "explain-contract",
+      "title": "contract explanation",
+      "costs": {
+        "default": {
+          "medianCredits": 13,
+          "p90Credits": 14,
+          "runs": 3,
+          "successRate": 1,
+          "medianDurationMs": 9280,
+          "servedModels": [
+            {
+              "model": "z-ai/glm-5.3",
+              "share": 0.71
+            },
+            {
+              "model": "deepseek/deepseek-v4.1-flash-1017",
+              "share": 0.23
+            },
+            {
+              "model": "anthropic/claude-haiku-5.5",
+              "share": 0.06
+            }
+          ]
+        },
+        "premium": {
+          "medianCredits": 214,
+          "p90Credits": 215,
+          "runs": 6,
+          "successRate": 1,
+          "medianDurationMs": 10268,
+          "servedModels": [
+            {
+              "model": "anthropic/claude-sonnet-5.5",
+              "share": 1
+            }
+          ]
+        }
+      }
+    }
+  ]
+}
