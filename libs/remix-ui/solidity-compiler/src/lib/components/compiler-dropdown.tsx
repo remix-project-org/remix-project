@@ -57,7 +57,6 @@ export const CompilerDropdown = (props: compilerDropdownProps) => {
   return (
     <Select
       id="versionSelector"
-      menuDataId="custom-dropdown-items"
       value={current}
       options={options}
       onChange={(path) => allversions.length > 0 && handleLoadVersion(path)}

@@ -1,4 +1,6 @@
 /* Select (components/select.tsx): one look for every value picker of the app */
+/* min-width lets the select shrink next to siblings in a flex row */
+.rx-select-wrap { min-width: 0; }
 .rx-select { display: flex; align-items: baseline; gap: 8px; width: 100%; padding-right: 10px; background-image: none; text-align: left; }
 .rx-select:disabled { opacity: .65; }
 .rx-select-value { min-width: 0; color: var(--bs-emphasis-color); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -17,12 +19,12 @@
 .rx-select-menu .dropdown-item { display: flex; gap: 8px; align-items: baseline; padding: 6px 8px; border-radius: 4px; color: var(--bs-body-color); white-space: normal; }
 .rx-select-menu .dropdown-item:hover, .rx-select-menu .dropdown-item:focus, .rx-select-menu .dropdown-item.active { background: var(--custom-onsurface-layer-3, #e8ebf2); color: var(--bs-body-color); }
 .rx-select-menu .dropdown-item.disabled { opacity: .5; }
-.rx-select-menu .dropdown-item i { color: var(--bs-secondary-color); }
+.rx-select-menu .dropdown-item > i { color: var(--bs-secondary-color); }
 .rx-select-menu .dropdown-item > i:last-child:not(:first-child) { margin-left: auto; }
 .rx-select-menu .dropdown-header { padding: 6px 8px 2px; font-size: 11px; text-transform: uppercase; letter-spacing: .04em; color: var(--bs-secondary-color); }
-.rx-select-label { min-width: 0; }
+.rx-select-label { flex: 1; min-width: 0; }
 .rx-select-label .n { display: block; color: var(--bs-emphasis-color); overflow-wrap: anywhere; }
-.rx-select-label small { display: block; font-size: 11px; color: var(--bs-secondary-color); overflow: hidden; text-overflow: ellipsis; }
+.rx-select-label small { display: block; font-size: 11px; color: var(--bs-secondary-color); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .rx-select-search { position: sticky; top: -4px; margin: -4px -4px 4px; padding: 6px; background: var(--bs-body-bg); border-bottom: 1px solid var(--bs-border-color); display: flex; align-items: center; gap: 6px; z-index: 1; }
 .rx-select-search i { color: var(--bs-secondary-color); font-size: 11px; }
 .rx-select-search .form-control { font-size: 12px; }
