@@ -3806,7 +3806,47 @@ const PlanManagerOverlay: React.FC<{
           // A nav section is open → collapse the landing content so the
           // selected section gets all the space.
           const sectionActive = activeSection !== null
-          return <>
+          const navSections = ([
+            { id: 'credits', label: 'Credits', icon: 'fas fa-coins', visible: ui.showCredits },
+            { id: 'plans', label: 'Plans', icon: 'fas fa-layer-group', visible: ui.showPlans },
+            { id: 'topup', label: 'Top up', icon: 'fas fa-bolt', visible: ui.showTopUps },
+            { id: 'usage', label: 'Usage', icon: 'fas fa-chart-bar', visible: ui.showUsage }
+          ] as const).filter(s => s.visible)
+          // Sections live in a left rail (like the IDE's own sidebar): screens
+          // are wider than they are tall, so this frees the vertical space a
+          // tab row + footer used to take. Hidden during checkout to keep focus.
+          const showRail = !checkoutActive && navSections.length > 0
+          return (
+            <div className={`pm-body ${showRail ? 'pm-body--rail' : ''}`}>
+              {showRail && (
+                <nav className="pm-rail" aria-label="Plan & Credits sections">
+                  {navSections.map(s => (
+                    <button
+                      key={s.id}
+                      data-id={`planManagerNav-${s.id}`}
+                      className={`pm-rail__item ${activeSection === s.id ? 'is-active' : ''}`}
+                      aria-current={activeSection === s.id ? 'page' : undefined}
+                      onClick={() => setActiveSection(s.id)}
+                    >
+                      <i className={s.icon} aria-hidden></i>
+                      <span>{s.label}</span>
+                    </button>
+                  ))}
+                  <div className="pm-rail__foot">
+                    <span className="pm-rail__vat">
+                      {catalogPrices
+                        ? 'Prices include VAT/tax for your location where applicable.'
+                        : 'Prices exclude VAT/tax where applicable.'}
+                    </span>
+                    <span className="pm-rail__links">
+                      <a href="https://remix.live/termsandconditions" target="_blank" rel="noreferrer">Terms</a>
+                      <a href="https://remix-ide.readthedocs.io/" target="_blank" rel="noreferrer">Docs</a>
+                      <a href={DISCORD_URL} target="_blank" rel="noreferrer">Support</a>
+                    </span>
+                  </div>
+                </nav>
+              )}
+              <div className="pm-content">
 
             {/*
             When the user has no `ui:show-*` features granted we collapse
@@ -3859,32 +3899,6 @@ const PlanManagerOverlay: React.FC<{
                 onTopUp={() => setActiveSection('topup')}
                 onUpgrade={() => setActiveSection('plans')}
               />
-            )}
-
-            {/* Nav tabs — placed right after alerts so they sit at a
-              predictable position. Credits is always the first tab and
-              shows the default landing view (hero + quotas). */}
-            {!checkoutActive && (ui.showCredits || ui.showPlans || ui.showTopUps || ui.showUsage) && (
-              <nav className="pm-nav">
-                {([
-                  { id: 'credits', label: 'Credits', icon: 'fas fa-coins', visible: ui.showCredits },
-                  { id: 'plans', label: 'Plans', icon: 'fas fa-layer-group', visible: ui.showPlans },
-                  { id: 'topup', label: 'Top up', icon: 'fas fa-bolt', visible: ui.showTopUps },
-                  { id: 'usage', label: 'Usage breakdown', icon: 'fas fa-chart-bar', visible: ui.showUsage }
-                ] as const).filter(s => s.visible).map(s => (
-                  <button
-                    key={s.id}
-                    data-id={`planManagerNav-${s.id}`}
-                    className={`pm-nav__item ${activeSection === s.id ? 'is-active' : ''}`}
-                    // Click on the active tab collapses it — we want a calm
-                    // landing view, so re-clicking the same tab returns to it.
-                    onClick={() => setActiveSection(prev => prev === s.id ? null : s.id)}
-                  >
-                    <i className={s.icon}></i>
-                    <span>{s.label}</span>
-                  </button>
-                ))}
-              </nav>
             )}
 
             {/* Credits view — shown when the Credits tab is active. */}
@@ -4196,27 +4210,10 @@ const PlanManagerOverlay: React.FC<{
               )}
               {ui.showUsage && activeSection === 'usage' && <UsageSection plugin={plugin} />}
             </main>
-
-          </>
+              </div>
+            </div>
+          )
         })()}
-
-        <footer className="pm-footer">
-          <div className="pm-footer__legal">
-            {snap.isAuthenticated
-              ? <>Signed in · billing data live</>
-              : <>Catalog only. Sign in to manage your subscription.</>}
-          </div>
-          <div className="pm-footer__vat">
-            {catalogPrices
-              ? 'Prices include VAT/tax for your location where applicable'
-              : 'All prices exclude VAT/tax where applicable'}
-          </div>
-          <div className="pm-footer__links">
-            <a href="https://remix.live/termsandconditions" target="_blank" rel="noreferrer">Terms and Conditions</a>
-            <a href="https://remix-ide.readthedocs.io/" target="_blank" rel="noreferrer">Docs</a>
-            <a href={DISCORD_URL} target="_blank" rel="noreferrer">Support</a>
-          </div>
-        </footer>
 
         {snap.confirmDialog && (
           <ConfirmModal
@@ -6827,6 +6824,9 @@ const SignInPromptScreen: React.FC<{
       <a href="https://remix-project.org/terms" target="_blank" rel="noreferrer">Terms of Service</a>
       &nbsp;and&nbsp;
       <a href="https://remix-project.org/privacy" target="_blank" rel="noreferrer">Privacy Policy</a>.
+      {' '}{localizedPrices
+        ? 'Prices include VAT/tax for your location where applicable.'
+        : 'Prices exclude VAT/tax where applicable.'}
     </p>
   )
 
