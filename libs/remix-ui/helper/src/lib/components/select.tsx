@@ -40,6 +40,8 @@ export interface SelectProps {
   // small text toggle without a box, for pickers that sit inside another control (units, sort)
   compact?: boolean
   align?: 'start' | 'end'
+  // render the list before the first open, for tests that wait on an item
+  keepMounted?: boolean
   className?: string
   menuClassName?: string
   onToggle?: (show: boolean) => void
@@ -83,7 +85,7 @@ export const Select = (props: SelectProps) => {
 
   let lastGroup: string | undefined
   return (
-    <Dropdown className={`${compact ? 'd-inline-block' : 'w-100'} ${props.className || ''}`} onToggle={onToggle} align={props.align}>
+    <Dropdown className={`rx-select-wrap ${compact ? 'd-inline-block' : 'w-100'} ${props.className || ''}`} onToggle={onToggle} align={props.align}>
       <Dropdown.Toggle
         as={SelectToggle}
         compact={compact}
@@ -97,7 +99,7 @@ export const Select = (props: SelectProps) => {
           {props.renderValue ? props.renderValue(current) : current ? current.label : props.placeholder}
         </span>
       </Dropdown.Toggle>
-      <Dropdown.Menu className={`rx-select-menu ${compact ? '' : 'rx-select-menu-full'} ${props.menuClassName || ''}`} data-id={props.menuDataId || `${id}Items`} renderOnMount>
+      <Dropdown.Menu className={`rx-select-menu ${compact ? '' : 'rx-select-menu-full'} ${props.menuClassName || ''}`} data-id={props.menuDataId || `${id}Items`} renderOnMount={props.keepMounted}>
         {searchable && (
           <div className="rx-select-search">
             <i className="fas fa-search" aria-hidden="true"></i>

@@ -1,9 +1,8 @@
 import React, { useContext, useEffect, useState, useRef, useMemo } from 'react'
 import { FormattedMessage, useIntl } from 'react-intl'
-import { CustomToggle, CustomTooltip, getTimeAgo, shortenAddress, isNumeric, is0XPrefixed, isHexadecimal, logBuilder, extractDataDefault, getMultiValsString, isQuickDappRemixVMIdentifier, normalizeQuickDappEnvironment } from '@remix-ui/helper'
+import { CustomTooltip, getTimeAgo, shortenAddress, isNumeric, is0XPrefixed, isHexadecimal, logBuilder, extractDataDefault, getMultiValsString, isQuickDappRemixVMIdentifier, normalizeQuickDappEnvironment, Select } from '@remix-ui/helper'
 import { CopyToClipboard } from '@remix-ui/clipboard'
 import * as remixLib from '@remix-project/remix-lib'
-import { Dropdown } from 'react-bootstrap'
 import { parseUnits } from 'ethers'
 import { checksumAddressesInValue } from '@remix-ui/utils'
 import { FuncABI } from '@remix-project/core-plugin'
@@ -1457,38 +1456,19 @@ For Inline mode, preserve the existing /frontend overwrite confirmation flow. Co
                             background: 'var(--bs-body-bg)'
                           }}
                         />
-                        <Dropdown style={{ position: 'absolute', right: '0.5rem', top: '50%', transform: 'translateY(-50%)', zIndex: 2 }}>
-                          <Dropdown.Toggle
-                            as={CustomToggle}
-                            className="btn-sm border-0 text-secondary rounded font-sm ps-1"
-                            style={{
-                              backgroundColor: 'var(--custom-onsurface-layer-2)',
-                              color: 'var(--text-secondary, #d5d7e3)'
+                        <div style={{ position: 'absolute', right: '0.5rem', top: '50%', transform: 'translateY(-50%)', zIndex: 2 }}>
+                          <Select
+                            id={`contractItem-valueUnit-${index}`}
+                            compact
+                            align="end"
+                            value={valueUnit}
+                            options={['wei', 'gwei', 'finney', 'ether'].map((unit) => ({ value: unit, label: unit }))}
+                            onChange={(unit) => {
+                              trackMatomoEvent?.({ category: 'udapp', action: 'deployedContractValueUnitChange', name: unit, isClick: true })
+                              setValueUnit(unit)
                             }}
-                            icon="fas fa-caret-down ms-1"
-                            useDefaultIcon={false}
-                          >
-                            {valueUnit}
-                          </Dropdown.Toggle>
-                          <Dropdown.Menu style={{ backgroundColor: 'var(--custom-onsurface-layer-2)', '--theme-text-color': themeQuality === 'dark' ? 'white' : 'black', '--bs-dropdown-min-width': '4rem', padding: 0 } as React.CSSProperties}>
-                            <Dropdown.Item className="unit-dropdown-item-hover" onClick={() => {
-                              trackMatomoEvent?.({ category: 'udapp', action: 'deployedContractValueUnitChange', name: 'wei', isClick: true })
-                              setValueUnit('wei')
-                            }} style={{ color: themeQuality === 'dark' ? 'white' : 'black' }}>wei</Dropdown.Item>
-                            <Dropdown.Item className="unit-dropdown-item-hover" onClick={() => {
-                              trackMatomoEvent?.({ category: 'udapp', action: 'deployedContractValueUnitChange', name: 'gwei', isClick: true })
-                              setValueUnit('gwei')
-                            }} style={{ color: themeQuality === 'dark' ? 'white' : 'black' }}>gwei</Dropdown.Item>
-                            <Dropdown.Item className="unit-dropdown-item-hover" onClick={() => {
-                              trackMatomoEvent?.({ category: 'udapp', action: 'deployedContractValueUnitChange', name: 'finney', isClick: true })
-                              setValueUnit('finney')
-                            }} style={{ color: themeQuality === 'dark' ? 'white' : 'black' }}>finney</Dropdown.Item>
-                            <Dropdown.Item className="unit-dropdown-item-hover" onClick={() => {
-                              trackMatomoEvent?.({ category: 'udapp', action: 'deployedContractValueUnitChange', name: 'ether', isClick: true })
-                              setValueUnit('ether')
-                            }} style={{ color: themeQuality === 'dark' ? 'white' : 'black' }}>ether</Dropdown.Item>
-                          </Dropdown.Menu>
-                        </Dropdown>
+                          />
+                        </div>
                       </div>
                     </div>
                     <div className="d-flex align-items-center gap-1 mb-3">

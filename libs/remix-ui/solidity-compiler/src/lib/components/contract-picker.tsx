@@ -7,6 +7,7 @@ type CompiledContract = { name: string, file: string, path?: string }
 export const ContractPicker = ({ contracts, value, onChange }: { contracts: CompiledContract[], value: string, onChange: (name: string) => void }) => (
   <Select
     id="compiledContracts"
+    keepMounted
     value={value}
     onChange={onChange}
     itemDataId={(o) => `compiledContract-${o.value}`}
