@@ -3885,6 +3885,7 @@ const PlanManagerOverlay: React.FC<{
                 {!checkoutActive && ui.anyVisible && activeAlert === 'plan-lifecycle' && (
                   <PlanLifecycleAlert
                     planCtx={planCtx}
+                    section={activeSection}
                     onRenew={() => setActiveSection('plans')}
                     onUpgrade={() => setActiveSection('plans')}
                     onUpdatePayment={() => { void plugin.updatePaymentMethod() }}
@@ -3896,6 +3897,7 @@ const PlanManagerOverlay: React.FC<{
                     status={status}
                     refreshDate={refreshDate}
                     canUpgrade={canUpgrade}
+                    section={activeSection}
                     onTopUp={() => setActiveSection('topup')}
                     onUpgrade={() => setActiveSection('plans')}
                   />
@@ -6516,13 +6518,23 @@ const CreditAlert: React.FC<{
   status: CreditStatus
   refreshDate: string | null
   canUpgrade: boolean
+  /** Section the user is looking at — buttons that would lead back to it are hidden. */
+  section: string | null
   onTopUp: () => void
   onUpgrade: () => void
-}> = ({ status, refreshDate, canUpgrade, onTopUp, onUpgrade }) => {
+}> = ({ status, refreshDate, canUpgrade, section, onTopUp, onUpgrade }) => {
   if (status.state === 'healthy' || status.state === 'unknown') return null
   const copy = ALERT_COPY[status.state]
   const remaining = status.availableRemaining
   const isEmpty = status.state === 'empty'
+  const showUpgrade = canUpgrade && section !== 'plans'
+  const showTopUp = section !== 'topup'
+  // Point at what's already on screen instead of at a button we've hidden.
+  const body = isEmpty && section === 'topup'
+    ? `AI requests are paused until you add credits. Pick a pack below${canUpgrade ? ', or go monthly for fresh credits every month' : ''}.`
+    : isEmpty && section === 'plans'
+      ? 'AI requests are paused until you add credits. Pick a plan below for fresh credits every month, or recharge with a one-off pack.'
+      : copy.body(refreshDate)
 
   return (
     <section className={`pm-alert pm-alert--${status.state}`} data-id={`pm-credit-alert-${status.state}`}>
@@ -6533,18 +6545,22 @@ const CreditAlert: React.FC<{
       <div className="pm-alert__body">
         <div className="pm-alert__eyebrow">{copy.eyebrow}</div>
         <div className="pm-alert__title">{copy.title(remaining)}</div>
-        <p className="pm-alert__desc">{copy.body(refreshDate)}</p>
+        <p className="pm-alert__desc">{body}</p>
       </div>
-      <div className="pm-alert__actions">
-        {canUpgrade && (
-          <button className="pm-alert__btn pm-alert__btn--ghost" onClick={onUpgrade}>
-            <i className={isEmpty ? 'fas fa-calendar-check' : 'fas fa-arrow-up'}></i> {isEmpty ? 'Go monthly' : 'Upgrade plan'}
-          </button>
-        )}
-        <button className="pm-alert__btn pm-alert__btn--solid" onClick={onTopUp}>
-          <i className="fas fa-bolt"></i> {isEmpty ? 'Recharge credits' : 'Buy AI credits'}
-        </button>
-      </div>
+      {(showUpgrade || showTopUp) && (
+        <div className="pm-alert__actions">
+          {showUpgrade && (
+            <button className="pm-alert__btn pm-alert__btn--ghost" onClick={onUpgrade}>
+              <i className={isEmpty ? 'fas fa-calendar-check' : 'fas fa-arrow-up'}></i> {isEmpty ? 'Go monthly' : 'Upgrade plan'}
+            </button>
+          )}
+          {showTopUp && (
+            <button className="pm-alert__btn pm-alert__btn--solid" onClick={onTopUp}>
+              <i className="fas fa-bolt"></i> {isEmpty ? 'Recharge credits' : 'Buy AI credits'}
+            </button>
+          )}
+        </div>
+      )}
     </section>
   )
 }
@@ -6589,10 +6605,12 @@ const PLAN_ALERT_COPY: Record<Exclude<PlanLifecycle, 'active'>, {
 
 const PlanLifecycleAlert: React.FC<{
   planCtx: PlanState
+  /** On Plans, every action here would lead back to the same screen. */
+  section: string | null
   onRenew: () => void
   onUpgrade: () => void
   onUpdatePayment: () => void
-}> = ({ planCtx, onRenew, onUpgrade, onUpdatePayment }) => {
+}> = ({ planCtx, section, onRenew, onUpgrade, onUpdatePayment }) => {
   if (planCtx.lifecycle === 'active') return null
   if (planCtx.isPastDue) {
     return (
@@ -6650,7 +6668,7 @@ const PlanLifecycleAlert: React.FC<{
           )}
         </p>
       </div>
-      <div className="pm-alert__actions">
+      {section !== 'plans' && <div className="pm-alert__actions">
         {isTrial ? <>
           <button className="pm-alert__btn pm-alert__btn--ghost" onClick={onUpgrade}>
             <i className="fas fa-layer-group"></i> See all plans
@@ -6670,7 +6688,7 @@ const PlanLifecycleAlert: React.FC<{
             {variant === 'expired' ? ' Renew plan' : ' Keep my plan'}
           </button>
         </>}
-      </div>
+      </div>}
     </section>
   )
 }
