@@ -63,6 +63,8 @@ import {
   CancelSubscriptionResponse,
   ReactivateSubscriptionResponse,
   TransactionStatusResponse,
+  TransactionPaymentStatusResponse,
+  UpdatePaymentMethodResponse,
   PendingCheckoutsResponse,
   VerifyCheckoutResponse,
   CreditsUsageQuery,
@@ -807,6 +809,31 @@ export class BillingApiService {
   ): Promise<ApiResponse<TransactionStatusResponse>> {
     const qs = provider ? `?provider=${encodeURIComponent(provider)}` : ''
     return this.apiClient.get<TransactionStatusResponse>(`/transaction/${encodeURIComponent(providerTransactionId)}${qs}`)
+  }
+
+  /**
+   * Live payment attempts for a checkout, straight from the provider.
+   * GET /billing/transaction/:providerTransactionId/payment
+   *
+   * Call sparingly (it hits Paddle): once after a failed payment to show the
+   * decline reason, or to check whether a wallet is awaiting approval.
+   */
+  async getTransactionPayment(
+    providerTransactionId: string
+  ): Promise<ApiResponse<TransactionPaymentStatusResponse>> {
+    return this.apiClient.get<TransactionPaymentStatusResponse>(`/transaction/${encodeURIComponent(providerTransactionId)}/payment`)
+  }
+
+  /**
+   * Get a transaction that lets the user replace the payment method on their
+   * subscription — the recovery path for `past_due` renewals.
+   * POST /billing/subscription/update-payment-method
+   *
+   * Open the returned `transactionId` in the inline Paddle checkout. Returns
+   * 404 `no_active_subscription` when there is nothing to update.
+   */
+  async updatePaymentMethod(): Promise<ApiResponse<UpdatePaymentMethodResponse>> {
+    return this.apiClient.post<UpdatePaymentMethodResponse>('/subscription/update-payment-method', {})
   }
 
   // ==================== Helper Methods ====================

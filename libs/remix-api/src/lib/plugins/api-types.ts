@@ -873,6 +873,37 @@ export interface TransactionCompletedResponse {
 
 export type TransactionStatusResponse = TransactionPendingResponse | TransactionCompletedResponse
 
+// ===== Live payment attempts (GET /billing/transaction/:id/payment) ==========
+
+/**
+ * Live payment-attempt view of a checkout, straight from Paddle. Used to
+ * explain a declined payment (`errorCode`, e.g. `not_enough_balance`) and to
+ * recognise wallets waiting for approval (`status: 'action_required'`).
+ */
+export interface TransactionPaymentStatusResponse {
+  transactionId: string
+  /** Paddle transaction status: draft | ready | billed | paid | completed | canceled | past_due */
+  status: string
+  origin: string | null
+  lastPayment: {
+    /** Paddle payment attempt status: authorized | captured | error | action_required | … */
+    status: string
+    errorCode: string | null
+    methodType: string | null
+    createdAt: string | null
+  } | null
+  attempts: number
+}
+
+// ===== Payment method update (POST /billing/subscription/update-payment-method)
+
+/** Transaction to open in the inline checkout so the user can replace their card/wallet. */
+export interface UpdatePaymentMethodResponse {
+  ok: true
+  transactionId: string
+  subscription: { id: string; status: string; planSlug: string | null }
+}
+
 // ===== Resume abandoned checkouts (GET /billing/checkouts/*) ==================
 
 /** Drives copy/icon for a resumable checkout. */
