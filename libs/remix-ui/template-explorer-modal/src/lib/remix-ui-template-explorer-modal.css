@@ -343,57 +343,7 @@
 /* ========== Wizard select dropdowns ========== */
 
 .tem-wizard-select-wrapper {
-  position: relative;
-  display: inline-flex;
-  align-items: center;
-}
-
-.tem-wizard-select {
-  appearance: none;
-  -webkit-appearance: none;
-  padding: 4px 24px 4px 10px;
-  border-radius: 6px;
-  border: 1px solid var(--bs-border-color);
-  background-color: transparent;
-  font-size: 12px;
-  font-weight: 500;
-  color: var(--bs-body-color);
-  cursor: pointer;
-  transition: border-color 0.15s ease, background-color 0.15s ease;
-  line-height: 1.4;
-}
-
-.tem-wizard-select:hover:not(:disabled) {
-  background-color: var(--tem-hover-bg);
-  border-color: rgba(var(--bs-body-color-rgb), 0.2);
-}
-
-.tem-wizard-select:focus {
-  outline: none;
-  border-color: var(--bs-primary);
-  box-shadow: 0 0 0 0.15rem rgba(var(--bs-primary-rgb), 0.3);
-}
-
-.tem-wizard-select:disabled {
-  opacity: 0.45;
-  cursor: not-allowed;
-}
-
-.tem-wizard-select option {
-  background-color: var(--bs-secondary-bg);
-  color: var(--bs-body-color);
-}
-
-.tem-wizard-select-arrow {
-  position: absolute;
-  right: 8px;
-  font-size: 8px;
-  color: var(--bs-secondary-color);
-  pointer-events: none;
-}
-
-.tem-wizard-select:disabled ~ .tem-wizard-select-arrow {
-  opacity: 0.45;
+  width: 120px;
 }
 
 /* ========== Contract Wizard ========== */

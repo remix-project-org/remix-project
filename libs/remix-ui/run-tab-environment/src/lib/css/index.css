@@ -166,7 +166,7 @@
   /* the sub-category list is as wide as its names, not as the toggle */
   .env-subcategory-wrapper .rx-select-menu {
     width: max-content;
-    min-width: 100%;
+    min-width: var(--rx-select-ref-width, 100%);
   }
 
   .dropdown-menu-env {

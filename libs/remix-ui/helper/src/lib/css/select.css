@@ -15,7 +15,9 @@
 .rx-select-compact:hover, .rx-select-compact[aria-expanded="true"] { color: var(--bs-emphasis-color); background: var(--custom-onsurface-layer-3, #e8ebf2); }
 
 .rx-select-menu { min-width: 140px; padding: 4px; border-radius: 6px; background: var(--bs-body-bg); border: 1px solid var(--bs-border-color); box-shadow: 0 6px 20px rgba(0, 0, 0, .3); font-size: 12px; max-height: 60vh; overflow-y: auto; }
-.rx-select-menu-full { width: 100%; min-width: 0; }
+.rx-select-menu-full { width: var(--rx-select-ref-width, 100%); min-width: 0; }
+/* above modals (1055) when rendered at the end of the page */
+.rx-select-menu-portal { z-index: 1070; }
 .rx-select-menu .dropdown-item { display: flex; gap: 8px; align-items: baseline; padding: 6px 8px; border-radius: 4px; color: var(--bs-body-color); white-space: normal; }
 .rx-select-menu .dropdown-item:hover, .rx-select-menu .dropdown-item:focus, .rx-select-menu .dropdown-item.active { background: var(--custom-onsurface-layer-3, #e8ebf2); color: var(--bs-body-color); }
 .rx-select-menu .dropdown-item.disabled { opacity: .5; }
