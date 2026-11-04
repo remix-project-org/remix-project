@@ -1,24 +1,8 @@
-import React, { Ref } from 'react'
+import React from 'react'
 import { Dropdown } from 'react-bootstrap'
+import { PickerToggle } from './picker'
 
 type CompiledContract = { name: string, file: string, path?: string }
-
-const PickerToggle = React.forwardRef(
-  ({ children, onClick, className, ...rest }: { children: React.ReactNode, onClick: (e: React.MouseEvent) => void, className?: string }, ref: Ref<HTMLButtonElement>) => (
-    <button
-      ref={ref}
-      type="button"
-      {...rest}
-      className="form-select sc-picker"
-      onClick={(e) => {
-        e.preventDefault()
-        onClick(e)
-      }}
-    >
-      {children}
-    </button>
-  )
-)
 
 // contract name + muted file name; the list shows the full path. Items stay mounted so tests can wait for a contract
 export const ContractPicker = ({ contracts, value, onChange }: { contracts: CompiledContract[], value: string, onChange: (name: string) => void }) => {

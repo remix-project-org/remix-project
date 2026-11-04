@@ -348,7 +348,7 @@ module.exports = {
       .clickLaunchIcon('solidity')
       .setSolidityCompilerVersion('builtin')
       .click('*[data-id="scConfigExpander"]')
-      .setValue('#evmVersionSelector', 'cancun') // Temporary fix
+      .setEvmVersion('cancun') // Temporary fix
       .clickLaunchIcon('filePanel')
       .click('*[data-id="treeViewLitreeViewItemcontracts"]')
       .openFile('contracts/3_Ballot.sol')

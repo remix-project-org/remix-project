@@ -164,7 +164,7 @@ module.exports = {
       .click('[data-id="generate-contract-metadataSwitch"]')
       .clickLaunchIcon('solidity')
       .click('*[data-id="scConfigExpander"]')
-      .setValue('#evmVersionSelector', 'london')
+      .setEvmVersion('london')
       .click('*[data-id="compilerContainerCompileBtn"]')
       .clickLaunchIcon('udapp')
       .switchEnvironment('vm-london', 'Remix_VM')

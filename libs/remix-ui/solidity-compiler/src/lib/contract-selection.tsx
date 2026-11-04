@@ -14,6 +14,7 @@ import './css/style.css'
 import { CustomTooltip, SolScanTable } from '@remix-ui/helper'
 import { MoreMenu } from './components/more-menu'
 import { ContractPicker } from './components/contract-picker'
+import { CopyLink } from './components/copy-link'
 
 export const ContractSelection = (props: ContractSelectionProps) => {
   const { api, compiledFileName, contractsDetails, contractList, compilerInput, modal } = props
@@ -247,8 +248,8 @@ export const ContractSelection = (props: ContractSelectionProps) => {
   }
 
   const copyBytecode = () => {
-    const bytecodeObj = JSON.parse(copyContractProperty('bytecode'))
-    return bytecodeObj.object
+    const bytecode = copyContractProperty('bytecode')
+    return bytecode && JSON.parse(bytecode).object
   }
 
   const openPreDeployChecks = () => {
@@ -282,12 +283,8 @@ export const ContractSelection = (props: ContractSelectionProps) => {
           </div>
           <ContractPicker contracts={contractList} value={selectedContract} onChange={handleContractChange} />
           <div className="sc-copy-row" role="group" aria-label={intl.formatMessage({ id: 'solidity.copyToClipboard' })}>
-            <CopyToClipboard tip={intl.formatMessage({ id: 'solidity.copyABI' })} getContent={copyABI} direction="top">
-              <button className="sc-link-btn" data-id="compilerCopyABI"><i className="far fa-copy me-1" aria-hidden="true"></i>ABI</button>
-            </CopyToClipboard>
-            <CopyToClipboard tip={intl.formatMessage({ id: 'solidity.copyBytecode' })} getContent={copyBytecode} direction="top">
-              <button className="sc-link-btn" data-id="compilerCopyBytecode"><i className="far fa-copy me-1" aria-hidden="true"></i>Bytecode</button>
-            </CopyToClipboard>
+            <CopyLink label="ABI" title={intl.formatMessage({ id: 'solidity.copyABI' })} dataId="compilerCopyABI" getContent={copyABI} />
+            <CopyLink label="Bytecode" title={intl.formatMessage({ id: 'solidity.copyBytecode' })} dataId="compilerCopyBytecode" getContent={copyBytecode} />
           </div>
           <div className="sc-two">
             <CustomTooltip placement="auto" tooltipId="CompilationDetailsTooltip" tooltipText={<FormattedMessage id="solidity.displayContractDetails" />}>
