@@ -10,7 +10,7 @@ const evmTypeOptions = Object.keys(Hardfork).map((key) => ({ value: Hardfork[key
 
 // the modal reads its values from the form, so the picked fork goes in a hidden input
 function EvmTypeSelect () {
-  const [evmType, setEvmType] = useState(evmTypeOptions[0].value)
+  const [evmType, setEvmType] = useState<string>(Hardfork.Osaka)
   return (
     <>
       <Select
