@@ -85,11 +85,6 @@
   dependencies:
     node-fetch "^2.6.1"
 
-"@arkiv-network/sdk@1.0.1":
-  version "1.0.1"
-  resolved "https://registry.yarnpkg.com/@arkiv-network/sdk/-/sdk-1.0.1.tgz#6381ca28a62b91be1554ecfbc923c7079410842d"
-  integrity sha512-DCOFdGunn4I5nYrvIV/YIkMCkLZM7EQNSyNPtqpmQkP2JzTEfRLBJleBSB2rokWMa833/9P8DMiwsEXACr3CUQ==
-
 "@aws-crypto/crc32@5.2.0":
   version "5.2.0"
   resolved "https://registry.yarnpkg.com/@aws-crypto/crc32/-/crc32-5.2.0.tgz#cfcc22570949c98c6689cfcbd2d693d36cdae2e1"
