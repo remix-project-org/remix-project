@@ -42,7 +42,7 @@ export function WitnessSection () {
           {
             signalInputs.map((input, index) => (
               <div className="mb-2 ms-0" key={index}>
-                <label className="circuit_inner_label form-check-label" htmlFor="circuitPrimeSelector">
+                <label className="circuit_inner_label form-check-label">
                   <FormattedMessage id="circuit.signalInput" /> { input }
                 </label>
                 <input className="form-control m-0 txinput" placeholder={input} name={input} onChange={handleSignalInput} data-id={`circuit_input_${input}`} />

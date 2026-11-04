@@ -16,4 +16,4 @@
 .udapp-checks-neutral > i { color: var(--bs-secondary-color); }
 
 /* the contract list is wider than the picker so names, files and the compile badge fit */
-.deploy-contract-menu { width: max-content; min-width: 100%; max-width: min(320px, 90vw); }
+.deploy-contract-menu { width: max-content; min-width: var(--rx-select-ref-width, 100%); max-width: min(320px, 90vw); }

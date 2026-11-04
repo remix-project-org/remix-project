@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react'
 import { trackMatomoEvent } from '@remix-api'
+import { Select } from '@remix-ui/helper'
 import {
   buildAuditTaxonomy,
   categoryFileToken,
@@ -962,26 +963,23 @@ export function RemixUiChecklistExplorerModal(props: RemixUiChecklistExplorerMod
                     className={`ai-match-target align-self-center${highlightTarget ? ' needs-contract' : ''}`}
                     style={{ width: '13rem' }}
                   >
-                    <select
-                      data-id="checklist-explorer-ai-match-target"
-                      className="form-select"
+                    <Select
+                      id="checklist-explorer-ai-match-target"
+                      ariaLabel="Select the contract to save the checklists for"
                       value={matchTarget}
-                      onChange={(e) => { setMatchTarget(e.target.value); setHighlightTarget(false) }}
-                      onFocus={() => setHighlightTarget(false)}
+                      onChange={(value) => { setMatchTarget(value); setHighlightTarget(false) }}
+                      onToggle={(show) => { if (show) setHighlightTarget(false) }}
                       disabled={matching}
                       title={matchTarget
                         ? `Checklists will be saved in ${contractDir}/, and AI match runs against ${matchTarget}. Pick another file to change the contract.`
                         : 'Select the contract to save the checklists for'}
-                      aria-label="Select the contract to save the checklists for"
-                    >
-                      <option value="" disabled>Select a contract…</option>
-                      {solCandidates.map(file => (
-                        <option key={file} value={file} title={file}>
-                          {candidateLabel(file, solCandidates)}{file === currentSolFile ? ' (current)' : ''}
-                        </option>
-                      ))}
-                    </select>
-                    <i className="fa-solid fa-caret-down ai-match-target-caret" aria-hidden="true"></i>
+                      placeholder="Select a contract…"
+                      options={solCandidates.map(file => ({
+                        value: file,
+                        label: `${candidateLabel(file, solCandidates)}${file === currentSolFile ? ' (current)' : ''}`,
+                        itemProps: { title: file }
+                      }))}
+                    />
                   </div>
                 )}
                 <button
