@@ -1,7 +1,7 @@
 import { Plugin } from '@remixproject/engine'
 import { endpointUrls } from '@remix-endpoints-helper'
 
-const PROXY_BASE_URL = 'https://tokens.staging.remix.live/endpoints/arkiv' // 'endpointUrls.arkivProxy
+const PROXY_BASE_URL = endpointUrls.arkivProxy
 
 // ─── Wire types (JSON-serializable) ─────────────────────────────────────────
 
