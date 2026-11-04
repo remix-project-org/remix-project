@@ -1,4 +1,5 @@
 import React, { Ref, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { Dropdown } from 'react-bootstrap'
 import '../css/select.css'
 
@@ -32,6 +33,8 @@ export interface SelectProps {
   // toggle content, defaults to the label of the current option
   renderValue?: (option: SelectOption | undefined) => React.ReactNode
   title?: string
+  // accessible name when no <label> points at the id
+  ariaLabel?: string
   disabled?: boolean
   // adds a search field at the top of the list
   searchable?: boolean
@@ -42,6 +45,8 @@ export interface SelectProps {
   align?: 'start' | 'end'
   // render the list before the first open, for tests that wait on an item
   keepMounted?: boolean
+  // render the list at the end of the page, for selects inside a modal or panel that clips it
+  portal?: boolean
   className?: string
   menuClassName?: string
   onToggle?: (show: boolean) => void
@@ -66,6 +71,23 @@ export const SelectToggle = React.forwardRef(
   )
 )
 
+// lists size themselves from --rx-select-ref-width (the toggle width), which also works when portalled
+const popperConfig = {
+  modifiers: [{
+    name: 'referenceWidth',
+    enabled: true,
+    phase: 'beforeWrite' as const,
+    requires: ['computeStyles'],
+    fn: ({ state }) => {
+      state.styles.popper['--rx-select-ref-width'] = `${state.rects.reference.width}px`
+    },
+    // set it before the first measure too, or a full-width list gets pushed to the page edge
+    effect: ({ state }) => {
+      state.elements.popper.style.setProperty('--rx-select-ref-width', `${state.elements.reference.getBoundingClientRect().width}px`)
+    }
+  }]
+}
+
 const optionText = (option: SelectOption) => option.searchText ?? (typeof option.label === 'string' ? option.label : option.value)
 
 export const Select = (props: SelectProps) => {
@@ -83,6 +105,8 @@ export const Select = (props: SelectProps) => {
     props.onToggle?.(show)
   }
 
+  const wrapMenu = (menu: JSX.Element) => props.portal ? createPortal(menu, document.body) : menu
+
   let lastGroup: string | undefined
   return (
     <Dropdown className={`rx-select-wrap ${compact ? 'd-inline-block' : 'w-100'} ${props.className || ''}`} onToggle={onToggle} align={props.align}>
@@ -93,13 +117,14 @@ export const Select = (props: SelectProps) => {
         data-id={props.dataId || id}
         data-value={current?.value ?? ''}
         title={props.title}
+        aria-label={props.ariaLabel}
         disabled={props.disabled}
       >
         <span className={`rx-select-value ${current ? '' : 'rx-select-placeholder'}`}>
           {props.renderValue ? props.renderValue(current) : current ? current.label : props.placeholder}
         </span>
       </Dropdown.Toggle>
-      <Dropdown.Menu className={`rx-select-menu ${compact ? '' : 'rx-select-menu-full'} ${props.menuClassName || ''}`} data-id={props.menuDataId || `${id}Items`} renderOnMount={props.keepMounted}>
+      {wrapMenu(<Dropdown.Menu className={`rx-select-menu ${compact ? '' : 'rx-select-menu-full'} ${props.portal ? 'rx-select-menu-portal' : ''} ${props.menuClassName || ''}`} data-id={props.menuDataId || `${id}Items`} renderOnMount={props.keepMounted} popperConfig={popperConfig}>
         {searchable && (
           <div className="rx-select-search">
             <i className="fas fa-search" aria-hidden="true"></i>
@@ -115,6 +140,8 @@ export const Select = (props: SelectProps) => {
               onKeyDown={(e) => {
                 // keep typing in the field; arrows and Escape still reach the dropdown
                 if (e.key.length === 1) e.stopPropagation()
+                // Enter would submit a surrounding form
+                if (e.key === 'Enter') e.preventDefault()
               }}
             />
           </div>
@@ -127,6 +154,8 @@ export const Select = (props: SelectProps) => {
               {header}
               <Dropdown.Item
                 as="button"
+                // inside a <form> a plain button would submit it
+                type="button"
                 data-id={props.itemDataId ? props.itemDataId(o) : `${id}-${o.value}`}
                 active={o.value === current?.value}
                 disabled={o.disabled}
@@ -143,7 +172,7 @@ export const Select = (props: SelectProps) => {
           )
         })}
         {searchable && q && !shown.length && <div className="rx-select-empty">{props.noResultsText || 'No results'}</div>}
-      </Dropdown.Menu>
+      </Dropdown.Menu>)}
     </Dropdown>
   )
 }

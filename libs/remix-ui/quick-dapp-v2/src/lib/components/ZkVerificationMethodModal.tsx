@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react'
 import { Alert, Spinner, Form, Button } from 'react-bootstrap'
+import { Select } from '@remix-ui/helper'
 import { getNetworkName } from '../utils/networks'
 import { ZkVerificationMethod } from '../types'
 
@@ -212,15 +213,19 @@ export function ZkVerificationMethodModalContent({ plugin, resultRef, forceOnCha
           {!checkingContracts && !isVmEnvironment && deployedContracts.length > 0 && (
             <>
               <Form.Group>
-                <Form.Label>Select your deployed verifier contract</Form.Label>
-                <Form.Select value={selectedAddress} onChange={(e) => setSelectedAddress(e.target.value)}>
-                  <option value="">-- Select a contract --</option>
-                  {deployedContracts.map((contract) => (
-                    <option key={contract.address} value={contract.address}>
-                      {contract.name} ({contract.address})
-                    </option>
-                  ))}
-                </Form.Select>
+                <Form.Label htmlFor="zkVerifierContractSelect">Select your deployed verifier contract</Form.Label>
+                <Select
+                  id="zkVerifierContractSelect"
+                  portal
+                  value={selectedAddress}
+                  onChange={setSelectedAddress}
+                  placeholder="-- Select a contract --"
+                  options={deployedContracts.map((contract) => ({
+                    value: contract.address,
+                    label: contract.name,
+                    sub: contract.address
+                  }))}
+                />
               </Form.Group>
               {selectedContract && !hasVerifyProofFunction(getContractAbi(selectedContract)) && (
                 <Alert variant="warning" className="mt-2 mb-0">
