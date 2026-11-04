@@ -284,10 +284,6 @@
 .sc-issue:hover .sc-copy-hover, .sc-issue:focus-within .sc-copy-hover { visibility: visible; }
 
 /* contract */
-.sc-picker { display: flex; align-items: baseline; gap: 8px; width: 100%; padding-right: 10px; background-image: none; text-align: left; }
-.sc-picker .n { min-width: 0; color: var(--bs-emphasis-color); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.sc-picker-icon { margin-left: auto; align-self: center; flex-shrink: 0; color: var(--bs-secondary-color); }
-.sc-picker .p { font-size: 11px; color: var(--bs-secondary-color); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .sc-copy-row { display: flex; gap: 16px; padding: 0 2px; }
 /* both labels share one grid cell so the link keeps its width when it reads "Copied" */
 .sc-copy-link { display: inline-flex; align-items: baseline; gap: 4px; }
@@ -303,11 +299,10 @@
 .sc-link-btn { background: none; border: 0; padding: 0; font-size: 12px; color: var(--custom-primary); text-align: left; }
 .sc-link-btn:hover { text-decoration: underline; }
 
-/* ⋯ menus and the contract picker list */
+/* ⋯ menus */
 .sc-icon-btn { width: 24px; height: 24px; display: inline-flex; align-items: center; justify-content: center; border: 0; border-radius: 4px; background: none; color: var(--bs-secondary-color); }
 .sc-icon-btn:hover, .sc-icon-btn[aria-expanded="true"] { background: var(--sc-layer-3); color: var(--bs-emphasis-color); }
 .sc-menu { min-width: 230px; padding: 4px; border-radius: 6px; background: var(--bs-body-bg); border: 1px solid var(--bs-border-color); box-shadow: 0 6px 20px rgba(0, 0, 0, .3); font-size: 12px; }
-.sc-menu-full { width: 100%; min-width: 0; max-height: 60vh; overflow-y: auto; }
 .sc-menu .dropdown-item { display: flex; gap: 8px; align-items: baseline; padding: 6px 8px; border-radius: 4px; color: var(--bs-body-color); white-space: normal; }
 .sc-menu .dropdown-item:hover, .sc-menu .dropdown-item:focus, .sc-menu .dropdown-item.active { background: var(--sc-layer-3); color: var(--bs-body-color); }
 .sc-menu .dropdown-item i { color: var(--bs-secondary-color); }

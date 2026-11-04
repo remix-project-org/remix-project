@@ -1,8 +1,7 @@
 import { appPlatformTypes, platformContext } from '@remix-ui/app'
 import React, { useContext } from 'react'
-import { Dropdown } from 'react-bootstrap'
 import { useIntl } from 'react-intl'
-import { PickerToggle } from './picker'
+import { Select, SelectOption } from '@remix-ui/helper'
 
 export type compilerVersion = {
   path: string,
@@ -28,47 +27,45 @@ export const CompilerDropdown = (props: compilerDropdownProps) => {
   // the newest release (the list is newest first, after "builtin")
   const latestPath = allversions.find((build) => build.path !== 'builtin' && !build.longVersion.includes('nightly'))?.path
   const latest = <span className="sc-muted ms-1">({intl.formatMessage({ id: 'solidity.latest' })})</span>
-  return (
-    <Dropdown className="w-100" id="versionSelector" data-id="versionSelector">
-      <Dropdown.Toggle disabled={props.disabled} as={PickerToggle} id="dropdown-custom-components">
-        <span className={`n ${props.disabled ? 'text-muted' : ''}`}>
-          {customVersions.map((url, i) => {
-            if (selectedVersion === url) return (<span data-id="selectedVersion" key={i}>custom</span>)
-          })}
-          {allversions.map((build, i) => {
-            if ((selectedVersion || defaultVersion) === build.path) {
-              return (<span key={i}><span data-id="selectedVersion">{build.longVersion}</span>{build.path === latestPath && latest}</span>)
-            }
-          })}
-        </span>
-      </Dropdown.Toggle>
+  const current = selectedVersion || defaultVersion
 
-      <Dropdown.Menu className="sc-menu sc-menu-full" data-id="custom-dropdown-items">
-        {allversions.length <= 0 && (
-          <Dropdown.Item as="button" key="default" data-id="builtin" active={selectedVersion === defaultVersion}>
-            <span className="n">{defaultVersion}</span>
-          </Dropdown.Item>
-        )}
-        {allversions.length <= 0 && (
-          <Dropdown.Item as="button" key="builtin" data-id="builtin" active={selectedVersion === 'builtin'}>
-            <span className="n">builtin</span>
-          </Dropdown.Item>
-        )}
-        {customVersions.map((url, i) => (
-          <Dropdown.Item as="button" key={`custom-${i}`} data-id={`dropdown-item-${url}`} active={selectedVersion === url} onClick={() => handleLoadVersion(url)}>
-            <span className="n">custom: {url}</span>
-          </Dropdown.Item>
-        ))}
-        {allversions.map((build, i) => {
-          if (onlyDownloaded && !build.isDownloaded) return null
-          return _shouldBeAdded(build.longVersion) ? (
-            <Dropdown.Item as="button" key={`soljson-${i}`} data-id={`dropdown-item-${build.path}`} active={selectedVersion === build.path} onClick={() => handleLoadVersion(build.path)}>
-              <span className="n">{build.longVersion}{build.path === latestPath && latest}</span>
-              {platform == appPlatformTypes.desktop ? <i className={`${build.isDownloaded ? 'fas text-success' : 'far'} fa-arrow-circle-down ms-auto`}></i> : null}
-            </Dropdown.Item>
-          ) : null
-        })}
-      </Dropdown.Menu>
-    </Dropdown>
+  // before the version list is loaded only the default and the built-in compiler are listed
+  const options: SelectOption[] = allversions.length <= 0
+    ? [
+      { value: defaultVersion, label: defaultVersion, itemProps: { 'data-id': 'builtin' } },
+      { value: 'builtin', label: 'builtin', itemProps: { 'data-id': 'builtin' } }
+    ]
+    : [
+      ...customVersions.map((url) => ({ value: url, label: `custom: ${url}` })),
+      ...allversions
+        .filter((build) => !(onlyDownloaded && !build.isDownloaded) && _shouldBeAdded(build.longVersion))
+        .map((build) => ({
+          value: build.path,
+          label: <>{build.longVersion}{build.path === latestPath && latest}</>,
+          searchText: build.longVersion,
+          end: platform == appPlatformTypes.desktop ? <i className={`${build.isDownloaded ? 'fas text-success' : 'far'} fa-arrow-circle-down`}></i> : undefined
+        }))
+    ]
+
+  // the toggle also names a selected build that the filters hide from the list
+  const renderValue = () => {
+    if (customVersions.includes(current)) return <span data-id="selectedVersion">custom</span>
+    const build = allversions.find((b) => b.path === current)
+    return build && <span><span data-id="selectedVersion">{build.longVersion}</span>{build.path === latestPath && latest}</span>
+  }
+
+  return (
+    <Select
+      id="versionSelector"
+      menuDataId="custom-dropdown-items"
+      value={current}
+      options={options}
+      onChange={(path) => allversions.length > 0 && handleLoadVersion(path)}
+      itemDataId={(o) => `dropdown-item-${o.value}`}
+      renderValue={renderValue}
+      disabled={props.disabled}
+      searchable={allversions.length > 0}
+      searchPlaceholder={intl.formatMessage({ id: 'solidity.searchVersions' })}
+    />
   )
 }
