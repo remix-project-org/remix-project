@@ -39,6 +39,11 @@ for (const { templateValue, cardDataId, contractFile } of TEMPLATES) {
       await page.getByTitle('Dismiss').waitFor({ state: 'visible', timeout: 30000 })
       await page.getByTitle('Dismiss').click()
     } catch { /* not present */ }
+    try {
+      if (await page.locator('.pm-shell').isVisible()) {
+        await page.locator('[data-id="planManagerCloseButton"]').click()
+      }
+    } catch { /* not present */ }
 
     // Ensure file panel is visible
     await page.locator('[data-id="verticalIconsKindfilePanel"]').click()

@@ -21,12 +21,22 @@ test('e2e-erc721-generation-with-form', async ({ page }) => {
     await page.getByTitle('Dismiss').waitFor({ state: 'visible', timeout: 30000 });
     await page.getByTitle('Dismiss').click();
   } catch { /* not present */ }
+  try {
+    if (await page.locator('.pm-shell').isVisible()) {
+      await page.locator('[data-id="planManagerCloseButton"]').click();
+    }
+  } catch { /* not present */ }
   await page.getByRole('button', { name: 'Sign In', exact: true }).click();
   await page.locator('[data-id="pm-free-plan-start"]').click();
   await page.getByRole('button', { name: 'E2E Test Pool', exact: false }).click();
   try {
     await page.getByTitle('Dismiss').waitFor({ state: 'visible', timeout: 30000 });
     await page.getByTitle('Dismiss').click();
+  } catch { /* not present */ }
+  try {
+    if (await page.locator('.pm-shell').isVisible()) {
+      await page.locator('[data-id="planManagerCloseButton"]').click();
+    }
   } catch { /* not present */ }
   await page.getByRole('textbox', { name: 'Type "/" for more options or' }).click();
   await page.getByRole('textbox', { name: 'Type "/" for more options or' }).fill(prompt);

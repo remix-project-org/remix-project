@@ -53,6 +53,11 @@ async function signIn(page: any, poolApiKey: string) {
     await page.getByTitle('Dismiss').waitFor({ state: 'visible', timeout: 30000 });
     await page.getByTitle('Dismiss').click();
   } catch { /* not present */ }
+  try {
+    if (await page.locator('.pm-shell').isVisible()) {
+      await page.locator('[data-id="planManagerCloseButton"]').click();
+    }
+  } catch { /* not present */ }
   await page.locator('[data-id="login-button"]').click()
   await page.locator('[data-id="pm-free-plan-start"]').click()
   await page.locator('[data-id="loginModalE2EPoolButton"]').click()
