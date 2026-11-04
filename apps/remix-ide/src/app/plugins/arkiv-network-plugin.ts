@@ -1,12 +1,7 @@
 import React from 'react'
 import { Plugin } from '@remixproject/engine'
 import { customAction } from '@remixproject/plugin-api'
-import { createPublicClient } from '@arkiv-network/sdk'
-import { addr, str } from '@arkiv-network/sdk/attr'
-import { eq, and } from '@arkiv-network/sdk/query'
-import { tiramisu } from '@arkiv-network/sdk/chains'
-import { http, type Hex } from 'viem'
-import { bytesToHex, sha256Hex } from './arkiv-utils'
+import { bytesToHex, hexToBytes, sha256Hex } from './arkiv-utils'
 
 // Update when Tiramisu gets an official block explorer
 const SCAN_BASE_URL = 'https://scan.tiramisu.testnet.arkiv.network'
@@ -68,8 +63,6 @@ export interface RetrieveResult {
 }
 
 export class ArkivNetworkPlugin extends Plugin {
-  private _pubClient: any = null
-
   constructor() {
     super(profile)
   }
@@ -81,13 +74,6 @@ export class ArkivNetworkPlugin extends Plugin {
   }
 
   // ── Internal helpers ──────────────────────────────────────────────────────
-
-  private _getPubClient() {
-    if (!this._pubClient) {
-      this._pubClient = createPublicClient({ chain: tiramisu, transport: http() })
-    }
-    return this._pubClient
-  }
 
   private async _computeAbiHash(abi: any[]): Promise<string> {
     const sorted = [...abi].sort((a, b) => {
@@ -276,20 +262,12 @@ export class ArkivNetworkPlugin extends Plugin {
     }
 
     // ── 3. Upsert: query for existing, then create or patch ──────────────────
-    const pub = this._getPubClient()
     let existingKey: string | undefined
     try {
-      const existing = await pub
-        .select({ key: true })
-        .where(and(
-          eq('app', str('remix')),
-          eq('wallet_address', addr(walletAddress as Hex)),
-          eq('chain_id', str(chainId)),
-          eq('address', addr(address as Hex)),
-          eq('type', str('remix-deployed-contract')),
-        ))
-        .limit(1)
-        .fetch()
+      const existing = await (this as any).call('arkivBasic', 'query', {
+        query: `app = str('remix') AND wallet_address = addr(${walletAddress}) AND chain_id = str('${chainId}') AND address = addr(${address}) AND type = str('remix-deployed-contract')`,
+        limit: 1,
+      })
       existingKey = existing.entities?.[0]?.key
     } catch {
       // query failure is non-fatal; fall through to create
@@ -305,14 +283,16 @@ export class ArkivNetworkPlugin extends Plugin {
       const patchResult: { txHash: string } = await (this as any).call('arkivBasic', 'patchEntity', {
         entityKey: existingKey,
         set: {
-          abi_hash:          { type: 'bytes32', value: abiHash },
-          source_hash:       { type: 'bytes32', value: sourceHash },
-          saved_at:          { type: 'u64', value: savedAt },
-          contract_name:     { type: 'str', value: contractName },
-          compiler_version:  { type: 'str', value: compilerVersion ?? '' },
-          expiry_label:      { type: 'str', value: choice.label },
+          payload: payloadHex,
+          attributes: {
+            abi_hash:          { type: 'bytes32', value: abiHash },
+            source_hash:       { type: 'bytes32', value: sourceHash },
+            saved_at:          { type: 'u64', value: savedAt },
+            name:              { type: 'str', value: contractName },
+            compiler_version:  { type: 'str', value: compilerVersion ?? '' },
+            expiry_label:      { type: 'str', value: choice.label },
+          },
         },
-        payload: payloadHex,
       })
       // Extend the on-chain expiry to match the user's chosen retention period
       await (this as any).call('arkivBasic', 'extendEntity', {
@@ -331,7 +311,7 @@ export class ArkivNetworkPlugin extends Plugin {
           wallet_address:   { type: 'addr', value: walletAddress },
           chain_id:         { type: 'str', value: chainId },
           address:          { type: 'addr', value: address },
-          contract_name:    { type: 'str', value: contractName },
+          name:             { type: 'str', value: contractName },
           compiler_version: { type: 'str', value: compilerVersion ?? '' },
           abi_hash:         { type: 'bytes32', value: abiHash },
           source_hash:      { type: 'bytes32', value: sourceHash },
@@ -357,49 +337,56 @@ export class ArkivNetworkPlugin extends Plugin {
     walletAddress: string
     cursor?: string
   }): Promise<RetrieveResult> {
-    const pub = this._getPubClient()
+    const LIMIT = 50
+    const offset = params.cursor ? Number(params.cursor) : 0
 
-    let builder = pub
-      .select({ key: true, attributes: true, payload: true })
-      .where(and(
-        eq('app', str('remix')),
-        eq('wallet_address', addr(params.walletAddress as Hex)),
-        eq('type', str('remix-deployed-contract')),
-      ))
-      .limit(50)
+    const result = await (this as any).call('arkivBasic', 'query', {
+      query: `app = str('remix') AND wallet_address = addr(${params.walletAddress}) AND type = str('remix-deployed-contract')`,
+      limit: LIMIT,
+      offset,
+    })
 
-    if (params.cursor) {
-      builder = builder.cursor(params.cursor)
-    }
-
-    const result = await builder.fetch()
+    // Indexed fields come back as flat strings in `attributes`.
+    // Non-indexed attributes (name, saved_at, expiry_label, …) are packed by the proxy
+    // into `attributes.meta` as a hex-encoded JSON blob of typed { type, value } objects.
+    // The ABI payload is at `attributes.payload` (hex), not at the top-level entity field.
+    const attrVal = (a: any) => (a != null && typeof a === 'object' && 'value' in a ? a.value : a)
 
     const contracts: SavedContractRecord[] = (result.entities || [])
-      .filter((e: any) => e.key && e.attributes)
+      .filter((e: any) => e.key)
       .map((e: any) => {
+        const attrs = e.attributes || {}
+
+        // Decode the meta blob
+        let meta: Record<string, any> = {}
+        try {
+          if (attrs.meta) meta = JSON.parse(new TextDecoder().decode(hexToBytes(String(attrs.meta))))
+        } catch { /* ignore malformed meta */ }
+
+        // Decode the ABI from attrs.payload (hex)
         let abi: any[] = []
         try {
-          if (e.payload) {
-            abi = JSON.parse(new TextDecoder().decode(e.payload))
-          }
+          if (attrs.payload) abi = JSON.parse(new TextDecoder().decode(hexToBytes(String(attrs.payload))))
         } catch { /* corrupted payload — return empty ABI */ }
 
-        const attrs = e.attributes || {}
         return {
           entityKey:   e.key as string,
-          address:     String(attrs.address?.value ?? ''),
-          name:        String(attrs.contract_name?.value ?? 'Unknown'),
-          chainId:     String(attrs.chain_id?.value ?? ''),
-          savedAt:     typeof attrs.saved_at?.value === 'bigint' ? Number(attrs.saved_at.value) : 0,
-          expiryLabel: String(attrs.expiry_label?.value ?? 'unknown'),
+          address:     String(attrVal(attrs.address) ?? ''),
+          name:        String(attrVal(meta.name) ?? 'Unknown'),
+          chainId:     String(attrVal(attrs.chain_id) ?? ''),
+          savedAt:     Number(attrVal(meta.saved_at) ?? 0),
+          expiryLabel: String(attrVal(meta.expiry_label) ?? 'unknown'),
           abi,
         }
       })
 
+    const nextOffset = offset + contracts.length
+    const hasMore = contracts.length === LIMIT
+
     return {
       contracts,
-      cursor:  (result as any).cursor,
-      hasMore: typeof result.hasNextPage === 'function' ? result.hasNextPage() : false,
+      cursor:  hasMore ? String(nextOffset) : undefined,
+      hasMore,
     }
   }
 }
