@@ -3848,368 +3848,368 @@ const PlanManagerOverlay: React.FC<{
               )}
               <div className="pm-content">
 
-            {/*
+                {/*
             When the user has no `ui:show-*` features granted we collapse
             the overlay to a minimal identity card. Onboarding flows use
             this to confirm sign-in without exposing the (currently
             irrelevant) plans/credits/quotas surface.
           */}
-            {!checkoutActive && !ui.anyVisible && (
-              <PlanIdentityCard planCtx={planCtx} />
-            )}
+                {!checkoutActive && !ui.anyVisible && (
+                  <PlanIdentityCard planCtx={planCtx} />
+                )}
 
-            {/* Resume nudge — surfaces an unfinished checkout the user can
+                {/* Resume nudge — surfaces an unfinished checkout the user can
               pick back up. Always shown while a pending checkout exists (and
               we're not already inside checkout), so it stays in lock-step
               with the top-bar cart button. Not dismissible by design. */}
-            {!checkoutActive && snap.resumeCheckouts.length > 0 && (
-              <ResumeCheckoutBanner
-                checkout={snap.resumeCheckouts[0]}
-                onResume={() => { void plugin.resumeCheckout(snap.resumeCheckouts[0].transaction_id) }}
-                onDiscard={() => { void plugin.discardCheckout(snap.resumeCheckouts[0].transaction_id) }}
-              />
-            )}
+                {!checkoutActive && snap.resumeCheckouts.length > 0 && (
+                  <ResumeCheckoutBanner
+                    checkout={snap.resumeCheckouts[0]}
+                    onResume={() => { void plugin.resumeCheckout(snap.resumeCheckouts[0].transaction_id) }}
+                    onDiscard={() => { void plugin.discardCheckout(snap.resumeCheckouts[0].transaction_id) }}
+                  />
+                )}
 
-            {/* Alerts are credit/plan-oriented — only meaningful when
+                {/* Alerts are credit/plan-oriented — only meaningful when
               at least one of those surfaces is visible. Shown above nav
               so urgent warnings are never buried. */}
-            {!checkoutActive && snap.paymentsBlockedInRegion && <RegionBlockedNotice />}
-            {!checkoutActive && ui.anyVisible && activeAlert === 'beta-transition' && (
-              <BetaTransitionAlert
-                planCtx={planCtx}
-                onUpgrade={() => setActiveSection('plans')}
-                onTopUp={() => setActiveSection('topup')}
-              />
-            )}
+                {!checkoutActive && snap.paymentsBlockedInRegion && <RegionBlockedNotice />}
+                {!checkoutActive && ui.anyVisible && activeAlert === 'beta-transition' && (
+                  <BetaTransitionAlert
+                    planCtx={planCtx}
+                    onUpgrade={() => setActiveSection('plans')}
+                    onTopUp={() => setActiveSection('topup')}
+                  />
+                )}
 
-            {!checkoutActive && ui.anyVisible && activeAlert === 'plan-lifecycle' && (
-              <PlanLifecycleAlert
-                planCtx={planCtx}
-                onRenew={() => setActiveSection('plans')}
-                onUpgrade={() => setActiveSection('plans')}
-                onUpdatePayment={() => { void plugin.updatePaymentMethod() }}
-              />
-            )}
+                {!checkoutActive && ui.anyVisible && activeAlert === 'plan-lifecycle' && (
+                  <PlanLifecycleAlert
+                    planCtx={planCtx}
+                    onRenew={() => setActiveSection('plans')}
+                    onUpgrade={() => setActiveSection('plans')}
+                    onUpdatePayment={() => { void plugin.updatePaymentMethod() }}
+                  />
+                )}
 
-            {!checkoutActive && ui.showCredits && activeAlert === 'credit' && !(isFreeWelcome && activeSection === 'topup') && (
-              <CreditAlert
-                status={status}
-                refreshDate={refreshDate}
-                canUpgrade={canUpgrade}
-                onTopUp={() => setActiveSection('topup')}
-                onUpgrade={() => setActiveSection('plans')}
-              />
-            )}
+                {!checkoutActive && ui.showCredits && activeAlert === 'credit' && !(isFreeWelcome && activeSection === 'topup') && (
+                  <CreditAlert
+                    status={status}
+                    refreshDate={refreshDate}
+                    canUpgrade={canUpgrade}
+                    onTopUp={() => setActiveSection('topup')}
+                    onUpgrade={() => setActiveSection('plans')}
+                  />
+                )}
 
-            {/* Credits view — shown when the Credits tab is active. */}
-            {!checkoutActive && activeSection === 'credits' && ui.showCredits && (
-              <Hero
-                status={status}
-                refreshDate={refreshDate}
-                planCtx={planCtx}
-                heroCompact={activeAlert === 'beta-transition' || activeAlert === 'plan-lifecycle'}
-                onTopUp={ui.showTopUps ? (() => setActiveSection('topup')) : undefined}
-              />
-            )}
+                {/* Credits view — shown when the Credits tab is active. */}
+                {!checkoutActive && activeSection === 'credits' && ui.showCredits && (
+                  <Hero
+                    status={status}
+                    refreshDate={refreshDate}
+                    planCtx={planCtx}
+                    heroCompact={activeAlert === 'beta-transition' || activeAlert === 'plan-lifecycle'}
+                    onTopUp={ui.showTopUps ? (() => setActiveSection('topup')) : undefined}
+                  />
+                )}
 
-            {/*
+                {/*
             Upgrade promo — only on the credits view, no alert already
             showing its own CTA.
           */}
-            {!checkoutActive && activeSection === 'credits' && ui.showPlans && !activeAlert && canUpgrade && (
-              <UpgradePromoBanner
-                planCtx={planCtx}
-                plans={visiblePlans}
-                localizedPrices={catalogPrices?.byPaddlePriceId ?? null}
-                onUpgrade={() => setActiveSection(s => s === 'plans' ? null : 'plans')}
-              />
-            )}
+                {!checkoutActive && activeSection === 'credits' && ui.showPlans && !activeAlert && canUpgrade && (
+                  <UpgradePromoBanner
+                    planCtx={planCtx}
+                    plans={visiblePlans}
+                    localizedPrices={catalogPrices?.byPaddlePriceId ?? null}
+                    onUpgrade={() => setActiveSection(s => s === 'plans' ? null : 'plans')}
+                  />
+                )}
 
-            {!checkoutActive && activeSection === 'credits' && ui.showQuotas && (
-              <QuotasPanel
-                quotas={quotas}
-                aiModels={snap.permissions?.ai_models}
-                paidCredits={snap.credits?.paid_credits ?? 0}
-                canUpgrade={canUpgrade && ui.showPlans}
-                onUpgrade={() => setActiveSection('plans')}
-                onTopUp={() => setActiveSection('topup')}
-              />
-            )}
+                {!checkoutActive && activeSection === 'credits' && ui.showQuotas && (
+                  <QuotasPanel
+                    quotas={quotas}
+                    aiModels={snap.permissions?.ai_models}
+                    paidCredits={snap.credits?.paid_credits ?? 0}
+                    canUpgrade={canUpgrade && ui.showPlans}
+                    onUpgrade={() => setActiveSection('plans')}
+                    onTopUp={() => setActiveSection('topup')}
+                  />
+                )}
 
-            <main className="pm-main">
-              {/* Inline Paddle checkout container — visible while checkout is in progress */}
-              {snap.pendingCheckout && !snap.checkoutResult && (() => {
-                const pending = snap.pendingCheckout
-                const plan = pending.intent !== 'topup'
-                  ? snap.catalogPlans.find(p => p.id === pending.productId)
-                  : null
-                const pkg = pending.intent === 'topup'
-                  ? snap.catalogPackages.find(p => p.id === pending.productId)
-                  : null
-                const productName = plan?.name ?? pkg?.name ?? pending.itemLabel ?? 'Your order'
-                const priceCents = plan?.priceUsd ?? pkg?.priceUsd ?? 0
-                // Localized headline price for this product (from the batched
-                // catalog preview), matching the localized Paddle breakdown
-                // below. Falls back to USD until/unless the preview resolves.
-                const productObj: any = plan ?? pkg
-                const productCartItem = snap.cartItems.find(i => i.slug === (plan?.id ?? pkg?.id))
-                const productPrices: any[] = Array.isArray(productObj?.prices) ? productObj.prices : []
-                const productSelectedPrice = (typeof productCartItem?.priceId === 'number'
-                  ? productPrices.find((pr: any) => pr.id === productCartItem.priceId)
-                  : null) ?? productPrices.find((pr: any) => pr.is_default) ?? productPrices[0] ?? null
-                const productPaddleId = paddlePriceIdOf(productSelectedPrice, productObj)
-                const productLocalized = productPaddleId ? catalogPrices?.byPaddlePriceId?.[productPaddleId] ?? null : null
-                const priceFormatted = productLocalized ? productLocalized.formatted : `$${(priceCents / 100).toFixed(2)}`
-                const billingLabel = plan
-                  ? `per ${plan.billingInterval === 'year' ? 'year' : 'month'}`
-                  : 'one-time'
-                const features = plan?.features ?? []
-                const credits = plan?.creditsPerMonth ?? pkg?.credits ?? null
-                // Extra items in cart (credit add-ons bundled with the plan).
-                const cartAddons = snap.cartItems.filter(i => i.productType === 'credit_package')
-                // Intro credit packages auto-added by the backend (free gifts).
-                const introCreditPkgs = plan?.introCreditPackages ?? []
+                <main className="pm-main">
+                  {/* Inline Paddle checkout container — visible while checkout is in progress */}
+                  {snap.pendingCheckout && !snap.checkoutResult && (() => {
+                    const pending = snap.pendingCheckout
+                    const plan = pending.intent !== 'topup'
+                      ? snap.catalogPlans.find(p => p.id === pending.productId)
+                      : null
+                    const pkg = pending.intent === 'topup'
+                      ? snap.catalogPackages.find(p => p.id === pending.productId)
+                      : null
+                    const productName = plan?.name ?? pkg?.name ?? pending.itemLabel ?? 'Your order'
+                    const priceCents = plan?.priceUsd ?? pkg?.priceUsd ?? 0
+                    // Localized headline price for this product (from the batched
+                    // catalog preview), matching the localized Paddle breakdown
+                    // below. Falls back to USD until/unless the preview resolves.
+                    const productObj: any = plan ?? pkg
+                    const productCartItem = snap.cartItems.find(i => i.slug === (plan?.id ?? pkg?.id))
+                    const productPrices: any[] = Array.isArray(productObj?.prices) ? productObj.prices : []
+                    const productSelectedPrice = (typeof productCartItem?.priceId === 'number'
+                      ? productPrices.find((pr: any) => pr.id === productCartItem.priceId)
+                      : null) ?? productPrices.find((pr: any) => pr.is_default) ?? productPrices[0] ?? null
+                    const productPaddleId = paddlePriceIdOf(productSelectedPrice, productObj)
+                    const productLocalized = productPaddleId ? catalogPrices?.byPaddlePriceId?.[productPaddleId] ?? null : null
+                    const priceFormatted = productLocalized ? productLocalized.formatted : `$${(priceCents / 100).toFixed(2)}`
+                    const billingLabel = plan
+                      ? `per ${plan.billingInterval === 'year' ? 'year' : 'month'}`
+                      : 'one-time'
+                    const features = plan?.features ?? []
+                    const credits = plan?.creditsPerMonth ?? pkg?.credits ?? null
+                    // Extra items in cart (credit add-ons bundled with the plan).
+                    const cartAddons = snap.cartItems.filter(i => i.productType === 'credit_package')
+                    // Intro credit packages auto-added by the backend (free gifts).
+                    const introCreditPkgs = plan?.introCreditPackages ?? []
 
-                // Intro launch-offer banner — the same promo merchandised on
-                // the plan cards, reinforced here so the user sees why their
-                // "due today" is lower than the headline price.
-                const introDiscount = (plan?.introDiscounts ?? [])[0] ?? null
-                let introOfferLabel: string | null = null
-                let discountedPriceFormatted: string | null = null
-                if (introDiscount && priceCents > 0) {
-                  const isPct = introDiscount.discountType === 'percentage'
-                  // Localize the crossed price for percentage discounts (exact
-                  // off the localized base). Fixed-amount discounts are USD, so
-                  // when localized we keep the base price only (no currency mix).
-                  if (productLocalized) {
-                    if (isPct) {
-                      const dm = Math.max(0, Math.floor(productLocalized.rawMinor * (1 - introDiscount.amount / 100)))
-                      if (dm < productLocalized.rawMinor) discountedPriceFormatted = formatPaddleMinor(dm, productLocalized.currencyCode)
+                    // Intro launch-offer banner — the same promo merchandised on
+                    // the plan cards, reinforced here so the user sees why their
+                    // "due today" is lower than the headline price.
+                    const introDiscount = (plan?.introDiscounts ?? [])[0] ?? null
+                    let introOfferLabel: string | null = null
+                    let discountedPriceFormatted: string | null = null
+                    if (introDiscount && priceCents > 0) {
+                      const isPct = introDiscount.discountType === 'percentage'
+                      // Localize the crossed price for percentage discounts (exact
+                      // off the localized base). Fixed-amount discounts are USD, so
+                      // when localized we keep the base price only (no currency mix).
+                      if (productLocalized) {
+                        if (isPct) {
+                          const dm = Math.max(0, Math.floor(productLocalized.rawMinor * (1 - introDiscount.amount / 100)))
+                          if (dm < productLocalized.rawMinor) discountedPriceFormatted = formatPaddleMinor(dm, productLocalized.currencyCode)
+                        }
+                      } else {
+                        const discountedCents = isPct
+                          ? Math.max(0, Math.floor(priceCents * (1 - introDiscount.amount / 100)))
+                          : Math.max(0, priceCents - Math.round(introDiscount.amount * 100))
+                        if (discountedCents < priceCents) {
+                          discountedPriceFormatted = `$${(discountedCents / 100).toFixed(2)}`
+                        }
+                      }
+                      const unit = plan?.billingInterval === 'year' ? 'year' : 'month'
+                      const intervals = introDiscount.maxRecurringIntervals
+                      const duration = !introDiscount.recur || !intervals || intervals === 1
+                        ? `first ${unit}`
+                        : `first ${intervals} ${unit}s`
+                      introOfferLabel = isPct
+                        ? `${Math.round(introDiscount.amount)}% off ${duration}`
+                        : `$${introDiscount.amount.toFixed(2)} off ${duration}`
                     }
-                  } else {
-                    const discountedCents = isPct
-                      ? Math.max(0, Math.floor(priceCents * (1 - introDiscount.amount / 100)))
-                      : Math.max(0, priceCents - Math.round(introDiscount.amount * 100))
-                    if (discountedCents < priceCents) {
-                      discountedPriceFormatted = `$${(discountedCents / 100).toFixed(2)}`
+
+                    // Live breakdown from Paddle (totals are already in major units).
+                    const bd = snap.checkoutBreakdown
+                    const fmtMoney = (amount: number, currency = bd?.currencyCode ?? 'USD') => {
+                      try {
+                        return new Intl.NumberFormat(undefined, { style: 'currency', currency }).format(amount)
+                      } catch {
+                        return `${currency} ${amount.toFixed(2)}`
+                      }
                     }
-                  }
-                  const unit = plan?.billingInterval === 'year' ? 'year' : 'month'
-                  const intervals = introDiscount.maxRecurringIntervals
-                  const duration = !introDiscount.recur || !intervals || intervals === 1
-                    ? `first ${unit}`
-                    : `first ${intervals} ${unit}s`
-                  introOfferLabel = isPct
-                    ? `${Math.round(introDiscount.amount)}% off ${duration}`
-                    : `$${introDiscount.amount.toFixed(2)} off ${duration}`
-                }
+                    const cadenceLabel = (cycle: CheckoutBreakdown['billingCycle']) => {
+                      if (!cycle) return ''
+                      const unit = cycle.interval
+                      return cycle.frequency === 1
+                        ? `per ${unit}`
+                        : `every ${cycle.frequency} ${unit}s`
+                    }
 
-                // Live breakdown from Paddle (totals are already in major units).
-                const bd = snap.checkoutBreakdown
-                const fmtMoney = (amount: number, currency = bd?.currencyCode ?? 'USD') => {
-                  try {
-                    return new Intl.NumberFormat(undefined, { style: 'currency', currency }).format(amount)
-                  } catch {
-                    return `${currency} ${amount.toFixed(2)}`
-                  }
-                }
-                const cadenceLabel = (cycle: CheckoutBreakdown['billingCycle']) => {
-                  if (!cycle) return ''
-                  const unit = cycle.interval
-                  return cycle.frequency === 1
-                    ? `per ${unit}`
-                    : `every ${cycle.frequency} ${unit}s`
-                }
-
-                return (
-                  <div className="pm-inline-checkout">
-                    <div className="pm-inline-checkout__header">
-                      <button
-                        className="pm-inline-checkout__back"
-                        onClick={() => plugin.cancelCheckout('back_to_plans')}
-                      >
-                        <i className="fas fa-arrow-left"></i>
-                        <span>Back to plans</span>
-                      </button>
-                    </div>
-                    <div className="pm-inline-checkout__body">
-                      {/* Order summary side */}
-                      <aside className="pm-inline-checkout__summary">
-                        <h3 className="pm-inline-checkout__product-name">{productName}</h3>
-                        <div className="pm-inline-checkout__price">
-                          {discountedPriceFormatted && (
-                            <span className="pm-inline-checkout__price-was">{priceFormatted}</span>
-                          )}
-                          <span className="pm-inline-checkout__price-amount">{discountedPriceFormatted ?? priceFormatted}</span>
-                          <span className="pm-inline-checkout__price-period">{billingLabel}</span>
+                    return (
+                      <div className="pm-inline-checkout">
+                        <div className="pm-inline-checkout__header">
+                          <button
+                            className="pm-inline-checkout__back"
+                            onClick={() => plugin.cancelCheckout('back_to_plans')}
+                          >
+                            <i className="fas fa-arrow-left"></i>
+                            <span>Back to plans</span>
+                          </button>
                         </div>
-                        {credits !== null && credits > 0 && (
-                          <div className="pm-inline-checkout__credits">
-                            <i className="fas fa-bolt"></i>
-                            <span>{credits.toLocaleString()} credits{plan ? ' / month' : ''}</span>
-                          </div>
-                        )}
-
-                        {introOfferLabel && (
-                          <div className="pm-inline-checkout__intro-offer" title={introDiscount?.name ?? undefined}>
-                            <i className="fas fa-tags" aria-hidden></i>
-                            <span>{introDiscount?.name ? `${introDiscount.name}` : introOfferLabel}</span>
-                          </div>
-                        )}
-
-                        {/* Bundled credit add-ons from multi-item cart */}
-                        {(cartAddons.length > 0 || introCreditPkgs.length > 0) && (
-                          <div className="pm-inline-checkout__addons">
-                            <div className="pm-inline-checkout__addons-label">Also in this order:</div>
-                            {introCreditPkgs.map((cp: any) => (
-                              <div key={cp.slug} className="pm-inline-checkout__addon-row pm-inline-checkout__addon-row--gift">
-                                <span><i className="fas fa-gift"></i> {cp.name || `${(cp.credits * (cp.quantity || 1)).toLocaleString()} free AI credits`}</span>
-                                <span className="pm-inline-checkout__addon-free">FREE</span>
+                        <div className="pm-inline-checkout__body">
+                          {/* Order summary side */}
+                          <aside className="pm-inline-checkout__summary">
+                            <h3 className="pm-inline-checkout__product-name">{productName}</h3>
+                            <div className="pm-inline-checkout__price">
+                              {discountedPriceFormatted && (
+                                <span className="pm-inline-checkout__price-was">{priceFormatted}</span>
+                              )}
+                              <span className="pm-inline-checkout__price-amount">{discountedPriceFormatted ?? priceFormatted}</span>
+                              <span className="pm-inline-checkout__price-period">{billingLabel}</span>
+                            </div>
+                            {credits !== null && credits > 0 && (
+                              <div className="pm-inline-checkout__credits">
+                                <i className="fas fa-bolt"></i>
+                                <span>{credits.toLocaleString()} credits{plan ? ' / month' : ''}</span>
                               </div>
-                            ))}
-                            {cartAddons.map(addon => {
-                              const addonPkg: any = snap.catalogPackages.find(p => p.id === addon.slug)
-                              const addonPrices: any[] = Array.isArray(addonPkg?.prices) ? addonPkg.prices : []
-                              const addonPrice = (typeof addon.priceId === 'number'
-                                ? addonPrices.find((pr: any) => pr.id === addon.priceId)
-                                : null) ?? addonPrices.find((pr: any) => pr.is_default) ?? addonPrices[0] ?? null
-                              const addonPaddleId = paddlePriceIdOf(addonPrice, addonPkg)
-                              const addonLoc = addonPaddleId ? catalogPrices?.byPaddlePriceId?.[addonPaddleId] ?? null : null
-                              return (
-                                <div key={addon.slug} className="pm-inline-checkout__addon-row">
-                                  <span><i className="fas fa-bolt"></i> {addon.name}</span>
-                                  <span>{addonLoc ? addonLoc.formatted : `$${(addon.priceCents / 100).toFixed(2)}`}</span>
-                                </div>
-                              )
-                            })}
-                          </div>
-                        )}
+                            )}
 
-                        {/* Live price breakdown from Paddle — appears once the
+                            {introOfferLabel && (
+                              <div className="pm-inline-checkout__intro-offer" title={introDiscount?.name ?? undefined}>
+                                <i className="fas fa-tags" aria-hidden></i>
+                                <span>{introDiscount?.name ? `${introDiscount.name}` : introOfferLabel}</span>
+                              </div>
+                            )}
+
+                            {/* Bundled credit add-ons from multi-item cart */}
+                            {(cartAddons.length > 0 || introCreditPkgs.length > 0) && (
+                              <div className="pm-inline-checkout__addons">
+                                <div className="pm-inline-checkout__addons-label">Also in this order:</div>
+                                {introCreditPkgs.map((cp: any) => (
+                                  <div key={cp.slug} className="pm-inline-checkout__addon-row pm-inline-checkout__addon-row--gift">
+                                    <span><i className="fas fa-gift"></i> {cp.name || `${(cp.credits * (cp.quantity || 1)).toLocaleString()} free AI credits`}</span>
+                                    <span className="pm-inline-checkout__addon-free">FREE</span>
+                                  </div>
+                                ))}
+                                {cartAddons.map(addon => {
+                                  const addonPkg: any = snap.catalogPackages.find(p => p.id === addon.slug)
+                                  const addonPrices: any[] = Array.isArray(addonPkg?.prices) ? addonPkg.prices : []
+                                  const addonPrice = (typeof addon.priceId === 'number'
+                                    ? addonPrices.find((pr: any) => pr.id === addon.priceId)
+                                    : null) ?? addonPrices.find((pr: any) => pr.is_default) ?? addonPrices[0] ?? null
+                                  const addonPaddleId = paddlePriceIdOf(addonPrice, addonPkg)
+                                  const addonLoc = addonPaddleId ? catalogPrices?.byPaddlePriceId?.[addonPaddleId] ?? null : null
+                                  return (
+                                    <div key={addon.slug} className="pm-inline-checkout__addon-row">
+                                      <span><i className="fas fa-bolt"></i> {addon.name}</span>
+                                      <span>{addonLoc ? addonLoc.formatted : `$${(addon.priceCents / 100).toFixed(2)}`}</span>
+                                    </div>
+                                  )
+                                })}
+                              </div>
+                            )}
+
+                            {/* Live price breakdown from Paddle — appears once the
                           checkout iframe loads and updates as the user enters
                           country/VAT or applies a discount. */}
-                        {bd ? (
-                          <div className="pm-inline-checkout__breakdown">
-                            <div className="pm-inline-checkout__line">
-                              <span>Subtotal</span>
-                              <span>{fmtMoney(bd.subtotal)}</span>
-                            </div>
-                            {bd.discount > 0 && (
-                              <div className="pm-inline-checkout__line pm-inline-checkout__line--discount">
-                                <span>
+                            {bd ? (
+                              <div className="pm-inline-checkout__breakdown">
+                                <div className="pm-inline-checkout__line">
+                                  <span>Subtotal</span>
+                                  <span>{fmtMoney(bd.subtotal)}</span>
+                                </div>
+                                {bd.discount > 0 && (
+                                  <div className="pm-inline-checkout__line pm-inline-checkout__line--discount">
+                                    <span>
                                 Discount
-                                  {bd.discountCode ? ` (${bd.discountCode})` : ''}
-                                </span>
-                                <span>-{fmtMoney(bd.discount)}</span>
-                              </div>
-                            )}
-                            {bd.tax > 0 && (
-                              <div className="pm-inline-checkout__line">
-                                <span>VAT / Tax</span>
-                                <span>{fmtMoney(bd.tax)}</span>
-                              </div>
-                            )}
-                            <div className="pm-inline-checkout__line pm-inline-checkout__line--total">
-                              <span>Due today</span>
-                              <span>{fmtMoney(bd.total)}</span>
-                            </div>
+                                      {bd.discountCode ? ` (${bd.discountCode})` : ''}
+                                    </span>
+                                    <span>-{fmtMoney(bd.discount)}</span>
+                                  </div>
+                                )}
+                                {bd.tax > 0 && (
+                                  <div className="pm-inline-checkout__line">
+                                    <span>VAT / Tax</span>
+                                    <span>{fmtMoney(bd.tax)}</span>
+                                  </div>
+                                )}
+                                <div className="pm-inline-checkout__line pm-inline-checkout__line--total">
+                                  <span>Due today</span>
+                                  <span>{fmtMoney(bd.total)}</span>
+                                </div>
 
-                            {bd.recurring && bd.billingCycle && (
-                              <div className="pm-inline-checkout__renews">
+                                {bd.recurring && bd.billingCycle && (
+                                  <div className="pm-inline-checkout__renews">
                               Then {fmtMoney(bd.recurring.total)} {cadenceLabel(bd.billingCycle)}
+                                  </div>
+                                )}
+                                <span className="pm-inline-checkout__renews" >By completing your purchase, you agree to our </span><span><a href="https://remix.live/termsandconditions" target="_blank" rel="noreferrer"><strong>Terms and Conditions</strong></a></span>
+                              </div>
+                            ) : features.length > 0 && (
+                              <ul className="pm-inline-checkout__features">
+                                {features.map((f, i) => (
+                                  <li key={i}>
+                                    <i className="fas fa-check"></i>
+                                    <span>{f}</span>
+                                  </li>
+                                ))}
+                              </ul>
+                            )}
+                            <div className="pm-inline-checkout__secure">
+                              <i className="fas fa-lock"></i>
+                              <span>Secure checkout powered by Paddle</span>
+                            </div>
+                          </aside>
+                          {/* Paddle inline frame */}
+                          <div className="pm-inline-checkout__frame">
+                            {snap.checkoutNotice && (
+                              <div
+                                className={`pm-inline-checkout__notice pm-inline-checkout__notice--${snap.checkoutNotice.level}`}
+                                role="alert"
+                              >
+                                <i className={`fas ${snap.checkoutNotice.level === 'error' ? 'fa-circle-exclamation' : 'fa-triangle-exclamation'}`}></i>
+                                <div className="pm-inline-checkout__notice-body">
+                                  <span>{snap.checkoutNotice.message}</span>
+                                  <span className="pm-inline-checkout__notice-help">
+                                Having trouble?{' '}
+                                    <a href={DISCORD_URL} target="_blank" rel="noreferrer">
+                                      <i className="fab fa-discord"></i> Reach out to us on Discord
+                                    </a>
+                                  </span>
+                                </div>
+                                <button
+                                  type="button"
+                                  className="pm-inline-checkout__notice-dismiss"
+                                  aria-label="Dismiss"
+                                  onClick={() => plugin.store.send({ type: 'CHECKOUT_NOTICE_DISMISS' })}
+                                >
+                                  <i className="fas fa-times"></i>
+                                </button>
                               </div>
                             )}
-                            <span className="pm-inline-checkout__renews" >By completing your purchase, you agree to our </span><span><a href="https://remix.live/termsandconditions" target="_blank" rel="noreferrer"><strong>Terms and Conditions</strong></a></span>
+                            <div className="paddle-checkout-container" />
                           </div>
-                        ) : features.length > 0 && (
-                          <ul className="pm-inline-checkout__features">
-                            {features.map((f, i) => (
-                              <li key={i}>
-                                <i className="fas fa-check"></i>
-                                <span>{f}</span>
-                              </li>
-                            ))}
-                          </ul>
-                        )}
-                        <div className="pm-inline-checkout__secure">
-                          <i className="fas fa-lock"></i>
-                          <span>Secure checkout powered by Paddle</span>
                         </div>
-                      </aside>
-                      {/* Paddle inline frame */}
-                      <div className="pm-inline-checkout__frame">
-                        {snap.checkoutNotice && (
-                          <div
-                            className={`pm-inline-checkout__notice pm-inline-checkout__notice--${snap.checkoutNotice.level}`}
-                            role="alert"
-                          >
-                            <i className={`fas ${snap.checkoutNotice.level === 'error' ? 'fa-circle-exclamation' : 'fa-triangle-exclamation'}`}></i>
-                            <div className="pm-inline-checkout__notice-body">
-                              <span>{snap.checkoutNotice.message}</span>
-                              <span className="pm-inline-checkout__notice-help">
-                                Having trouble?{' '}
-                                <a href={DISCORD_URL} target="_blank" rel="noreferrer">
-                                  <i className="fab fa-discord"></i> Reach out to us on Discord
-                                </a>
-                              </span>
-                            </div>
-                            <button
-                              type="button"
-                              className="pm-inline-checkout__notice-dismiss"
-                              aria-label="Dismiss"
-                              onClick={() => plugin.store.send({ type: 'CHECKOUT_NOTICE_DISMISS' })}
-                            >
-                              <i className="fas fa-times"></i>
-                            </button>
-                          </div>
-                        )}
-                        <div className="paddle-checkout-container" />
                       </div>
-                    </div>
-                  </div>
-                )
-              })()}
-              {!(snap.pendingCheckout && !snap.checkoutResult) && snap.cartItems.length > 0 && !snap.checkoutResult && (
-                <CartUpsellStep
-                  cart={snap.cartItems}
-                  packages={visiblePackages}
-                  plans={visiblePlans}
-                  plugin={plugin}
-                />
-              )}
-              {!(snap.pendingCheckout && !snap.checkoutResult) && snap.cartItems.length === 0 && ui.showPlans && activeSection === 'plans' && (
-                <PlansSection
-                  plans={visiblePlans}
-                  currentPlanId={planCtx.planId}
-                  userFeatureGroups={snap.permissions?.feature_groups ?? []}
-                  isTrialEligible={snap.isTrialEligible}
-                  purchasingId={purchasingProductId}
-                  requiredFeature={intent?.requiredFeature ?? null}
-                  localizedPrices={catalogPrices?.byPaddlePriceId ?? null}
-                  onSubscribe={(planId, priceId) => plugin.subscribeToPlan(planId, priceId)}
-                  onCancel={() => plugin.cancelSubscription()}
-                  onReactivate={() => plugin.reactivateSubscription()}
-                  cancelledNotice={planCtx.kind === 'paid' && planCtx.isCancelled ? { expiresOn: planCtx.expiresOn } : null}
-                />
-              )}
-              {!(snap.pendingCheckout && !snap.checkoutResult) && snap.cartItems.length === 0 && ui.showTopUps && activeSection === 'topup' && (
-                <TopUpSection
-                  packages={visiblePackages}
-                  purchasingId={purchasingProductId}
-                  localizedPrices={catalogPrices?.byPaddlePriceId ?? null}
-                  onPurchase={(packageId) => plugin.purchaseCredits(packageId)}
-                  totalAvailable={status.hasUnlimitedIncluded ? null : status.paidRemaining + status.includedRemaining}
-                  welcome={isFreeWelcome ? { isNewUser: !!intent?.isNewUser } : null}
-                  upgradePlans={ui.showPlans && planCtx.kind === 'no_subscription' ? visiblePlans : []}
-                  onUpgrade={(planId, priceId) => {
-                    trackMatomoEvent(plugin, { category: 'checkout', action: 'topup_upgrade', name: planId, value: isFreeWelcome ? 'welcome' : 'topup', isClick: true })
-                    void plugin.subscribeToPlan(planId, priceId)
-                  }}
-                  onComparePlans={() => setActiveSection('plans')}
-                />
-              )}
-              {ui.showUsage && activeSection === 'usage' && <UsageSection plugin={plugin} />}
-            </main>
+                    )
+                  })()}
+                  {!(snap.pendingCheckout && !snap.checkoutResult) && snap.cartItems.length > 0 && !snap.checkoutResult && (
+                    <CartUpsellStep
+                      cart={snap.cartItems}
+                      packages={visiblePackages}
+                      plans={visiblePlans}
+                      plugin={plugin}
+                    />
+                  )}
+                  {!(snap.pendingCheckout && !snap.checkoutResult) && snap.cartItems.length === 0 && ui.showPlans && activeSection === 'plans' && (
+                    <PlansSection
+                      plans={visiblePlans}
+                      currentPlanId={planCtx.planId}
+                      userFeatureGroups={snap.permissions?.feature_groups ?? []}
+                      isTrialEligible={snap.isTrialEligible}
+                      purchasingId={purchasingProductId}
+                      requiredFeature={intent?.requiredFeature ?? null}
+                      localizedPrices={catalogPrices?.byPaddlePriceId ?? null}
+                      onSubscribe={(planId, priceId) => plugin.subscribeToPlan(planId, priceId)}
+                      onCancel={() => plugin.cancelSubscription()}
+                      onReactivate={() => plugin.reactivateSubscription()}
+                      cancelledNotice={planCtx.kind === 'paid' && planCtx.isCancelled ? { expiresOn: planCtx.expiresOn } : null}
+                    />
+                  )}
+                  {!(snap.pendingCheckout && !snap.checkoutResult) && snap.cartItems.length === 0 && ui.showTopUps && activeSection === 'topup' && (
+                    <TopUpSection
+                      packages={visiblePackages}
+                      purchasingId={purchasingProductId}
+                      localizedPrices={catalogPrices?.byPaddlePriceId ?? null}
+                      onPurchase={(packageId) => plugin.purchaseCredits(packageId)}
+                      totalAvailable={status.hasUnlimitedIncluded ? null : status.paidRemaining + status.includedRemaining}
+                      welcome={isFreeWelcome ? { isNewUser: !!intent?.isNewUser } : null}
+                      upgradePlans={ui.showPlans && planCtx.kind === 'no_subscription' ? visiblePlans : []}
+                      onUpgrade={(planId, priceId) => {
+                        trackMatomoEvent(plugin, { category: 'checkout', action: 'topup_upgrade', name: planId, value: isFreeWelcome ? 'welcome' : 'topup', isClick: true })
+                        void plugin.subscribeToPlan(planId, priceId)
+                      }}
+                      onComparePlans={() => setActiveSection('plans')}
+                    />
+                  )}
+                  {ui.showUsage && activeSection === 'usage' && <UsageSection plugin={plugin} />}
+                </main>
               </div>
             </div>
           )
