@@ -149,6 +149,8 @@ export interface ModelSelectorMenuProps {
   /** Hand-off to the API key settings, from a row or header waiting for a key. */
   onAddApiKeyClick?: (item: groupListType) => void
   cheapOnly?: boolean
+  /** Shown under the open "Local (Ollama)" group: the installed local models. */
+  ollamaSection?: React.ReactNode
 }
 
 export default function ModelSelectorMenu(props: ModelSelectorMenuProps) {
@@ -389,6 +391,7 @@ export default function ModelSelectorMenu(props: ModelSelectorMenuProps) {
               {isOpen && (
                 <ProviderModelList rows={filtered.map(model => toRow(model, keyPresence))} groupListProps={groupListProps} />
               )}
+              {isOpen && group.provider === 'ollama' && props.ollamaSection}
             </div>
           )
         })}

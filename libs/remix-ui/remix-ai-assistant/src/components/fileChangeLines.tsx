@@ -78,7 +78,9 @@ const AppliedLine = ({ change, onOpen, nested }: { change: AIFileChangeRecord, o
     data-path={normalizePath(change.path)}
   >
     {!nested && <i className="fas fa-pen"></i>}
-    <span className="text-truncate">{nested ? normalizePath(change.path) : `${changeVerb(change)} ${normalizePath(change.path)}`}</span>
+    <span className="text-truncate" title={normalizePath(change.path)}>
+      {nested ? normalizePath(change.path) : <>{changeVerb(change)} <strong>{normalizePath(change.path).split('/').pop()}</strong></>}
+    </span>
     {nested && <span className="ai-change-line-kind">{changeVerb(change).toLowerCase()}</span>}
     <ChangeStat change={change} />
     <i className="fas fa-chevron-right ai-change-line-open"></i>
@@ -96,13 +98,13 @@ export const FileChangeGroup = ({ changes, onOpen }: { changes: AIFileChangeReco
   }, { additions: 0, deletions: 0 })
 
   return (
-    <div className="ai-change-group d-flex flex-column" data-id="ai-change-group">
+    <div className="ai-change-group" data-id="ai-change-group">
       {applied.length === 1 && <AppliedLine change={applied[0]} onOpen={onOpen} />}
       {applied.length > 1 && (
         <>
           <button type="button" className="ai-change-line" onClick={() => setExpanded(!expanded)} aria-expanded={expanded} data-id="ai-change-group-toggle">
             <i className="fas fa-pen"></i>
-            <span className="text-truncate">Edited {applied.length} files</span>
+            <span className="text-truncate">Edited <strong>{applied.length} files</strong></span>
             <span className="ai-change-line-stat text-nowrap">
               <span className="text-success">+{totals.additions}</span> <span className="text-danger">−{totals.deletions}</span>
             </span>
