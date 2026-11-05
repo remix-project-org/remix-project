@@ -1791,13 +1791,13 @@ code {
   padding: 2px 0 4px;
 }
 
-/* Model rows: name + one-line description, full text in the tooltip */
+/* Model rows: the name only, one line; the description is in the strip */
 .remix-ai-model-selector .rai-mm-row {
   display: flex;
   align-items: center;
   gap: 8px;
   width: 100%;
-  padding: 6px 12px;
+  padding: 5px 12px;
   border: 0;
   background: none;
   color: var(--bs-body-color);
@@ -1812,32 +1812,28 @@ code {
   background: var(--rai-hover);
 }
 
-.remix-ai-model-selector .rai-mm-row.is-dim .rai-mm-text {
+.remix-ai-model-selector .rai-mm-row.is-dim .rai-mm-name {
   opacity: 0.55;
 }
 
-.remix-ai-model-selector .rai-mm-text {
-  display: flex;
-  flex-direction: column;
+.remix-ai-model-selector .rai-mm-name {
   flex: 1;
   min-width: 0;
-  gap: 1px;
-}
-
-.remix-ai-model-selector .rai-mm-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   font-size: 13px;
   font-weight: 500;
   line-height: 1.3;
   color: var(--bs-emphasis-color);
 }
 
-.remix-ai-model-selector .rai-mm-desc {
+/* Short reason a row can't be picked ("Pro", "Soon"), next to its lock */
+.remix-ai-model-selector .rai-mm-note {
+  flex-shrink: 0;
   font-size: 11px;
-  line-height: 1.35;
-  color: var(--bs-secondary-color);
-  overflow: hidden;
-  text-overflow: ellipsis;
   white-space: nowrap;
+  color: var(--bs-secondary-color);
 }
 
 .remix-ai-model-selector .rai-mm-req {
@@ -1862,8 +1858,51 @@ code {
 
 /* "Auto": the first entry, at the providers' level */
 .remix-ai-model-selector .rai-mm-auto {
-  padding-top: 8px;
-  padding-bottom: 8px;
+  padding-top: 7px;
+  padding-bottom: 7px;
+  border-bottom: 1px solid var(--bs-border-color);
+}
+
+/* Recent: the last models picked, across providers, under Auto */
+.remix-ai-model-selector .rai-mm-recent {
+  padding: 2px 0 6px;
+}
+
+.remix-ai-model-selector .rai-mm-caption {
+  padding: 6px 12px 2px;
+  font-size: 10px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--bs-secondary-color);
+}
+
+/* Description strip: fixed height so the list never resizes under the pointer */
+.remix-ai-model-selector .rai-mm-detail {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  flex-shrink: 0;
+  height: 64px;
+  overflow: hidden;
+  padding: 7px 12px 8px;
+  border-top: 1px solid var(--bs-border-color);
+  background: var(--rai-mm-head-bg);
+}
+
+.remix-ai-model-selector .rai-mm-detail-name {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--bs-emphasis-color);
+}
+
+.remix-ai-model-selector .rai-mm-detail-text {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  font-size: 11px;
+  line-height: 1.4;
+  color: var(--bs-secondary-color);
 }
 
 .remix-ai-model-selector .rai-mm-rec {
