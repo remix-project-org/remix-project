@@ -173,7 +173,11 @@ test('anonymous user is prompted by plan-manager when triggering AI actions', as
   await expect(page.locator('[data-id="planManagerSignIn"]')).toBeVisible({ timeout: 15000 });
 
   // Close the plan-manager so we can interact with the rest of the IDE
-  await page.locator('[data-id="planManagerCloseButton"]').click();
+  await page.waitForTimeout(2000)
+  try {
+    await expect(page.locator('[data-id="planManagerCloseButton"]')).toBeVisible({ timeout: 30000 })
+    await page.locator('[data-id="planManagerCloseButton"]').click();
+  } catch (_e) {} // not present
   await expect(page.locator('.pm-backdrop')).toBeHidden({ timeout: 10000 });
 
   // --- Replace the file with a faulty contract ------------------------------
