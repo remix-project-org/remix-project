@@ -98,7 +98,7 @@ for (const theme of ['Dark', 'Light']) {
     await expect(page.locator(item('e2e-c2'))).toBeVisible()
     await expect(page.locator(`${item('e2e-c1')} [data-id="conversation-item-title"]`)).toHaveText('Add reentrancy guard to Vault withdraw')
 
-    // Titles stand out from the list background more than the muted date and message count
+    // Titles stand out from the list background more than the muted time
     const contrast = await page.locator(item('e2e-c2')).evaluate((el) => {
       const canvas = document.createElement('canvas').getContext('2d')
       // Resolves any CSS colour (color-mix, rgb, ...) to its rendered sRGB value
@@ -148,13 +148,11 @@ for (const theme of ['Dark', 'Light']) {
     await page.mouse.click(800, 600)
     await expect(menu).toHaveCount(0)
 
-    // The open conversation: tinted background and a bar on its left edge
+    // The open conversation: a field background, no bar on its edge
     await page.locator(item('e2e-c1')).click()
-    await expect(page.locator(item('e2e-c1'))).toHaveClass(/ai-panel-item-active/)
+    await expect(page.locator(item('e2e-c1'))).toHaveClass(/ai-conv-active/)
     await page.mouse.move(5, 5)
     await expect.poll(() => backgroundOf(page, item('e2e-c1'))).not.toBe(idle)
-    const bar = await page.locator(item('e2e-c1')).evaluate((el) => getComputedStyle(el, '::before').width)
-    expect(bar).toBe('3px')
 
     // Delete all is in the header menu, not next to the archive filter
     await expect(page.locator(`${host} [data-id="delete-all-conversations-btn"]`)).toHaveCount(0)

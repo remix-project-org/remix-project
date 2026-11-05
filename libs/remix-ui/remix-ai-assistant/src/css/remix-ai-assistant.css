@@ -928,22 +928,6 @@ body.dark .sidebar-close-btn:hover {
   color: #e0e0e0 !important;
 }
 
-/* New conversation button */
-.btn-new-conversation {
-  background-color: #4a9eff;
-  color: #ffffff;
-  border: none;
-  padding: 0.75rem 1rem;
-  font-weight: 500;
-  border-radius: 6px;
-  transition: background-color 0.2s ease;
-}
-
-.btn-new-conversation:hover {
-  background-color: #3d8ee6;
-  color: #ffffff;
-}
-
 /* Search bar styling */
 .search-bar {
   position: relative;
@@ -989,46 +973,6 @@ body.dark .search-input {
 [data-theme="dark"] .search-input::placeholder,
 body.dark .search-input::placeholder {
   color: #a0a0b0 !important;
-}
-
-/* Archive toggle button */
-.btn-archive-toggle {
-  background-color: transparent;
-  border: 1px solid var(--bs-border-color);
-  color: var(--bs-body-color);
-  padding: 0.375rem 0.75rem;
-  border-radius: 6px;
-  font-size: 0.875rem;
-  transition: all 0.2s ease;
-}
-
-.btn-archive-toggle:hover {
-  background-color: var(--bs-tertiary-bg);
-}
-
-.btn-archive-toggle.active {
-  background-color: var(--bs-primary);
-  color: #ffffff;
-  border-color: var(--bs-primary);
-}
-
-[data-theme="dark"] .btn-archive-toggle,
-body.dark .btn-archive-toggle {
-  background-color: transparent;
-  border-color: #4a4a5a !important;
-  color: #e0e0e0 !important;
-}
-
-[data-theme="dark"] .btn-archive-toggle:hover,
-body.dark .btn-archive-toggle:hover {
-  background-color: #3a3a4a !important;
-}
-
-[data-theme="dark"] .btn-archive-toggle.active,
-body.dark .btn-archive-toggle.active {
-  background-color: #4a9eff !important;
-  border-color: #4a9eff !important;
-  color: #ffffff !important;
 }
 
 /* RemixAI panel rows (chat history, changes): one look for both themes, from the theme's own colours */
@@ -1312,40 +1256,36 @@ body.dark .conversation-menu-item-danger:active i {
 }
 
 /* --------------------------------------------------------
-   HITL Auto-Accept Banner
-   Fixed above the prompt area, never scrolls with chat.
+   HITL Auto-Accept Banner: one quiet line where the approval
+   dock sits, above the prompt; never scrolls with the chat.
    -------------------------------------------------------- */
 
 .hitl-auto-accept-banner {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  padding: 6px 12px;
+  gap: 6px;
+  padding: 2px 4px;
   margin: 0 8px 4px;
-  border-radius: 6px;
-  font-size: 12px;
+  font-size: 11px;
   flex-shrink: 0;
-  color: var(--bs-body-color);
-  background: color-mix(in srgb, var(--bs-warning) 12%, var(--bs-body-bg));
-  border: 1px solid color-mix(in srgb, var(--bs-warning) 25%, var(--bs-body-bg));
-}
-
-.hitl-auto-accept-banner__text {
-  opacity: 0.85;
+  color: var(--bs-secondary-color);
 }
 
 .hitl-auto-accept-banner__btn {
+  border: 0;
   background: none;
-  border: 1px solid color-mix(in srgb, var(--bs-body-color) 30%, transparent);
+  padding: 0 4px;
   border-radius: 4px;
-  padding: 2px 10px;
-  font-size: 12px;
-  color: var(--bs-body-color);
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--bs-secondary-color);
   cursor: pointer;
 }
 
-.hitl-auto-accept-banner__btn:hover {
-  background: color-mix(in srgb, var(--bs-body-color) 8%, transparent);
+.hitl-auto-accept-banner__btn:hover,
+.hitl-auto-accept-banner__btn:focus-visible {
+  color: var(--bs-emphasis-color);
+  background: var(--ai-surface-hover);
 }
 
 /* --------------------------------------------------------
@@ -1388,16 +1328,6 @@ body.dark .conversation-menu-item-danger:active i {
 }
 
 /* --------------------------------------------------------
-   HITL Pending Approvals Summary Bar
-   -------------------------------------------------------- */
-
-.hitl-pending-summary {
-  padding: 12px;
-  border-bottom: 1px solid var(--bs-border-color);
-  margin-bottom: 8px;
-}
-
-/* --------------------------------------------------------
    Tool Approval Card (ToolApprovalModal)
    -------------------------------------------------------- */
 
@@ -1425,68 +1355,6 @@ code {
   font-weight: 600;
   font-size: 12px;
   color: var(--custom-ai-color);
-}
-
-.tool-approval-card__timer {
-  font-size: 12px;
-  color: var(--bs-secondary-color);
-}
-
-.tool-approval-card__file-info {
-  font-size: 12px;
-  color: var(--bs-secondary-color);
-  margin-bottom: 8px;
-}
-
-/* .tool-approval-card__file-info code {
-  color: var(--bs-secondary-color);
-} */
-
-.tool-approval-card__new-file {
-  color: var(--bs-success);
-  margin-left: 6px;
-  font-size: 12px;
-}
-
-.tool-approval-card__deploy-info {
-  font-size: 12px;
-  color: var(--bs-secondary-color);
-  margin-bottom: 8px;
-}
-
-.tool-approval-card__tx-info {
-  font-size: 12px;
-  color: var(--bs-danger);
-  margin-bottom: 8px;
-}
-
-.tool-approval-card__meta-label {
-  margin-left: 6px;
-  font-size: 12px;
-  color: var(--bs-secondary-color);
-}
-
-.tool-approval-card__args-summary {
-  font-size: 12px;
-  margin-bottom: 8px;
-  max-height: 60px;
-  overflow: auto;
-}
-
-.tool-approval-card__args-pre {
-  margin: 0;
-  white-space: pre-wrap;
-  color: var(--bs-body-color);
-}
-
-.tool-approval-card__reviewing {
-  font-size: 12px;
-  color: var(--custom-ai-color);
-  margin-bottom: 8px;
-  padding: 6px 8px;
-  border-radius: 4px;
-  background: color-mix(in srgb, var(--custom-ai-color) 8%, transparent);
-  border: 1px solid color-mix(in srgb, var(--custom-ai-color) 20%, transparent);
 }
 
 
@@ -1564,15 +1432,6 @@ code {
 }
 
 .tool-approval-card__btn--approve:hover {
-  opacity: 0.85;
-}
-
-.tool-approval-card__btn--review {
-  background: color-mix(in srgb, var(--bs-body-color) 8%, transparent);
-  color: var(--bs-body-color);
-}
-
-.tool-approval-card__btn--review:hover {
   opacity: 0.85;
 }
 
@@ -2854,4 +2713,531 @@ button.ai-change-line:hover {
   opacity: 0.55;
   pointer-events: none;
   filter: saturate(0.6);
+}
+
+/* --------------------------------------------------------
+   PANELS: shared tokens, jump to latest, approval dock,
+   answer error / stopped lines, chat history list.
+   -------------------------------------------------------- */
+
+.ai-root {
+  --ai-surface: var(--custom-onsurface-layer-1);
+  --ai-surface-hover: var(--custom-onsurface-layer-2);
+  --ai-field: var(--custom-onsurface-layer-1);
+  --ai-args-bg: #1a1b2b;
+  --ai-success: #66d7ba;
+  --ai-danger: #f1948a;
+  --ai-danger-bg: rgba(241, 148, 138, 0.1);
+  --ai-waiting: #f5c26b;
+}
+
+.ai-root[data-theme="light"] {
+  --ai-surface: #fff;
+  --ai-surface-hover: #eef0f5;
+  --ai-field: #e4e7ee;
+  --ai-args-bg: #f6f7fa;
+  --ai-success: #138d75;
+  --ai-danger: #c0392b;
+  --ai-danger-bg: rgba(192, 57, 43, 0.07);
+  --ai-waiting: #b9770e;
+}
+
+@keyframes ai-pulse {
+  50% { opacity: 0.3; }
+}
+
+/* Jump to latest: centred above the input (or the approval dock) */
+.ai-chat-history {
+  position: relative;
+}
+
+.ai-jump-latest {
+  position: absolute;
+  left: 50%;
+  bottom: 8px;
+  transform: translateX(-50%);
+  z-index: 2;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 28px;
+  padding: 0 12px;
+  border: 1px solid var(--bs-border-color);
+  border-radius: 14px;
+  background: var(--ai-surface);
+  color: var(--bs-emphasis-color);
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.25);
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.ai-jump-latest:hover,
+.ai-jump-latest:focus-visible {
+  background: var(--ai-surface-hover);
+}
+
+.ai-jump-latest i {
+  font-size: 11px;
+}
+
+.ai-jump-latest-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--custom-ai-color);
+  animation: ai-pulse 1.4s ease-in-out infinite;
+}
+
+/* Approval dock: one card between the chat and the input */
+.ai-approval-dock {
+  flex-shrink: 0;
+  padding: 0 8px 8px;
+}
+
+.ai-mode .ai-approval-dock {
+  padding-left: calc(max(0.5rem, calc((100% - 860px) / 2)) + 0.5rem);
+  padding-right: calc(max(0.5rem, calc((100% - 860px) / 2)) + 0.5rem);
+}
+
+.ai-approval {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px 12px;
+  border: 1px solid var(--bs-border-color);
+  border-radius: 8px;
+  background: var(--bs-body-bg);
+  box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.18);
+  font-size: 12px;
+  color: var(--bs-body-color);
+}
+
+.ai-approval-dock .tool-approval-card {
+  margin: 0;
+  box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.18);
+}
+
+.ai-approval-nav {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  margin: -4px -4px 0 -6px;
+  font-size: 11px;
+  color: var(--bs-secondary-color);
+}
+
+.ai-approval-dock > .ai-approval-nav {
+  margin: 0 0 4px;
+}
+
+.ai-approval-nav > span:not(.flex-grow-1) {
+  padding: 0 4px;
+}
+
+.ai-approval-icon-btn {
+  width: 24px;
+  height: 22px;
+  border: 0;
+  border-radius: 4px;
+  background: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  color: var(--bs-secondary-color);
+}
+
+.ai-approval-icon-btn:hover,
+.ai-approval-icon-btn:focus-visible {
+  background: var(--ai-surface-hover);
+  color: var(--bs-emphasis-color);
+}
+
+.ai-approval-link {
+  border: 0;
+  background: none;
+  padding: 2px 4px;
+  border-radius: 4px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--bs-secondary-color);
+}
+
+.ai-approval-link:hover,
+.ai-approval-link:focus-visible {
+  color: var(--bs-emphasis-color);
+  background: var(--ai-surface-hover);
+}
+
+.ai-approval-link i {
+  font-size: 9px;
+}
+
+.ai-approval-link-ai,
+.ai-approval-link-ai:hover,
+.ai-approval-link-ai:focus-visible {
+  color: var(--custom-ai-color);
+}
+
+.ai-approval-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.ai-approval-icon {
+  width: 26px;
+  height: 26px;
+  flex-shrink: 0;
+  border-radius: 6px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  color: var(--custom-ai-color);
+  background: color-mix(in srgb, var(--custom-ai-color) 14%, transparent);
+}
+
+.ai-approval-text {
+  flex: 1;
+  min-width: 0;
+}
+
+.ai-approval-title {
+  font-size: 13px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ai-approval-title strong {
+  font-weight: 600;
+  color: var(--bs-emphasis-color);
+}
+
+.ai-approval-sub {
+  font-size: 11px;
+  color: var(--bs-secondary-color);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ai-approval-stat {
+  flex-shrink: 0;
+  font-size: 11px;
+}
+
+.ai-approval-add {
+  color: var(--ai-success);
+}
+
+.ai-approval-del {
+  color: var(--ai-danger);
+}
+
+.ai-approval-details {
+  align-self: flex-start;
+  margin: -4px 0 -4px 32px;
+}
+
+.ai-approval-args {
+  margin: 0;
+  max-height: 160px;
+  overflow: auto;
+  padding: 8px;
+  border-radius: 6px;
+  background: var(--ai-args-bg);
+  font-size: 11px;
+  color: var(--bs-body-color);
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+
+.ai-approval-reviewing {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--bs-secondary-color);
+}
+
+.ai-approval-reviewing i {
+  font-size: 11px;
+  color: var(--custom-ai-color);
+}
+
+.ai-approval-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.ai-approval-actions .ai-approval-link {
+  margin-left: -4px;
+}
+
+.ai-approval-actions .btn {
+  font-size: 12px;
+  padding: 2px 12px;
+}
+
+.ai-approval-allow {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: -2px 0 0;
+  font-size: 11px;
+  color: var(--bs-secondary-color);
+  cursor: pointer;
+}
+
+.ai-approval-allow input {
+  width: 12px;
+  height: 12px;
+}
+
+/* The answer waits on the user instead of thinking */
+.ai-waiting {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--bs-secondary-color);
+}
+
+.ai-waiting-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--ai-waiting);
+  animation: ai-pulse 1.4s ease-in-out infinite;
+}
+
+/* Under a partial answer: what went wrong, or that the user stopped it */
+.ai-answer-error {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  border-radius: 6px;
+  background: var(--ai-danger-bg);
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+
+.ai-answer-error > i {
+  color: var(--ai-danger);
+}
+
+.ai-answer-error > span {
+  flex: 1;
+}
+
+.ai-answer-stopped {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  color: var(--bs-secondary-color);
+}
+
+.ai-answer-stopped i {
+  font-size: 8px;
+}
+
+/* Chat history: one-line rows in date groups, Archived as the last row */
+.ai-history {
+  height: 100%;
+  overflow: hidden;
+  background: var(--bs-body-bg);
+}
+
+.ai-history-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px 12px 8px 16px;
+}
+
+.ai-history-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--bs-emphasis-color);
+}
+
+.ai-history-icon-btn {
+  width: 24px;
+  height: 22px;
+  border: 0;
+  border-radius: 4px;
+  background: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  color: var(--bs-secondary-color);
+}
+
+.ai-history-icon-btn:hover,
+.ai-history-icon-btn:focus-visible,
+.ai-history-icon-btn[aria-expanded="true"] {
+  background: var(--ai-surface-hover);
+  color: var(--bs-emphasis-color);
+}
+
+.ai-history-search {
+  position: relative;
+  margin: 0 12px 4px;
+}
+
+.ai-history-search i {
+  position: absolute;
+  left: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 11px;
+  color: var(--bs-secondary-color);
+}
+
+.ai-history-search input {
+  width: 100%;
+  height: 30px;
+  border: 0;
+  outline: 0;
+  border-radius: 6px;
+  padding: 0 10px 0 30px;
+  background: var(--ai-field);
+  color: var(--bs-body-color);
+  font-size: 12px;
+}
+
+.ai-history-search input::placeholder {
+  color: var(--bs-secondary-color);
+}
+
+.ai-history-search input:focus {
+  box-shadow: 0 0 0 1px var(--custom-ai-color);
+}
+
+.ai-history-list {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 0 8px 12px;
+  overscroll-behavior: contain;
+}
+
+.ai-history-group {
+  padding: 12px 8px 4px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--bs-secondary-color);
+}
+
+.ai-conv {
+  position: relative;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 30px;
+  padding: 4px 4px 4px 8px;
+  border: 0;
+  border-radius: 6px;
+  background: none;
+  text-align: left;
+  font-size: 12.5px;
+  color: var(--bs-body-color);
+  cursor: pointer;
+}
+
+.ai-conv:hover,
+.ai-conv:focus-visible,
+.ai-conv-menu-open {
+  background: var(--ai-surface-hover);
+  outline: 0;
+}
+
+.ai-conv-active,
+.ai-conv-active:hover {
+  background: var(--ai-field);
+}
+
+.ai-conv-title {
+  flex: 1;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: color-mix(in srgb, var(--bs-emphasis-color) 85%, transparent);
+}
+
+.ai-conv-active .ai-conv-title {
+  font-weight: 500;
+  color: var(--bs-emphasis-color);
+}
+
+.ai-conv-time {
+  flex-shrink: 0;
+  min-width: 24px;
+  padding-right: 4px;
+  text-align: right;
+  font-size: 11px;
+  color: var(--bs-secondary-color);
+}
+
+/* The time makes way for the menu button on hover, focus and while the menu is open */
+.ai-conv .conversation-menu-trigger {
+  position: absolute;
+  right: 4px;
+  top: 50%;
+  transform: translateY(-50%);
+}
+
+[role="button"].ai-conv:hover .ai-conv-time,
+[role="button"].ai-conv:focus-within .ai-conv-time,
+.ai-conv-menu-open .ai-conv-time {
+  visibility: hidden;
+}
+
+.ai-conv:hover .conversation-menu-btn,
+.ai-conv:focus-within .conversation-menu-btn,
+.ai-conv-menu-open .conversation-menu-btn {
+  opacity: 1;
+}
+
+.ai-history-archived-row {
+  margin-top: 12px;
+  color: var(--bs-secondary-color);
+}
+
+.ai-history-archived-row > i:first-child {
+  width: 14px;
+  font-size: 11px;
+}
+
+.ai-history-archived-row .ai-conv-title {
+  color: var(--bs-secondary-color);
+}
+
+.ai-history-chevron {
+  font-size: 9px;
+  padding-right: 6px;
+}
+
+/* Header strips of the chat and the side panels: the light colour unless the theme is dark */
+.ai-chat-heading-bg,
+.chat-history-sidebar-header {
+  background-color: #eff1f5;
+}
+
+.ai-chat-heading-bg[data-theme="dark"],
+.chat-history-sidebar-header[data-theme="dark"] {
+  background-color: #222336;
 }

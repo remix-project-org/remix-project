@@ -88,7 +88,7 @@ const test = {
       })
       .waitForElementVisible('*[data-id="toggle-history-btn"]')
       .click('*[data-id="toggle-history-btn"]')
-      .assert.containsText('*[data-id="chat-history-sidebar-title"]', 'Chat History')
+      .assert.containsText('*[data-id="chat-history-sidebar-title"]', 'Chat history')
       .assert.containsText('*[data-id="no-conversations-msg"]', 'No conversations yet')
   },
 
@@ -122,8 +122,8 @@ const test = {
         console.log('Testing conversation metadata for conversation ID:', conversationId)
         browser
           .waitForElementVisible(`*[data-id="conversation-item-${conversationId}"]`, 5000)
-          .assert.textContains(`*[data-id="conversation-item-${conversationId}"] [data-id="conversation-item-meta"]`, 'message')
-          .assert.containsText(`*[data-id="conversation-item-${conversationId}"] [data-id="conversation-item-meta"]`, 'Just now')
+          .assert.textContains(`*[data-id="conversation-item-${conversationId}"] [data-id="conversation-item-title"]`, 'Hello, this is my first message')
+          .assert.containsText(`*[data-id="conversation-item-${conversationId}"] [data-id="conversation-item-meta"]`, 'now')
       })
   },
 
@@ -165,8 +165,7 @@ const test = {
         browser
           .pause(500)
           .waitForElementVisible(`*[data-id="conversation-item-${conversationId}"]`)
-          .assert.textContains(`*[data-id="conversation-item-${conversationId}"] [data-id="conversation-item-meta"]`, '6 messages')
-          .assert.containsText(`*[data-id="conversation-item-${conversationId}"] [data-id="conversation-item-meta"]`, 'Just now')
+          .assert.containsText(`*[data-id="conversation-item-${conversationId}"] [data-id="conversation-item-meta"]`, 'now')
       })
   },
 
@@ -218,7 +217,8 @@ const test = {
       .waitForElementVisible(`*[data-id="toggle-history-btn"]`)
       .click(`*[data-id="toggle-history-btn"]`)
       .waitForElementVisible('*[data-id="toggle-archived-btn"]', 5000)
-      .assert.textContains('*[data-id="toggle-archived-btn"]', 'Archived (1)')
+      .assert.textContains('*[data-id="toggle-archived-btn"]', 'Archived')
+      .assert.textContains('*[data-id="toggle-archived-btn"] .ai-conv-time', '1')
   },
 
   'Should unarchive a conversation #group1': function (browser: NightwatchBrowser) {
@@ -246,12 +246,12 @@ const test = {
       .pause(500)
       .click('*[data-id="toggle-history-btn"]')
       .pause(500)
-      // The previous "unarchive" test left the sidebar in archived view
-      // (button text becomes "Show Active"); switch back to the active
-      // view so the newly-created conversation is visible.
+      // If the sidebar is still in the archived view (its back row reads
+      // "Chat history"), switch back to the active view so the
+      // newly-created conversation is visible.
       .execute(function () {
         const btn = document.querySelector('[data-id="toggle-archived-btn"]') as HTMLElement | null
-        if (btn && btn.textContent && btn.textContent.includes('Show Active')) {
+        if (btn && btn.textContent && btn.textContent.includes('Chat history')) {
           btn.click()
           return true
         }
@@ -334,7 +334,7 @@ const test = {
       .waitForElementVisible('#ai-chat-maximized-host *[data-id="toggle-history-btn"]')
       .click('#ai-chat-maximized-host *[data-id="toggle-history-btn"]')
       .waitForElementVisible('#ai-chat-maximized-host *[data-id="chat-history-sidebar"]', 5000)
-      .assert.containsText('#ai-chat-maximized-host *[data-id="chat-history-sidebar-title"]', 'Chat History')
+      .assert.containsText('#ai-chat-maximized-host *[data-id="chat-history-sidebar-title"]', 'Chat history')
   },
 
   'Should resize the chat history panel in AI mode by dragging its left edge #group1': function (browser: NightwatchBrowser) {
@@ -622,8 +622,8 @@ const test = {
     browser
       .click('*[data-id="toggle-history-btn"]')
       .pause(500)
-      .waitForElementVisible('.sidebar-title', 5000)
-      .assert.containsText('.sidebar-title', '2')
+      .waitForElementVisible('*[data-id="chat-history-sidebar-title"]', 5000)
+      .assert.elementsCount('[role="button"][data-id^="conversation-item-"]', 2)
   },
 
   'Should delete all archived conversations #group3': function (browser: NightwatchBrowser) {

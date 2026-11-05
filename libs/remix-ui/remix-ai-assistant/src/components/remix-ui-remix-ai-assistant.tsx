@@ -5,7 +5,7 @@ import { createPortal } from 'react-dom'
 import '../css/remix-ai-assistant.css'
 
 import { ChatCommandParser, GenerationParams, ChatHistory, HandleStreamResponse, AIModel, ANONYMOUS_FALLBACK_MODELS, remixAILogger, modelKey, parseModelKey, findModel, applyByokKeyPolicy, BYOK_API_KEY_SETTINGS, modelTransportProvider, onApiKeysChange, isAutoModelId, isCheapModel, modelSupportsVision, describeCaptureError, type ChatAttachment, type ModelTransport } from '@remix/remix-ai-core'
-import { ToolApprovalRequest, ApiKeyErrorEvent, SCREEN_CAPTURE_SETTING, type ApprovalScope, AIFileChange, AIFileChangeRecord } from '@remix/remix-ai-core'
+import { ToolApprovalRequest, ApiKeyErrorEvent, SCREEN_CAPTURE_SETTING, type ApprovalScope, AIFileChange, AIFileChangeRecord, type ToolStep } from '@remix/remix-ai-core'
 import { ScreenCaptureConsentCard } from './ScreenCaptureConsentCard'
 import { isFrontierModelId } from '@remix/remix-ai-core/model-tiers'
 import { HandleOpenAICompatibleResponse, HandleOllamaResponse } from '@remix/remix-ai-core'
@@ -28,7 +28,7 @@ import { CooldownBanner } from './cooldownBanner'
 import { ChatNoticeStrip, type ChatNoticeDisplay, type ChatNoticeActionDisplay } from './chatNoticeStrip'
 import { useModelAccess } from '../hooks/useModelAccess'
 import { useAttachments, captureIdeScreenshot } from '../hooks/useAttachments'
-import { ToolApprovalModal } from './ToolApprovalModal'
+import { ToolApprovalModal, describeApproval } from './ToolApprovalModal'
 
 const USED_COMMANDS_PARAM = 'remixai/used-commands'
 import { AIChangesPanel, AIChangesSelection, changeKey, foldFileChanges, isReviewableApproval } from './aiChangesPanel'
@@ -235,6 +235,9 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
   const approvalQueueRef = useRef<ToolApprovalRequest[]>([])
   // Tracks which approval requests are currently being reviewed in the editor via showCustomDiff
   const [reviewingApprovals, setReviewingApprovals] = useState<Set<string>>(new Set())
+  // The approval shown in the dock when several are pending; back to the first whenever the list changes
+  const [approvalIndex, setApprovalIndex] = useState(0)
+  useEffect(() => setApprovalIndex(0), [pendingApprovals])
   const pendingDiffApprovalRef = useRef<{ requestId: string; filePath: string } | null>(null)
 
   // File changes of the answer being written, in order (for the chat and the
@@ -316,6 +319,8 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const aiChatRef = useRef<HTMLDivElement>(null)
   const userHasScrolledRef = useRef(false)
+  // The list is far enough from its end to offer the "Latest" button
+  const [showJumpToLatest, setShowJumpToLatest] = useState(false)
   const lastMessageCountRef = useRef(0)
   const abortControllerRef = useRef<AbortController | null>(null)
   // Tracks whether the current request has been stopped. Event handlers check this
@@ -1220,7 +1225,7 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
             m.id === streamingAssistantIdRef.current
               ? {
                 ...m,
-                content: m.content + `\n\n**Error:** ${data.message}`,
+                error: data.message,
                 isExecutingTools: false,
                 executingToolName: undefined,
                 executingToolArgs: undefined,
@@ -1611,6 +1616,7 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
       node.scrollTop = node.scrollHeight
       userHasScrolledRef.current = false
     }
+    setShowJumpToLatest(node.scrollHeight - node.scrollTop - node.clientHeight > 30)
 
     lastMessageCountRef.current = messages.length
   }, [messages, isStreaming])
@@ -1649,6 +1655,22 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
     })
     pendingDiffApprovalRef.current = null
     setPendingApprovals(prev => prev.filter(approval => approval.requestId !== requestId))
+  }, [])
+
+  // Deploys, transactions and other tools leave a line in the answer once
+  // decided. File edits don't need one: their change lines already say it.
+  const recordApprovalDecisions = useCallback((approvals: ToolApprovalRequest[], approved: boolean) => {
+    const decided = approvals.filter(a => a.category !== 'screen_capture' && (!a.filePath || a.category === 'deployment' || a.category === 'transaction'))
+    if (decided.length === 0) return
+    const steps: ToolStep[] = decided.map(a => {
+      const { verb, subject } = describeApproval(a)
+      return { label: `${approved ? 'Accepted' : 'Rejected'}: ${verb} ${subject}`, status: approved ? 'done' : 'failed', kind: 'decision' }
+    })
+    setMessages(prev => {
+      const targetId = streamingAssistantIdRef.current || [...prev].reverse().find(m => m.role === 'assistant')?.id
+      if (!targetId) return prev
+      return prev.map(m => m.id === targetId ? { ...m, toolSteps: [...(m.toolSteps ?? []), ...steps]} : m)
+    })
   }, [])
 
   /**
@@ -1776,8 +1798,9 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
     } catch (err) {
       remixAILogger.error('[Assistant UI] respondToToolApproval threw', approval.requestId, err)
     }
+    recordApprovalDecisions([approval], true)
     removeApproval(approval.requestId)
-  }, [props.plugin, removeApproval, reviewingApprovals])
+  }, [props.plugin, removeApproval, reviewingApprovals, recordApprovalDecisions])
 
   const handleRejectToolAction = useCallback(async (approval: ToolApprovalRequest) => {
     if (!approval) return
@@ -1798,8 +1821,9 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
       requestId: approval.requestId,
       approved: false
     })
+    recordApprovalDecisions([approval], false)
     removeApproval(approval.requestId)
-  }, [props.plugin, removeApproval, reviewingApprovals])
+  }, [props.plugin, removeApproval, reviewingApprovals, recordApprovalDecisions])
 
   /**
    * Answers a screen-capture consent prompt. The scope travels with the
@@ -2042,9 +2066,10 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
         approved: true
       })
     }
+    recordApprovalDecisions(approvals, true)
     setPendingApprovals(prev => prev.filter(a => a.category === 'screen_capture'))
     setReviewingApprovals(new Set())
-  }, [pendingApprovals, props.plugin, reviewingApprovals])
+  }, [pendingApprovals, props.plugin, reviewingApprovals, recordApprovalDecisions])
 
   // Handle rejecting all pending approvals at once
   const handleRejectAll = useCallback(async () => {
@@ -2069,9 +2094,10 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
         approved: false
       })
     }
+    recordApprovalDecisions(approvals, false)
     setPendingApprovals(prev => prev.filter(a => a.category === 'screen_capture'))
     setReviewingApprovals(new Set())
-  }, [pendingApprovals, props.plugin, reviewingApprovals])
+  }, [pendingApprovals, props.plugin, reviewingApprovals, recordApprovalDecisions])
 
   // ── DApp Update Review Handlers ──
 
@@ -2280,7 +2306,7 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
       const cleanedMessages = prev
         .map(m => m.id === stoppedAssistantId && stoppedFileChanges ? { ...m, fileChanges: stoppedFileChanges } : m)
         .filter(m => {
-          if (m.role !== 'assistant') return true
+          if (m.role !== 'assistant' || m.stopped) return true
           const content = m.content.trim()
           return content !== '' && !content.startsWith('***')
         })
@@ -2304,12 +2330,17 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
           currentTodoIndex: undefined
         }))
 
+      // The stopped answer says so under itself; with nothing written yet, an empty answer carries the line
+      if (stoppedAssistantId && cleanedMessages.some(m => m.id === stoppedAssistantId)) {
+        return cleanedMessages.map(m => m.id === stoppedAssistantId ? { ...m, stopped: true } : m)
+      }
       return [
         ...cleanedMessages,
         {
           id: crypto.randomUUID(),
           role: 'assistant',
-          content: '**Request stopped by user!**',
+          content: '',
+          stopped: true,
           timestamp: Date.now(),
           sentiment: 'none'
         }
@@ -3255,11 +3286,19 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
       } else if (distanceFromBottom < 30) {
         userHasScrolledRef.current = false
       }
+      setShowJumpToLatest(distanceFromBottom > 30)
       lastScrollTop = node.scrollTop
     }
 
     document.addEventListener('scroll', handleScroll, true)
     return () => document.removeEventListener('scroll', handleScroll, true)
+  }, [])
+
+  const jumpToLatest = useCallback(() => {
+    const node = historyRef.current
+    if (!node) return
+    userHasScrolledRef.current = false
+    node.scrollTo({ top: node.scrollHeight, behavior: 'smooth' })
   }, [])
 
   const maximizePanel = async () => {
@@ -3348,15 +3387,73 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
       className="hitl-auto-accept-banner"
       data-id="hitl-auto-accept-banner"
     >
-      <span className="hitl-auto-accept-banner__text">Auto-accepting all tool changes</span>
+      <span className="hitl-auto-accept-banner__text">Accepting changes automatically</span>
+      <span aria-hidden="true">·</span>
       <button
+        type="button"
         onClick={toggleHitlAutoAccept}
         className="hitl-auto-accept-banner__btn"
         data-id="hitl-auto-accept-disable"
       >
-        Disable
+        Turn off
       </button>
     </div>
+  )
+
+  // Pending approvals: one card docked between the chat and the input, never
+  // inside the scroll area. Several pending: "1 of 3" and the bulk actions.
+  const renderApprovalDock = (onReview: (approval: ToolApprovalRequest) => void) => {
+    if (pendingApprovals.length === 0) return null
+    const count = pendingApprovals.length
+    const index = Math.min(approvalIndex, count - 1)
+    const approval = pendingApprovals[index]
+    const nav = count > 1 && (
+      <div className="ai-approval-nav">
+        <button type="button" className="ai-approval-icon-btn" aria-label="Previous change" onClick={() => setApprovalIndex((index + count - 1) % count)}>
+          <i className="fas fa-chevron-left"></i>
+        </button>
+        <span>{index + 1} of {count}</span>
+        <button type="button" className="ai-approval-icon-btn" aria-label="Next change" onClick={() => setApprovalIndex((index + 1) % count)}>
+          <i className="fas fa-chevron-right"></i>
+        </button>
+        <span className="flex-grow-1"></span>
+        <button type="button" className="ai-approval-link" onClick={handleRejectAll} data-id="reject-all-changes">Reject all</button>
+        <button type="button" className="ai-approval-link ai-approval-link-ai" onClick={handleApproveAll} data-id="approve-all-changes">Accept all</button>
+      </div>
+    )
+    return (
+      <div className="ai-approval-dock" data-id="ai-approval-dock">
+        {approval.category === 'screen_capture' ? (
+          <>
+            {nav}
+            <ScreenCaptureConsentCard
+              key={approval.requestId}
+              request={approval}
+              modelName={selectedModel?.displayName}
+              onDecide={(scope) => handleScreenCaptureDecision(approval, scope)}
+            />
+          </>
+        ) : (
+          <ToolApprovalModal
+            key={approval.requestId}
+            request={approval}
+            nav={nav}
+            onApprove={(options) => handleApproveToolAction(approval, options)}
+            onReject={() => handleRejectToolAction(approval)}
+            onReviewChanges={() => onReview(approval)}
+            isReviewing={reviewingApprovals.has(approval.requestId)}
+          />
+        )}
+      </div>
+    )
+  }
+
+  const jumpToLatestEl = showJumpToLatest && messages.length > 0 && (
+    <button type="button" className="ai-jump-latest" onClick={jumpToLatest} title="Jump to the latest message" data-id="ai-jump-to-latest">
+      <i className="fas fa-arrow-down"></i>
+      <span>Latest</span>
+      {isStreaming && <span className="ai-jump-latest-dot"></span>}
+    </button>
   )
 
   const currentConversationTitle = props.conversations?.find(c => c.id === props.currentConversationId)?.title
@@ -3502,7 +3599,7 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
       const dockedHistoryOpen = !props.isMaximized && !!props.showHistorySidebar && !!props.conversations
       const chatBody = (
         <div
-          className={`d-flex flex-row w-100 h-100 ${props.isMaximized ? 'ai-mode' : ''}`}
+          className={`ai-root d-flex flex-row w-100 h-100 ${props.isMaximized ? 'ai-mode' : ''}`}
           ref={aiChatRef}
           style={{ overflow: 'hidden' }}
           data-theme={themeTracker && themeTracker?.name.toLowerCase()}
@@ -3562,50 +3659,11 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
                       fileChangesByMessage={fileChangesByMessage}
                       onOpenFileChange={openFileChange}
                       onUiComponentAnswered={handleUiComponentAnswered}
+                      pendingApprovalCount={pendingApprovals.length}
                     />
-                    {pendingApprovals.length > 1 && (
-                      <div className="hitl-pending-summary">
-                        <div className="d-flex justify-content-between align-items-center">
-                          <span className="fw-bold">Multiple Changes Pending ({pendingApprovals.length})</span>
-                          <div className="d-flex gap-2">
-                            <button
-                              className="btn btn-success btn-sm"
-                              onClick={handleApproveAll}
-                              data-id="approve-all-changes"
-                            >
-                          Accept All
-                            </button>
-                            <button
-                              className="btn btn-danger btn-sm"
-                              onClick={handleRejectAll}
-                              data-id="reject-all-changes"
-                            >
-                          Reject All
-                            </button>
-                          </div>
-                        </div>
-                      </div>
-                    )}
-                    {pendingApprovals.map((approval) => (
-                      <div key={approval.requestId} style={{ padding: '0 12px', marginBottom: '8px' }}>
-                        {approval.category === 'screen_capture' ? (
-                          <ScreenCaptureConsentCard
-                            request={approval}
-                            modelName={selectedModel?.displayName}
-                            onDecide={(scope) => handleScreenCaptureDecision(approval, scope)}
-                          />
-                        ) : (
-                          <ToolApprovalModal
-                            request={approval}
-                            onApprove={(options) => handleApproveToolAction(approval, options)}
-                            onReject={() => handleRejectToolAction(approval)}
-                            onReviewChanges={() => openChangesPanel({ kind: 'pending', requestId: approval.requestId })}
-                            isReviewing={reviewingApprovals.has(approval.requestId)}
-                          />
-                        )}
-                      </div>
-                    ))}
+                    {jumpToLatestEl}
                   </section>
+                  {renderApprovalDock((approval) => openChangesPanel({ kind: 'pending', requestId: approval.requestId }))}
                   {autoAcceptBannerEl}
                 </div>
               ) : (
@@ -3633,7 +3691,8 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
                   </div>
                 ) : props.showHistorySidebar && props.isMaximized === false && props.conversations ? (
                   <div className="d-flex flex-column flex-grow-1 ai-history-view-bg nonMaximizedMode" style={{ overflow: 'hidden', minHeight: 0 }} data-theme={themeTracker && themeTracker?.name.toLowerCase()}>
-                    <AIPanelBackButton onClick={props.onToggleHistorySidebar || (() => {})} dataId="chat-history-back-btn" />
+                    {/* The archived list has its own back row, to the chat history */}
+                    {!showArchivedConversations && <AIPanelBackButton onClick={props.onToggleHistorySidebar || (() => {})} dataId="chat-history-back-btn" />}
                     {/* Chat history content */}
                     <div className="flex-grow-1" style={{ overflow: 'hidden', minHeight: 0 }}>
                       <ChatHistorySidebar
@@ -3643,6 +3702,8 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
                         onNewConversation={props.onNewConversation || (() => {})}
                         onLoadConversation={async (id) => {
                           await props.onLoadConversation?.(id)
+                          // Opening an archived conversation unarchives it: show the chat history next time
+                          setShowArchivedConversations(false)
                           // Close sidebar after loading conversation in non-maximized mode
                           await props.onToggleHistorySidebar?.()
                         }}
@@ -3702,50 +3763,11 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
                         fileChangesByMessage={fileChangesByMessage}
                         onOpenFileChange={openFileChange}
                         onUiComponentAnswered={handleUiComponentAnswered}
+                        pendingApprovalCount={pendingApprovals.length}
                       />
-                      {pendingApprovals.length > 1 && (
-                        <div className="hitl-pending-summary">
-                          <div className="d-flex justify-content-between align-items-center">
-                            <span className="fw-bold">Multiple Changes Pending ({pendingApprovals.length})</span>
-                            <div className="d-flex gap-2">
-                              <button
-                                className="btn btn-success btn-sm"
-                                onClick={handleApproveAll}
-                                data-id="approve-all-changes"
-                              >
-                              Accept All
-                              </button>
-                              <button
-                                className="btn btn-danger btn-sm"
-                                onClick={handleRejectAll}
-                                data-id="reject-all-changes"
-                              >
-                              Reject All
-                              </button>
-                            </div>
-                          </div>
-                        </div>
-                      )}
-                      {pendingApprovals.map((approval) => (
-                        <div key={approval.requestId} style={{ padding: '0 12px', marginBottom: '8px' }}>
-                          {approval.category === 'screen_capture' ? (
-                            <ScreenCaptureConsentCard
-                              request={approval}
-                              modelName={selectedModel?.displayName}
-                              onDecide={(scope) => handleScreenCaptureDecision(approval, scope)}
-                            />
-                          ) : (
-                            <ToolApprovalModal
-                              request={approval}
-                              onApprove={(options) => handleApproveToolAction(approval, options)}
-                              onReject={() => handleRejectToolAction(approval)}
-                              onReviewChanges={() => handleReviewChanges(approval)}
-                              isReviewing={reviewingApprovals.has(approval.requestId)}
-                            />
-                          )}
-                        </div>
-                      ))}
+                      {jumpToLatestEl}
                     </section>
+                    {renderApprovalDock(handleReviewChanges)}
                     {autoAcceptBannerEl}
                   </div>
                 )
@@ -3764,7 +3786,10 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
               currentConversationId={props.currentConversationId || null}
               showArchived={showArchivedConversations}
               onNewConversation={props.onNewConversation || (() => {})}
-              onLoadConversation={props.onLoadConversation || (async (id: string) => {})}
+              onLoadConversation={async (id) => {
+                await props.onLoadConversation?.(id)
+                setShowArchivedConversations(false)
+              }}
               onArchiveConversation={props.onArchiveConversation || (async (id: string) => {})}
               onDeleteConversation={props.onDeleteConversation || (async (id: string) => {})}
               onDeleteAllConversations={props.onDeleteAllConversations}

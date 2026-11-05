@@ -22,7 +22,7 @@ interface AIPanelHeaderProps {
 }
 
 export const AIPanelHeader = (props: AIPanelHeaderProps) => (
-  <div className="chat-history-sidebar-header border-0 px-3 pt-3 pb-2" style={{ backgroundColor: (props.theme || '').toLowerCase() === 'dark' ? '#222336' : '#eff1f5' }}>
+  <div className="chat-history-sidebar-header border-0 px-3 pt-3 pb-2" data-theme={(props.theme || '').toLowerCase()}>
     <div className={`d-flex justify-content-between align-items-center ${props.children ? 'mb-2' : ''}`}>
       <h6 className="mb-0 fw-semibold sidebar-title text-truncate" data-id={props.titleDataId}>
         {props.title} <span className="ms-1 fw-normal text-muted">{props.count}</span>
