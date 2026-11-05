@@ -1,21 +1,19 @@
-import React, { Dispatch, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import React, { Dispatch, useEffect, useMemo, useRef, useState } from 'react'
 import { SiOpenai, SiAnthropic, SiOllama, SiAmazonwebservices } from 'react-icons/si'
-import GroupListMenu, { LockedPillState } from './contextOptMenu'
+import { LockedPillState } from './contextOptMenu'
 import { groupListType } from '../types/componentTypes'
 import { AIModel, modelKey, byokKeyState, isAutoModelId, isCheapModel, modelVendor, type ByokKeyState } from '@remix/remix-ai-core'
 
-const PROVIDER_META: Record<string, { label: string; subtitle: string }> = {
-  anthropic: { label: 'Anthropic', subtitle: 'Claude models' },
-  openai: { label: 'OpenAI', subtitle: 'GPT models' },
-  mistralai: { label: 'Mistral AI', subtitle: 'Mistral models' },
-  openrouter: { label: 'OpenRouter', subtitle: 'Many models via one route' },
-  bedrock: { label: 'AWS Bedrock', subtitle: 'Models hosted on AWS' },
-  ollama: { label: 'Local (Ollama)', subtitle: 'Run on your machine' }
+const PROVIDER_LABELS: Record<string, string> = {
+  anthropic: 'Anthropic',
+  openai: 'OpenAI',
+  mistralai: 'Mistral AI',
+  openrouter: 'OpenRouter',
+  bedrock: 'AWS Bedrock',
+  ollama: 'Local (Ollama)'
 }
 
-const DEFAULT_PROVIDER_META = { label: 'Other', subtitle: '' }
-
-const providerMeta = (provider: string) => PROVIDER_META[provider] ?? { ...DEFAULT_PROVIDER_META, label: provider }
+const providerLabel = (provider: string) => PROVIDER_LABELS[provider] ?? provider
 
 const providerIcon = (provider: string): React.ReactNode => {
   switch (provider) {
@@ -57,8 +55,11 @@ const isSignInModel = (model: AIModel) => model.id === '__signin__'
 
 const isAutoModel = (model: AIModel) => isAutoModelId(model.id)
 
-/** Map an AIModel to the row shape consumed by GroupListMenu. */
-const toRow = (model: AIModel, keyPresence: Partial<Record<AIModel['provider'], boolean>>): groupListType => {
+/** Backend descriptions carry markdown emphasis; a one-line row shows plain text. */
+const plainText = (text: string) => (text || '').replace(/[*_`]/g, '').replace(/\s+/g, ' ').trim()
+
+/** The shape the locked / API key hand-offs expect (shared with GroupListMenu). */
+const toItem = (model: AIModel): groupListType => {
   const key = modelKey(model)
   return {
     label: model.displayName,
@@ -66,8 +67,7 @@ const toRow = (model: AIModel, keyPresence: Partial<Record<AIModel['provider'], 
     icon: 'fa-solid fa-check',
     stateValue: key,
     dataId: `ai-model-${key.replace(/[^a-zA-Z0-9]/g, '-')}`,
-    isLocked: !model.available,
-    keyState: byokKeyState(model, keyPresence)
+    isLocked: !model.available
   }
 }
 
@@ -84,46 +84,55 @@ const groupKeyState = (
   return states.some(state => state === 'needs-key') ? 'needs-key' : undefined
 }
 
-/** A provider never shows more than this many model rows before scrolling. */
-const MAX_VISIBLE_MODELS = 6
+/** One entry the keyboard can land on, in screen order. */
+interface MenuRow {
+  key: string
+  model?: AIModel
+  pick: () => void
+}
 
-/**
- * Model rows for one provider, clamped to `MAX_VISIBLE_MODELS` rows with their
- * own scrollbar. Row heights vary (descriptions wrap), so the cap is measured
- * off the rendered rows rather than assumed from a fixed row height.
- */
-const ProviderModelList: React.FC<{ rows: groupListType[]; groupListProps: any }> = ({ rows, groupListProps }) => {
-  const listRef = useRef<HTMLDivElement>(null)
-  const [maxHeight, setMaxHeight] = useState<number | undefined>(undefined)
-  const rowsKey = rows.map(r => r.stateValue).join('|')
+interface ModelRowProps {
+  model: AIModel
+  selected: boolean
+  active: boolean
+  needsKey: boolean
+  /** Text before the description of a locked row ("Requires Pro", "Coming soon"). */
+  lockNote?: string
+  indent: boolean
+  onHover: () => void
+  onPick: () => void
+}
 
-  useLayoutEffect(() => {
-    const container = listRef.current
-    if (!container) return
-    const measure = () => {
-      const buttons = Array.from(container.querySelectorAll<HTMLElement>('.btn-group-vertical > button'))
-      if (buttons.length <= MAX_VISIBLE_MODELS) {
-        setMaxHeight(undefined)
-        return
-      }
-      const first = buttons[0]
-      const last = buttons[MAX_VISIBLE_MODELS - 1]
-      setMaxHeight(last.offsetTop + last.offsetHeight - first.offsetTop)
-    }
-    measure()
-    // Observe the inner list (not the clipped wrapper) so applying maxHeight
-    // doesn't feed back into the observer.
-    const inner = container.firstElementChild
-    if (!inner || typeof ResizeObserver === 'undefined') return
-    const observer = new ResizeObserver(measure)
-    observer.observe(inner)
-    return () => observer.disconnect()
-  }, [rowsKey])
-
+const ModelRow: React.FC<ModelRowProps> = ({ model, selected, active, needsKey, lockNote, indent, onHover, onPick }) => {
+  const item = toItem(model)
+  const description = plainText(model.description)
+  const title = needsKey
+    ? 'Add your API key to use this model'
+    : lockNote ? [lockNote, description].filter(Boolean).join(' · ') : description
   return (
-    <div ref={listRef} className="rai-model-list" style={{ maxHeight, overflowY: maxHeight ? 'auto' : undefined }}>
-      <GroupListMenu {...groupListProps} groupList={rows} />
-    </div>
+    <button
+      type="button"
+      className={`rai-mm-row ${indent ? 'is-indented' : ''} ${active ? 'is-active' : ''} ${needsKey ? 'is-dim' : ''}`}
+      data-id={item.dataId}
+      data-row={item.stateValue}
+      data-locked={item.isLocked ? 'true' : 'false'}
+      data-selected={selected ? 'true' : 'false'}
+      title={title || undefined}
+      onMouseMove={onHover}
+      onClick={onPick}
+    >
+      <span className="rai-mm-text">
+        <span className="rai-mm-name">{model.displayName}</span>
+        {(lockNote || description) && (
+          <span className="rai-mm-desc">
+            {lockNote && <span className="rai-mm-req">{lockNote}{description ? ' · ' : ''}</span>}
+            {description}
+          </span>
+        )}
+      </span>
+      {selected && <i className="fa-solid fa-check rai-mm-check"></i>}
+      {lockNote && <i className="fa-solid fa-lock rai-mm-lock"></i>}
+    </button>
   )
 }
 
@@ -142,13 +151,16 @@ export interface ModelSelectorMenuProps {
   onLockedItemClick?: (item: groupListType) => void
   upgradePillState?: LockedPillState
   buyCreditsPillState?: LockedPillState
-  onBuyCreditsClick?: (item: groupListType) => void
   /** Transport provider → whether the user has stored a key for it. Drives the
-   *  "Own key" / "Add API key" marks on rows and provider headers. */
+   *  "Your API key" / "Add key" notes on provider headers. */
   byokKeyPresence?: Partial<Record<AIModel['provider'], boolean>>
-  /** Hand-off to the API key settings, from a row or header waiting for a key. */
+  /** Hand-off to the API key settings, from a header or row waiting for a key. */
   onAddApiKeyClick?: (item: groupListType) => void
+  /** Plan that unlocks a feature, for "Requires <plan>" on locked rows. */
+  getRequiredPlanName?: (feature: string) => string | null
   cheapOnly?: boolean
+  /** Rendered between the search field and the list (the low-cost switch). */
+  children?: React.ReactNode
   /** Shown under the open "Local (Ollama)" group: the installed local models. */
   ollamaSection?: React.ReactNode
 }
@@ -157,8 +169,30 @@ export default function ModelSelectorMenu(props: ModelSelectorMenuProps) {
   const [query, setQuery] = useState('')
   // The filter is driven from the composer's toggle, so the menu only reads it.
   const cheapOnly = !!props.cheapOnly
+  const keyPresence = props.byokKeyPresence ?? {}
 
-  // Ungrouped rows shown above the provider accordion (sign-in placeholder).
+  // Locked rows lead to the plan page. When neither the upgrade nor the
+  // buy-credits path is offered, they lead nowhere and stay hidden, except
+  // "Coming soon" ones, which say so.
+  const upgradeState: LockedPillState = props.upgradePillState ?? 'available'
+  const buyCreditsState: LockedPillState = props.buyCreditsPillState ?? 'hidden'
+  const lockedLeadsToPlans = upgradeState === 'available' || buyCreditsState === 'available'
+  const lockedComingSoon = !lockedLeadsToPlans && (upgradeState === 'coming_soon' || buyCreditsState === 'coming_soon')
+
+  const needsKey = (model: AIModel) => byokKeyState(model, keyPresence) === 'needs-key'
+
+  /** A locked row stays visible only if it has somewhere to send the user. */
+  const isVisible = (model: AIModel) =>
+    model.available || needsKey(model) || lockedLeadsToPlans || lockedComingSoon
+
+  const lockNote = (model: AIModel): string | undefined => {
+    if (model.available || needsKey(model)) return undefined
+    if (lockedComingSoon) return 'Coming soon'
+    const plan = model.requiredFeature ? props.getRequiredPlanName?.(model.requiredFeature) : null
+    return plan ? `Requires ${plan}` : 'Requires an upgrade'
+  }
+
+  // Ungrouped row shown above the providers when signed out.
   const signInModels = useMemo(
     () => props.availableModels.filter(isSignInModel),
     [props.availableModels]
@@ -201,52 +235,101 @@ export default function ModelSelectorMenu(props: ModelSelectorMenuProps) {
     setExpanded(selectedProvider ?? null)
   }, [selectedProvider])
 
-  const toggle = (provider: string) => {
-    setExpanded(prev => (prev === provider ? null : provider))
-  }
-
   const normalizedQuery = query.trim().toLowerCase()
+  const searching = !!normalizedQuery
   const matchesQuery = (model: AIModel) =>
-    !normalizedQuery ||
+    !searching ||
     model.displayName.toLowerCase().includes(normalizedQuery) ||
     (model.description || '').toLowerCase().includes(normalizedQuery)
 
-  // Follow the query: as soon as the open provider has no hits, jump to the
-  // first one that does, so results are always on screen. The user stays in
-  // control — headers remain clickable while searching.
-  useEffect(() => {
-    if (!normalizedQuery) return
-    const openStillMatches = groups.some(g => g.provider === expanded && g.models.some(matchesQuery))
-    if (openStillMatches) return
-    const firstMatch = groups.find(g => g.models.some(matchesQuery))
-    setExpanded(firstMatch ? firstMatch.provider : null)
-  }, [normalizedQuery, groups])
+  // Rows each provider shows; a search opens every provider with a hit.
+  const shownGroups = groups
+    .map(group => ({ ...group, rows: group.models.filter(m => isVisible(m) && matchesQuery(m)) }))
+    .filter(group => group.rows.length > 0)
+  const isOpen = (provider: string) => searching || expanded === provider
 
-  const groupListProps = {
-    choice: props.currentChoice,
-    setChoice: props.setChoice,
-    setShowOptions: props.setShowOptions,
-    onLockedItemClick: props.onLockedItemClick,
-    upgradePillState: props.upgradePillState,
-    buyCreditsPillState: props.buyCreditsPillState,
-    onBuyCreditsClick: props.onBuyCreditsClick,
-    onAddApiKeyClick: props.onAddApiKeyClick
+  const close = () => props.setShowOptions(false)
+
+  const pickModel = (model: AIModel) => {
+    const item = toItem(model)
+    if (needsKey(model) && props.onAddApiKeyClick) {
+      // Missing key, not a missing entitlement: send the user to the key
+      // settings rather than the plan page.
+      close()
+      props.onAddApiKeyClick(item)
+    } else if (!model.available) {
+      if (lockedComingSoon && !isSignInModel(model)) return
+      close()
+      props.onLockedItemClick?.(item)
+    } else {
+      close()
+      props.setChoice(item.stateValue)
+    }
   }
 
-  const keyPresence = props.byokKeyPresence ?? {}
-
-  // The Auto row is the `openrouter/auto` model, hoisted to the top of the
   const autoValue = autoModel ? modelKey(autoModel) : 'auto'
-  const showAutoRow = !!autoModel && (!cheapOnly || isCheapModel(autoModel))
+  const showAutoRow = !!autoModel && (!cheapOnly || isCheapModel(autoModel)) && matchesQuery(autoModel)
   const autoSelected = props.currentChoice === autoValue
-  const autoTitle = autoModel?.displayName || 'Auto'
-  const autoDescription = autoModel?.description || ''
+
+  // Rows the arrow keys walk through, in screen order.
+  const rows: MenuRow[] = [
+    ...(showAutoRow ? [{ key: autoValue, pick: () => { close(); props.setChoice(autoValue) } }] : []),
+    ...(searching ? [] : signInModels).map(model => ({ key: modelKey(model), model, pick: () => pickModel(model) })),
+    ...shownGroups.flatMap(group => isOpen(group.provider)
+      ? group.rows.map(model => ({ key: modelKey(model), model, pick: () => pickModel(model) }))
+      : [])
+  ]
+  const [active, setActive] = useState(-1)
+  const activeKey = rows[active]?.key
+  const scrollRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    setActive(searching ? 0 : -1)
+  }, [normalizedQuery, cheapOnly])
+
+  useEffect(() => {
+    if (!activeKey) return
+    const el = Array.from(scrollRef.current?.querySelectorAll<HTMLElement>('[data-row]') ?? [])
+      .find(row => row.dataset.row === activeKey)
+    el?.scrollIntoView({ block: 'nearest' })
+  }, [activeKey])
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Escape') {
       e.stopPropagation()
-      props.setShowOptions(false)
+      close()
+    } else if (e.key === 'ArrowDown') {
+      e.preventDefault()
+      setActive(i => Math.min(rows.length - 1, i + 1))
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault()
+      setActive(i => Math.max(0, i - 1))
+    } else if (e.key === 'Enter' && rows[active]) {
+      e.preventDefault()
+      rows[active].pick()
     }
+  }
+
+  const hover = (key: string) => () => {
+    const index = rows.findIndex(row => row.key === key)
+    if (index !== active) setActive(index)
+  }
+
+  const renderRow = (model: AIModel, indent: boolean) => {
+    const key = modelKey(model)
+    return (
+      <ModelRow
+        key={key}
+        model={model}
+        selected={model.available && props.currentChoice === key}
+        active={activeKey === key}
+        needsKey={needsKey(model)}
+        lockNote={isSignInModel(model) ? undefined : lockNote(model)}
+        indent={indent}
+        onHover={hover(key)}
+        onPick={() => pickModel(model)}
+      />
+    )
   }
 
   return (
@@ -256,142 +339,117 @@ export default function ModelSelectorMenu(props: ModelSelectorMenuProps) {
       className="d-flex flex-column"
       style={{ flex: '1 1 auto', minHeight: 0, overflow: 'hidden' }}
     >
-      <div className="px-2 pb-2 pt-1 rai-search-bar flex-shrink-0">
-        <div className="position-relative">
-          <i
-            className="fa-solid fa-magnifying-glass position-absolute text-muted"
-            style={{ left: 10, top: '50%', transform: 'translateY(-50%)', fontSize: '0.75rem' }}
-          ></i>
-          <input
-            type="text"
-            className="form-control form-control-sm ps-4"
-            data-id="ai-model-search"
-            placeholder="Search models…"
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            autoFocus
-          />
-        </div>
+      <div className="rai-mm-search flex-shrink-0">
+        <i className="fa-solid fa-magnifying-glass"></i>
+        <input
+          type="text"
+          data-id="ai-model-search"
+          placeholder="Search models…"
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          autoFocus
+        />
       </div>
 
-      {/* Only one provider is open at a time and its list caps at
-          MAX_VISIBLE_MODELS rows, so this region needs no scrollbar of its own.
-          Overflow stays reachable (wheel/trackpad) but paints no chrome — see
-          .rai-model-scroll in remix-ai-assistant.css. */}
-      <div className="rai-model-scroll" style={{ flex: '1 1 auto', minHeight: 0 }}>
-        {/* Auto Mode is the first entry of the list, sitting at the same level
-            as the provider headers. It sticks to the top so it stays visible
-            while the list scrolls, and is highlighted as the recommended pick. */}
+      {props.children}
+
+      {/* One scroll area for the whole list, so the wheel never reaches the
+          chat behind it (#7928). Provider headers stick while their models scroll. */}
+      <div className="rai-mm-scroll" ref={scrollRef}>
         {showAutoRow && (
           <button
             type="button"
-            className="btn border-0 w-100 d-flex align-items-center justify-content-between py-2 rai-auto-row"
+            className={`rai-mm-row rai-mm-auto ${activeKey === autoValue ? 'is-active' : ''}`}
             data-id="ai-model-auto"
+            data-row={autoValue}
             data-selected={autoSelected ? 'true' : 'false'}
+            onMouseMove={hover(autoValue)}
             onClick={() => {
-              props.setShowOptions(false)
+              close()
               props.setChoice(autoValue)
             }}
           >
-            <span className="d-flex align-items-center text-start">
-              <span
-                className="me-2 d-inline-flex align-items-center justify-content-center rai-auto-icon"
-                style={{ width: '1.1rem', fontSize: '0.95rem' }}
-              >
-                <i className="fa-solid fa-magic-wand-sparkles"></i>
-              </span>
-              <span className="d-flex flex-column">
-                <span className="d-flex align-items-center">
-                  <span className="fw-bold small rai-auto-title">{autoTitle}</span>
-                  <span className="badge ms-2 rai-auto-badge">Recommended</span>
-                </span>
-                <span className="text-wrap rai-auto-subtitle" style={{ fontSize: '0.7rem' }}>
-                  {autoDescription}
-                </span>
-              </span>
+            <span className="rai-mm-brand rai-mm-auto-icon"><i className="fa-solid fa-magic-wand-sparkles"></i></span>
+            <span className="rai-mm-text">
+              <span className="rai-mm-name">{autoModel?.displayName || 'Auto'}<span className="rai-mm-rec">Recommended</span></span>
+              {autoModel?.description && <span className="rai-mm-desc" title={plainText(autoModel.description)}>{plainText(autoModel.description)}</span>}
             </span>
-            {autoSelected && <i className="fa-solid fa-check rai-auto-title"></i>}
+            {autoSelected && <i className="fa-solid fa-check rai-mm-check"></i>}
           </button>
         )}
 
-        {/* Sign-in placeholder */}
-        {signInModels.length > 0 && !normalizedQuery && (
-          <GroupListMenu {...groupListProps} groupList={signInModels.map(model => toRow(model, keyPresence))} />
-        )}
+        {!searching && signInModels.map(model => renderRow(model, false))}
 
         {cheapOnly && groups.length === 0 && (
-          <div className="px-3 py-3 small text-muted text-center" data-id="ai-model-cheap-empty">
+          <div className="rai-mm-empty" data-id="ai-model-cheap-empty">
             No low-cost model is available on your plan
           </div>
         )}
 
-        {normalizedQuery && !groups.some(g => g.models.some(matchesQuery)) && (
-          <div className="px-3 py-3 small text-muted text-center" data-id="ai-model-search-empty">
+        {searching && shownGroups.length === 0 && !showAutoRow && (
+          <div className="rai-mm-empty" data-id="ai-model-search-empty">
             No model matches “{query.trim()}”
           </div>
         )}
 
-        {/* Provider accordion */}
-        {groups.map((group) => {
-          const meta = providerMeta(group.provider)
-          const filtered = group.models.filter(matchesQuery)
-          if (normalizedQuery && filtered.length === 0) return null
-          const isOpen = expanded === group.provider
+        {shownGroups.map((group) => {
+          const label = providerLabel(group.provider)
+          const open = isOpen(group.provider)
           const ownsSelection = group.provider === selectedProvider
-          // When a provider owns the active model but is collapsed, surface that
-          // model's name in the subtitle so the current choice is visible without
-          // expanding.
           const keyState = groupKeyState(group.models, keyPresence)
-          const keySubtitle = keyState === 'own-key'
-            ? 'Running on your API key'
-            : keyState === 'needs-key' ? 'Needs your API key' : null
-          const subtitle = ownsSelection && !isOpen && selectedModel
-            ? selectedModel.displayName
-            : (keySubtitle ?? meta.subtitle)
           return (
-            <div key={group.provider} className="rai-provider-group" data-id={`ai-provider-group-${group.provider}`}>
+            <div key={group.provider} className="rai-mm-group" data-id={`ai-provider-group-${group.provider}`}>
               <button
                 type="button"
-                className="btn btn-light border-0 w-100 d-flex align-items-center justify-content-between py-2"
+                className="rai-mm-head"
                 data-id={`ai-provider-header-${group.provider}`}
                 data-owns-selection={ownsSelection ? 'true' : 'false'}
-                aria-expanded={isOpen}
-                onClick={() => toggle(group.provider)}
+                aria-expanded={open}
+                onClick={() => setExpanded(prev => (prev === group.provider ? null : group.provider))}
               >
-                <span className="d-flex align-items-center text-start">
-                  <span
-                    className={`me-2 d-inline-flex align-items-center justify-content-center ${ownsSelection ? 'text-primary' : 'text-muted'}`}
-                    style={{ width: '1.1rem', fontSize: '0.95rem' }}
-                  >
-                    {providerIcon(group.provider)}
-                  </span>
-                  <span className="d-flex flex-column">
-                    <span className={`fw-bold small ${ownsSelection ? 'text-primary' : ''}`}>{meta.label}</span>
-                    {subtitle && <span className={ownsSelection && !isOpen ? 'small fst-italic' : 'text-muted'} style={{ fontSize: '0.7rem' }}>{subtitle}</span>}
-                  </span>
-                </span>
-                <span className="d-flex align-items-center">
-                  {keyState && (
-                    <span
-                      className={`me-2 ${keyState === 'own-key' ? 'text-success' : 'text-primary'}`}
-                      data-id={`ai-provider-key-${group.provider}`}
-                      data-key-state={keyState}
-                      title={keyState === 'own-key'
-                        ? `${meta.label} runs on your own API key`
-                        : `${meta.label} needs your own API key`}
-                      style={{ fontSize: '0.7rem' }}
-                    >
-                      <i className="fas fa-key"></i>
-                    </span>
+                <span className={`rai-mm-brand ${ownsSelection ? 'is-on' : ''}`}>{providerIcon(group.provider)}</span>
+                <span className="rai-mm-head-text">
+                  <span className="rai-mm-head-name">{label}</span>
+                  {ownsSelection && !open && selectedModel && (
+                    <span className="rai-mm-head-sub">{selectedModel.displayName}</span>
                   )}
-                  <span className="badge bg-secondary me-2" style={{ fontSize: '0.6rem' }}>{filtered.length}</span>
-                  <i className={`fa-solid ${isOpen ? 'fa-chevron-down' : 'fa-chevron-right'} text-muted`} style={{ fontSize: '0.7rem' }}></i>
                 </span>
+                {keyState === 'own-key' && (
+                  <span
+                    className="rai-mm-key-own"
+                    data-id={`ai-provider-key-${group.provider}`}
+                    data-key-state={keyState}
+                    title="Runs on your API key"
+                  >
+                    <i className="fa-solid fa-key"></i>Your API key
+                  </span>
+                )}
+                {keyState === 'needs-key' && (
+                  <span
+                    role="button"
+                    className="rai-mm-key-link"
+                    data-id={`ai-provider-key-${group.provider}`}
+                    data-key-state={keyState}
+                    title={`Add your ${label} API key`}
+                    onClick={(e) => {
+                      // The note sits inside the header: don't also toggle it.
+                      e.stopPropagation()
+                      close()
+                      props.onAddApiKeyClick?.(toItem(group.models[0]))
+                    }}
+                  >
+                    <i className="fa-solid fa-key"></i>Add key
+                  </span>
+                )}
+                <span className="rai-mm-count">{group.rows.length}</span>
+                <i className={`fa-solid fa-chevron-${open ? 'down' : 'right'} rai-mm-chev`}></i>
               </button>
-              {isOpen && (
-                <ProviderModelList rows={filtered.map(model => toRow(model, keyPresence))} groupListProps={groupListProps} />
+              {open && (
+                <div className="rai-mm-models">
+                  {group.rows.map(model => renderRow(model, true))}
+                  {group.provider === 'ollama' && props.ollamaSection}
+                </div>
               )}
-              {isOpen && group.provider === 'ollama' && props.ollamaSection}
             </div>
           )
         })}
