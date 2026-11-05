@@ -573,9 +573,10 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  margin: 0 0.5rem 0.5rem;
-  padding-left: 0;
+  margin: 0;
+  padding: 2px 12px 8px;
   font-size: 12px;
+  border-bottom: 1px solid var(--bs-border-color);
 }
 
 .remix-ai-model-selector .rai-cheap-switch .form-check-input {
@@ -1607,6 +1608,7 @@ code {
 /* ===== Model menu: same surface as the composer's "+" menu, no strokes ===== */
 .remix-ai-model-selector {
   --rai-hover: var(--custom-onsurface-layer-2);
+  --rai-mm-head-bg: var(--custom-onsurface-layer-1);
   overflow: hidden;
   border: 1px solid var(--bs-border-color);
   border-radius: 8px;
@@ -1618,6 +1620,8 @@ code {
 
 [data-theme="light"] .remix-ai-model-selector {
   --rai-hover: #eef0f5;
+  --rai-mm-head-bg: #e4e7ee;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
 }
 
 .remix-ai-model-selector .rai-selector-heading {
@@ -1626,27 +1630,257 @@ code {
   color: var(--bs-secondary-color);
 }
 
-.remix-ai-model-selector .rai-search-bar {
-  border-bottom: 1px solid var(--bs-border-color);
+.remix-ai-model-selector .rai-mm-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 8px 4px 12px;
 }
 
-.remix-ai-model-selector .form-control {
-  background: var(--ai-composer-box, var(--custom-onsurface-layer-1));
-  border-color: var(--bs-border-color);
-  color: var(--bs-body-color);
-  font-size: 12px;
-}
-
-.remix-ai-model-selector .form-control:focus {
-  border-color: var(--custom-ai-color);
-  box-shadow: none;
-}
-
-.remix-ai-model-selector .form-control::placeholder {
+.remix-ai-model-selector .rai-mm-title {
+  font-size: 10px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
   color: var(--bs-secondary-color);
 }
 
-/* Provider headers and model rows are GroupListMenu's .btn.btn-light */
+.remix-ai-model-selector .rai-mm-search {
+  position: relative;
+  margin: 2px 8px 6px;
+}
+
+.remix-ai-model-selector .rai-mm-search i {
+  position: absolute;
+  left: 9px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 11px;
+  color: var(--bs-secondary-color);
+}
+
+.remix-ai-model-selector .rai-mm-search input {
+  width: 100%;
+  height: 28px;
+  padding: 0 8px 0 26px;
+  font-size: 12px;
+  border: 1px solid var(--bs-border-color);
+  border-radius: 6px;
+  outline: 0;
+  background: var(--custom-onsurface-layer-1);
+  color: var(--bs-body-color);
+}
+
+.remix-ai-model-selector .rai-mm-search input:focus {
+  border-color: var(--custom-ai-color);
+}
+
+.remix-ai-model-selector .rai-mm-search input::placeholder {
+  color: var(--bs-secondary-color);
+}
+
+/* One scroll area for the whole list; the wheel never reaches the chat behind (#7928) */
+.remix-ai-model-selector .rai-mm-scroll {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  padding-bottom: 4px;
+}
+
+/* Provider header: a tinted bar that sticks while its models scroll */
+.remix-ai-model-selector .rai-mm-head {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 7px 12px 5px;
+  border: 0;
+  background: var(--rai-mm-head-bg);
+  color: var(--bs-body-color);
+  text-align: left;
+}
+
+.remix-ai-model-selector .rai-mm-head:hover,
+.remix-ai-model-selector .rai-mm-head:focus-visible {
+  background: var(--rai-hover);
+}
+
+.remix-ai-model-selector .rai-mm-brand {
+  display: inline-flex;
+  justify-content: center;
+  width: 16px;
+  flex-shrink: 0;
+  font-size: 13px;
+  color: var(--bs-secondary-color);
+}
+
+.remix-ai-model-selector .rai-mm-brand.is-on,
+.remix-ai-model-selector .rai-mm-auto-icon {
+  color: var(--custom-ai-color);
+}
+
+.remix-ai-model-selector .rai-mm-head-text {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+}
+
+.remix-ai-model-selector .rai-mm-head-name {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--bs-emphasis-color);
+}
+
+.remix-ai-model-selector .rai-mm-head-sub {
+  font-size: 11px;
+  color: var(--custom-ai-color);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.remix-ai-model-selector .rai-mm-chev {
+  font-size: 10px;
+  color: var(--bs-secondary-color);
+}
+
+.remix-ai-model-selector .rai-mm-key-link,
+.remix-ai-model-selector .rai-mm-key-own {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  white-space: nowrap;
+}
+
+.remix-ai-model-selector .rai-mm-key-link i,
+.remix-ai-model-selector .rai-mm-key-own i {
+  font-size: 9px;
+}
+
+.remix-ai-model-selector .rai-mm-key-link {
+  color: var(--custom-ai-color);
+  cursor: pointer;
+}
+
+.remix-ai-model-selector .rai-mm-key-link:hover {
+  text-decoration: underline;
+}
+
+.remix-ai-model-selector .rai-mm-key-own {
+  color: var(--bs-secondary-color);
+}
+
+.remix-ai-model-selector .rai-mm-count {
+  min-width: 18px;
+  padding: 1px 5px;
+  border-radius: 8px;
+  text-align: center;
+  font-size: 10px;
+  line-height: 14px;
+  color: var(--bs-secondary-color);
+  background: var(--bs-body-bg);
+}
+
+.remix-ai-model-selector .rai-mm-models {
+  padding: 2px 0 4px;
+}
+
+/* Model rows: name + one-line description, full text in the tooltip */
+.remix-ai-model-selector .rai-mm-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 6px 12px;
+  border: 0;
+  background: none;
+  color: var(--bs-body-color);
+  text-align: left;
+}
+
+.remix-ai-model-selector .rai-mm-row.is-indented {
+  padding-left: 36px;
+}
+
+.remix-ai-model-selector .rai-mm-row.is-active {
+  background: var(--rai-hover);
+}
+
+.remix-ai-model-selector .rai-mm-row.is-dim .rai-mm-text {
+  opacity: 0.55;
+}
+
+.remix-ai-model-selector .rai-mm-text {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+  gap: 1px;
+}
+
+.remix-ai-model-selector .rai-mm-name {
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 1.3;
+  color: var(--bs-emphasis-color);
+}
+
+.remix-ai-model-selector .rai-mm-desc {
+  font-size: 11px;
+  line-height: 1.35;
+  color: var(--bs-secondary-color);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.remix-ai-model-selector .rai-mm-req {
+  color: var(--bs-body-color);
+}
+
+.remix-ai-model-selector .rai-mm-row[data-selected="true"] .rai-mm-name {
+  color: var(--custom-ai-color);
+}
+
+.remix-ai-model-selector .rai-mm-check {
+  font-size: 11px;
+  color: var(--custom-ai-color);
+  flex-shrink: 0;
+}
+
+.remix-ai-model-selector .rai-mm-lock {
+  font-size: 10px;
+  color: var(--bs-secondary-color);
+  flex-shrink: 0;
+}
+
+/* "Auto": the first entry, at the providers' level */
+.remix-ai-model-selector .rai-mm-auto {
+  padding-top: 8px;
+  padding-bottom: 8px;
+}
+
+.remix-ai-model-selector .rai-mm-rec {
+  margin-left: 6px;
+  font-size: 10px;
+  font-weight: 400;
+  color: var(--custom-ai-color);
+}
+
+.remix-ai-model-selector .rai-mm-empty {
+  padding: 16px 12px;
+  text-align: center;
+  font-size: 12px;
+  color: var(--bs-secondary-color);
+}
+
+/* Installed Ollama models are GroupListMenu's .btn.btn-light rows */
 .remix-ai-model-selector .btn-light {
   background: transparent !important;
   color: var(--bs-body-color) !important;
@@ -1664,13 +1898,8 @@ code {
   opacity: 1;
 }
 
-/* Names at the menu's 12px; Bootstrap's .small would shrink them to 10.5px */
-.remix-ai-model-selector .rai-model-scroll .small {
-  font-size: 12px;
-}
-
-.remix-ai-model-selector .text-muted {
-  color: var(--bs-secondary-color) !important;
+.remix-ai-model-selector .rai-ollama-models .btn-light {
+  padding-left: 36px;
 }
 
 .remix-ai-model-selector .text-primary {
@@ -1683,99 +1912,7 @@ code {
   font-weight: 400;
 }
 
-.remix-ai-model-selector .rai-provider-group + .rai-provider-group {
-  border-top: 1px solid var(--bs-border-color);
-}
-
-/* The menu body scrolls only as a safety net (many providers on a short
-   panel); its scrollbar is hidden so the sole visible one belongs to the open
-   provider's model list below. */
-.remix-ai-model-selector .rai-model-scroll {
-  overflow-y: auto;
-  scrollbar-width: none;
-}
-
-.remix-ai-model-selector .rai-model-scroll::-webkit-scrollbar {
-  width: 0;
-  height: 0;
-}
-
-/* Models sit indented under their provider: no connector line, no inset */
-.remix-ai-model-selector .rai-model-list {
-  scrollbar-width: thin;
-}
-
-.remix-ai-model-selector .rai-model-list .btn-light {
-  padding-left: calc(0.75rem + 1.1rem + 0.5rem);
-}
-
-.remix-ai-model-selector .rai-model-list .fw-bold {
-  font-weight: 600 !important;
-}
-
-/* One line of description; the full text is in the row's tooltip */
-.remix-ai-model-selector .rai-model-list .text-wrap {
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap !important;
-  color: var(--bs-secondary-color);
-}
-
-.remix-ai-model-selector .rai-model-list .mb-1 {
-  margin-bottom: 0 !important;
-}
-
-/* The selected model: AI colour name + check, no bar */
-.remix-ai-model-selector [data-selected="true"] .fa-check {
-  color: var(--custom-ai-color);
-  flex-shrink: 0;
-}
-
-/* "Auto": the first entry, sticky while the list scrolls */
-.remix-ai-model-selector .rai-auto-row {
-  position: sticky;
-  top: 0;
-  z-index: 2;
-  padding-left: 0.75rem;
-  padding-right: 0.75rem;
-  border-radius: 0;
-  background: var(--bs-body-bg);
-  color: var(--bs-body-color);
-  font-size: 12px;
-}
-
-.remix-ai-model-selector .rai-auto-row:hover,
-.remix-ai-model-selector .rai-auto-row:focus-visible {
-  background: var(--rai-hover);
-}
-
-.remix-ai-model-selector .rai-auto-icon,
-.remix-ai-model-selector .rai-auto-badge {
-  color: var(--custom-ai-color);
-}
-
-.remix-ai-model-selector .rai-auto-title {
-  font-weight: 600 !important;
-}
-
-.remix-ai-model-selector .rai-auto-row[data-selected="true"] .rai-auto-title,
-.remix-ai-model-selector .rai-auto-row .fa-check {
-  color: var(--custom-ai-color);
-}
-
-.remix-ai-model-selector .rai-auto-subtitle {
-  color: var(--bs-secondary-color);
-}
-
-.remix-ai-model-selector .rai-auto-badge {
-  background: none;
-  padding: 0;
-  font-size: 10px;
-  font-weight: 400;
-}
-
-/* "BYO API keys" in the header: a quiet text button */
+/* "API keys" in the header: a quiet text button */
 .rai-api-key-btn {
   display: inline-flex;
   align-items: center;

@@ -88,10 +88,6 @@ export default function AiChatPromptArea(props: AiChatPromptAreaProps) {
     props.onLockedModelClick?.(item.stateValue, item.label)
   }
 
-  const handleBuyCreditsClick = (item: groupListType) => {
-    props.onBuyCreditsClick?.(item.stateValue, item.label)
-  }
-
   // Local models sit under the "Local (Ollama)" entry of the model menu.
   const ollamaSection = props.selectedModel?.provider === 'ollama' && props.ollamaModels.length > 0 && (
     <div className="rai-ollama-models" data-id="ollama-model-selector">
@@ -126,18 +122,18 @@ export default function AiChatPromptArea(props: AiChatPromptAreaProps) {
     >
       {props.showModelSelector && (
         <div
-          className="pt-2 remix-ai-model-selector position-fixed d-flex flex-column"
+          className="remix-ai-model-selector position-fixed d-flex flex-column"
           style={{ top: props.modelOpt.top, bottom: props.modelOpt.bottom, right: props.modelOpt.right, width: props.modelOpt.width, zIndex: 2000, maxHeight: props.modelOpt.maxHeight || undefined }}
           ref={props.menuRef}
         >
-          <div className="d-flex align-items-center justify-content-between ms-2 me-2 mb-1 flex-shrink-0">
-            <span className="text-uppercase small rai-selector-heading">Select a model</span>
+          <div className="rai-mm-top flex-shrink-0">
+            <span className="rai-mm-title">Select a model</span>
             {props.onAddApiKeyClick && (
               <button
                 type="button"
                 className="rai-api-key-btn"
                 data-id="ai-model-selector-api-key-btn"
-                title="Add or update your own provider API keys"
+                title="Use your own provider API keys"
                 onClick={() => {
                   // Settings opens in another tab, so the floating picker has
                   // to go with it — otherwise it hangs over the new panel.
@@ -146,34 +142,10 @@ export default function AiChatPromptArea(props: AiChatPromptAreaProps) {
                 }}
               >
                 <i className="fas fa-key"></i>
-                BYO API keys
+                API keys
               </button>
             )}
           </div>
-          <CustomTooltip
-            placement="top"
-            tooltipText={
-              !props.hasCheapModels
-                ? 'No low-cost model is available on your plan'
-                : 'The cheapest tier across all providers, to make your credits last longer.'
-            }
-          >
-            <div className="form-check form-switch rai-cheap-switch flex-shrink-0">
-              <input
-                className="form-check-input"
-                type="checkbox"
-                role="switch"
-                id="ai-cheap-models-toggle"
-                data-id="ai-cheap-models-toggle"
-                data-active={props.cheapModelsOnly ? 'true' : 'false'}
-                data-available={props.hasCheapModels ? 'true' : 'false'}
-                checked={!!props.cheapModelsOnly}
-                disabled={!props.hasCheapModels}
-                onChange={() => props.onToggleCheapModels?.()}
-              />
-              <label className="form-check-label" htmlFor="ai-cheap-models-toggle">Low-cost models only</label>
-            </div>
-          </CustomTooltip>
           <ModelSelectorMenu
             availableModels={props.availableModels}
             currentChoice={props.selectedModel ? modelKey(props.selectedModel) : props.selectedModelId as string}
@@ -182,12 +154,37 @@ export default function AiChatPromptArea(props: AiChatPromptAreaProps) {
             onLockedItemClick={handleLockedItemClick}
             upgradePillState={props.upgradePillState}
             buyCreditsPillState={props.buyCreditsPillState}
-            onBuyCreditsClick={props.onBuyCreditsClick ? handleBuyCreditsClick : undefined}
             byokKeyPresence={props.byokKeyPresence}
             onAddApiKeyClick={props.onAddApiKeyClick ? () => props.onAddApiKeyClick?.() : undefined}
+            getRequiredPlanName={props.getRequiredPlanName}
             cheapOnly={props.cheapModelsOnly}
             ollamaSection={ollamaSection || undefined}
-          />
+          >
+            <CustomTooltip
+              placement="top"
+              tooltipText={
+                !props.hasCheapModels
+                  ? 'No low-cost model is available on your plan'
+                  : 'The cheapest tier across all providers, to make your credits last longer.'
+              }
+            >
+              <div className="form-check form-switch rai-cheap-switch flex-shrink-0">
+                <input
+                  className="form-check-input"
+                  type="checkbox"
+                  role="switch"
+                  id="ai-cheap-models-toggle"
+                  data-id="ai-cheap-models-toggle"
+                  data-active={props.cheapModelsOnly ? 'true' : 'false'}
+                  data-available={props.hasCheapModels ? 'true' : 'false'}
+                  checked={!!props.cheapModelsOnly}
+                  disabled={!props.hasCheapModels}
+                  onChange={() => props.onToggleCheapModels?.()}
+                />
+                <label className="form-check-label" htmlFor="ai-cheap-models-toggle">Low-cost models only</label>
+              </div>
+            </CustomTooltip>
+          </ModelSelectorMenu>
           {false && props.mcpEnabled && (
             <div className="border-top mt-2 pt-2">
               <div className="text-uppercase ms-2 mb-2 small">MCP Enhancement</div>
