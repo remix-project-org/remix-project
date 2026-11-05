@@ -107,3 +107,13 @@ export const AIPanelEmpty = (props: { icon: string, message: string, hint?: stri
     {props.hint && <div className="ai-panel-empty-hint mt-1">{props.hint}</div>}
   </div>
 )
+
+/** "Back to chat" row above a panel shown in place of the chat */
+export const AIPanelBackButton = (props: { onClick: () => void, dataId: string }) => (
+  <div className="ai-panel-back-row">
+    <button type="button" className="ai-panel-back-btn" onClick={props.onClick} data-id={props.dataId}>
+      <i className="fas fa-chevron-left"></i>
+      <span>Back to chat</span>
+    </button>
+  </div>
+)

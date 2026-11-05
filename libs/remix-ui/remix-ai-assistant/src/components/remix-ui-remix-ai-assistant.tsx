@@ -22,6 +22,7 @@ import { useOnClickOutside } from './onClickOutsideHook'
 import { RemixAIAssistant } from 'apps/remix-ide/src/app/plugins/remix-ai-assistant'
 import ChatHistoryHeading from './chatHistoryHeading'
 import { ChatHistorySidebar } from './chatHistorySidebar'
+import { AIPanelBackButton } from './aiPanel'
 import AiChatPromptArea from './aiChatPromptArea'
 import { CooldownBanner } from './cooldownBanner'
 import { ChatNoticeStrip, type ChatNoticeDisplay, type ChatNoticeActionDisplay } from './chatNoticeStrip'
@@ -3611,16 +3612,7 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
               /* Non-Maximized Mode: Toggle between the changes list, history view and chat view */
                 showChangesPanel && props.isMaximized === false ? (
                   <div className="d-flex flex-column flex-grow-1 ai-history-view-bg nonMaximizedMode" style={{ overflow: 'hidden', minHeight: 0 }} data-theme={themeTracker && themeTracker?.name.toLowerCase()}>
-                    <div className="p-2 border-bottom">
-                      <button
-                        className={`btn btn-sm ${themeTracker?.name.toLowerCase() === 'dark' ? 'btn-dark' : 'btn-light text-light-emphasis'}`}
-                        onClick={closeChangesPanel}
-                        data-id="ai-changes-back-to-chat-btn"
-                      >
-                        <i className="fas fa-chevron-left me-3"></i>
-                        <span>Back to chat</span>
-                      </button>
-                    </div>
+                    <AIPanelBackButton onClick={closeChangesPanel} dataId="ai-changes-back-to-chat-btn" />
                     <div className="flex-grow-1 d-flex" style={{ overflow: 'hidden', minHeight: 0 }}>
                       <AIChangesPanel
                         docked
@@ -3641,19 +3633,7 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
                   </div>
                 ) : props.showHistorySidebar && props.isMaximized === false && props.conversations ? (
                   <div className="d-flex flex-column flex-grow-1 ai-history-view-bg nonMaximizedMode" style={{ overflow: 'hidden', minHeight: 0 }} data-theme={themeTracker && themeTracker?.name.toLowerCase()}>
-                    {/* Back button header */}
-                    <div
-                      className="p-2 border-bottom"
-                    >
-                      <button
-                        className={`btn btn-sm ${themeTracker?.name.toLowerCase() === 'dark' ? 'btn-dark' : 'btn-light text-light-emphasis'}`}
-                        onClick={props.onToggleHistorySidebar || (() => {})}
-                        data-id="chat-history-back-btn"
-                      >
-                        <i className="fas fa-chevron-left me-3"></i>
-                        <span>Back to chat</span>
-                      </button>
-                    </div>
+                    <AIPanelBackButton onClick={props.onToggleHistorySidebar || (() => {})} dataId="chat-history-back-btn" />
                     {/* Chat history content */}
                     <div className="flex-grow-1" style={{ overflow: 'hidden', minHeight: 0 }}>
                       <ChatHistorySidebar
