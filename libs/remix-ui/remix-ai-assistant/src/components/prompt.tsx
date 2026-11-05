@@ -6,7 +6,6 @@ import { Features } from '@remix-api';
 import { useAuth } from '@remix-ui/app'
 import { TrackingContext } from '@remix-ide/tracking'
 import { CustomTooltip } from '@remix-ui/helper'
-import { ToggleSwitch } from '@remix-ui/toggle'
 import { AIModel } from '@remix/remix-ai-core'
 import { PromptDefault } from "./promptDefault";
 import { AutocompletePanel, AVAILABLE_COMMANDS, Command } from './AutocompletePanel'

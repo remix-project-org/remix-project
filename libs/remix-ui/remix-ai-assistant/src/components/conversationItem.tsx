@@ -1,7 +1,6 @@
 /* eslint-disable @nrwl/nx/enforce-module-boundaries */
 import React, { useState, useEffect, useLayoutEffect, useRef } from 'react'
 import { ConversationMetadata } from '../lib/types'
-import { AIPanelItem } from './aiPanel'
 
 interface ConversationItemProps {
   conversation: ConversationMetadata
@@ -25,20 +24,24 @@ export const ConversationItem: React.FC<ConversationItemProps> = ({
   const menuButtonRef = useRef<HTMLButtonElement>(null)
   const menuPanelRef = useRef<HTMLDivElement>(null)
 
-  const formatDate = (timestamp: number) => {
-    const date = new Date(timestamp)
-    const now = new Date()
-    const diffMs = now.getTime() - date.getTime()
-    const diffHours = Math.floor(diffMs / (1000 * 60 * 60))
-
-    if (diffHours < 1) return 'Just now'
-    if (diffHours < 24) return `${diffHours}h ago`
-
+  /** Short age: now, 2h, 3d, 2w, 1mo */
+  const formatAge = (timestamp: number) => {
+    const diffHours = Math.floor((Date.now() - timestamp) / (1000 * 60 * 60))
+    if (diffHours < 1) return 'now'
+    if (diffHours < 24) return `${diffHours}h`
     const diffDays = Math.floor(diffHours / 24)
-    if (diffDays === 1) return '1d ago'
-    if (diffDays < 7) return `${diffDays}d ago`
-    if (diffDays < 30) return `${Math.floor(diffDays / 7)}w ago`
-    return `${Math.floor(diffDays / 30)}mo ago`
+    if (diffDays < 7) return `${diffDays}d`
+    if (diffDays < 30) return `${Math.floor(diffDays / 7)}w`
+    return `${Math.floor(diffDays / 30)}mo`
+  }
+
+  const onKeyDown = (event: React.KeyboardEvent) => {
+    // Keys pressed on the menu button are the button's
+    if (event.target !== event.currentTarget) return
+    if (event.key === 'Enter' || event.key === ' ') {
+      event.preventDefault()
+      onClick()
+    }
   }
 
   // Close menu when clicking outside (capture phase: some panels stop mousedown from bubbling) or on Escape
@@ -96,77 +99,74 @@ export const ConversationItem: React.FC<ConversationItemProps> = ({
     }
   }, [showMenu])
 
-  const meta = `${formatDate(conversation.lastAccessedAt)} · ${conversation.messageCount} message${conversation.messageCount !== 1 ? 's' : ''}`
-
   return (
-    <AIPanelItem
-      title={conversation.title}
-      titleTooltip={conversation.title}
-      subtitle={meta}
-      active={active}
-      className={showMenu ? 'ai-panel-item-menu-open' : ''}
+    <div
+      role="button"
+      tabIndex={0}
+      className={`ai-conv ${active ? 'ai-conv-active' : ''} ${showMenu ? 'ai-conv-menu-open' : ''}`}
       onClick={onClick}
-      dataId={`conversation-item-${conversation.id}`}
-      titleDataId="conversation-item-title"
-      subtitleDataId="conversation-item-meta"
-      trailing={
-        <div className="conversation-menu-trigger" ref={menuContainerRef}>
-          <button
-            className="btn btn-sm p-0 conversation-menu-btn"
-            aria-label="Conversation actions"
-            aria-expanded={showMenu}
-            onClick={(e) => {
-              e.stopPropagation()
-              if (showMenu) {
-                setShowMenu(false)
-                return
-              }
+      onKeyDown={onKeyDown}
+      data-id={`conversation-item-${conversation.id}`}
+    >
+      <span className="ai-conv-title" title={conversation.title} data-id="conversation-item-title">{conversation.title}</span>
+      <span className="ai-conv-time" data-id="conversation-item-meta">{formatAge(conversation.lastAccessedAt)}</span>
+      <div className="conversation-menu-trigger" ref={menuContainerRef}>
+        <button
+          type="button"
+          className="conversation-menu-btn"
+          aria-label="Conversation actions"
+          aria-expanded={showMenu}
+          onClick={(e) => {
+            e.stopPropagation()
+            if (showMenu) {
+              setShowMenu(false)
+              return
+            }
 
-              setMenuPosition(getMenuPosition(e.currentTarget.getBoundingClientRect()))
-              setShowMenu(true)
+            setMenuPosition(getMenuPosition(e.currentTarget.getBoundingClientRect()))
+            setShowMenu(true)
+          }}
+          data-id={`conversation-menu-${conversation.id}`}
+          ref={menuButtonRef}
+        >
+          <i className="fas fa-ellipsis-h"></i>
+        </button>
+
+        {showMenu && (
+          <div
+            className="conversation-menu position-fixed shadow-sm"
+            ref={menuPanelRef}
+            style={{
+              top: `${menuPosition.top}px`,
+              left: `${menuPosition.left}px`,
+              zIndex: 1100
             }}
-            data-id={`conversation-menu-${conversation.id}`}
-            ref={menuButtonRef}
           >
-            <i className="fas fa-ellipsis-v"></i>
-          </button>
-
-          {showMenu && (
-            <div
-              className="conversation-menu position-fixed shadow-sm"
-              ref={menuPanelRef}
-              style={{
-                top: `${menuPosition.top}px`,
-                left: `${menuPosition.left}px`,
-                zIndex: 1100
+            <button
+              className="conversation-menu-item w-100 text-start"
+              onClick={(e) => {
+                e.stopPropagation()
+                onArchive(e)
+                setShowMenu(false)
               }}
             >
-              <button
-                className="conversation-menu-item w-100 text-start"
-                onClick={(e) => {
-                  e.stopPropagation()
-                  onArchive(e)
-                  setShowMenu(false)
-                }}
-              >
-                <i className={`fas ${conversation.archived ? 'fa-inbox' : 'fa-archive'} me-2`}></i>
-                {conversation.archived ? 'Unarchive' : 'Archive'}
-              </button>
-              <button
-                className="conversation-menu-item conversation-menu-item-danger w-100 text-start"
-                onClick={(e) => {
-                  e.stopPropagation()
-                  onDelete(e)
-                  setShowMenu(false)
-                }}
-              >
-                <i className="fas fa-trash me-2"></i>
-                Delete
-              </button>
-            </div>
-          )}
-        </div>
-      }
-    />
+              <i className={`fas ${conversation.archived ? 'fa-inbox' : 'fa-archive'} me-2`}></i>
+              {conversation.archived ? 'Unarchive' : 'Archive'}
+            </button>
+            <button
+              className="conversation-menu-item conversation-menu-item-danger w-100 text-start"
+              onClick={(e) => {
+                e.stopPropagation()
+                onDelete(e)
+                setShowMenu(false)
+              }}
+            >
+              <i className="fas fa-trash me-2"></i>
+              Delete
+            </button>
+          </div>
+        )}
+      </div>
+    </div>
   )
 }

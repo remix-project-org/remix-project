@@ -70,6 +70,8 @@ export interface ChatHistoryComponentProps {
   onOpenFileChange?: (change: AIFileChangeRecord) => void
   /** The thinking indicator, held for a minimum dwell by the parent. */
   showThinking?: boolean
+  /** Tool calls waiting for the user's decision: the answer waits instead of thinking */
+  pendingApprovalCount?: number
 }
 
 interface AiChatIntroProps {
@@ -118,6 +120,13 @@ const ThinkingDots = () => (
   </div>
 )
 
+const WaitingForApproval: React.FC<{ count: number }> = ({ count }) => (
+  <div className="ai-waiting" data-id="ai-waiting-approval">
+    <span className="ai-waiting-dot"></span>
+    {count > 1 ? `Waiting for your approval on ${count} changes` : 'Waiting for your approval'}
+  </div>
+)
+
 const AssistantHead: React.FC<{ theme: string }> = ({ theme }) => (
   <div className="ai-turn-head">
     <img src={theme && theme.toLowerCase() === 'dark' ? assistantAvatar : assitantAvatarLight} alt="RemixAI" className="ai-turn-icon" />
@@ -131,9 +140,10 @@ const AssistantHead: React.FC<{ theme: string }> = ({ theme }) => (
  */
 const AgentActivity: React.FC<{ msg: ChatMessage, live: boolean }> = ({ msg, live }) => {
   const [open, setOpen] = useState(false)
-  const steps = msg.toolSteps ?? []
+  const allSteps = msg.toolSteps ?? []
 
   if (live) {
+    const steps = allSteps
     const lines: { label: string, state: 'done' | 'failed' | 'live' }[] = steps.map(step => ({
       label: step.label,
       state: step.status === 'running' ? 'live' : step.status
@@ -160,16 +170,27 @@ const AgentActivity: React.FC<{ msg: ChatMessage, live: boolean }> = ({ msg, liv
     )
   }
 
-  if (steps.length === 0) return null
+  // The user's decisions stay visible; the tools fold into one line
+  const steps = allSteps.filter(step => step.kind !== 'decision')
+  const decisions = allSteps.filter(step => step.kind === 'decision')
+  if (steps.length === 0 && decisions.length === 0) return null
   return (
     <div className="ai-activity" data-id="ai-activity">
-      <button type="button" className="ai-activity-line ai-activity-toggle" aria-expanded={open} onClick={() => setOpen(!open)} data-id="ai-activity-toggle">
-        <i className="fas fa-check"></i>
-        <span>Used {steps.length} {steps.length === 1 ? 'tool' : 'tools'}</span>
-        <i className={`fas fa-chevron-${open ? 'down' : 'right'} ai-activity-chevron`}></i>
-      </button>
+      {steps.length > 0 && (
+        <button type="button" className="ai-activity-line ai-activity-toggle" aria-expanded={open} onClick={() => setOpen(!open)} data-id="ai-activity-toggle">
+          <i className="fas fa-check"></i>
+          <span>Used {steps.length} {steps.length === 1 ? 'tool' : 'tools'}</span>
+          <i className={`fas fa-chevron-${open ? 'down' : 'right'} ai-activity-chevron`}></i>
+        </button>
+      )}
       {open && steps.map((step, i) => (
         <div key={i} className="ai-activity-line ai-activity-sub">
+          <span>{step.label}</span>
+        </div>
+      ))}
+      {decisions.map((step, i) => (
+        <div key={`decision-${i}`} className="ai-activity-line" data-id="ai-approval-decision">
+          <i className={step.status === 'failed' ? 'fas fa-xmark' : 'fas fa-check'}></i>
           <span>{step.label}</span>
         </div>
       ))}
@@ -221,7 +242,8 @@ export const ChatHistoryComponent: React.FC<ChatHistoryComponentProps> = ({
   onOpenFileChange,
   onUiComponentAnswered,
   handleLoadSkills,
-  showThinking = false
+  showThinking = false,
+  pendingApprovalCount = 0
 }) => {
   const [expandedPromptIds, setExpandedPromptIds] = useState<Set<string>>(new Set())
 
@@ -268,7 +290,10 @@ export const ChatHistoryComponent: React.FC<ChatHistoryComponentProps> = ({
             (msg.currentTask && msg.taskStatus === 'running') ||
             (msg.todos && msg.todos.length > 0) ||
             msg.dappUpdateReview?.status === 'pending' ||
-            msg.uiComponent
+            msg.uiComponent ||
+            msg.error ||
+            msg.stopped ||
+            msg.toolSteps?.some(step => step.kind === 'decision')
           )
 
           if (msg.role === 'assistant' && !hasContent && !hasAssistantActivity) return null
@@ -392,7 +417,21 @@ export const ChatHistoryComponent: React.FC<ChatHistoryComponentProps> = ({
                   </div>
                 )}
 
-                {isLast && (isLive || showThinking) && <ThinkingDots />}
+                {msg.role === 'assistant' && msg.error && (
+                  <div className="ai-answer-error" data-id="ai-answer-error">
+                    <i className="fas fa-exclamation-circle"></i>
+                    <span>{msg.error}</span>
+                  </div>
+                )}
+
+                {msg.role === 'assistant' && msg.stopped && (
+                  <div className="ai-answer-stopped" data-id="ai-answer-stopped">
+                    <i className="fas fa-stop"></i>
+                    Stopped
+                  </div>
+                )}
+
+                {isLast && (isLive || showThinking) && (pendingApprovalCount > 0 ? <WaitingForApproval count={pendingApprovalCount} /> : <ThinkingDots />)}
 
                 {msg.role === 'assistant' && hasContent && !isLive && (
                   <div className="ai-answer-actions">
@@ -427,7 +466,7 @@ export const ChatHistoryComponent: React.FC<ChatHistoryComponentProps> = ({
       {waitingForAnswer && (
         <div className="ai-turn-ai">
           <AssistantHead theme={theme} />
-          <ThinkingDots />
+          {pendingApprovalCount > 0 ? <WaitingForApproval count={pendingApprovalCount} /> : <ThinkingDots />}
         </div>
       )}
     </div>

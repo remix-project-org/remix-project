@@ -30,6 +30,8 @@ export interface GenerativeUIPayload {
 export interface ToolStep {
   label: string
   status: 'running' | 'done' | 'failed'
+  /** 'decision': the user accepted or rejected a tool call; shown on its own line, not counted as a tool */
+  kind?: 'decision'
 }
 
 export interface ChatMessage {
@@ -75,6 +77,10 @@ export interface ChatMessage {
    * past would restart a finished exchange if clicked again.
    */
   uiComponentStale?: boolean
+  /** The request failed while writing this answer; shown under the partial answer */
+  error?: string
+  /** The user stopped this answer */
+  stopped?: boolean
 }
 
 /**
