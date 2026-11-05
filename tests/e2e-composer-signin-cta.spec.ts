@@ -50,7 +50,11 @@ test('composer shows a Sign in CTA when anonymous and reverts to send after sign
   await page.locator('[data-id="loginModalE2EPoolButton"]').click()
 
   // Plan-manager backdrop re-renders after login — dismiss it.
-  await page.locator('[data-id="planManagerCloseButton"]').click()
+  await page.waitForTimeout(2000)
+  try {
+    await expect(page.locator('[data-id="planManagerCloseButton"]')).toBeVisible({ timeout: 30000 })
+    await page.locator('[data-id="planManagerCloseButton"]').click()
+  } catch (_e) {} // not present
 
   // --- Authenticated composer ---
   // Sign-in CTA must be gone and the regular send button back.

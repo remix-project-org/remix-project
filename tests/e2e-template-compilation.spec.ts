@@ -33,11 +33,17 @@ for (const { templateValue, cardDataId, contractFile } of TEMPLATES) {
     test.setTimeout(120000)
 
     await page.goto(BASE_URL)
+    await page.waitForLoadState('networkidle')
 
     // Dismiss any notification popup
     try {
-      await page.getByTitle('Dismiss').waitFor({ state: 'visible', timeout: 30000 })
+      await expect(page.getByTitle('Dismiss')).toBeVisible({ timeout: 3000 })
       await page.getByTitle('Dismiss').click()
+    } catch { /* not present */ }
+    await page.waitForTimeout(2000)
+    try {
+      await expect(page.locator('[data-id="planManagerCloseButton"]')).toBeVisible({ timeout: 30000 })
+      await page.locator('[data-id="planManagerCloseButton"]').click()
     } catch { /* not present */ }
 
     // Ensure file panel is visible

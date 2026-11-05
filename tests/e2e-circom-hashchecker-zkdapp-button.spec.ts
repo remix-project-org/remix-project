@@ -32,6 +32,11 @@ test.describe.serial('Circom hashchecker: trusted setup, zk dapp button, and zkV
       await page.locator('[data-id="pm-free-plan-start"]').click()
       await page.locator('[data-id="loginModalE2EPoolButton"]').click()
       await expect(page.locator('[data-id="user-menu-compact"]').first()).toBeVisible({ timeout: 30_000 })
+      await page.waitForTimeout(2000)
+      try {
+        await expect(page.locator('[data-id="planManagerCloseButton"]')).toBeVisible({ timeout: 30000 })
+        await page.locator('[data-id="planManagerCloseButton"]').click();
+      } catch { /* not present */ }
       // await page.locator('[data-id="verticalIconsKindremixaiassistant"]').click()
       await page.locator('[data-id="ai-model-selector-btn"]').click()
       await page.locator('[data-id="ai-model-search"]').fill('haiku')

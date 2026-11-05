@@ -24,7 +24,11 @@ test('test', async ({ page }) => {
   //await expect(page.getByText('Unlock more credits')).toBeVisible();
   await expect(page.locator('[data-id="planManagerNav-plans"]')).toBeVisible();
   await page.locator('[data-id="planManagerNav-plans"]').click();
-  await page.locator('[data-id="planManagerCloseButton"]').click();
+  await page.waitForTimeout(2000)
+  try {
+    await expect(page.locator('[data-id="planManagerCloseButton"]')).toBeVisible({ timeout: 30000 })
+    await page.locator('[data-id="planManagerCloseButton"]').click();
+  } catch (_e) {} // not present
 
   // Switch to Mistral Medium for faster runs
   await page.locator('[data-id="ai-model-selector-btn"]').click();
