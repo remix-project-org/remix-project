@@ -55,7 +55,27 @@ const isSignInModel = (model: AIModel) => model.id === '__signin__'
 
 const isAutoModel = (model: AIModel) => isAutoModelId(model.id)
 
-/** Backend descriptions carry markdown emphasis; a one-line row shows plain text. */
+/** Models picked from this menu, most recent first (per browser). */
+const RECENT_MODELS_KEY = 'remix_ai_recent_models'
+const MAX_RECENT_MODELS = 3
+
+const readRecentModels = (): string[] => {
+  try {
+    const value = JSON.parse(localStorage.getItem(RECENT_MODELS_KEY) || '[]')
+    return Array.isArray(value) ? value.filter(key => typeof key === 'string') : []
+  } catch {
+    return []
+  }
+}
+
+const rememberRecentModel = (key: string) => {
+  try {
+    const next = [key, ...readRecentModels().filter(k => k !== key)].slice(0, MAX_RECENT_MODELS)
+    localStorage.setItem(RECENT_MODELS_KEY, JSON.stringify(next))
+  } catch {}
+}
+
+/** Backend descriptions carry markdown emphasis; the description strip shows plain text. */
 const plainText = (text: string) => (text || '').replace(/[*_`]/g, '').replace(/\s+/g, ' ').trim()
 
 /** The shape the locked / API key hand-offs expect (shared with GroupListMenu). */
@@ -84,57 +104,71 @@ const groupKeyState = (
   return states.some(state => state === 'needs-key') ? 'needs-key' : undefined
 }
 
-/** One entry the keyboard can land on, in screen order. */
+/** One entry the keyboard can land on, in screen order. A recent model also
+ *  sits in its provider, so `key` is prefixed for the recent copy. */
 interface MenuRow {
   key: string
   model?: AIModel
   pick: () => void
 }
 
+/** Why a row can't be picked: `short` sits on the row, `long` in the strip. */
+interface LockNote {
+  short?: string
+  long: string
+}
+
 interface ModelRowProps {
   model: AIModel
+  rowKey: string
+  dataId: string
   selected: boolean
   active: boolean
   needsKey: boolean
-  /** Text before the description of a locked row ("Requires Pro", "Coming soon"). */
-  lockNote?: string
+  lockNote?: LockNote
+  /** Recent rows mix providers, so they carry the brand icon. */
+  withIcon: boolean
+  /** Rows under a provider header sit indented under its name. */
   indent: boolean
   onHover: () => void
   onPick: () => void
 }
 
-const ModelRow: React.FC<ModelRowProps> = ({ model, selected, active, needsKey, lockNote, indent, onHover, onPick }) => {
-  const item = toItem(model)
-  const description = plainText(model.description)
-  const title = needsKey
-    ? 'Add your API key to use this model'
-    : lockNote ? [lockNote, description].filter(Boolean).join(' · ') : description
-  return (
-    <button
-      type="button"
-      className={`rai-mm-row ${indent ? 'is-indented' : ''} ${active ? 'is-active' : ''} ${needsKey ? 'is-dim' : ''}`}
-      data-id={item.dataId}
-      data-row={item.stateValue}
-      data-locked={item.isLocked ? 'true' : 'false'}
-      data-selected={selected ? 'true' : 'false'}
-      title={title || undefined}
-      onMouseMove={onHover}
-      onClick={onPick}
-    >
-      <span className="rai-mm-text">
-        <span className="rai-mm-name">{model.displayName}</span>
-        {(lockNote || description) && (
-          <span className="rai-mm-desc">
-            {lockNote && <span className="rai-mm-req">{lockNote}{description ? ' · ' : ''}</span>}
-            {description}
-          </span>
-        )}
-      </span>
-      {selected && <i className="fa-solid fa-check rai-mm-check"></i>}
-      {lockNote && <i className="fa-solid fa-lock rai-mm-lock"></i>}
-    </button>
-  )
-}
+/** One line per model: the description is in the strip under the list. */
+const ModelRow: React.FC<ModelRowProps> = ({ model, rowKey, dataId, selected, active, needsKey, lockNote, withIcon, indent, onHover, onPick }) => (
+  <button
+    type="button"
+    className={`rai-mm-row ${indent ? 'is-indented' : ''} ${active ? 'is-active' : ''} ${needsKey ? 'is-dim' : ''}`}
+    data-id={dataId}
+    data-row={rowKey}
+    data-locked={model.available ? 'false' : 'true'}
+    data-selected={selected ? 'true' : 'false'}
+    onMouseMove={onHover}
+    onClick={onPick}
+  >
+    {withIcon && <span className={`rai-mm-brand ${selected ? 'is-on' : ''}`}>{providerIcon(modelVendor(model))}</span>}
+    <span className="rai-mm-name">{model.displayName}</span>
+    {lockNote?.short && <span className="rai-mm-note">{lockNote.short}</span>}
+    {selected && <i className="fa-solid fa-check rai-mm-check"></i>}
+    {lockNote && <i className="fa-solid fa-lock rai-mm-lock"></i>}
+  </button>
+)
+
+/** What the highlighted (or selected) model is for, at a fixed height so the
+ *  list above never resizes under the pointer. */
+const DetailStrip: React.FC<{ model?: AIModel, note?: string }> = ({ model, note }) => (
+  <div className="rai-mm-detail" data-id="ai-model-detail">
+    {model
+      ? <>
+        <span className="rai-mm-detail-name">{model.displayName}</span>
+        <span className="rai-mm-detail-text">
+          {note && <span className="rai-mm-req">{note}{model.description ? ' · ' : ''}</span>}
+          {plainText(model.description)}
+        </span>
+      </>
+      : <span className="rai-mm-detail-text">Hover a model to see what it is for</span>}
+  </div>
+)
 
 interface ProviderGroup {
   provider: string
@@ -185,12 +219,16 @@ export default function ModelSelectorMenu(props: ModelSelectorMenuProps) {
   const isVisible = (model: AIModel) =>
     model.available || needsKey(model) || lockedLeadsToPlans || lockedComingSoon
 
-  const lockNote = (model: AIModel): string | undefined => {
-    if (model.available || needsKey(model)) return undefined
-    if (lockedComingSoon) return 'Coming soon'
+  const lockNote = (model: AIModel): LockNote | undefined => {
+    if (model.available || needsKey(model) || isSignInModel(model)) return undefined
+    if (lockedComingSoon) return { short: 'Soon', long: 'Coming soon' }
     const plan = model.requiredFeature ? props.getRequiredPlanName?.(model.requiredFeature) : null
-    return plan ? `Requires ${plan}` : 'Requires an upgrade'
+    return plan ? { short: plan, long: `Requires ${plan}` } : { long: 'Requires an upgrade' }
   }
+
+  /** Strip text in front of the description. */
+  const detailNote = (model: AIModel) =>
+    needsKey(model) ? 'Needs your API key' : lockNote(model)?.long
 
   // Ungrouped row shown above the providers when signed out.
   const signInModels = useMemo(
@@ -263,6 +301,7 @@ export default function ModelSelectorMenu(props: ModelSelectorMenuProps) {
       props.onLockedItemClick?.(item)
     } else {
       close()
+      rememberRecentModel(item.stateValue)
       props.setChoice(item.stateValue)
     }
   }
@@ -271,16 +310,26 @@ export default function ModelSelectorMenu(props: ModelSelectorMenuProps) {
   const showAutoRow = !!autoModel && (!cheapOnly || isCheapModel(autoModel)) && matchesQuery(autoModel)
   const autoSelected = props.currentChoice === autoValue
 
+  // The last models picked here, still on offer; hidden while searching.
+  const [recentKeys] = useState(readRecentModels)
+  const recentModels = searching ? [] : recentKeys
+    .map(key => props.availableModels.find(m => modelKey(m) === key))
+    .filter((m): m is AIModel => !!m && m.available && !isSignInModel(m) && !isAutoModel(m) && (!cheapOnly || isCheapModel(m)))
+
   // Rows the arrow keys walk through, in screen order.
   const rows: MenuRow[] = [
-    ...(showAutoRow ? [{ key: autoValue, pick: () => { close(); props.setChoice(autoValue) } }] : []),
+    ...(showAutoRow ? [{ key: autoValue, model: autoModel, pick: () => { close(); props.setChoice(autoValue) } }] : []),
     ...(searching ? [] : signInModels).map(model => ({ key: modelKey(model), model, pick: () => pickModel(model) })),
+    ...recentModels.map(model => ({ key: `recent:${modelKey(model)}`, model, pick: () => pickModel(model) })),
     ...shownGroups.flatMap(group => isOpen(group.provider)
       ? group.rows.map(model => ({ key: modelKey(model), model, pick: () => pickModel(model) }))
       : [])
   ]
   const [active, setActive] = useState(-1)
   const activeKey = rows[active]?.key
+  // Only the arrow keys scroll the active row into view: on hover, scrolling
+  // would move another row under the pointer and the highlight would jump.
+  const movedByKey = useRef(false)
   const scrollRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -288,7 +337,8 @@ export default function ModelSelectorMenu(props: ModelSelectorMenuProps) {
   }, [normalizedQuery, cheapOnly])
 
   useEffect(() => {
-    if (!activeKey) return
+    if (!activeKey || !movedByKey.current) return
+    movedByKey.current = false
     const el = Array.from(scrollRef.current?.querySelectorAll<HTMLElement>('[data-row]') ?? [])
       .find(row => row.dataset.row === activeKey)
     el?.scrollIntoView({ block: 'nearest' })
@@ -300,9 +350,11 @@ export default function ModelSelectorMenu(props: ModelSelectorMenuProps) {
       close()
     } else if (e.key === 'ArrowDown') {
       e.preventDefault()
+      movedByKey.current = true
       setActive(i => Math.min(rows.length - 1, i + 1))
     } else if (e.key === 'ArrowUp') {
       e.preventDefault()
+      movedByKey.current = true
       setActive(i => Math.max(0, i - 1))
     } else if (e.key === 'Enter' && rows[active]) {
       e.preventDefault()
@@ -315,27 +367,36 @@ export default function ModelSelectorMenu(props: ModelSelectorMenuProps) {
     if (index !== active) setActive(index)
   }
 
-  const renderRow = (model: AIModel, indent: boolean) => {
+  const renderRow = (model: AIModel, recent = false) => {
     const key = modelKey(model)
+    const rowKey = recent ? `recent:${key}` : key
+    const dataId = toItem(model).dataId
     return (
       <ModelRow
-        key={key}
+        key={rowKey}
         model={model}
+        rowKey={rowKey}
+        dataId={recent ? dataId.replace(/^ai-model-/, 'ai-model-recent-') : dataId}
         selected={model.available && props.currentChoice === key}
-        active={activeKey === key}
+        active={activeKey === rowKey}
         needsKey={needsKey(model)}
-        lockNote={isSignInModel(model) ? undefined : lockNote(model)}
-        indent={indent}
-        onHover={hover(key)}
+        lockNote={lockNote(model)}
+        withIcon={recent}
+        indent={!recent && !isSignInModel(model)}
+        onHover={hover(rowKey)}
         onPick={() => pickModel(model)}
       />
     )
   }
 
+  // The strip describes the highlighted row, else the current choice.
+  const detailModel = rows[active]?.model ?? (autoSelected ? autoModel : selectedModel)
+
   return (
     <div
       data-id="ai-model-selector-menu"
       onKeyDown={handleKeyDown}
+      onMouseLeave={() => { if (!searching) setActive(-1) }}
       className="d-flex flex-column"
       style={{ flex: '1 1 auto', minHeight: 0, overflow: 'hidden' }}
     >
@@ -370,15 +431,19 @@ export default function ModelSelectorMenu(props: ModelSelectorMenuProps) {
             }}
           >
             <span className="rai-mm-brand rai-mm-auto-icon"><i className="fa-solid fa-magic-wand-sparkles"></i></span>
-            <span className="rai-mm-text">
-              <span className="rai-mm-name">{autoModel?.displayName || 'Auto'}<span className="rai-mm-rec">Recommended</span></span>
-              {autoModel?.description && <span className="rai-mm-desc" title={plainText(autoModel.description)}>{plainText(autoModel.description)}</span>}
-            </span>
+            <span className="rai-mm-name">{autoModel?.displayName || 'Auto'}<span className="rai-mm-rec">Recommended</span></span>
             {autoSelected && <i className="fa-solid fa-check rai-mm-check"></i>}
           </button>
         )}
 
-        {!searching && signInModels.map(model => renderRow(model, false))}
+        {!searching && signInModels.map(model => renderRow(model))}
+
+        {recentModels.length > 0 && (
+          <div className="rai-mm-recent" data-id="ai-model-recent">
+            <div className="rai-mm-caption">Recent</div>
+            {recentModels.map(model => renderRow(model, true))}
+          </div>
+        )}
 
         {cheapOnly && groups.length === 0 && (
           <div className="rai-mm-empty" data-id="ai-model-cheap-empty">
@@ -446,7 +511,7 @@ export default function ModelSelectorMenu(props: ModelSelectorMenuProps) {
               </button>
               {open && (
                 <div className="rai-mm-models">
-                  {group.rows.map(model => renderRow(model, true))}
+                  {group.rows.map(model => renderRow(model))}
                   {group.provider === 'ollama' && props.ollamaSection}
                 </div>
               )}
@@ -454,6 +519,8 @@ export default function ModelSelectorMenu(props: ModelSelectorMenuProps) {
           )
         })}
       </div>
+
+      <DetailStrip model={detailModel} note={detailModel ? detailNote(detailModel) : undefined} />
     </div>
   )
 }
