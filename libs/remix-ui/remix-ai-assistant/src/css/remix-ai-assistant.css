@@ -853,22 +853,33 @@ body.light .chat-history-sidebar .sidebar-header {
   border-bottom: 1px solid #dee2e6 !important;
 }
 
-/* Back button for non-maximized mode */
-.chat-history-back-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.5rem;
-  padding: 0.5rem 1rem;
-  background-color: transparent;
-  border: none;
-  color: var(--bs-body-color);
-  cursor: pointer;
-  font-size: 1rem;
-  transition: background-color 0.2s ease;
+/* "Back to chat" row above the history / changes panels (non-maximized mode) */
+.ai-panel-back-row {
+  padding: 6px 8px;
 }
 
-.chat-history-back-btn:hover {
-  background-color: rgba(0, 0, 0, 0.05);
+.ai-panel-back-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 8px;
+  background: transparent;
+  border: none;
+  border-radius: 6px;
+  color: var(--bs-secondary-color);
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.ai-panel-back-btn i {
+  font-size: 10px;
+}
+
+.ai-panel-back-btn:hover,
+.ai-panel-back-btn:focus-visible {
+  color: var(--bs-emphasis-color);
+  background-color: var(--custom-onsurface-layer-1);
 }
 
 /* Sidebar header styling */
