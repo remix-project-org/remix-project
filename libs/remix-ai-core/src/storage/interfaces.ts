@@ -26,6 +26,12 @@ export interface GenerativeUIPayload {
   title?: string
 }
 
+/** One tool call of an answer, as shown in its activity lines. */
+export interface ToolStep {
+  label: string
+  status: 'running' | 'done' | 'failed'
+}
+
 export interface ChatMessage {
   id: string
   role: 'user' | 'assistant' | 'editor_code_analysis'
@@ -38,6 +44,11 @@ export interface ChatMessage {
   executingToolName?: string
   executingToolArgs?: Record<string, any>
   executingToolUIString?: string
+  /**
+   * The tools this answer ran, in order. Optional: conversations saved
+   * before it was added load without it.
+   */
+  toolSteps?: ToolStep[]
   currentTask?: string
   taskStatus?: 'running' | 'completed'
   activeSubagent?: string

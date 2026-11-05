@@ -280,14 +280,6 @@ mark,
   font-style: italic;
 }
 
-/* Improve chat bubble styling for better contrast */
-.chat-bubble {
-  background: var(--custom-onsurface-layer-2) !important;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-  border-radius: 8px 0 8px 8px;
-  padding: 12px 16px;
-}
-
 /* Better scrollbar for code blocks */
 .ai-code-pre::-webkit-scrollbar {
   height: 8px;
@@ -333,33 +325,6 @@ mark,
   }
 }
 
-
-
-.aiMarkup {
-  display: block;
-  white-space: normal;
-  line-height: var(--bs-body-line-height, 1.5);
-}
-
-/* remove default margins inside elements. Bootstrap is just too generous here.*/
-.aiMarkup :where(p, h1, h2, h3, h4, h5, h6, ul, ol, pre, blockquote, table, hr) {
-  margin: 0 !important;
-}
-
-/* Add clean vertical spacing between elements.*/
-.aiMarkup > :where(* + *) {
-  margin-top: .95rem;
-}
-
-
-.aiMarkup :where(li + li) { margin-top: .45rem; }
-.aiMarkup pre { margin-top: .45rem; }
-
-.aiMarkup :where(h1) { margin-top: 1rem; }
-.aiMarkup :where(h2) { margin-top: .95rem; }
-.aiMarkup :where(h3) { margin-top: .85rem; }
-
-.aiMarkup hr { margin: .95rem 0; }
 
 /* CustomTooltip's popover otherwise inherits --bs-popover-bg: var(--bs-body-bg), which is
    identical to the page background it often sits over — making it nearly invisible. Mixing
