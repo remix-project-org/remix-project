@@ -20,9 +20,9 @@ export type GithubItem = {
 }
 
 export const githubFolderResolver = async (url, obj = {}, maxDepth, depth?, rootPath?) => {
-  depth = depth ? depth : 0
+  depth = depth || 0
   const child = await pullFolder(url)
-  depth = depth++
+  depth = depth + 1
   const urlObj = new URL(url);
   const pathname = urlObj.pathname;
   const pathParts = pathname.split('/');
@@ -32,6 +32,7 @@ export const githubFolderResolver = async (url, obj = {}, maxDepth, depth?, root
   if (!Array.isArray(child)) return obj
   for (const item of child) {
     if (item.type === 'file') {
+      if (!item.download_url) continue
       const response: AxiosResponse = await axios.get(item.download_url)
       obj[item.path.replace(rootPath, '')] = response.data
     } else if (maxDepth > depth) {
