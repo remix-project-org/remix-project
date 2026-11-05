@@ -15,7 +15,7 @@ module.exports = {
       .click('[data-id="movePluginToRight"]')
       .waitForElementVisible('[data-id="movePluginToLeft"]')
       .waitForElementVisible('.right-side-panel h6[data-id="sidePanelSwapitTitle"]')
-      .clickLaunchIcon('filePanel')
+      // .clickLaunchIcon('filePanel')
       .assert.containsText('.sidepanel h6[data-id="sidePanelSwapitTitle"]', 'FILE EXPLORER')
       .assert.containsText('.right-side-panel h6[data-id="sidePanelSwapitTitle"]', 'SOLIDITY COMPILER')
   },

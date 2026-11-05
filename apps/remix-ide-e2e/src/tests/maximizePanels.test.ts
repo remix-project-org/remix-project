@@ -13,7 +13,8 @@ module.exports = {
       .click('*[data-id="movePluginToRight"]')
       .waitForElementVisible('*[data-pinnedPlugin="movePluginToLeft-solidity"]')
       .waitForElementVisible('.codicon-layout-sidebar-right')
-      .clickLaunchIcon('filePanel')
+      // Removed .clickLaunchIcon('filePanel') because it toggles off the already-active file panel, hiding the left panel
+      .waitForElementVisible('#side-panel') // Ensure left panel is still visible after moving plugin
   },
   'Maximize right side panel #group1': function (browser: NightwatchBrowser) {
     browser

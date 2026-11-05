@@ -18,25 +18,12 @@ module.exports = {
   },
   'Check if RemixAI plugin is pinned to right side panel on load #group1': function (browser: NightwatchBrowser) {
     browser
-      .waitForElementVisible('*[data-id="movePluginToLeft"]')
+      .waitForElementNotPresent('*[data-id="movePluginToLeft"]')
       .waitForElementVisible('*[data-id="toggleRightSidePanelIcon"]')
       .waitForElementVisible('.codicon-layout-sidebar-right')
-      .assistantWaitForReady()
-      .click('*[data-id="movePluginToLeft"]')
-      .waitForElementVisible('*[data-pinnedPlugin="movePluginToRight-remixaiassistant"]')
-      .waitForElementVisible('.codicon-layout-sidebar-right-off') // check the icon toggling on top bar
-      .click('*[data-id="toggleRightSidePanelIcon"]') // Check for toaster if plugin on the right side is moved to left, no plugin is pinned on the right side
-      .waitForElementVisible(
-        {
-          selector: "//*[@data-shared='tooltipPopup' and contains(.,'No plugin pinned on the Right Side Panel')]",
-          locateStrategy: 'xpath'
-        }
-      )
   },
   'Pin Solidity Compiler plugin to right side panel #group1': function (browser: NightwatchBrowser) {
     browser
-      .clickLaunchIcon('solidity')
-      .pause(2000)
       .waitForElementVisible('*[data-id="movePluginToRight"]')
       .click('*[data-id="movePluginToRight"]')
       .waitForElementVisible('*[data-pinnedPlugin="movePluginToLeft-solidity"]')

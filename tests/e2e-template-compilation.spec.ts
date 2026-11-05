@@ -1,6 +1,12 @@
-import { test, expect } from '@playwright/test'
+import { test, expect, Page } from '@playwright/test'
 
 const BASE_URL = 'http://127.0.0.1:8080/'
+
+async function removeOverlays (page: Page) {
+  await page.evaluate(() => {
+    document.querySelectorAll('#nudge-widget-container, .nudge-widget, .nudge-modal-backdrop, .nudge-decoration, .modal-backdrop').forEach((el) => el.remove())
+  })
+}
 
 interface TemplateConfig {
   templateValue: string
@@ -40,6 +46,9 @@ for (const { templateValue, cardDataId, contractFile } of TEMPLATES) {
       await page.getByTitle('Dismiss').click()
     } catch { /* not present */ }
 
+    // Remove any overlay elements that might intercept clicks
+    await removeOverlays(page)
+
     // Ensure file panel is visible
     await page.locator('[data-id="verticalIconsKindfilePanel"]').click()
 
@@ -49,6 +58,7 @@ for (const { templateValue, cardDataId, contractFile } of TEMPLATES) {
     await page.locator('[data-id="workspacesSelect"]').click()
 
     // Click "Create" workspace in the dropdown
+    await removeOverlays(page)  // Remove overlays again before clicking
     await page.locator('[data-id="workspacecreate"]').waitFor({ state: 'visible', timeout: 10000 })
     await page.locator('[data-id="workspacecreate"]').click()
 
