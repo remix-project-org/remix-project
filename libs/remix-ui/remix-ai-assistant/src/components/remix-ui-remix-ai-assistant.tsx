@@ -3721,7 +3721,6 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
                         conversations={props.conversations}
                         currentConversationId={props.currentConversationId || null}
                         showArchived={showArchivedConversations}
-                        onNewConversation={props.onNewConversation || (() => {})}
                         onLoadConversation={async (id) => {
                           await props.onLoadConversation?.(id)
                           // Opening an archived conversation unarchives it: show the chat history next time
@@ -3807,7 +3806,6 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
               conversations={props.conversations}
               currentConversationId={props.currentConversationId || null}
               showArchived={showArchivedConversations}
-              onNewConversation={props.onNewConversation || (() => {})}
               onLoadConversation={async (id) => {
                 await props.onLoadConversation?.(id)
                 setShowArchivedConversations(false)

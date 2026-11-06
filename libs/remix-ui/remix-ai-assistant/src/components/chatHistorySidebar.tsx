@@ -10,7 +10,6 @@ interface ChatHistorySidebarProps {
   conversations: ConversationMetadata[]
   currentConversationId: string | null
   showArchived: boolean
-  onNewConversation: () => void
   onLoadConversation: (id: string) => Promise<void>
   onArchiveConversation: (id: string) => Promise<void>
   onDeleteConversation: (id: string) => Promise<void>
@@ -50,7 +49,6 @@ export const ChatHistorySidebar: React.FC<ChatHistorySidebarProps> = ({
   conversations,
   currentConversationId,
   showArchived,
-  onNewConversation,
   onLoadConversation,
   onArchiveConversation,
   onDeleteConversation,
