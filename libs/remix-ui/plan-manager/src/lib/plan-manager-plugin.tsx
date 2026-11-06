@@ -17,7 +17,7 @@
 
 import { ViewPlugin } from '@remixproject/engine-web'
 import React, { useEffect, useMemo, useState, useSyncExternalStore } from 'react'
-import { PluginViewWrapper, DISCORD_URL } from '@remix-ui/helper'
+import { PluginViewWrapper, DISCORD_URL, CustomTooltip } from '@remix-ui/helper'
 // Paddle singleton lives next to this plugin now — `@remix-ui/billing` was
 // removed when Plan Manager became the sole billing surface.
 import { initPaddle, getPaddle, openCheckoutWithTransaction, onPaddleEvent, offPaddleEvent, previewPrices } from './paddle-singleton'
@@ -4397,20 +4397,25 @@ const CreditCapacityPanel: React.FC<{ credits: number | null; creditLabel?: stri
         {rows.map(row => {
           const shortTitle = row.title.replace(/ \(.*\)$/, '')
           return (
-            <div
+            <CustomTooltip
               key={row.id}
-              className="pm-capacity__card"
-              title={`~${row.avgCost.toLocaleString()} credits on average · actual cost depends on model, contract and conversation`}
-              data-id={`pm-credit-capacity-${row.id}`}
+              placement="top"
+              tooltipId={`pm-credit-capacity-tip-${row.id}`}
+              tooltipText={`~${row.avgCost.toLocaleString()} credits on average · actual cost depends on model, contract and conversation`}
             >
-              <span className="pm-capacity__card-count">
-                {credits === null ? `~${compactCredits(row.avgCost)}` : row.avgCount.toLocaleString()}
-              </span>
-              <span className="pm-capacity__card-task">
-                {credits === null ? shortTitle : pluralTitle(shortTitle, row.avgCount)}
-              </span>
-              {credits === null && <span className="pm-capacity__card-unit">credits</span>}
-            </div>
+              <div
+                className="pm-capacity__card"
+                data-id={`pm-credit-capacity-${row.id}`}
+              >
+                <span className="pm-capacity__card-count">
+                  {credits === null ? `~${compactCredits(row.avgCost)}` : row.avgCount.toLocaleString()}
+                </span>
+                <span className="pm-capacity__card-task">
+                  {credits === null ? shortTitle : pluralTitle(shortTitle, row.avgCount)}
+                </span>
+                {credits === null && <span className="pm-capacity__card-unit">credits</span>}
+              </div>
+            </CustomTooltip>
           )
         })}
       </div>
@@ -4521,7 +4526,9 @@ const QuotasPanel: React.FC<{
                   <span className="pm-quota__period">{periodWord} included</span>
                 </div>
                 {unlimited ? (
-                  <span className="pm-quota__badge pm-quota__badge--unlimited" title="Unlimited included usage">∞ Unlimited</span>
+                  <CustomTooltip placement="top" tooltipId="pm-quota-unlimited-tip" tooltipText="Unlimited included usage">
+                    <span className="pm-quota__badge pm-quota__badge--unlimited">∞ Unlimited</span>
+                  </CustomTooltip>
                 ) : (
                   <div className="pm-quota__counts">
                     <span className="pm-quota__used" data-id={`pm-quota-${slugId}-used`}>{q.used.toLocaleString()}</span>
@@ -5456,13 +5463,14 @@ const CartUpsellStep: React.FC<{
                 <span className="pm-cart-upsell__item-price">{fmtItemSubtotal(item)}</span>
               </div>
               {item.productType === 'credit_package' && (
-                <button
-                  className="pm-cart-upsell__item-remove"
-                  onClick={() => removePackage(item.slug)}
-                  title="Remove from cart"
-                >
-                  <i className="fas fa-times"></i>
-                </button>
+                <CustomTooltip placement="top" tooltipId={`pm-cart-remove-tip-${item.slug}`} tooltipText="Remove from cart">
+                  <button
+                    className="pm-cart-upsell__item-remove"
+                    onClick={() => removePackage(item.slug)}
+                  >
+                    <i className="fas fa-times"></i>
+                  </button>
+                </CustomTooltip>
               )}
             </li>
           ))}
@@ -5808,9 +5816,11 @@ const PaidPlansPanel: React.FC<{
                 <span className="pm-paid-panel__tab-name">{plan.name}</span>
                 {isCurrent && <span className="pm-paid-panel__tab-badge">CURRENT</span>}
                 {!isCurrent && planGift > 0 && (
-                  <span className="pm-paid-panel__tab-gift" title={`${planGift.toLocaleString()} bonus AI credits on sign-up`}>
-                    <i className="fas fa-gift" aria-hidden></i> +{formatCompactNumber(planGift)}
-                  </span>
+                  <CustomTooltip placement="top" tooltipId={`pm-plan-gift-tip-${plan.id}`} tooltipText={`${planGift.toLocaleString()} bonus AI credits on sign-up`}>
+                    <span className="pm-paid-panel__tab-gift">
+                      <i className="fas fa-gift" aria-hidden></i> +{formatCompactNumber(planGift)}
+                    </span>
+                  </CustomTooltip>
                 )}
               </span>
               <span className="pm-paid-panel__tab-price">{planPriceStr}/mo</span>
@@ -5851,13 +5861,12 @@ const PaidPlansPanel: React.FC<{
                   : 'Topped up automatically, every billing cycle'}
               </strong>
               {avgCapacityLine(creditsPerMonth) && (
-                <span
-                  className="pm-paid-panel__credits-capacity"
-                  title="Avg. across models. Actual results vary by model and contract."
-                >
-                  <i className="fas fa-arrow-right" aria-hidden></i>
-                  {avgCapacityLine(creditsPerMonth)}
-                </span>
+                <CustomTooltip placement="top" tooltipId="pm-paid-panel-capacity-tip" tooltipText="Avg. across models. Actual results vary by model and contract.">
+                  <span className="pm-paid-panel__credits-capacity">
+                    <i className="fas fa-arrow-right" aria-hidden></i>
+                    {avgCapacityLine(creditsPerMonth)}
+                  </span>
+                </CustomTooltip>
               )}
             </div>
           )}
@@ -6292,12 +6301,17 @@ const TopUpSection: React.FC<{
             // sqrt keeps the smallest pack visible next to the largest.
             const meterPct = maxCredits > 0 && credits > 0 ? Math.max(8, Math.round(Math.sqrt(credits / maxCredits) * 100)) : 0
             return (
-              <button
+              <CustomTooltip
                 key={t.id}
+                placement="top"
+                tooltipId={`pm-topup-unavail-tip-${t.id}`}
+                tooltipText="Pricing not available right now"
+                hide={!isUnavailable}
+              >
+              <button
                 className={`pm-topup__card ${isBest ? 'is-best' : ''} ${isPurchasing ? 'is-purchasing' : ''}`}
                 disabled={disabled}
                 onClick={() => { if (!disabled) onPurchase(t.id) }}
-                title={isUnavailable ? 'Pricing not available right now' : undefined}
                 data-id={`pm-topup-card-${t.id}`}
               >
                 <div className="pm-topup__badges">
@@ -6323,6 +6337,7 @@ const TopUpSection: React.FC<{
                       : <>Buy {credits > 0 ? compactCredits(credits) : ''} <i className="fas fa-arrow-right"></i></>}
                 </span>
               </button>
+              </CustomTooltip>
             )
           })}
         </div>
