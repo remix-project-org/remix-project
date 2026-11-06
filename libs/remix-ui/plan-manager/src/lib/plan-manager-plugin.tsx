@@ -3917,6 +3917,13 @@ const PlanManagerOverlay: React.FC<{
                   />
                 )}
 
+                {!checkoutActive && activeSection === 'credits' && ui.showCredits && (
+                  <CreditCapacityPanel
+                    credits={status.hasUnlimitedIncluded ? null : status.paidRemaining + status.includedRemaining}
+                    onTopUp={ui.showTopUps ? (() => setActiveSection('topup')) : undefined}
+                  />
+                )}
+
                 {/*
             Upgrade promo — only on the credits view, no alert already
             showing its own CTA.
@@ -3939,10 +3946,6 @@ const PlanManagerOverlay: React.FC<{
                     onUpgrade={() => setActiveSection('plans')}
                     onTopUp={() => setActiveSection('topup')}
                   />
-                )}
-
-                {!checkoutActive && activeSection === 'credits' && ui.showCredits && (
-                  <CreditCapacityPanel credits={status.hasUnlimitedIncluded ? null : status.paidRemaining + status.includedRemaining} />
                 )}
 
                 <main className="pm-main">
@@ -4348,60 +4351,71 @@ function useCapacityModel(): ReturnType<typeof profiledModels>[number] | undefin
 }
 
 /** Plan and top-up card line for the picked model: "≈ 7 gas audits + 2 security audits on Auto". */
-function capacityLine(credits: number, model: ReturnType<typeof useCapacityModel>): string | null {
-  const summary = model ? capacitySummary(credits, 2, TASK_COSTS, model.tier) : null
+function capacityLine(credits: number, model: ReturnType<typeof useCapacityModel>, limit = Infinity): string | null {
+  const summary = model ? capacitySummary(credits, limit, TASK_COSTS, model.tier) : null
   return summary && model ? `${summary} on ${model.label}` : null
 }
 
-const CreditCapacityPanel: React.FC<{ credits: number | null }> = ({ credits }) => {
+const CreditCapacityPanel: React.FC<{ credits: number | null; creditLabel?: string; onTopUp?: () => void }> = ({ credits, creditLabel, onTopUp }) => {
   const models = profiledModels()
   const model = useCapacityModel()
-  // Tasks the balance cannot fit even one run of are left out of the mix.
-  const rows = model ? taskCapacity(credits, TASK_COSTS, model.tier).filter((row) => credits === null || (row.counts[model.tier] ?? 0) > 0) : []
+  const rows = model
+    ? taskCapacity(credits, TASK_COSTS, model.tier)
+      .filter((row) => credits === null || (row.counts[model.tier] ?? 0) > 0)
+      .slice(0, 4)
+    : []
   if (!model || rows.length === 0) return null
 
+  const title = credits === null
+    ? 'Typical credit cost per task'
+    : creditLabel
+      ? `What you can do with ${creditLabel} credits`
+      : 'What you can do with your credits'
+
   return (
-    <section className="pm-quotas pm-capacity" aria-label="What you can do with your credits" data-id="pm-credit-capacity">
-      <div className="pm-quotas__head">
-        <div>
-          <div className="pm-quotas__eyebrow">{credits === null ? 'Typical cost' : 'With your balance'}</div>
-          <h3 className="pm-quotas__title">What you can do with your credits</h3>
-        </div>
-        <div className="pm-quotas__hint">
-          Measured {TASK_COSTS.measuredAt}{isStale() ? ' · may be outdated' : ''}
-        </div>
+    <section className="pm-capacity" aria-label={title} data-id="pm-credit-capacity">
+      <div className="pm-capacity__head">
+        <span className="pm-capacity__title">{title}</span>
+        <span className="pm-capacity__model-wrap">
+          <select
+            className="form-select form-select-sm pm-capacity__model-select"
+            value={model.tier}
+            onChange={(event) => capacityModel.set(event.target.value)}
+            aria-label="Model the numbers are for"
+            data-id="pm-credit-capacity-model"
+          >
+            {models.map((m) => <option key={m.tier} value={m.tier}>{m.label}</option>)}
+          </select>
+        </span>
+        <span className="pm-capacity__hint">Measured {TASK_COSTS.measuredAt}{isStale() ? ' · outdated' : ''}</span>
+        {onTopUp && (
+          <button className="pm-capacity__cta" onClick={onTopUp}>
+            Top up <i className="fas fa-arrow-right" aria-hidden></i>
+          </button>
+        )}
       </div>
-      <div className="pm-capacity__model">
-        <span>This depends strongly on the AI model: the same task can cost ten times more on one model than on another. The numbers below are for</span>
-        <select
-          className="form-select form-select-sm pm-capacity__model-select"
-          value={model.tier}
-          onChange={(event) => capacityModel.set(event.target.value)}
-          aria-label="Model the numbers are for"
-          data-id="pm-credit-capacity-model"
-        >
-          {models.map((m) => <option key={m.tier} value={m.tier}>{m.label}</option>)}
-        </select>
-      </div>
-      <div className="pm-quotas__list">
+      <div className="pm-capacity__cards">
         {rows.map((row) => {
           const count = row.counts[model.tier] ?? 0
+          const cost = row.costs[model.tier] ?? 0
+          const shortTitle = row.title.replace(/ \(.*\)$/, '')
           return (
-            <div className="pm-quota" key={row.id} data-id={`pm-credit-capacity-${row.id}`}>
-              <div className="pm-quota__label">
-                <span className="pm-quota__name">
-                  {credits === null ? row.title : `≈ ${count.toLocaleString()} ${pluralTitle(row.title, count)}`}
-                </span>
-                <span className="pm-capacity__detail">~{(row.costs[model.tier] ?? 0).toLocaleString()} credits each</span>
-              </div>
+            <div
+              key={row.id}
+              className="pm-capacity__card"
+              title={`~${cost.toLocaleString()} credits each · actual cost depends on the contract and conversation`}
+              data-id={`pm-credit-capacity-${row.id}`}
+            >
+              <span className="pm-capacity__card-count">
+                {credits === null ? `~${compactCredits(cost)}` : count.toLocaleString()}
+              </span>
+              <span className="pm-capacity__card-task">
+                {credits === null ? shortTitle : pluralTitle(shortTitle, count)}
+              </span>
+              {credits === null && <span className="pm-capacity__card-unit">credits</span>}
             </div>
           )
         })}
-      </div>
-      <div className="pm-capacity__note">
-        {credits !== null && 'These counts are one mix that fits your credits together.'}
-        Typical runs on {model.label}
-        {model.mostlyServed ? ` (mostly answered by ${model.mostlyServed})` : ''}. Actual cost depends on the contract and the conversation.
       </div>
     </section>
   )
@@ -5835,13 +5849,19 @@ const PaidPlansPanel: React.FC<{
               <span className="pm-paid-panel__credits-value" aria-label={`${creditsPerMonth.toLocaleString()} credits per month`}>
                 +{formatCompactNumber(Math.round(animatedCredits / 100) * 100)}
               </span>
-              <span className="pm-paid-panel__credits-note">
+              <strong className="pm-paid-panel__credits-note">
                 {selectedIsOneToOne
                   ? <>= <strong>100%</strong> of your plan price, every month</>
                   : 'Topped up automatically, every billing cycle'}
-              </span>
+              </strong>
               {capacityLine(creditsPerMonth, capacityFor) && (
-                <span className="pm-paid-panel__credits-note">{capacityLine(creditsPerMonth, capacityFor)}</span>
+                <span
+                  className="pm-paid-panel__credits-capacity"
+                  title="Based on typical usage. Actual results vary."
+                >
+                  <i className="fas fa-arrow-right" aria-hidden></i>
+                  {capacityLine(creditsPerMonth, capacityFor)}
+                </span>
               )}
             </div>
           )}
@@ -6048,6 +6068,7 @@ const PlansSection: React.FC<{
           Contact us <i className="fas fa-arrow-right" aria-hidden></i>
         </span>
       </a>
+
     </div>
   )
 }
@@ -6248,6 +6269,8 @@ const TopUpSection: React.FC<{
         </div>
       </div>
 
+      <CreditCapacityPanel credits={20000} creditLabel="20k" />
+
       {packages.length === 0 ? (
         <div className="pm-empty">
           <p>No top-up packages available during the Free plan.</p>
@@ -6295,11 +6318,14 @@ const TopUpSection: React.FC<{
                 <div className="pm-topup__meter" aria-hidden>
                   <span style={{ width: `${meterPct}%` }} />
                 </div>
+                {capacityLine(credits, capacityFor, 2) && (
+                  <div className="pm-topup__value-band">
+                    <i className="fas fa-bolt" aria-hidden></i>
+                    {capacityLine(credits, capacityFor, 2)}
+                  </div>
+                )}
                 <div className="pm-topup__price">{price}</div>
                 <div className="pm-topup__perk">{perKLabel}</div>
-                {capacityLine(credits, capacityFor) && (
-                  <div className="pm-topup__perk pm-topup__capacity">{capacityLine(credits, capacityFor)}</div>
-                )}
                 <span className="pm-topup__buy">
                   {isPurchasing
                     ? <><i className="fas fa-spinner fa-spin"></i> Opening…</>

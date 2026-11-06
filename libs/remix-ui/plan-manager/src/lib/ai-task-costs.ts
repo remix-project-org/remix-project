@@ -162,7 +162,7 @@ export function capacitySummary(credits: number, limit = 2, table: TaskCostTable
  * shows them (balance panel, plan cards, top-up packs) so one pick moves all
  * of them. Plain store for `useSyncExternalStore`.
  */
-let selectedTier: CostTier = 'default'
+let selectedTier: CostTier = 'haiku'
 const tierListeners = new Set<() => void>()
 
 export const capacityModel = {
