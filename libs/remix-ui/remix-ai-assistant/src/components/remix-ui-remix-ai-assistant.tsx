@@ -3342,11 +3342,11 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
     const openAbove = spaceAbove >= spaceBelow
     const maxHeight = Math.max(160, openAbove ? spaceAbove : spaceBelow)
 
-    // A fixed width anchored to the panel's right edge: opening a provider
-    // with longer descriptions wraps the text instead of widening the menu
-    // past the screen edge.
-    const right = window.innerWidth - containerRect.right + GAP
-    const width = Math.min(320, containerRect.width - 2 * GAP)
+    // A fixed width anchored to the input box's right edge (not the panel's:
+    // in AI mode the panel is full-width while the box is centred), so a
+    // provider with longer descriptions wraps instead of widening the menu.
+    const right = window.innerWidth - boxRect.right
+    const width = Math.min(320, boxRect.width)
 
     // Anchor by the edge nearest the button, NOT by measured menu height. When
     if (openAbove) {
