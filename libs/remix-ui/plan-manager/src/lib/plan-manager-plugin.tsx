@@ -253,7 +253,7 @@ export class PlanManagerPlugin extends ViewPlugin {
     // sign-out, so listeners stay in sync with auth for free.
     let lastResume: PendingCheckout[] = []
     this.store.subscribe(() => {
-      const next = this.store.getSnapshot().resumeCheckouts
+      const next = resumableCheckouts(this.store.getSnapshot())
       if (next !== lastResume) {
         lastResume = next
         this.emit('pendingCheckoutsChanged', next)
@@ -1993,7 +1993,7 @@ export class PlanManagerPlugin extends ViewPlugin {
    * event for live updates.
    */
   getPendingCheckouts(): PendingCheckout[] {
-    return this.store.getSnapshot().resumeCheckouts
+    return resumableCheckouts(this.store.getSnapshot())
   }
 
   /**
@@ -2919,7 +2919,9 @@ export class PlanManagerPlugin extends ViewPlugin {
   private markRegionBlocked(source: 'price_preview' | 'checkout_error' | 'server_check', countryCode?: string | null): void {
     if (this.store.getSnapshot().paymentsBlockedInRegion) return
     this.store.send({ type: 'REGION_PAYMENTS_BLOCKED' })
-    const country = countryCode ?? this.billingLocale?.countryCode ?? null
+    // Only the server's answer is trustworthy here: billingLocale may be a
+    // stale value from localStorage (e.g. from an earlier VPN session).
+    const country = countryCode ?? null
     reportCheckoutTelemetry('checkout.region_blocked', {
       errorCode: 'address_location_not_allowed',
       message: `Paddle won't accept payments from this location (${source})`,
@@ -3862,7 +3864,7 @@ const PlanManagerOverlay: React.FC<{
               pick back up. Always shown while a pending checkout exists (and
               we're not already inside checkout), so it stays in lock-step
               with the top-bar cart button. Not dismissible by design. */}
-                {!checkoutActive && snap.resumeCheckouts.length > 0 && (
+                {!checkoutActive && resumableCheckouts(snap).length > 0 && (
                   <ResumeCheckoutBanner
                     checkout={snap.resumeCheckouts[0]}
                     onResume={() => { void plugin.resumeCheckout(snap.resumeCheckouts[0].transaction_id) }}
@@ -5021,7 +5023,12 @@ const PADDLE_CONFIG_TIMEOUT_MS = 20_000
 
 /** Paddle's "we can't sell to this location" signals (price preview / checkout error). */
 const REGION_BLOCKED_RE = /address_location_not_allowed|unsupported location/i
-const REGION_BLOCKED_MESSAGE = 'Payments aren’t available in your region. Our payment provider can’t accept payments from your current location. If you’re using a VPN, turn it off or connect via another country and try again.'
+const REGION_BLOCKED_MESSAGE = 'Payments aren’t available in your region. Our payment provider can’t accept payments from your current location. If you’re using a VPN, turn it off and try again.'
+const NO_RESUMABLE_CHECKOUTS: PendingCheckout[] = []
+/** Unfinished checkouts worth offering — none when payments are blocked here, since resuming can only fail. */
+function resumableCheckouts(snap: PlanManagerSnapshot): PendingCheckout[] {
+  return snap.paymentsBlockedInRegion ? NO_RESUMABLE_CHECKOUTS : snap.resumeCheckouts
+}
 /** How long a payment may sit without an outcome before we explain what's happening. */
 const APPROVAL_HINT_DELAY_MS = 45_000
 /** How long to wait for a past_due renewal to recover after a payment method update. */
@@ -7435,7 +7442,7 @@ const CheckoutResultScreen: React.FC<{
         <h2 className="pm-result__title">Payments aren’t available in your region</h2>
         <p className="pm-result__body">
           Our payment provider can’t accept payments from your current location, so no checkout was started and nothing was charged.
-          If you’re using a VPN, turn it off or connect via another country, then reload Remix and try again.
+          If you’re using a VPN, turn it off, then reload Remix and try again.
         </p>
         <div className="pm-result__actions">
           <button className="pm-result__btn pm-result__btn--primary" onClick={onViewPlans}>
