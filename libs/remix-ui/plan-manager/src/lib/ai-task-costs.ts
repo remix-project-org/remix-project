@@ -47,7 +47,7 @@ export interface TaskCapacity {
 }
 
 /** Below this a task fails too often for "you can do N of these" to be honest. */
-export const MIN_SUCCESS_RATE = 0.8
+export const MIN_SUCCESS_RATE = 0.6
 /** Measurements older than this are flagged: prices and models move. */
 export const STALE_AFTER_DAYS = 60
 
