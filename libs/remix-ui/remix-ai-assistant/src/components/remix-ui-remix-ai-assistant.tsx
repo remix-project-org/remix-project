@@ -17,7 +17,7 @@ import { MatomoEvent, AIEvent, Features, PublicPlan, ChatPromptMetadata } from '
 //@ts-ignore
 import { TrackingContext } from '@remix-ide/tracking'
 import { ChatHistoryComponent } from './chat'
-import { ActivityType, ChatMessage, ConversationMetadata } from '../lib/types'
+import { ActivityType, ChatMessage, ConversationMetadata, assistantAvatar, assitantAvatarLight } from '../lib/types'
 import { useOnClickOutside } from './onClickOutsideHook'
 import { RemixAIAssistant } from 'apps/remix-ide/src/app/plugins/remix-ai-assistant'
 import ChatHistoryHeading from './chatHistoryHeading'
@@ -952,6 +952,22 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
 
       remixAILogger.log('[RemixAI Assistant] Tool call event:', data)
 
+      // A tool can run before the answer has any text (e.g. compiling first):
+      // its bubble starts here, so the chat shows what the agent is doing.
+      if (!streamingAssistantIdRef.current && data.status === 'start') {
+        const newId = crypto.randomUUID()
+        streamingAssistantIdRef.current = newId
+        setMessages(prev => [
+          ...prev,
+          {
+            id: newId,
+            role: 'assistant',
+            content: '',
+            timestamp: Date.now(),
+            sentiment: 'none'
+          }
+        ])
+      }
       const assistantId = streamingAssistantIdRef.current
       if (!assistantId) return
 
@@ -3387,7 +3403,9 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
       className="hitl-auto-accept-banner"
       data-id="hitl-auto-accept-banner"
     >
-      <span className="hitl-auto-accept-banner__text">Accepting changes automatically</span>
+      <span className="hitl-auto-accept-banner__text">
+        <i className="fas fa-bolt"></i>Auto-accept on
+      </span>
       <span aria-hidden="true">·</span>
       <button
         type="button"
@@ -3520,8 +3538,12 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
                 data-id="remix-ai-run-model"
                 title={`Auto selected ${runModel} for this answer`}
               >
-                <i className="fa-solid fa-wand-magic-sparkles rai-run-model__icon"></i>
-                <span className="rai-run-model__text">Using {runModelLabel}</span>
+                <img
+                  src={themeTracker?.name.toLowerCase() === 'dark' ? assistantAvatar : assitantAvatarLight}
+                  alt=""
+                  className="rai-run-model__icon"
+                />
+                <span className="rai-run-model__text">Using <span className="rai-run-model__name">{runModelLabel}</span></span>
               </div>
             </div>
           )}

@@ -80,7 +80,7 @@ interface AiChatIntroProps {
 
 const AiChatIntro: React.FC<AiChatIntroProps> = ({ theme }) => {
   return (
-    <div className="assistant-landing d-flex flex-column gap-1 mx-1 align-items-center justify-content-center text-center h-100 w-100" data-id="ai-assistant-landing">
+    <div className="assistant-landing d-flex flex-column gap-1 mx-1 align-items-center text-center h-100 w-100" data-id="ai-assistant-landing">
       <div className="d-flex align-items-center justify-content-center" style={{ width: '80px', height: '80px' }}>
         <img src={theme && theme.toLowerCase() === 'dark' ? assistantAvatar : assitantAvatarLight} alt="RemixAI logo" style={{ width: '48px', height: '48px' }} className="container-img" />
       </div>
@@ -355,7 +355,8 @@ export const ChatHistoryComponent: React.FC<ChatHistoryComponentProps> = ({
             <div key={msg.id} className="ai-turn-ai" data-id="ai-response-chat-bubble-section">
               {msg.role === 'assistant' && <AssistantHead theme={theme} />}
               <div className="ai-turn-body">
-                {msg.role === 'assistant' && <AgentActivity msg={msg} live={isLive} />}
+                {/* Finished: "Used N tools" above the answer. Live: under it, next to the dots. */}
+                {msg.role === 'assistant' && !isLive && <AgentActivity msg={msg} live={false} />}
                 {msg.role === 'assistant' && msg.todos && msg.todos.length > 0 && <TaskPlan todos={msg.todos} />}
                 {attachments}
                 {msg.attachments?.some(att => att.source === 'ai-capture') && (
@@ -430,6 +431,8 @@ export const ChatHistoryComponent: React.FC<ChatHistoryComponentProps> = ({
                     Stopped
                   </div>
                 )}
+
+                {msg.role === 'assistant' && isLive && <AgentActivity msg={msg} live />}
 
                 {isLast && (isLive || showThinking) && (pendingApprovalCount > 0 ? <WaitingForApproval count={pendingApprovalCount} /> : <ThinkingDots />)}
 

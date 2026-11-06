@@ -1,3 +1,12 @@
+/* Light theme greys for the AI panel, one set for every part of it. The
+   theme's own surface tokens are white in light (used app-wide), and the
+   page background (#eff1f5) is too close to a plain light grey hover. */
+:root {
+  --ai-light-hover: #e5e8ef;
+  --ai-light-bubble: #e2e6ee;
+  --ai-light-selected: #dde1ea;
+}
+
 .ai-assistant-introtop {
 
 }
@@ -205,7 +214,7 @@
 
 #remix-ai-prompt-area[data-theme="light"] {
   --ai-composer-box: #fff;
-  --ai-composer-hover: #eef0f5;
+  --ai-composer-hover: var(--ai-light-hover);
   --ai-ok: #138d75;
   --ai-warn: #b9770e;
   --ai-on-accent: #fff;
@@ -408,6 +417,10 @@
   color: var(--bs-secondary-color);
 }
 
+.ai-tip.is-hidden {
+  visibility: hidden;
+}
+
 .ai-tip-icon {
   margin-top: 2px;
   color: var(--custom-ai-color);
@@ -455,7 +468,7 @@
   right: 0.5rem;
   max-height: 360px;
   overflow-y: auto;
-  padding: 4px 0;
+  padding: 4px;
   border: 1px solid var(--bs-border-color);
   border-radius: 8px;
   background: var(--bs-body-bg);
@@ -464,7 +477,7 @@
 }
 
 .ai-menu-head {
-  padding: 6px 12px 2px;
+  padding: 6px 8px 2px;
   font-size: 10px;
   letter-spacing: 0.04em;
   text-transform: uppercase;
@@ -478,8 +491,9 @@
   gap: 8px;
   width: 100%;
   border: 0;
+  border-radius: 6px;
   background: none;
-  padding: 6px 12px;
+  padding: 6px 8px;
   text-align: left;
   font-size: 12px;
   color: var(--bs-body-color);
@@ -509,8 +523,6 @@
 .ai-menu-back {
   font-weight: 600;
   color: var(--bs-emphasis-color);
-  border-bottom: 1px solid var(--bs-border-color);
-  margin-bottom: 4px;
 }
 
 .ai-menu-back i {
@@ -530,12 +542,12 @@
 
 .ai-menu-sep {
   border-top: 1px solid var(--bs-border-color);
-  margin: 4px 0;
+  margin: 4px 8px;
 }
 
 .ai-menu-foot {
-  padding: 6px 12px 4px;
-  margin-top: 4px;
+  padding: 6px 0 2px;
+  margin: 4px 8px 0;
   border-top: 1px solid var(--bs-border-color);
   font-size: 11px;
   color: var(--bs-secondary-color);
@@ -1271,6 +1283,19 @@ body.dark .conversation-menu-item-danger:active i {
   color: var(--bs-secondary-color);
 }
 
+/* What is on stands out in the AI colour; Turn off stays quiet */
+.hitl-auto-accept-banner__text {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-weight: 500;
+  color: var(--custom-ai-color);
+}
+
+.hitl-auto-accept-banner__text i {
+  font-size: 9px;
+}
+
 .hitl-auto-accept-banner__btn {
   border: 0;
   background: none;
@@ -1289,13 +1314,11 @@ body.dark .conversation-menu-item-danger:active i {
 }
 
 /* --------------------------------------------------------
-   "Using <model>" strip — same geometry as the auto-accept
-   banner above it so the two stack as one column.
+   "Using <model>" line — a quiet note with the same geometry
+   as the auto-accept banner, so the two stack as one column.
 
-   The banner and this line hang off different parents, and
-   this one's parent paints a lighter strip: the full-bleed
-   row covers it with the panel background so only the inner
-   rounded box shows.
+   Its parent paints a lighter strip: the full-bleed row
+   covers it with the panel background.
    -------------------------------------------------------- */
 
 .rai-panel-strip {
@@ -1306,25 +1329,29 @@ body.dark .conversation-menu-item-danger:active i {
 .rai-run-model {
   display: flex;
   align-items: center;
-  padding: 4px 12px;
+  gap: 6px;
+  padding: 2px 4px;
   margin: 0 8px 4px;
-  border-radius: 6px;
-  font-size: 12px;
+  font-size: 11px;
   min-width: 0;
-  color: var(--bs-success);
-  background: color-mix(in srgb, var(--bs-success) 10%, var(--bs-body-bg));
-  border: 1px solid color-mix(in srgb, var(--bs-success) 22%, var(--bs-body-bg));
+  color: var(--bs-secondary-color);
 }
 
 .rai-run-model__icon {
-  font-size: 0.7rem;
-  margin-right: 6px;
+  width: 12px;
+  height: 12px;
+  flex-shrink: 0;
 }
 
 .rai-run-model__text {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.rai-run-model__name {
+  font-weight: 500;
+  color: var(--custom-ai-color);
 }
 
 /* --------------------------------------------------------
@@ -1489,8 +1516,9 @@ code {
 }
 
 [data-theme="light"] .remix-ai-model-selector {
-  --rai-hover: #eef0f5;
+  --rai-hover: var(--ai-light-hover);
   --rai-mm-head-bg: #e4e7ee;
+  --rai-mm-head-hover: var(--ai-light-selected);
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
 }
 
@@ -1576,7 +1604,7 @@ code {
 
 .remix-ai-model-selector .rai-mm-head:hover,
 .remix-ai-model-selector .rai-mm-head:focus-visible {
-  background: var(--rai-hover);
+  background: var(--rai-mm-head-hover, var(--rai-hover));
 }
 
 .remix-ai-model-selector .rai-mm-brand {
@@ -1661,21 +1689,24 @@ code {
   padding: 2px 0 4px;
 }
 
-/* Model rows: the name only, one line; the description is in the strip */
+/* Model rows: the name only, one line; the description is in the strip.
+   Inset and rounded like the "+" menu rows, so the hover never meets a header. */
 .remix-ai-model-selector .rai-mm-row {
   display: flex;
   align-items: center;
   gap: 8px;
-  width: 100%;
-  padding: 5px 12px;
+  width: calc(100% - 8px);
+  margin: 0 4px;
+  padding: 5px 8px;
   border: 0;
+  border-radius: 6px;
   background: none;
   color: var(--bs-body-color);
   text-align: left;
 }
 
 .remix-ai-model-selector .rai-mm-row.is-indented {
-  padding-left: 36px;
+  padding-left: 32px;
 }
 
 .remix-ai-model-selector .rai-mm-row.is-active {
@@ -1727,10 +1758,22 @@ code {
 }
 
 /* "Auto": the first entry, at the providers' level */
+/* The divider under Auto is its own straight line: the rounded row would bend a border */
 .remix-ai-model-selector .rai-mm-auto {
+  position: relative;
+  margin-top: 4px;
+  margin-bottom: 9px;
   padding-top: 7px;
   padding-bottom: 7px;
-  border-bottom: 1px solid var(--bs-border-color);
+}
+
+.remix-ai-model-selector .rai-mm-auto::after {
+  content: '';
+  position: absolute;
+  left: -4px;
+  right: -4px;
+  bottom: -5px;
+  border-top: 1px solid var(--bs-border-color);
 }
 
 /* Recent: the last models picked, across providers, under Auto */
@@ -1869,21 +1912,22 @@ code {
 /* AI mode: centered reading column. Content is capped at 860px
    while the background and scrollbar still span the full width.
    (!important beats the Bootstrap padding utilities on the sections.) */
-.ai-mode #remix-ai-chat-history,
 .ai-mode #remix-ai-prompt-area,
 .ai-mode .rai-panel-strip {
   padding-left: max(0.5rem, calc((100% - 860px) / 2)) !important;
   padding-right: max(0.5rem, calc((100% - 860px) / 2)) !important;
 }
 
-.ai-mode #remix-ai-chat-history.ai-chat-history {
-  padding-left: calc(max(0.5rem, calc((100% - 860px) / 2)) + 1rem) !important;
-  padding-right: calc(max(0.5rem, calc((100% - 860px) / 2)) + 1rem) !important;
+.ai-mode #remix-ai-chat-history .ai-transcript {
+  padding-left: calc(max(0.5rem, calc((100% - 860px) / 2)) + 1rem);
+  padding-right: calc(max(0.5rem, calc((100% - 860px) / 2)) + 1rem);
 }
 
 /* AI mode header: line "New chat" and the icons up with the input
    box edges (column padding + the prompt box's .mx-2). */
+/* Same height with or without a conversation (the labelled New Chat button is 1px taller) */
 .ai-mode .ai-mode-heading {
+  min-height: 48px;
   padding-left: calc(max(0.5rem, calc((100% - 860px) / 2)) + 0.5rem) !important;
   padding-right: calc(max(0.5rem, calc((100% - 860px) / 2)) + 0.5rem) !important;
 }
@@ -2070,7 +2114,8 @@ body.ai-panel-resizing {
 }
 
 /* The transcript sits 8px inside the input box edges */
-#remix-ai-chat-history.ai-chat-history {
+/* The side padding sits on the scrolling transcript, so its scrollbar is at the panel edge */
+#remix-ai-chat-history .ai-transcript {
   padding-left: 1rem;
   padding-right: 1rem;
 }
@@ -2094,8 +2139,8 @@ body.ai-panel-resizing {
 }
 
 [data-theme="light"] .ai-transcript {
-  --ai-hover: #eef0f5;
-  --ai-bubble: #e9edf4;
+  --ai-hover: var(--ai-light-hover);
+  --ai-bubble: var(--ai-light-bubble);
   --ai-code-bg: #f6f7fa;
   --ai-inline-code: rgba(0, 0, 0, 0.06);
   --ai-add: #138d75;
@@ -2219,6 +2264,12 @@ body.ai-panel-resizing {
 .ai-turn-head {
   display: flex;
   margin-bottom: 6px;
+}
+
+/* Empty chat: placed from the top by the window height, not centred in the
+   transcript, so tips, banners and the input growing below never move it */
+.assistant-landing {
+  padding-top: max(16px, calc(50vh - 220px));
 }
 
 .ai-turn-icon {
@@ -2733,8 +2784,8 @@ button.ai-change-line:hover {
 
 .ai-root[data-theme="light"] {
   --ai-surface: #fff;
-  --ai-surface-hover: #eef0f5;
-  --ai-field: #e4e7ee;
+  --ai-surface-hover: var(--ai-light-hover);
+  --ai-field: var(--ai-light-selected);
   --ai-args-bg: #f6f7fa;
   --ai-success: #138d75;
   --ai-danger: #c0392b;
@@ -3193,11 +3244,14 @@ button.ai-change-line:hover {
 }
 
 /* The time makes way for the menu button on hover, focus and while the menu is open */
+/* Centred without a transform: a transform would make the fixed menu inside it position against the row */
 .ai-conv .conversation-menu-trigger {
   position: absolute;
   right: 4px;
-  top: 50%;
-  transform: translateY(-50%);
+  top: 0;
+  bottom: 0;
+  display: flex;
+  align-items: center;
 }
 
 [role="button"].ai-conv:hover .ai-conv-time,

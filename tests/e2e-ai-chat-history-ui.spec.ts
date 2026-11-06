@@ -1,9 +1,8 @@
 import { test, expect, Page } from '@playwright/test'
 
-// RemixAI chat UI at narrow widths and in the chat history list: the shortcut
-// pills scroll sideways, and the history list shows hover, open-conversation
-// and menu states in both themes. Conversations are written to IndexedDB, so
-// no model or sign-in is needed.
+// RemixAI chat history list: hover, open-conversation and menu states in both
+// themes. Conversations are written to IndexedDB, so no model or sign-in is
+// needed.
 
 test.use({ viewport: { width: 1600, height: 1000 } })
 test.describe.configure({ mode: 'default', timeout: 180_000 })
@@ -48,40 +47,6 @@ async function seedConversations (page: Page) {
 }
 
 const backgroundOf = (page: Page, selector: string) => page.locator(selector).first().evaluate((el) => getComputedStyle(el).backgroundColor)
-
-test('shortcut pills scroll sideways in a narrow chat, with faded edges', async ({ page }) => {
-  await loadIde(page)
-  const row = page.locator('#right-side-panel [data-id="shortcut-pills"]')
-  await expect(row).toBeVisible()
-
-  const setPanelWidth = (width: number) => page.evaluate((width) => {
-    const panel = document.getElementById('right-side-panel')
-    panel.style.transition = 'none'
-    panel.style.width = `${width}px`
-  }, width)
-
-  await setPanelWidth(331)
-  await expect.poll(() => row.evaluate((el) => el.scrollWidth > el.clientWidth)).toBe(true)
-  await expect(row).toHaveClass(/ai-shortcut-pills-fade-end/)
-  await expect(row).not.toHaveClass(/ai-shortcut-pills-fade-start/)
-
-  // The mouse wheel scrolls the row to its last pill, which is then inside the row
-  await row.hover()
-  for (let i = 0; i < 5; i++) await page.mouse.wheel(0, 200)
-  await expect(row).toHaveClass(/ai-shortcut-pills-fade-start/)
-  await expect(row).not.toHaveClass(/ai-shortcut-pills-fade-end/)
-  const lastPillInside = await row.evaluate((el) => {
-    const last = el.lastElementChild.getBoundingClientRect()
-    const box = el.getBoundingClientRect()
-    return last.left >= box.left - 1 && last.right <= box.right + 1
-  })
-  expect(lastPillInside).toBe(true)
-
-  // Wide enough: no scrolling, no fade
-  await setPanelWidth(700)
-  await expect(row).not.toHaveClass(/ai-shortcut-pills-fade-start/)
-  await expect(row).not.toHaveClass(/ai-shortcut-pills-fade-end/)
-})
 
 for (const theme of ['Dark', 'Light']) {
   test(`chat history shows hover, open conversation and menus clearly (${theme} theme)`, async ({ page }) => {

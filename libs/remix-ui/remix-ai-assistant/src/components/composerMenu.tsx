@@ -76,6 +76,8 @@ interface ComposerMenuProps {
   // Attach rows: left out when the host has no attachment support.
   attach?: { enabled: boolean, hint: string, onClick: () => void }
   screenshot?: { enabled: boolean, hint: string, onClick: () => void }
+  /** Opens RemixAI settings; the row is left out when not given. */
+  onOpenSettings?: () => void
 }
 
 /** Command name in AI colour, the rest of a "/cmd text" prompt as plain text. */
@@ -124,6 +126,7 @@ export function ComposerMenu(props: ComposerMenuProps) {
         <button type="button" className="ai-menu-back" onClick={() => setGroupId(null)} data-id="remix-ai-composer-menu-back">
           <i className="fas fa-chevron-left"></i>{category ? category.label : actionGroup?.label}
         </button>
+        <div className="ai-menu-sep"></div>
         {category && category.prompts.map((prompt, i) => {
           const text = typeof prompt === 'string' ? prompt : prompt.text
           const missing = missingOf(typeof prompt === 'string' ? undefined : prompt.requiredFeatures)
@@ -209,6 +212,22 @@ export function ComposerMenu(props: ComposerMenuProps) {
           </button>
         )
       })}
+      {props.onOpenSettings && (
+        <>
+          <div className="ai-menu-sep"></div>
+          <button
+            type="button"
+            className="ai-menu-item"
+            data-id="remix-ai-composer-settings"
+            onClick={() => {
+              props.onClose()
+              props.onOpenSettings()
+            }}
+          >
+            <i className="fas fa-cog ai-menu-icon"></i><span>Settings</span>
+          </button>
+        </>
+      )}
       <div className="ai-menu-foot">Type <kbd>/</kbd> in the input to see every command</div>
     </div>
   )

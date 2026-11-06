@@ -110,6 +110,7 @@ export const PromptArea: React.FC<PromptAreaProps> = ({
   textareaRef,
   themeTracker,
   showModelSelector,
+  setShowModelSelector,
   stopRequest,
   selectedOllamaModel,
   usingOwnApiKey,
@@ -159,6 +160,8 @@ export const PromptArea: React.FC<PromptAreaProps> = ({
 
   const [showAutocomplete, setShowAutocomplete] = useState(false)
   const [selectedCommandIndex, setSelectedCommandIndex] = useState(0)
+  // The "/word" the user closed with Escape: the panel stays shut until it changes.
+  const [dismissedSlashWord, setDismissedSlashWord] = useState<string | null>(null)
   const promptAreaRef = useRef<HTMLDivElement>(null)
   const composerRef = useRef<HTMLDivElement>(null)
   const [menuOpen, setMenuOpen] = useState(false)
@@ -233,15 +236,16 @@ export const PromptArea: React.FC<PromptAreaProps> = ({
 
   // Handle autocomplete visibility
   useEffect(() => {
-    const hasSlashWord = !!getSlashWord(input)
-    const shouldShow = hasSlashWord && !isStreaming
+    const slashWord = getSlashWord(input)
+    if (slashWord !== dismissedSlashWord) setDismissedSlashWord(null)
+    const shouldShow = !!slashWord && slashWord !== dismissedSlashWord && !isStreaming
 
     setShowAutocomplete(shouldShow)
     // Reset selected index when hiding or showing the panel
     if (!shouldShow || (shouldShow && !showAutocomplete)) {
       setSelectedCommandIndex(0)
     }
-  }, [input, isStreaming, showAutocomplete])
+  }, [input, isStreaming, showAutocomplete, dismissedSlashWord])
 
   const actionCommands: Command[] = useMemo(() => {
     const cmds: Command[] = [
@@ -345,6 +349,49 @@ export const PromptArea: React.FC<PromptAreaProps> = ({
     textareaRef?.current?.focus()
   }, [setInput])
 
+  // ↑/↓ recall this conversation's earlier prompts, like a shell. Prompts the
+  // IDE wrote on the user's behalf (they have a displayContent) are skipped.
+  const pastPrompts = useMemo(() => {
+    const list: string[] = []
+    for (const m of messages) {
+      if (m.role !== 'user' || m.displayContent || !m.content?.trim()) continue
+      if (list[list.length - 1] !== m.content) list.push(m.content)
+    }
+    return list
+  }, [messages])
+  // Index of the recalled prompt in pastPrompts, null when not browsing
+  const recallIndexRef = useRef<number | null>(null)
+  useEffect(() => { recallIndexRef.current = null }, [pastPrompts])
+
+  // Returns true when the key recalled a prompt
+  const recallPrompt = (e: React.KeyboardEvent<HTMLTextAreaElement>): boolean => {
+    if (e.shiftKey || e.altKey || e.ctrlKey || e.metaKey) return false
+    const el = e.currentTarget
+    // Editing a recalled prompt ends the browsing
+    if (recallIndexRef.current !== null && input !== pastPrompts[recallIndexRef.current]) recallIndexRef.current = null
+    const browsing = recallIndexRef.current !== null
+    if (el.selectionStart !== el.selectionEnd) return false
+
+    if (e.key === 'ArrowUp') {
+      const onFirstLine = input.lastIndexOf('\n', el.selectionStart - 1) === -1
+      if (!onFirstLine || (!browsing && input !== '')) return false
+      const index = browsing ? recallIndexRef.current - 1 : pastPrompts.length - 1
+      if (index < 0) return false
+      recallIndexRef.current = index
+      setInput(pastPrompts[index])
+      return true
+    }
+    if (e.key === 'ArrowDown' && browsing) {
+      const onLastLine = input.indexOf('\n', el.selectionStart) === -1
+      if (!onLastLine) return false
+      const index = recallIndexRef.current + 1
+      recallIndexRef.current = index < pastPrompts.length ? index : null
+      setInput(index < pastPrompts.length ? pastPrompts[index] : '')
+      return true
+    }
+    return false
+  }
+
   // Sending "/cmd …" counts as using the command, so its tip stops showing.
   const send = useCallback(() => {
     const command = commandOf(input)
@@ -353,7 +400,7 @@ export const PromptArea: React.FC<PromptAreaProps> = ({
   }, [input, handleSend, onCommandUsed])
 
   // Handle keyboard navigation for autocomplete
-  const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
+  const handleKeyDown = useCallback((e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     // Handle Shift+Enter for new line
     if (e.key === 'Enter' && e.shiftKey) {
       e.preventDefault()
@@ -381,9 +428,15 @@ export const PromptArea: React.FC<PromptAreaProps> = ({
         return
       } else if (e.key === 'Escape') {
         e.preventDefault()
+        setDismissedSlashWord(getSlashWord(input))
         setShowAutocomplete(false)
         return
       }
+    }
+
+    if ((e.key === 'ArrowUp' || e.key === 'ArrowDown') && recallPrompt(e)) {
+      e.preventDefault()
+      return
     }
 
     // Handle Enter key
@@ -407,7 +460,7 @@ export const PromptArea: React.FC<PromptAreaProps> = ({
         send()
       }
     }
-  }, [showAutocomplete, selectedCommandIndex, isStreaming, aiRouteReady, isAuthenticated, send, setInput, setShowAutocomplete])
+  }, [input, pastPrompts, showAutocomplete, selectedCommandIndex, isStreaming, aiRouteReady, isAuthenticated, send, setInput, setShowAutocomplete])
 
   // The "+" menu closes on a click outside the composer and on Escape.
   useEffect(() => {
@@ -497,7 +550,9 @@ export const PromptArea: React.FC<PromptAreaProps> = ({
     }
     return pickTip(messages, usedCommands, canUse)
   }, [messages, usedCommands, actionCommands, getMissingFeature])
-  const showTip = !!tip && !tipDismissed && isAuthenticated && !input
+  const showTip = !!tip && !tipDismissed && isAuthenticated
+  // Hidden while typing but keeps its space, so the chat above doesn't move
+  const tipHidden = !!input
 
   const modelName = selectedModel?.provider === 'ollama' && selectedOllamaModel
     ? selectedOllamaModel
@@ -525,6 +580,7 @@ export const PromptArea: React.FC<PromptAreaProps> = ({
           }}
           onOpenGroup={(id) => trackMatomoEvent({ category: 'ai', action: 'remixAI', name: 'command_category_open', value: id, isClick: true })}
           onClose={() => setMenuOpen(false)}
+          onOpenSettings={handleOpenSettings}
           attach={onAddFiles ? {
             enabled: canAttach,
             hint: attachHint,
@@ -548,7 +604,7 @@ export const PromptArea: React.FC<PromptAreaProps> = ({
         />
       )}
       {showTip && (
-        <div className="ai-tip" data-id="remix-ai-tip">
+        <div className={`ai-tip ${tipHidden ? 'is-hidden' : ''}`} data-id="remix-ai-tip" aria-hidden={tipHidden || undefined}>
           <i className="far fa-lightbulb ai-tip-icon"></i>
           <span className="ai-tip-text">
             <button
@@ -654,7 +710,11 @@ export const PromptArea: React.FC<PromptAreaProps> = ({
               aria-label="Attach, prompts and commands"
               aria-expanded={menuOpen}
               title="Attach, prompts and commands"
-              onClick={() => setMenuOpen(open => !open)}
+              onClick={() => {
+                // One composer menu at a time: opening "+" closes the model menu
+                if (!menuOpen) setShowModelSelector?.(false)
+                setMenuOpen(!menuOpen)
+              }}
             >
               <i className="fas fa-plus"></i>
             </button>
@@ -666,7 +726,10 @@ export const PromptArea: React.FC<PromptAreaProps> = ({
               <span className="ai-model-btn-wrap">
                 <button
                   type="button"
-                  onClick={handleSetModel}
+                  onClick={() => {
+                    setMenuOpen(false)
+                    handleSetModel()
+                  }}
                   className={`ai-model-btn ${showModelSelector ? 'on' : ''}`}
                   data-assist-btn="assistant-selector-btn"
                   data-id="ai-model-selector-btn"

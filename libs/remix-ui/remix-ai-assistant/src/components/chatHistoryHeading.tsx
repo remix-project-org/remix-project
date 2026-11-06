@@ -54,8 +54,9 @@ export default function ChatHistoryHeading({
           </span>
         ) : (
           <CustomTooltip tooltipText={'Start a new chat'}>
+            {/* py-0: as tall as the conversation title, so the header keeps its height */}
             <button
-              className="btn btn-sm btn-link text-decoration-none"
+              className="btn btn-sm btn-link text-decoration-none py-0"
               onClick={onNewChat}
               data-id="new-chat-btn new-conversation-btn"
             >
