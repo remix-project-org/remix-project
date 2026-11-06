@@ -104,10 +104,10 @@
 }
 
 .user-menu-dropdown-header {
-  color: white;
+  color: var(--bs-emphasis-color);
   padding: 8px 12px;
   border-radius: 8px 8px 0 0;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  border-bottom: 1px solid color-mix(in srgb, var(--bs-emphasis-color) 10%, transparent);
   display: flex;
   align-items: center;
   gap: 12px;
@@ -118,7 +118,7 @@
   height: 32px;
   border-radius: 50%;
   object-fit: cover;
-  border: 2px solid rgba(255, 255, 255, 0.3);
+  border: 2px solid color-mix(in srgb, var(--bs-emphasis-color) 30%, transparent);
   flex-shrink: 0;
 }
 
