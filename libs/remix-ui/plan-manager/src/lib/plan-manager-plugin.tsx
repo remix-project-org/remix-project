@@ -4362,6 +4362,15 @@ function avgCapacityLine(credits: number, limit = Infinity): string | null {
   return parts.length > 0 ? `≈ ${parts.join(' + ')}` : null
 }
 
+const TASK_PUNCHLINES: Record<string, string> = {
+  'gas-audit-simple':          'Slash tx costs before mainnet',
+  'security-audit-complex':    'Catch exploits before hackers do',
+  'frontend-generation':       'From ABI to full dApp UI',
+  'contract-generation-agent': 'Describe it in plain English, deploy it',
+  'fix-compile-error':         'Unblock yourself in seconds',
+  'explain-contract':          'Understand any contract instantly',
+}
+
 const CreditCapacityPanel: React.FC<{ credits: number | null; creditLabel?: string; onTopUp?: () => void }> = ({ credits, creditLabel, onTopUp }) => {
   const models = profiledModels()
   const baseRows = models.length > 0 ? taskCapacity(credits, TASK_COSTS, models[0].tier) : []
@@ -4376,6 +4385,21 @@ const CreditCapacityPanel: React.FC<{ credits: number | null; creditLabel?: stri
 
   if (rows.length === 0) return null
 
+  // Sort non-default models by average cost per task to get cheapest → priciest range
+  const nonDefaultModels = models.filter(m => m.tier !== 'default')
+  const sortedByPrice = [...nonDefaultModels].sort((a, b) => {
+    const avg = (tier: string) => {
+      const costs = baseRows.map(r => r.costs[tier] ?? 0).filter(c => c > 0)
+      return costs.length > 0 ? costs.reduce((s, c) => s + c, 0) / costs.length : 0
+    }
+    return avg(a.tier) - avg(b.tier)
+  })
+  const cheapest = sortedByPrice[0]
+  const priciest = sortedByPrice[sortedByPrice.length - 1]
+  const modelRange = cheapest && priciest && cheapest.tier !== priciest.tier
+    ? `from glm-flash-latest to Claude Opus`
+    : cheapest?.label ?? ''
+
   const title = credits === null
     ? 'Typical credit cost per task'
     : creditLabel
@@ -4386,39 +4410,39 @@ const CreditCapacityPanel: React.FC<{ credits: number | null; creditLabel?: stri
     <section className="pm-capacity" aria-label={title} data-id="pm-credit-capacity">
       <div className="pm-capacity__head">
         <span className="pm-capacity__title">{title}</span>
-        <span className="pm-capacity__hint">depending on the model used{isStale() ? ' · outdated' : ''}</span>
+        <span className="pm-capacity__hint">{modelRange ? `depending on the model (${modelRange})` : 'depending on the model used'}{isStale() ? ' · outdated' : ''}</span>
         {onTopUp && (
           <button className="pm-capacity__cta" onClick={onTopUp}>
             Top up <i className="fas fa-arrow-right" aria-hidden></i>
           </button>
         )}
       </div>
-      <div className="pm-capacity__cards">
+      <ul className="pm-capacity__list">
         {rows.map(row => {
           const shortTitle = row.title.replace(/ \(.*\)$/, '')
+          const countDisplay = credits === null ? `~${compactCredits(row.avgCost)}` : row.avgCount.toLocaleString()
+          const labelDisplay = credits === null ? shortTitle : pluralTitle(shortTitle, row.avgCount)
           return (
             <CustomTooltip
               key={row.id}
-              placement="top"
+              placement="right"
               tooltipId={`pm-credit-capacity-tip-${row.id}`}
-              tooltipText={`~${row.avgCost.toLocaleString()} credits on average · actual cost depends on model, contract and conversation`}
+              tooltipText={`~${row.avgCost.toLocaleString()} credits on average · varies by model and contract`}
             >
-              <div
-                className="pm-capacity__card"
-                data-id={`pm-credit-capacity-${row.id}`}
-              >
-                <span className="pm-capacity__card-count">
-                  {credits === null ? `~${compactCredits(row.avgCost)}` : row.avgCount.toLocaleString()}
+              <li className="pm-capacity__row" data-id={`pm-credit-capacity-${row.id}`}>
+                <span className="pm-capacity__row-count">{countDisplay}</span>
+                <span className="pm-capacity__row-rule" aria-hidden />
+                <span className="pm-capacity__row-body">
+                  <span className="pm-capacity__row-label">{labelDisplay}</span>
+                  {TASK_PUNCHLINES[row.id] && (
+                    <span className="pm-capacity__row-punch">· {TASK_PUNCHLINES[row.id]}</span>
+                  )}
                 </span>
-                <span className="pm-capacity__card-task">
-                  {credits === null ? shortTitle : pluralTitle(shortTitle, row.avgCount)}
-                </span>
-                {credits === null && <span className="pm-capacity__card-unit">credits</span>}
-              </div>
+              </li>
             </CustomTooltip>
           )
         })}
-      </div>
+      </ul>
     </section>
   )
 }
