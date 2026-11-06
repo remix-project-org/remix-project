@@ -4983,6 +4983,24 @@ a.pm-alert__btn {
 .pm-capacity__model-select {
   width: auto;
   min-width: 200px;
+  font-weight: 600;
+  color: var(--custom-primary);
+  background-color: color-mix(in srgb, var(--custom-primary) 12%, transparent);
+  border: 1px solid color-mix(in srgb, var(--custom-primary) 55%, transparent);
+  cursor: pointer;
+  transition: border-color 160ms ease, background-color 160ms ease, box-shadow 160ms ease;
+}
+.pm-capacity__model-select:hover {
+  border-color: var(--custom-primary);
+  background-color: color-mix(in srgb, var(--custom-primary) 18%, transparent);
+}
+.pm-capacity__model-select:focus {
+  border-color: var(--custom-primary);
+  box-shadow: 0 0 0 3px rgba(var(--custom-primary-rgb), 0.18);
+}
+.pm-capacity__model-select option {
+  color: var(--bs-body-color);
+  background-color: var(--bs-body-bg);
 }
 
 .pm-capacity__note {

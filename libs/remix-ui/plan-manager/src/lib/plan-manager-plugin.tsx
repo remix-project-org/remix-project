@@ -3941,6 +3941,10 @@ const PlanManagerOverlay: React.FC<{
                   />
                 )}
 
+                {!checkoutActive && activeSection === 'credits' && ui.showCredits && (
+                  <CreditCapacityPanel credits={status.hasUnlimitedIncluded ? null : status.paidRemaining + status.includedRemaining} />
+                )}
+
                 <main className="pm-main">
                   {/* Inline Paddle checkout container — visible while checkout is in progress */}
                   {snap.pendingCheckout && !snap.checkoutResult && (() => {
@@ -5836,6 +5840,9 @@ const PaidPlansPanel: React.FC<{
                   ? <>= <strong>100%</strong> of your plan price, every month</>
                   : 'Topped up automatically, every billing cycle'}
               </span>
+              {capacityLine(creditsPerMonth, capacityFor) && (
+                <span className="pm-paid-panel__credits-note">{capacityLine(creditsPerMonth, capacityFor)}</span>
+              )}
             </div>
           )}
           {giftCredits > 0 && (
@@ -6064,6 +6071,7 @@ const TopUpSection: React.FC<{
   onComparePlans?: () => void
 }> = ({ packages, purchasingId, onPurchase, localizedPrices, totalAvailable, welcome, upgradePlans, onUpgrade, onComparePlans }) => {
   const animatedBalance = useCountUp(totalAvailable ?? 0)
+  const capacityFor = useCapacityModel()
   const anyPurchasing = purchasingId !== null
 
   // ── Price basis ──────────────────────────────────────────────────────
@@ -6289,6 +6297,9 @@ const TopUpSection: React.FC<{
                 </div>
                 <div className="pm-topup__price">{price}</div>
                 <div className="pm-topup__perk">{perKLabel}</div>
+                {capacityLine(credits, capacityFor) && (
+                  <div className="pm-topup__perk pm-topup__capacity">{capacityLine(credits, capacityFor)}</div>
+                )}
                 <span className="pm-topup__buy">
                   {isPurchasing
                     ? <><i className="fas fa-spinner fa-spin"></i> Opening…</>
