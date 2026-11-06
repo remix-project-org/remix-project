@@ -130,8 +130,13 @@ export async function selectModel(page: Page, model: string): Promise<string> {
     // not ids, so `haiku-latest` or `~anthropic/claude-haiku-latest` must be
     // turned into words first.
     const query = model.replace(/[-_/~:.]+/g, ' ').replace(/\s+/g, ' ').trim()
-    await page.locator('[data-id="ai-model-search"]').fill(query)
+    const search = page.locator('[data-id="ai-model-search"]')
     const match = page.locator('[data-id^="ai-model-"][data-locked="false"]').first()
+    await search.fill(query)
+    // A row the backend sent without a display name shows its raw id
+    // (`glm-flash-latest`), which only the unconverted value matches.
+    const found = await match.waitFor({ state: 'visible', timeout: 5_000 }).then(() => true, () => false)
+    if (!found && query !== model) await search.fill(model)
     try {
       await match.click({ timeout: 15_000 })
     } catch {

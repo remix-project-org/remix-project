@@ -4,6 +4,7 @@
  *
  *   npx ts-node -T -O '{"module":"commonjs"}' tests/benchmarks/ai-cost/aggregate.ts \
  *     --tier default=auto --tier fast=haiku-latest --tier premium=sonnet-latest \
+ *     [--tier deepseek=v4-flash-latest …] \
  *     [results/2026-11-02.jsonl …]
  *
  * With no files given, every results/*.jsonl is read. A `--tier` maps a
@@ -17,7 +18,8 @@
 import fs from 'fs'
 import path from 'path'
 
-type Tier = 'default' | 'fast' | 'premium'
+/** `default` is the model the panel opens on; any other name is one more pick in its model menu. */
+type Tier = string
 
 interface Row {
   workflow: string
@@ -63,8 +65,8 @@ function parseArgs(argv: string[]): { files: string[]; tiers: Map<string, Tier> 
   for (let i = 0; i < argv.length; i++) {
     if (argv[i] === '--tier') {
       const [tier, model] = (argv[++i] || '').split('=')
-      if (!['default', 'fast', 'premium'].includes(tier) || !model) throw new Error(`bad --tier "${argv[i]}", expected tier=model`)
-      tiers.set(model, tier as Tier)
+      if (!/^[a-z][a-z0-9-]*$/.test(tier || '') || !model) throw new Error(`bad --tier "${argv[i]}", expected tier=model`)
+      tiers.set(model, tier)
     } else {
       files.push(argv[i])
     }

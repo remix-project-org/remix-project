@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "measuredAt": "2026-11-04",
+  "measuredAt": "2026-11-06",
   "models": {
     "default": {
       "id": "auto",
@@ -28,6 +28,20 @@
         }
       ]
     },
+    "fast": {
+      "id": "haiku-latest",
+      "label": "Anthropic Claude Haiku Latest",
+      "served": [
+        {
+          "model": "anthropic/claude-haiku-5.5",
+          "share": 0.83
+        },
+        {
+          "model": "anthropic/claude-haiku-4.5",
+          "share": 0.17
+        }
+      ]
+    },
     "premium": {
       "id": "sonnet-latest",
       "label": "Anthropic Claude Sonnet Latest",
@@ -39,6 +53,34 @@
         {
           "model": "anthropic/claude-sonnet-5",
           "share": 0.01
+        }
+      ]
+    },
+    "deepseek": {
+      "id": "v4-flash-latest",
+      "label": "DeepSeek V4 Flash Latest",
+      "served": [
+        {
+          "model": "deepseek/deepseek-v4-flash-0731",
+          "share": 1
+        },
+        {
+          "model": "unknown",
+          "share": 0
+        }
+      ]
+    },
+    "glm": {
+      "id": "glm-flash-latest",
+      "label": "glm-flash-latest",
+      "served": [
+        {
+          "model": "z-ai/glm-5.3-flash",
+          "share": 1
+        },
+        {
+          "model": "unknown",
+          "share": 0
         }
       ]
     }
@@ -69,6 +111,19 @@
             }
           ]
         },
+        "fast": {
+          "medianCredits": 101,
+          "p90Credits": 276,
+          "runs": 9,
+          "successRate": 1,
+          "medianDurationMs": 64085,
+          "servedModels": [
+            {
+              "model": "anthropic/claude-haiku-5.5",
+              "share": 1
+            }
+          ]
+        },
         "premium": {
           "medianCredits": 1127,
           "p90Credits": 2297,
@@ -78,6 +133,32 @@
           "servedModels": [
             {
               "model": "anthropic/claude-sonnet-5.5",
+              "share": 1
+            }
+          ]
+        },
+        "deepseek": {
+          "medianCredits": 48,
+          "p90Credits": 113,
+          "runs": 21,
+          "successRate": 0.76,
+          "medianDurationMs": 75143,
+          "servedModels": [
+            {
+              "model": "deepseek/deepseek-v4-flash-0731",
+              "share": 1
+            }
+          ]
+        },
+        "glm": {
+          "medianCredits": 44,
+          "p90Credits": 267,
+          "runs": 15,
+          "successRate": 0.73,
+          "medianDurationMs": 188573,
+          "servedModels": [
+            {
+              "model": "z-ai/glm-5.3-flash",
               "share": 1
             }
           ]
@@ -109,6 +190,19 @@
             }
           ]
         },
+        "fast": {
+          "medianCredits": 195,
+          "p90Credits": 281,
+          "runs": 8,
+          "successRate": 1,
+          "medianDurationMs": 74637,
+          "servedModels": [
+            {
+              "model": "anthropic/claude-haiku-5.5",
+              "share": 1
+            }
+          ]
+        },
         "premium": {
           "medianCredits": 4088,
           "p90Credits": 5505,
@@ -119,6 +213,40 @@
             {
               "model": "anthropic/claude-sonnet-5.5",
               "share": 1
+            }
+          ]
+        },
+        "deepseek": {
+          "medianCredits": 132,
+          "p90Credits": 313,
+          "runs": 16,
+          "successRate": 0.69,
+          "medianDurationMs": 83576,
+          "servedModels": [
+            {
+              "model": "deepseek/deepseek-v4-flash-0731",
+              "share": 1
+            },
+            {
+              "model": "unknown",
+              "share": 0
+            }
+          ]
+        },
+        "glm": {
+          "medianCredits": 123,
+          "p90Credits": 361,
+          "runs": 9,
+          "successRate": 0.56,
+          "medianDurationMs": 144064,
+          "servedModels": [
+            {
+              "model": "z-ai/glm-5.3-flash",
+              "share": 1
+            },
+            {
+              "model": "unknown",
+              "share": 0
             }
           ]
         }
@@ -149,6 +277,19 @@
             }
           ]
         },
+        "fast": {
+          "medianCredits": 119,
+          "p90Credits": 120,
+          "runs": 3,
+          "successRate": 1,
+          "medianDurationMs": 39418,
+          "servedModels": [
+            {
+              "model": "anthropic/claude-haiku-5.5",
+              "share": 1
+            }
+          ]
+        },
         "premium": {
           "medianCredits": 2659,
           "p90Credits": 2769,
@@ -158,6 +299,32 @@
           "servedModels": [
             {
               "model": "anthropic/claude-sonnet-5.5",
+              "share": 1
+            }
+          ]
+        },
+        "deepseek": {
+          "medianCredits": 59,
+          "p90Credits": 96,
+          "runs": 6,
+          "successRate": 1,
+          "medianDurationMs": 57185,
+          "servedModels": [
+            {
+              "model": "deepseek/deepseek-v4-flash-0731",
+              "share": 1
+            }
+          ]
+        },
+        "glm": {
+          "medianCredits": 59,
+          "p90Credits": 117,
+          "runs": 3,
+          "successRate": 1,
+          "medianDurationMs": 85218,
+          "servedModels": [
+            {
+              "model": "z-ai/glm-5.3-flash",
               "share": 1
             }
           ]
@@ -185,6 +352,19 @@
             }
           ]
         },
+        "fast": {
+          "medianCredits": 65,
+          "p90Credits": 70,
+          "runs": 3,
+          "successRate": 1,
+          "medianDurationMs": 31387,
+          "servedModels": [
+            {
+              "model": "anthropic/claude-haiku-5.5",
+              "share": 1
+            }
+          ]
+        },
         "premium": {
           "medianCredits": 1355,
           "p90Credits": 1370,
@@ -194,6 +374,32 @@
           "servedModels": [
             {
               "model": "anthropic/claude-sonnet-5.5",
+              "share": 1
+            }
+          ]
+        },
+        "deepseek": {
+          "medianCredits": 67,
+          "p90Credits": 90,
+          "runs": 6,
+          "successRate": 0.83,
+          "medianDurationMs": 72837,
+          "servedModels": [
+            {
+              "model": "deepseek/deepseek-v4-flash-0731",
+              "share": 1
+            }
+          ]
+        },
+        "glm": {
+          "medianCredits": 50,
+          "p90Credits": 86,
+          "runs": 3,
+          "successRate": 0.67,
+          "medianDurationMs": 45751,
+          "servedModels": [
+            {
+              "model": "z-ai/glm-5.3-flash",
               "share": 1
             }
           ]
@@ -225,6 +431,23 @@
             }
           ]
         },
+        "fast": {
+          "medianCredits": 126,
+          "p90Credits": 126,
+          "runs": 3,
+          "successRate": 0.33,
+          "medianDurationMs": 240727,
+          "servedModels": [
+            {
+              "model": "anthropic/claude-haiku-4.5",
+              "share": 1
+            },
+            {
+              "model": "anthropic/claude-haiku-5.5",
+              "share": 0
+            }
+          ]
+        },
         "premium": {
           "medianCredits": 166,
           "p90Credits": 380,
@@ -239,6 +462,32 @@
             {
               "model": "anthropic/claude-sonnet-5.5",
               "share": 0.02
+            }
+          ]
+        },
+        "deepseek": {
+          "medianCredits": 6,
+          "p90Credits": 24,
+          "runs": 5,
+          "successRate": 1,
+          "medianDurationMs": 23160,
+          "servedModels": [
+            {
+              "model": "deepseek/deepseek-v4-flash-0731",
+              "share": 1
+            }
+          ]
+        },
+        "glm": {
+          "medianCredits": 11,
+          "p90Credits": 28,
+          "runs": 3,
+          "successRate": 0.67,
+          "medianDurationMs": 59274,
+          "servedModels": [
+            {
+              "model": "z-ai/glm-5.3-flash",
+              "share": 1
             }
           ]
         }
@@ -265,6 +514,19 @@
             }
           ]
         },
+        "fast": {
+          "medianCredits": 2,
+          "p90Credits": 2,
+          "runs": 3,
+          "successRate": 1,
+          "medianDurationMs": 2619,
+          "servedModels": [
+            {
+              "model": "anthropic/claude-haiku-5.5",
+              "share": 1
+            }
+          ]
+        },
         "premium": {
           "medianCredits": 25,
           "p90Credits": 26,
@@ -274,6 +536,32 @@
           "servedModels": [
             {
               "model": "anthropic/claude-sonnet-5.5",
+              "share": 1
+            }
+          ]
+        },
+        "deepseek": {
+          "medianCredits": 2,
+          "p90Credits": 2,
+          "runs": 6,
+          "successRate": 1,
+          "medianDurationMs": 5615,
+          "servedModels": [
+            {
+              "model": "deepseek/deepseek-v4-flash-0731",
+              "share": 1
+            }
+          ]
+        },
+        "glm": {
+          "medianCredits": 2,
+          "p90Credits": 2,
+          "runs": 3,
+          "successRate": 1,
+          "medianDurationMs": 6146,
+          "servedModels": [
+            {
+              "model": "z-ai/glm-5.3-flash",
               "share": 1
             }
           ]
@@ -305,6 +593,19 @@
             }
           ]
         },
+        "fast": {
+          "medianCredits": 17,
+          "p90Credits": 17,
+          "runs": 3,
+          "successRate": 1,
+          "medianDurationMs": 11595,
+          "servedModels": [
+            {
+              "model": "anthropic/claude-haiku-5.5",
+              "share": 1
+            }
+          ]
+        },
         "premium": {
           "medianCredits": 311,
           "p90Credits": 311,
@@ -314,6 +615,32 @@
           "servedModels": [
             {
               "model": "anthropic/claude-sonnet-5.5",
+              "share": 1
+            }
+          ]
+        },
+        "deepseek": {
+          "medianCredits": 12,
+          "p90Credits": 15,
+          "runs": 5,
+          "successRate": 1,
+          "medianDurationMs": 11936,
+          "servedModels": [
+            {
+              "model": "deepseek/deepseek-v4-flash-0731",
+              "share": 1
+            }
+          ]
+        },
+        "glm": {
+          "medianCredits": 11,
+          "p90Credits": 13,
+          "runs": 3,
+          "successRate": 1,
+          "medianDurationMs": 12596,
+          "servedModels": [
+            {
+              "model": "z-ai/glm-5.3-flash",
               "share": 1
             }
           ]
@@ -345,6 +672,19 @@
             }
           ]
         },
+        "fast": {
+          "medianCredits": 11,
+          "p90Credits": 11,
+          "runs": 4,
+          "successRate": 1,
+          "medianDurationMs": 8234,
+          "servedModels": [
+            {
+              "model": "anthropic/claude-haiku-5.5",
+              "share": 1
+            }
+          ]
+        },
         "premium": {
           "medianCredits": 214,
           "p90Credits": 215,
@@ -354,6 +694,32 @@
           "servedModels": [
             {
               "model": "anthropic/claude-sonnet-5.5",
+              "share": 1
+            }
+          ]
+        },
+        "deepseek": {
+          "medianCredits": 8,
+          "p90Credits": 11,
+          "runs": 5,
+          "successRate": 1,
+          "medianDurationMs": 9284,
+          "servedModels": [
+            {
+              "model": "deepseek/deepseek-v4-flash-0731",
+              "share": 1
+            }
+          ]
+        },
+        "glm": {
+          "medianCredits": 7,
+          "p90Credits": 10,
+          "runs": 3,
+          "successRate": 1,
+          "medianDurationMs": 9317,
+          "servedModels": [
+            {
+              "model": "z-ai/glm-5.3-flash",
               "share": 1
             }
           ]
