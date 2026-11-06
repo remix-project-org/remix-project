@@ -658,7 +658,10 @@ export const loadWorkspacePreset = async (template: WorkspaceTemplate = 'remixDe
             await writeToTargetWorkspace(path, content as string)
           }
         } catch (e) {
-          console.log(e)
+          const msg = e instanceof Error ? e.message : String(e)
+          console.error('[ghfolder] Failed to load GitHub folder:', e)
+          plugin.call('terminal', 'log', { type: 'error', value: 'Failed to load GitHub folder: ' + msg })
+          throw e
         }
       }
 

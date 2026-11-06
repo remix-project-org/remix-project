@@ -14,6 +14,7 @@ import JSZip from 'jszip'
 import { Actions, FileTree } from '../types'
 import IpfsHttpClient from 'ipfs-http-client'
 import { Topbar } from 'apps/remix-ide/src/app/components/top-bar'
+import { hexToBytes } from 'apps/remix-ide/src/app/plugins/arkiv-utils'
 
 export * from './events'
 export * from './workspace'
@@ -138,7 +139,7 @@ async function loadArkivEntity(entityKey: string, workspaces: any, workspaceProv
     const entity = await plugin.call('arkivBasic', 'getEntity', entityKey)
     const fileName = (entity.attributes?.name?.value as string) || entityKey
     const filePath = (entity.attributes?.path?.value as string) || fileName
-    const content = entity.text ?? ''
+    const content = entity.payload ? new TextDecoder().decode(hexToBytes(String(entity.payload))) : ''
     const workspaceName = `arkiv-${await generateRandomSuffix(entityKey)}`
     await createWorkspaceTemplate(workspaceName, 'code-template')
     plugin.setWorkspace({ name: workspaceName, isLocalhost: false })

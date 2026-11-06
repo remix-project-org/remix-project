@@ -58,6 +58,7 @@ export type EndpointUrls = {
   langchain: string;
   langfuse: string
   zkverify: string;
+  arkiv: string;
 };
 
 /**
@@ -106,7 +107,8 @@ const servicePathMap: Record<keyof Omit<EndpointUrls, 'solidityScanWebSocket' | 
   rss: 'endpoints/rss',
   langchain: 'ai/langchain',
   langfuse: 'ai/langfuse',
-  zkverify: 'zkverify'
+  zkverify: 'zkverify',
+  arkiv: 'endpoints/arkiv'
 };
 
 /** Build all endpoint URLs from a single base URL */
