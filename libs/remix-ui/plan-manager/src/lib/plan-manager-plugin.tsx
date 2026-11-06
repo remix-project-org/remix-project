@@ -5023,7 +5023,7 @@ const PADDLE_CONFIG_TIMEOUT_MS = 20_000
 
 /** Paddle's "we can't sell to this location" signals (price preview / checkout error). */
 const REGION_BLOCKED_RE = /address_location_not_allowed|unsupported location/i
-const REGION_BLOCKED_MESSAGE = 'Payments aren’t available in your region. Our payment provider can’t accept payments from your current location. If you’re using a VPN, turn it off or connect via another country and try again.'
+const REGION_BLOCKED_MESSAGE = 'Payments aren’t available in your region. Our payment provider can’t accept payments from your current location. If you’re using a VPN, turn it off and try again.'
 const NO_RESUMABLE_CHECKOUTS: PendingCheckout[] = []
 /** Unfinished checkouts worth offering — none when payments are blocked here, since resuming can only fail. */
 function resumableCheckouts(snap: PlanManagerSnapshot): PendingCheckout[] {
@@ -7442,7 +7442,7 @@ const CheckoutResultScreen: React.FC<{
         <h2 className="pm-result__title">Payments aren’t available in your region</h2>
         <p className="pm-result__body">
           Our payment provider can’t accept payments from your current location, so no checkout was started and nothing was charged.
-          If you’re using a VPN, turn it off or connect via another country, then reload Remix and try again.
+          If you’re using a VPN, turn it off, then reload Remix and try again.
         </p>
         <div className="pm-result__actions">
           <button className="pm-result__btn pm-result__btn--primary" onClick={onViewPlans}>
