@@ -189,7 +189,7 @@ test('a saved answer shows its file changes in place, grouped, with rejected edi
   await click(page, sel.historyToggle)
   await click(page, '[data-id="conversation-item-e2e-changes-conv"]')
 
-  const answer = page.locator('.aiMarkup').filter({ has: page.locator('[data-id="ai-change-group"]') })
+  const answer = page.locator('.ai-answer').filter({ has: page.locator('[data-id="ai-change-group"]') })
   await expect(answer.locator('[data-id="ai-change-group"]')).toHaveCount(2)
   // In place: the Vault edit sits between the first and second paragraphs
   const order = await answer.evaluate((el) => Array.from(el.querySelectorAll('p, [data-id="ai-change-line"], [data-id="ai-change-group-toggle"], [data-id="ai-change-line-rejected"]'))
