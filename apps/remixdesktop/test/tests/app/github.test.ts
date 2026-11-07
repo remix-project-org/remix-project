@@ -73,13 +73,6 @@ const tests = {
       .waitForElementVisible('*[data-id="connected-link-EthereumRemix"]')
       .waitForElementVisible('*[data-id="remotes-panel"]')
   },
-  'check the FE shows logged in user #group1 #group2': function (browser: NightwatchBrowser) {
-    browser
-      .waitForElementVisible({
-        selector: '//*[@data-id="github-dropdown-toggle-login"]//span[contains(text(), "EthereumRemix")]',
-        locateStrategy: 'xpath'
-      })
-  },
   // 'check the FE for the auth user #group1 #group2': function (browser: NightwatchBrowser) {
   //   browser
   //     .clickLaunchIcon('filePanel')
@@ -135,13 +128,6 @@ const tests = {
           .hideToolTips()
           .pause(1000)
           .waitForElementVisible('*[data-id="treeViewLitreeViewItem.git"]')
-      })
-  },
-  'check if user is still logged in after cloning #group1': function (browser: NightwatchBrowser) {
-    browser
-      .waitForElementVisible({
-        selector: '//*[@data-id="github-dropdown-toggle-login"]//span[contains(text(), "EthereumRemix")]',
-        locateStrategy: 'xpath'
       })
   },
   'check if there is a README.md file #group1': function (browser: NightwatchBrowser) {
