@@ -287,6 +287,7 @@ export class PlanManagerPlugin extends ViewPlugin {
 
   async onActivation(): Promise<void> {
     this.renderComponent()
+    if (typeof window !== 'undefined') window.addEventListener('beforeunload', this.onBeforeUnload)
 
     // Replay last session's region immediately — Paddle can only price-preview
     // once it has an authenticated client token, and country-targeted messaging
@@ -511,9 +512,72 @@ export class PlanManagerPlugin extends ViewPlugin {
 
   toggle(): void {
     const wasOpen = this.store.getSnapshot().isOpen
+    if (wasOpen && this.isPaymentInFlight()) {
+      void this.leaveCheckout('close')
+      return
+    }
     this.store.send({ type: 'TOGGLE_OVERLAY' })
     // Only refresh on the closed → open transition.
     if (!wasOpen) this.refreshOnOpen()
+  }
+
+  /**
+   * A payment was submitted and is still awaiting its outcome. Leaving now is
+   * how buyers ended up paid-but-unconfirmed: WeChat Pay takes ~2 min to
+   * confirm, and people closed the panel after paying on their phone.
+   */
+  private isPaymentInFlight(): boolean {
+    const ctx = this.checkoutContext
+    const snap = this.store.getSnapshot()
+    return !!ctx && ctx.stage === 'payment_initiated' && !ctx.confirmed && !!snap.pendingCheckout && !snap.checkoutResult
+  }
+
+  /** Leave the checkout from a UI control (X / Back to plans), asking first while a payment is in flight. */
+  async leaveCheckout(action: 'close' | 'back_to_plans'): Promise<void> {
+    if (this.isPaymentInFlight() && !(await this.confirmLeaveDuringPayment(action))) return
+    if (action === 'close') {
+      this.close()
+      return
+    }
+    // The payment may have landed while the dialog was open — keep the result screen.
+    if (this.store.getSnapshot().checkoutResult) return
+    this.cancelCheckout('back_to_plans')
+  }
+
+  private async confirmLeaveDuringPayment(action: 'close' | 'back_to_plans'): Promise<boolean> {
+    const ctx = this.checkoutContext
+    const method = ctx?.paymentMethod ?? null
+    const isWeChat = /wechat/i.test(method || '')
+    const provider = !method || method === 'card' ? 'your bank' : paymentMethodLabel(method)
+    const choice = await this.requestConfirm({
+      eyebrow: 'Payment in progress',
+      title: 'Your payment is still being confirmed',
+      icon: 'fas fa-hourglass-half',
+      message: [
+        isWeChat
+          ? 'WeChat Pay usually takes about 2 minutes to confirm after you pay in the app. Keep this open and your purchase will finish automatically.'
+          : `We're waiting for ${provider} to confirm your payment. Keep this open and your purchase will finish automatically.`,
+        'If you’ve already approved it, closing won’t cancel it — your account updates as soon as it’s confirmed.'
+      ].join('\n'),
+      actions: [
+        { value: 'stay', label: 'Keep waiting', variant: 'primary', icon: 'fas fa-hourglass-half' },
+        { value: 'leave', label: action === 'close' ? 'Close anyway' : 'Leave checkout', variant: 'ghost' }
+      ]
+    })
+    const leave = choice === 'leave'
+    reportCheckoutTelemetry('checkout.leave_prompt', {
+      transactionId: ctx?.transactionId,
+      detail: { action, method, choice: leave ? 'leave' : 'stay', msSinceOpen: ctx?.openedAt ? Date.now() - ctx.openedAt : null },
+    })
+    this.trackCheckout('leave_prompt', ctx?.intent, leave ? 'leave' : 'stay')
+    return leave
+  }
+
+  /** Browser-level guard (reload / tab close) while a payment is in flight. */
+  private readonly onBeforeUnload = (e: BeforeUnloadEvent): void => {
+    if (!this.isPaymentInFlight()) return
+    e.preventDefault()
+    e.returnValue = ''
   }
 
   /**
@@ -3820,7 +3884,7 @@ const PlanManagerOverlay: React.FC<{
           <button
             data-id="planManagerCloseButton"
             className="pm-close"
-            onClick={() => plugin.close()}
+            onClick={() => { void plugin.leaveCheckout('close') }}
             aria-label="Close"
           >
             <i className="fas fa-times"></i>
@@ -4115,7 +4179,7 @@ const PlanManagerOverlay: React.FC<{
                         <div className="pm-inline-checkout__header">
                           <button
                             className="pm-inline-checkout__back"
-                            onClick={() => plugin.cancelCheckout('back_to_plans')}
+                            onClick={() => { void plugin.leaveCheckout('back_to_plans') }}
                           >
                             <i className="fas fa-arrow-left"></i>
                             <span>Back to plans</span>
@@ -5260,6 +5324,10 @@ function approvalHintMessage(method: string | null | undefined): string {
     return `Waiting for your bank to confirm this payment. Approve it in your banking app or the verification pop-up. ${escape}`
   }
   const label = paymentMethodLabel(m)
+  if (/wechat/.test(m)) {
+    // Paddle confirms WeChat Pay ~2 min after the buyer pays; "try again" here made paid buyers give up.
+    return 'Paid in WeChat? WeChat Pay usually takes about 2 minutes to confirm — keep this open and your purchase will finish automatically. If you haven’t scanned the code yet, scan it with WeChat to pay.'
+  }
   const where = /upi|wechat|alipay|blik|kakao|naver/.test(m) ? `in your ${label} app` : `in the ${label} window`
   return `Waiting for ${label} to confirm your payment — approve it ${where}. ${escape}`
 }
