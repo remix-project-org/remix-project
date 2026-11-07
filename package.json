@@ -36,6 +36,7 @@
     "build:plugin": "NODE_ENV=production nx build ${npm_config_plugin} --configuration=production",
     "build": "node --max-old-space-size=4096 ./node_modules/.bin/nx build || node --max-old-space-size=4096 ./node_modules/.bin/nx build --skip-nx-cache",
     "test": "nx test",
+    "test:modal-help": "TS_NODE_PROJECT=libs/remix-ui/modal-help/tsconfig.spec.json mocha -r ts-node/register \"libs/remix-ui/modal-help/src/lib/*.spec.tsx\"",
     "lint": "nx lint",
     "lint-fix": "node ./apps/remix-ide/ci/lint-targets-fix.js",
     "affected:apps": "nx affected:apps",
