@@ -1,4 +1,4 @@
-import { CustomTooltip } from "@remix-ui/helper"
+import { CustomTooltip, Select } from "@remix-ui/helper"
 import { FormattedMessage, useIntl } from "react-intl"
 import { SetupExportsBtn } from "./setupExportsBtn"
 import { useContext } from "react"
@@ -48,35 +48,26 @@ export function SetupExports () {
           </div>
         </div>
         <div className="mb-1 ms-0">
-          <label className="circuit_inner_label form-check-label">
-            <FormattedMessage id="circuit.ptau" />
-          </label>
+          {/* the tooltip sits on the label: on the select it would cover the open list */}
           <CustomTooltip
             placement={"auto"}
             tooltipId="circuitPtauTooltip"
             tooltipClasses="text-nowrap"
             tooltipText={<span>{intl.formatMessage({ id: 'circuit.ptauTooltip' })}</span>}
           >
-            <div className="mb-1">
-              <select
-                value={circuitApp.appState.ptauValue}
-                className="form-select"
-                style={{
-                  pointerEvents: 'auto'
-                }}
-                onChange={(e) => circuitApp.dispatch({ type: 'SET_PTAU_VALUE', payload: e.target.value })}
-                data-id="circuitPtauSelect"
-              >
-                {
-                  circuitApp.appState.ptauList.map((ptau, index) => {
-                    return (
-                      <option key={index} value={ptau.name} data-id={`dropdown-item-${ptau.name}`}>{`${ptau.name} (${ptau.maxConstraint} max constr.)`}</option>
-                    )
-                  })
-                }
-              </select>
-            </div>
+            <label className="circuit_inner_label form-check-label" htmlFor="circuitPtauSelect">
+              <FormattedMessage id="circuit.ptau" />
+            </label>
           </CustomTooltip>
+          <div className="mb-1">
+            <Select
+              id="circuitPtauSelect"
+              value={circuitApp.appState.ptauValue}
+              options={circuitApp.appState.ptauList.map((ptau) => ({ value: ptau.name, label: `${ptau.name} (${ptau.maxConstraint} max constr.)` }))}
+              onChange={(value) => circuitApp.dispatch({ type: 'SET_PTAU_VALUE', payload: value })}
+              itemDataId={(o) => `dropdown-item-${o.value}`}
+            />
+          </div>
           <div className="mt-2 form-check">
             <input
               className="form-check-input"

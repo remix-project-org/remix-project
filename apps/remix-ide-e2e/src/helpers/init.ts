@@ -147,7 +147,7 @@ export default function (browser: NightwatchBrowser, callback: VoidFunction, url
             .clickLaunchIcon('solidity')
             .waitForElementVisible('[for="autoCompile"]')
             .click('[for="autoCompile"]')
-            .verify.elementPresent('[data-id="compilerContainerAutoCompile"]:checked')
+            .verify.elementPresent('#autoCompile[aria-checked="true"]')
             .perform(() => { callback() })
         })
       } else {

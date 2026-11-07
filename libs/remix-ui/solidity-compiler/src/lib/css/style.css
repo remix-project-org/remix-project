@@ -212,3 +212,120 @@
   margin: 15px;
   padding: 15px;
 }
+
+/* ---- Compiler panel (redesign). Theme variables only (--bs-*, --custom-*). Type 13/12/11, 4px grid. ---- */
+/* the light theme has no --custom-onsurface-layer-3/4, and no readable severity tones: the panel carries its own */
+.sc-dark { --sc-layer-3: var(--custom-onsurface-layer-3); --sc-err: #f1948a; --sc-warn: #f5c26b; --sc-ok: #66d7ba; }
+.sc-light { --sc-layer-3: #e8ebf2; --sc-err: #c0392b; --sc-warn: #b9770e; --sc-ok: #138d75; }
+
+.sc { font-size: 13px; color: var(--bs-body-color); }
+.sc-err { color: var(--sc-err); }
+.sc-warn { color: var(--sc-warn); }
+.sc-ok { color: var(--sc-ok); }
+.sc-muted { color: var(--bs-secondary-color); }
+
+.sc-section { padding: 12px 16px 16px; display: flex; flex-direction: column; gap: 8px; }
+.sc-bordered { border-top: 1px solid var(--bs-border-color); }
+.sc-label-row { display: flex; align-items: center; justify-content: space-between; min-height: 24px; }
+.sc-label { margin: 0; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .04em; color: var(--bs-secondary-color); }
+
+.sc-field { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.sc-field-label { margin: 0; font-size: 11px; color: var(--bs-secondary-color); }
+.sc .form-select, .sc .form-control { font-size: 13px; }
+.sc .form-select-sm, .sc .form-control-sm { font-size: 12px; }
+
+.sc-note { display: flex; gap: 8px; align-items: baseline; font-size: 12px; line-height: 16px; color: var(--bs-secondary-color); padding: 2px 0; }
+.sc-note b { color: var(--bs-emphasis-color); font-weight: 600; }
+
+/* settings: one row = chevron + title + read-only summary of what you compile with */
+.sc-settings-row { display: flex; align-items: center; gap: 8px; width: 100%; background: none; border: 0; padding: 4px 0; color: var(--bs-body-color); text-align: left; }
+.sc-settings-row:hover .sc-settings-title { color: var(--bs-emphasis-color); }
+.sc-settings-title { font-size: 13px; flex-shrink: 0; }
+.sc-settings-summary { margin-left: auto; font-size: 12px; color: var(--bs-secondary-color); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sc-chev { font-size: 10px; width: 10px; color: var(--bs-secondary-color); flex-shrink: 0; }
+
+.sc-card { background: var(--custom-onsurface-layer-1); border-radius: 8px; }
+.sc-settings { padding: 8px 12px; display: flex; flex-direction: column; gap: 4px; }
+.sc-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; padding: 4px 0; }
+.sc-set-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 4px 0; }
+.sc-set-row .n { display: block; margin: 0; font-size: 13px; color: var(--bs-emphasis-color); cursor: pointer; }
+.sc-set-row small { display: block; font-size: 11px; line-height: 14px; color: var(--bs-secondary-color); }
+.sc-auto { padding: 2px 0; }
+.sc-runs { width: 72px; text-align: right; }
+.sc-hint { font-size: 11px; line-height: 14px; color: var(--bs-secondary-color); margin-top: -2px; }
+.sc-sep { border-top: 1px solid var(--bs-border-color); margin: 4px 0; }
+.sc-file-row { display: flex; align-items: center; gap: 8px; padding: 6px 0 4px; font-size: 12px; }
+.sc-file-row i { color: var(--bs-secondary-color); }
+.sc-file-row .n { color: var(--bs-emphasis-color); }
+
+.sc-compile { width: 100%; margin-top: 4px; display: flex; align-items: center; justify-content: center; gap: 8px; min-width: 0; }
+
+/* results, right under Compile */
+.sc-results { display: flex; flex-direction: column; gap: 8px; margin-top: 4px; word-break: break-word; }
+.sc-status { display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 12px; min-height: 20px; }
+.sc-status-text { display: flex; align-items: baseline; gap: 8px; min-width: 0; }
+.sc-status-text b { font-weight: 600; color: var(--bs-emphasis-color); }
+.sc-inline-switch { display: flex; align-items: center; gap: 6px; margin: 0; font-size: 11px; color: var(--bs-secondary-color); white-space: nowrap; }
+.sc-inline-switch label { margin: 0; cursor: pointer; }
+
+/* issue rows: click = go to line; AI fix always visible, copy on hover */
+.sc-issues { overflow: hidden; }
+.sc-issue { position: relative; }
+.sc-issue + .sc-issue { border-top: 1px solid var(--bs-border-color); }
+.sc-issue-row { width: 100%; display: flex; align-items: flex-start; gap: 8px; background: none; border: 0; padding: 8px 60px 8px 10px; text-align: left; color: var(--bs-body-color); }
+.sc-issue:hover .sc-issue-row { background: var(--custom-onsurface-layer-2); }
+.sc-issue-icon { font-size: 12px; line-height: 18px; width: 14px; text-align: center; flex-shrink: 0; }
+.sc-issue-main { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.sc-issue-title { font-size: 12px; line-height: 18px; color: var(--bs-emphasis-color); overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+.sc-issue-loc { font-size: 11px; line-height: 14px; color: var(--bs-secondary-color); }
+.sc-issue-tools { position: absolute; top: 6px; right: 6px; display: flex; gap: 2px; }
+.sc-issue-tools .sc-icon-btn { font-size: 12px; }
+.sc-copy-hover { visibility: hidden; }
+.sc-issue:hover .sc-copy-hover, .sc-issue:focus-within .sc-copy-hover { visibility: visible; }
+
+/* contract */
+.sc-copy-row { display: flex; gap: 16px; padding: 0 2px; }
+/* both labels share one grid cell so the link keeps its width when it reads "Copied" */
+.sc-copy-link { display: inline-flex; align-items: baseline; gap: 4px; }
+.sc-copy-link .l { display: inline-grid; }
+.sc-copy-link .l > span { grid-area: 1 / 1; }
+.sc-copy-link .l > span[aria-hidden="true"] { visibility: hidden; }
+.sc-copy-link.copied, .sc-copy-link.copied:hover { color: var(--bs-success); text-decoration: none; }
+.sc-two { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.sc-btn-quiet { display: flex; align-items: center; justify-content: center; gap: 6px; padding: 6px 8px; font-size: 12px; background: var(--sc-layer-3); color: var(--bs-emphasis-color); border: 0; white-space: nowrap; overflow: hidden; }
+.sc-btn-quiet:hover { background: var(--sc-layer-3); color: var(--bs-emphasis-color); filter: brightness(1.15); }
+.sc-btn-quiet i { color: var(--bs-secondary-color); }
+
+.sc-link-btn { background: none; border: 0; padding: 0; font-size: 12px; color: var(--custom-primary); text-align: left; }
+.sc-link-btn:hover { text-decoration: underline; }
+
+/* ⋯ menus */
+.sc-icon-btn { width: 24px; height: 24px; display: inline-flex; align-items: center; justify-content: center; border: 0; border-radius: 4px; background: none; color: var(--bs-secondary-color); }
+.sc-icon-btn:hover, .sc-icon-btn[aria-expanded="true"] { background: var(--sc-layer-3); color: var(--bs-emphasis-color); }
+.sc-menu { min-width: 230px; padding: 4px; border-radius: 6px; background: var(--bs-body-bg); border: 1px solid var(--bs-border-color); box-shadow: 0 6px 20px rgba(0, 0, 0, .3); font-size: 12px; }
+.sc-menu .dropdown-item { display: flex; gap: 8px; align-items: baseline; padding: 6px 8px; border-radius: 4px; color: var(--bs-body-color); white-space: normal; }
+.sc-menu .dropdown-item:hover, .sc-menu .dropdown-item:focus, .sc-menu .dropdown-item.active { background: var(--sc-layer-3); color: var(--bs-body-color); }
+.sc-menu .dropdown-item i { color: var(--bs-secondary-color); }
+.sc-menu .dropdown-item .n { display: block; color: var(--bs-emphasis-color); }
+.sc-menu .dropdown-item small { display: block; font-size: 11px; color: var(--bs-secondary-color); overflow: hidden; text-overflow: ellipsis; }
+.sc-menu .dropdown-item > span { min-width: 0; }
+.sc-menu .dropdown-divider { border-top-color: var(--bs-border-color); margin: 4px 0; }
+
+/* RemixAI: card under the results until dismissed, then a row under the issue list */
+.sc-ai-row { display: flex; align-items: center; gap: 8px; font-size: 12px; }
+.sc-ai-row .sc-muted { margin-right: auto; }
+.sc-ai-card { margin-top: 4px; padding: 10px 12px 12px; border-radius: 8px; background: color-mix(in srgb, var(--custom-ai-color) 6%, var(--custom-onsurface-layer-1)); display: flex; flex-direction: column; gap: 8px; }
+.sc-ai-card-head { display: flex; align-items: center; gap: 8px; }
+.sc-ai-card-head .t { font-size: 13px; font-weight: 600; color: var(--bs-emphasis-color); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sc-ai-card-head .sc-icon-btn { width: 20px; height: 20px; margin: -2px -4px 0 auto; flex-shrink: 0; }
+.sc-ai-card-text { font-size: 12px; line-height: 16px; color: var(--bs-secondary-color); margin-top: -4px; }
+/* the theme's .btn-ai is bold with a 14px icon: lighter in this panel */
+.sc .btn-ai, .sc .btn-ai span { font-weight: 400 !important; }
+.sc .sc-ai-card .btn-ai { justify-content: center; white-space: nowrap; padding: 4px 8px !important; gap: 6px !important; }
+.sc .btn-ai.btn-sm { padding: 2px 8px !important; font-size: 11px !important; gap: 6px !important; }
+
+/* RemixAI icon: remixAI_small.svg has the dark cyan hard-coded, so draw the same shape as a mask filled with the
+   theme's AI colour. Inlined because a non-relative url() in CSS is resolved by webpack, not at runtime. */
+.sc-ai-icon { display: inline-block; flex-shrink: 0; width: var(--s, 11px); height: var(--s, 11px); background-color: var(--custom-ai-color);
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3E%3Cpath d='M11.2332 0.378586C11.4607 0.357847 11.6431 0.539758 11.6228 0.767258C11.5338 1.75665 11.1414 4.29893 9.42754 6.02605C11.1413 7.75295 11.5338 10.2952 11.6228 11.2848C11.6433 11.5125 11.4608 11.6952 11.2332 11.6745C10.249 11.5842 7.64356 11.1877 5.93144 9.46257C4.21939 11.1877 1.69988 11.5842 0.715623 11.6745C0.487913 11.6954 0.305487 11.5126 0.325974 11.2848C0.415048 10.2951 0.807528 7.75294 2.52129 6.02605C0.807302 4.29893 0.41498 1.75669 0.325974 0.767258C0.305702 0.539674 0.488028 0.357714 0.715623 0.378586C1.6999 0.468864 4.30534 0.865338 6.01738 2.5905C7.72949 0.865271 10.249 0.468844 11.2332 0.378586ZM6.00761 3.94109C5.90492 3.94109 5.81254 4.00594 5.77617 4.10222L5.32207 5.3112L4.11406 5.76433C4.01779 5.8007 3.95293 5.89308 3.95293 5.99577C3.95311 6.09829 4.01792 6.18992 4.11406 6.22624L5.32207 6.68034L5.77617 7.88835C5.81254 7.98463 5.90492 8.04948 6.00761 8.04948C6.11013 8.0493 6.20177 7.98449 6.23808 7.88835L6.69218 6.68034L7.90019 6.22624C7.99633 6.18992 8.06115 6.09829 8.06133 5.99577C8.06133 5.89308 7.99647 5.8007 7.90019 5.76433L6.69218 5.3112L6.23808 4.10222C6.20177 4.00608 6.11013 3.94127 6.00761 3.94109Z' fill='%23000'/%3E%3C/svg%3E") center / contain no-repeat;
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3E%3Cpath d='M11.2332 0.378586C11.4607 0.357847 11.6431 0.539758 11.6228 0.767258C11.5338 1.75665 11.1414 4.29893 9.42754 6.02605C11.1413 7.75295 11.5338 10.2952 11.6228 11.2848C11.6433 11.5125 11.4608 11.6952 11.2332 11.6745C10.249 11.5842 7.64356 11.1877 5.93144 9.46257C4.21939 11.1877 1.69988 11.5842 0.715623 11.6745C0.487913 11.6954 0.305487 11.5126 0.325974 11.2848C0.415048 10.2951 0.807528 7.75294 2.52129 6.02605C0.807302 4.29893 0.41498 1.75669 0.325974 0.767258C0.305702 0.539674 0.488028 0.357714 0.715623 0.378586C1.6999 0.468864 4.30534 0.865338 6.01738 2.5905C7.72949 0.865271 10.249 0.468844 11.2332 0.378586ZM6.00761 3.94109C5.90492 3.94109 5.81254 4.00594 5.77617 4.10222L5.32207 5.3112L4.11406 5.76433C4.01779 5.8007 3.95293 5.89308 3.95293 5.99577C3.95311 6.09829 4.01792 6.18992 4.11406 6.22624L5.32207 6.68034L5.77617 7.88835C5.81254 7.98463 5.90492 8.04948 6.00761 8.04948C6.11013 8.0493 6.20177 7.98449 6.23808 7.88835L6.69218 6.68034L7.90019 6.22624C7.99633 6.18992 8.06115 6.09829 8.06133 5.99577C8.06133 5.89308 7.99647 5.8007 7.90019 5.76433L6.69218 5.3112L6.23808 4.10222C6.20177 4.00608 6.11013 3.94127 6.00761 3.94109Z' fill='%23000'/%3E%3C/svg%3E") center / contain no-repeat; }

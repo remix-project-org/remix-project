@@ -41,7 +41,10 @@ export interface CompilerContainerEvent extends MatomoEventBase {
     | 'advancedConfigToggle'
     | 'loadAISkills'
     | 'startAIAudit'
-    | 'startGasAudit';
+    | 'startGasAudit'
+    | 'dismissAIReviewCard'
+    | 'compileWith'
+    | 'copyDevRunScriptTag';
 }
 
 

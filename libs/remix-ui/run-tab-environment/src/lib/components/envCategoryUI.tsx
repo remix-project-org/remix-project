@@ -1,19 +1,15 @@
 import React, { useContext, useEffect, useState } from 'react'
-import { Dropdown } from 'react-bootstrap'
-import { CustomToggle } from '@remix-ui/helper'
-import { CustomMenu } from '@remix-ui/helper'
+import { Select } from '@remix-ui/helper'
 import { Provider } from '../types'
 import { setExecutionContext } from '../actions'
 import { EnvAppContext } from '../contexts'
 import { TrackingContext } from '@remix-ide/tracking'
 
-export interface EnvCategoryUIProps {
-  isOpen: boolean
-  onToggle: (isOpen: boolean) => void
-}
+// value of the "select" row, which clears the choice of a Dev / Browser Extension provider
+const SELECT_OPTION = 'select'
 
-export const EnvCategoryUI: React.FC<EnvCategoryUIProps> = ({ isOpen, onToggle }) => {
-  const { plugin, widgetState, dispatch, themeQuality } = useContext(EnvAppContext)
+export const EnvCategoryUI: React.FC = () => {
+  const { plugin, widgetState, dispatch } = useContext(EnvAppContext)
   const { trackMatomoEvent } = useContext(TrackingContext)
   const [subCategories, setSubCategories] = useState<Provider[]>([])
   const [provider, setProvider] = useState<Provider | null>(null)
@@ -45,37 +41,33 @@ export const EnvCategoryUI: React.FC<EnvCategoryUIProps> = ({ isOpen, onToggle }
     }
   }, [widgetState.providers.providerList, widgetState.providers.selectedProvider])
 
+  const canResetSelection = provider?.category === 'Dev' || provider?.category === 'Browser Extension'
+
   return provider?.category && subCategories.length > 0 ? (
-    <Dropdown
-      show={isOpen}
+    <Select
+      id="settingsSelectEnvCategoryOptions"
+      align="end"
+      value={enforceSelect ? SELECT_OPTION : provider.name}
+      options={[
+        // Dev and Browser Extension providers need an explicit choice: "select" goes back to that state
+        ...(canResetSelection ? [{ value: SELECT_OPTION, label: 'select' }] : []),
+        ...subCategories.map((provider) => ({ value: provider.name, label: provider.displayName }))
+      ]}
+      itemDataId={(o) => `dropdown-item-${o.value}`}
+      renderValue={() => <span data-id="selectedVersion">{enforceSelect ? '<select>' : provider?.displayName}</span>}
       onToggle={(willOpen) => {
         if (willOpen) {
           trackMatomoEvent?.({ category: 'udapp', action: 'categoryDropdownOpen', name: provider?.category || 'category' })
         }
-        onToggle(willOpen)
       }}
-      onClick={(e) => {
-        e.preventDefault()
-        e.stopPropagation()
-      }}
-    >
-      <Dropdown.Toggle as={CustomToggle} data-id="settingsSelectEnvCategoryOptions" className="env-subcategory-toggle" icon="fas fa-caret-down text-secondary ms-2" useDefaultIcon={false}>
-        <span data-id="selectedVersion" className="text-secondary text-truncate">{enforceSelect ? '<select>' : provider?.displayName}</span>
-      </Dropdown.Toggle>
-
-      <Dropdown.Menu as={CustomMenu} className="custom-dropdown-items overflow-hidden" style={{ backgroundColor: 'var(--custom-onsurface-layer-3)', border: '1px solid var(--bs-border-color)', zIndex: 1000, '--theme-text-color': themeQuality === 'dark' ? 'white' : 'black', padding: 0, minWidth: 'max-content', width: 'auto' } as React.CSSProperties}>
-        { (provider?.category === 'Dev' || provider?.category === 'Browser Extension') && <Dropdown.Item onClick={() => {
+      onChange={(name) => {
+        if (name === SELECT_OPTION) {
           setEnforceSelect(true)
           dispatch({ type: 'CLEAR_ALL_ACCOUNTS', payload: null })
-        }}>select</Dropdown.Item> }
-        {subCategories.map((provider) => {
-          return (
-            <Dropdown.Item key={provider.name} onClick={() => handleCategorySelection(provider)} data-id={`dropdown-item-${provider.name}`} className="category-item-hover px-2">
-              {provider.displayName}
-            </Dropdown.Item>
-          )
-        })}
-      </Dropdown.Menu>
-    </Dropdown>
+        } else {
+          handleCategorySelection(subCategories.find((provider) => provider.name === name))
+        }
+      }}
+    />
   ) : null
 }

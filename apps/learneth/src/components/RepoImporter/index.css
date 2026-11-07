@@ -31,14 +31,6 @@
   transform: translateY(1px);
 }
 
-.repo-importer-container .dropdown-item {
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  display: block;
-  font-size: 0.75rem;
-}
-
 .hr-themed {
   border-color: var(--bs-secondary);
   opacity: .25;
