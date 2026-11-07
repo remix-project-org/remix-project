@@ -161,6 +161,12 @@ export class PlanManagerPlugin extends ViewPlugin {
   private paymentsAvailabilityChecked = false
   /** Transactions still being watched after their checkout was closed mid-payment. */
   private paymentWatchesAfterClose = new Set<string>()
+  /** Transactions already confirmed in this session, across every confirmation path. */
+  private confirmedTransactionIds = new Set<string>()
+  /** Bumped when the signed-in user changes (not on token refresh) so in-flight watches can tell. */
+  private authEpoch = 0
+  private lastAuthed = false
+  private lastAuthUserId: number | null = null
   // Signed-out visitor picked "Start free". Consumed on the next successful
   // login to land them on the top-up screen (with an upgrade option).
   private pendingFreeAfterSignIn: { at: number } | null = null
@@ -345,6 +351,12 @@ export class PlanManagerPlugin extends ViewPlugin {
       const sig = `${s.isAuthenticated}|${s.token ?? ''}`
       if (sig === this.lastAuthSig) return
       this.lastAuthSig = sig
+      const authed = !!s.isAuthenticated
+      const userId = s.user?.id ?? null
+      if (authed !== this.lastAuthed || (userId !== null && this.lastAuthUserId !== null && userId !== this.lastAuthUserId)) this.authEpoch++
+      this.lastAuthed = authed
+      if (!authed) this.lastAuthUserId = null
+      else if (userId !== null) this.lastAuthUserId = userId
       // Attach the JWT to checkout telemetry so the admin viewer can attribute
       // failures to a user (the sink is optionalAuth — works without it too).
       setCheckoutTelemetryToken(s.isAuthenticated ? (s.token ?? null) : null)
@@ -626,6 +638,7 @@ export class PlanManagerPlugin extends ViewPlugin {
     switch (result.kind) {
     case 'processing':
     case 'success':
+      if (result.transactionId) this.confirmedTransactionIds.add(result.transactionId)
       this.store.send({ type: 'CHECKOUT_COMPLETED', transactionId: result.transactionId })
       // Refresh ending with PURCHASE_CONFIRMED so 'processing' promotes to
       // 'success'. A bare loadAccountData() emits DATA_LOADED, which does NOT
@@ -2432,6 +2445,7 @@ export class PlanManagerPlugin extends ViewPlugin {
         break
       }
       this.trackCheckout('completed', pendingIntent, transactionId)
+      if (transactionId) this.confirmedTransactionIds.add(transactionId)
       this.store.send({ type: 'CHECKOUT_COMPLETED', transactionId })
       planManagerLogger.log('[plan-manager:poll] triggered from paddle checkout.completed', { intent: pendingIntent, transactionId })
       // Poll our backend (never Paddle) until the webhook has been processed,
@@ -2777,14 +2791,18 @@ export class PlanManagerPlugin extends ViewPlugin {
     const items = this.resolvePurchasedItems()
     const method = ctx.paymentMethod ?? null
     const closedAt = Date.now()
+    const epoch = this.authEpoch
+    // Signed out / another user, or confirmed elsewhere (e.g. a resumed checkout).
+    const stale = () => this.authEpoch !== epoch || !this.store.getSnapshot().isAuthenticated || this.confirmedTransactionIds.has(transactionId)
     void (async () => {
       try {
         const billingApi: any = await this.call('auth', 'getBillingApi').catch(() => null)
         if (!billingApi?.getTransactionStatus) return
         while (Date.now() - closedAt < BACKGROUND_CONFIRM_MAX_MS) {
           await new Promise(r => setTimeout(r, BACKGROUND_CONFIRM_INTERVAL_MS))
-          if (!this.store.getSnapshot().isAuthenticated) return
+          if (stale()) return
           const resp = await billingApi.getTransactionStatus(transactionId).catch(() => null)
+          if (stale()) return
           const status: string | undefined = resp?.data?.status
           if (status === 'completed') {
             const live = this.checkoutContext
@@ -2796,7 +2814,7 @@ export class PlanManagerPlugin extends ViewPlugin {
             await this.confirmPaymentAfterClose({ transactionId, intent, label, items, method, closedAt })
             return
           }
-          if (status === 'canceled' || status === 'refunded' || status === 'disputed') return
+          if (status === 'failed' || status === 'canceled' || status === 'refunded' || status === 'disputed') return
         }
       } finally {
         this.paymentWatchesAfterClose.delete(transactionId)
@@ -2812,6 +2830,7 @@ export class PlanManagerPlugin extends ViewPlugin {
     method: string | null
     closedAt: number
   }): Promise<void> {
+    this.confirmedTransactionIds.add(p.transactionId)
     reportCheckoutTelemetry('checkout.confirmed_after_close', {
       transactionId: p.transactionId,
       message: 'Payment completed after the user closed the checkout',
@@ -2824,16 +2843,15 @@ export class PlanManagerPlugin extends ViewPlugin {
     if (p.intent !== 'subscription') {
       this.call('notification' as any, 'toast', `Payment received — ${p.label ?? 'your credits'} added to your account.`).catch(() => { /* noop */ })
     }
-    // Another checkout may be open by now; don't let this confirmation
-    // promote that one's result.
-    const snap = this.store.getSnapshot()
-    const otherCheckoutActive = !!snap.pendingCheckout || snap.checkoutResult?.kind === 'processing'
-    await this.completePurchaseRefresh({ intent: p.intent, label: p.label, items: p.items }, { promote: !otherCheckoutActive })
+    // This checkout already ended as "closed", so there's no result of ours to
+    // promote — and promoting could mark a different, newer checkout as paid.
+    await this.completePurchaseRefresh({ intent: p.intent, label: p.label, items: p.items }, { promote: false })
     void this.loadPendingCheckouts()
   }
 
   private confirmCheckoutFromWebhook(ctx: CheckoutContext): void {
     ctx.confirmed = true
+    if (ctx.transactionId) this.confirmedTransactionIds.add(ctx.transactionId)
     this.clearApprovalWatch(ctx)
     const intent: CheckoutIntent = this.store.getSnapshot().pendingCheckout?.intent ?? 'subscription'
     reportCheckoutTelemetry('checkout.confirmed_async', {
