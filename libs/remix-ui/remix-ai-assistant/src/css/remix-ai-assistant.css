@@ -1546,6 +1546,46 @@ body.light .message-copy-btn:hover {
   background: color-mix(in srgb, var(--bs-body-color) 8%, transparent);
 }
 
+.high-cost-model-banner {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  margin: 0 8px 4px;
+  border-radius: 6px;
+  font-size: 12px;
+  flex-shrink: 0;
+  color: var(--bs-body-color);
+  background: color-mix(in srgb, var(--bs-info) 10%, var(--bs-body-bg));
+  border: 1px solid color-mix(in srgb, var(--bs-info) 25%, var(--bs-body-bg));
+}
+
+.high-cost-model-banner__icon {
+  color: var(--bs-info);
+  flex-shrink: 0;
+}
+
+.high-cost-model-banner__text {
+  opacity: 0.85;
+  flex: 1;
+}
+
+.high-cost-model-banner__dismiss {
+  background: none;
+  border: none;
+  padding: 0 2px;
+  font-size: 11px;
+  line-height: 1;
+  color: var(--bs-body-color);
+  opacity: 0.5;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.high-cost-model-banner__dismiss:hover {
+  opacity: 1;
+}
+
 /* --------------------------------------------------------
    "Using <model>" strip — same geometry as the auto-accept
    banner above it so the two stack as one column.
@@ -2039,6 +2079,7 @@ code {
    in the 860px column. */
 .ai-mode .ai-thinking-banner,
 .ai-mode .hitl-auto-accept-banner,
+.ai-mode .high-cost-model-banner,
 .ai-mode [data-id="ai-cooldown-banner"] {
   margin-left: calc(max(0.5rem, calc((100% - 860px) / 2)) + 0.5rem) !important;
   margin-right: calc(max(0.5rem, calc((100% - 860px) / 2)) + 0.5rem) !important;
