@@ -476,7 +476,7 @@ For Inline mode, preserve the existing /frontend overwrite confirmation flow.`
             className="btn btn-sm btn-secondary debug-btn"
             onClick={() => {
               trackMatomoEvent({ category: 'debugger', action: 'stepButton', value: `Step Backward clicked`, isClick: true })
-              stepManager?.stepOverBack && stepManager.stepOverBack(stepManager.showOpcodes ?? false)
+              stepManager?.stepOverBack && stepManager.stepOverBack(!stepManager.showOpcodes)
             }
             }
             disabled={stepState === 'initial'}
@@ -489,7 +489,7 @@ For Inline mode, preserve the existing /frontend overwrite confirmation flow.`
             className="btn btn-sm btn-primary debug-btn"
             onClick={() => {
               trackMatomoEvent({ category: 'debugger', action: 'stepButton', value: `Step Back clicked`, isClick: true })
-              stepManager?.stepIntoBack && stepManager.stepIntoBack(stepManager.showOpcodes ?? false)
+              stepManager?.stepIntoBack && stepManager.stepIntoBack(!stepManager.showOpcodes)
             }
             }
             disabled={stepState === 'initial'}
@@ -502,7 +502,7 @@ For Inline mode, preserve the existing /frontend overwrite confirmation flow.`
             className="btn btn-sm btn-primary debug-btn"
             onClick={() => {
               trackMatomoEvent({ category: 'debugger', action: 'stepButton', value: `Step Into clicked`, isClick: true })
-              stepManager?.stepIntoForward && stepManager.stepIntoForward(stepManager.showOpcodes ?? false)
+              stepManager?.stepIntoForward && stepManager.stepIntoForward(!stepManager.showOpcodes)
             }
             }
             disabled={stepState === 'end'}
@@ -515,7 +515,7 @@ For Inline mode, preserve the existing /frontend overwrite confirmation flow.`
             className="btn btn-sm btn-secondary debug-btn"
             onClick={() => {
               trackMatomoEvent({ category: 'debugger', action: 'stepButton', value: `Step Forward clicked`, isClick: true })
-              stepManager?.stepOverForward && stepManager.stepOverForward(stepManager.showOpcodes ?? false)
+              stepManager?.stepOverForward && stepManager.stepOverForward(!stepManager.showOpcodes)
             }
             }
             disabled={stepState === 'end'}
