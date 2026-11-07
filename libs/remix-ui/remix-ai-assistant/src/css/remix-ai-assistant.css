@@ -1,3 +1,12 @@
+/* Light theme greys for the AI panel, one set for every part of it. The
+   theme's own surface tokens are white in light (used app-wide), and the
+   page background (#eff1f5) is too close to a plain light grey hover. */
+:root {
+  --ai-light-hover: #e5e8ef;
+  --ai-light-bubble: #e2e6ee;
+  --ai-light-selected: #dde1ea;
+}
+
 .ai-assistant-introtop {
 
 }
@@ -191,83 +200,400 @@
   color: #333;
 }
 
-/* Assistant avatar in message list */
-.assistant-avatar {
+/* --------------------------------------------------------
+   COMPOSER: [tip] box (attachments, input, bar) disclaimer
+   -------------------------------------------------------- */
+
+#remix-ai-prompt-area {
+  --ai-composer-box: var(--custom-onsurface-layer-1);
+  --ai-composer-hover: var(--custom-onsurface-layer-2);
+  --ai-ok: #66d7ba;
+  --ai-warn: #f5c26b;
+  --ai-on-accent: #0b1020;
+}
+
+#remix-ai-prompt-area[data-theme="light"] {
+  --ai-composer-box: #fff;
+  --ai-composer-hover: var(--ai-light-hover);
+  --ai-ok: #138d75;
+  --ai-warn: #b9770e;
+  --ai-on-accent: #fff;
+}
+
+.ai-prompt-section {
+  background: var(--bs-body-bg);
+}
+
+.ai-composer {
+  position: relative;
+  padding: 0 0.5rem;
+}
+
+.ai-composer-box {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--bs-border-color);
+  border-radius: 10px;
+  background: var(--ai-composer-box);
+}
+
+.ai-composer-box:focus-within,
+.ai-composer-box.is-dragging {
+  border-color: var(--custom-ai-color);
+}
+
+.ai-composer-input {
+  border: 0;
+  outline: 0;
+  resize: none;
+  background: transparent;
+  color: var(--bs-body-color);
+  font: inherit;
+  font-size: 13px;
+  line-height: 18px;
+  padding: 8px 10px 2px;
+  min-height: 44px;
+  max-height: 192px;
+  overflow-y: auto;
+}
+
+.ai-composer-input::placeholder {
+  color: var(--bs-secondary-color);
+}
+
+.ai-composer-input:disabled {
+  opacity: 0.6;
+}
+
+.ai-composer-hint {
   display: flex;
   align-items: center;
+  padding: 0 10px 2px;
+  font-size: 11px;
+  font-style: italic;
+  color: var(--bs-secondary-color);
+}
+
+.ai-composer-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  padding: 4px 4px 4px 6px;
+}
+
+.ai-composer-bar-left,
+.ai-composer-bar-right {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+}
+
+.ai-composer-bar-left {
+  flex-shrink: 0;
+}
+
+.ai-composer-plus {
+  width: 28px;
+  height: 28px;
+  border: 1px solid var(--bs-border-color);
+  border-radius: 50%;
+  background: none;
+  color: var(--bs-body-color);
+  display: inline-flex;
+  align-items: center;
   justify-content: center;
-  padding: .5rem;
-  width: 32px;
-  height: 32px;
-  min-width: 32px;
-  min-height: 32px;
-  background-color: rgba(45, 230, 243, 0.08);
-  border: 1px solid rgba(45, 230, 243, 0.32);
+  font-size: 12px;
+}
+
+.ai-composer-plus:hover,
+.ai-composer-plus.on {
+  background: var(--ai-composer-hover);
+  color: var(--bs-emphasis-color);
+}
+
+.ai-model-btn-wrap {
+  display: flex;
+  min-width: 0;
+}
+
+.ai-model-btn {
+  height: 26px;
+  min-width: 0;
+  border: 0;
+  border-radius: 6px;
+  background: none;
+  padding: 0 6px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--bs-secondary-color);
+}
+
+.ai-model-btn:hover,
+.ai-model-btn.on {
+  background: var(--ai-composer-hover);
+  color: var(--bs-emphasis-color);
+}
+
+.ai-model-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ai-model-key {
+  font-size: 9px;
+  color: var(--ai-ok);
+}
+
+.ai-model-chevron {
+  font-size: 8px;
+  opacity: 0.7;
+}
+
+.ai-route-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  background: var(--bs-secondary-color);
+}
+
+.ai-route-dot-agent { background: var(--ai-ok); }
+.ai-route-dot-tools { background: var(--bs-info); }
+.ai-route-dot-warn { background: var(--ai-warn); }
+
+.ai-send-btn {
+  width: 28px;
+  height: 28px;
+  flex-shrink: 0;
+  border: 0;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  background: var(--custom-ai-color);
+  color: var(--ai-on-accent);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.ai-send-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.ai-stop-btn {
+  background: var(--bs-danger);
+  color: #fff;
+}
+
+.ai-signin-btn {
+  width: auto;
+  padding: 0 10px;
   border-radius: 8px;
-  object-fit: contain;
 }
 
-.assistant-avatar img {
-  width: 20px;
-  height: 20px;
-  min-width: 20px;
-  min-height: 20px;
+.ai-disclaimer {
+  padding: 6px 0.5rem 6px;
+  text-align: center;
+  font-size: 11px;
+  color: var(--bs-secondary-color);
 }
 
-
-/* --------------------------------------------------------
-   PROMPT / COMMAND AREA PANEL
-   -------------------------------------------------------- */
-
-.prompt-area {
-  /* matches the dark tone we used inline */
-  /* background: #2a2c3f; */
-  border-radius: 4px;
-  gap: 0.5rem;                /* same as BS5 .gap-2 but column layout */
-  padding: 0.5rem;
+/* Tip line above the input: teaches one /command */
+.ai-tip {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  padding: 0 4px 6px;
+  font-size: 11px;
+  line-height: 16px;
+  color: var(--bs-secondary-color);
 }
 
-/* selector panels (context + assistant) */
-.prompt-area .rounded.selector-box,
-.prompt-area .rounded.p-3 {
-  /* background: rgba(255, 255, 255, 0.03); */
-  border-radius: 4px;
-  padding: 1rem !important;   /* keep existing spacing */
-  margin-bottom: 0.5rem;
+.ai-tip.is-hidden {
+  visibility: hidden;
 }
 
-/* --------------------------------------------------------
-   MINI COMMAND BUTTONS
-   -------------------------------------------------------- */
-
-.prompt-area .btn-dark,
-.prompt-area .btn-secondary,
-.prompt-area .btn-primary,
-.prompt-area .btn-info {
-  font-size: 0.85rem;
-  padding: 0.25rem 0.5rem;
+.ai-tip-icon {
+  margin-top: 2px;
+  color: var(--custom-ai-color);
 }
 
-/* caret spacing */
-.prompt-area .btn i {
-  margin-left: 2px;
+.ai-tip-text {
+  flex: 1;
+  min-width: 0;
 }
 
-/* --------------------------------------------------------
-   CHAT INPUT FIELD
-   -------------------------------------------------------- */
-
-.ai-chat-input input.form-control {
-  flex: 1 1 auto;  /* fills the row without extra inline flexGrow */
+.ai-tip-cmd {
+  border: 0;
+  background: none;
+  padding: 0;
+  color: var(--custom-ai-color);
+  font-family: var(--bs-font-monospace);
+  font-size: 11px;
+  font-weight: 600;
+  text-decoration: underline dotted;
+  text-underline-offset: 2px;
 }
 
-/* --------------------------------------------------------
-   CODE BLOCK WRAPPER
-   -------------------------------------------------------- */
+.ai-tip-cmd:hover {
+  text-decoration-style: solid;
+}
 
-.code-block {
-  position: relative;
-  margin-bottom: 0.5rem;
+.ai-tip-close {
+  border: 0;
+  background: none;
+  padding: 2px 4px;
+  font-size: 10px;
+  line-height: 1;
+  color: var(--bs-secondary-color);
+}
+
+.ai-tip-close:hover {
+  color: var(--bs-emphasis-color);
+}
+
+/* "+" menu: opens upward over the chat */
+.ai-menu {
+  position: absolute;
+  bottom: calc(100% + 4px);
+  left: 0.5rem;
+  right: 0.5rem;
+  max-height: 360px;
+  overflow-y: auto;
+  padding: 4px;
+  border: 1px solid var(--bs-border-color);
+  border-radius: 8px;
+  background: var(--bs-body-bg);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+  z-index: 1000;
+}
+
+.ai-menu-head {
+  padding: 6px 8px 2px;
+  font-size: 10px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--bs-secondary-color);
+}
+
+.ai-menu-item,
+.ai-menu-back {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  border: 0;
+  border-radius: 6px;
+  background: none;
+  padding: 6px 8px;
+  text-align: left;
+  font-size: 12px;
+  color: var(--bs-body-color);
+}
+
+.ai-menu-item > span {
+  flex: 1;
+  min-width: 0;
+}
+
+.ai-menu-item small {
+  display: block;
+  font-size: 11px;
+  color: var(--bs-secondary-color);
+}
+
+.ai-menu-item:hover:not(:disabled),
+.ai-menu-back:hover {
+  background: var(--ai-composer-hover);
+}
+
+.ai-menu-item:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.ai-menu-back {
+  font-weight: 600;
+  color: var(--bs-emphasis-color);
+}
+
+.ai-menu-back i {
+  font-size: 9px;
+}
+
+.ai-menu-icon {
+  width: 14px;
+  font-size: 11px;
+  color: var(--bs-secondary-color);
+}
+
+.ai-menu-chevron {
+  font-size: 9px;
+  color: var(--bs-secondary-color);
+}
+
+.ai-menu-sep {
+  border-top: 1px solid var(--bs-border-color);
+  margin: 4px 8px;
+}
+
+.ai-menu-foot {
+  padding: 6px 0 2px;
+  margin: 4px 8px 0;
+  border-top: 1px solid var(--bs-border-color);
+  font-size: 11px;
+  color: var(--bs-secondary-color);
+}
+
+.ai-menu-foot kbd {
+  font-size: 10px;
+  padding: 0 4px;
+  background: var(--ai-composer-hover);
+  color: var(--bs-body-color);
+}
+
+.ai-menu-item > .ai-menu-lock {
+  flex: none;
+}
+
+.ai-menu-lock {
+  background-color: var(--custom-ai-color);
+  color: var(--bs-body-bg);
+  font-size: 0.6rem;
+  font-weight: normal;
+  padding: 2px 6px;
+  white-space: nowrap;
+}
+
+.ai-cmd {
+  color: var(--custom-ai-color);
+  font-weight: 600;
+  font-family: var(--bs-font-monospace);
+  font-size: 11px;
+}
+
+/* Model menu: low-cost switch under the header */
+.remix-ai-model-selector .rai-cheap-switch {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  padding: 2px 12px 8px;
+  font-size: 12px;
+  border-bottom: 1px solid var(--bs-border-color);
+}
+
+.remix-ai-model-selector .rai-cheap-switch .form-check-input {
+  margin: 0;
+  float: none;
 }
 
 /* --------------------------------------------------------
@@ -325,438 +651,6 @@
   }
 }
 
-/* ========================================================
-   MODERN AI CHAT STYLING - VS Code / Cursor Style
-   ======================================================== */
-
-/* Paragraphs */
-.ai-paragraph {
-  margin: 0.5em 0;
-  line-height: 1.1;
-  font-size: 0.875rem;
-}
-
-.ai-paragraph:first-child {
-  margin-top: 0;
-}
-
-.ai-paragraph:last-child {
-  margin-bottom: 0;
-}
-
-/* Headings */
-.ai-heading {
-  margin: 0;
-  font-weight: 700;
-  line-height: 1.5;
-  font-size: 0.875rem;
-}
-
-.ai-heading:first-child {
-  margin-top: 0.5em;
-}
-
-.ai-h1 {
-  font-size: 0.875rem;
-  font-weight: 700;
-  border-bottom: 1px solid var(--bs-border-color);
-  padding-bottom: 0.3em;
-  line-height: 1.5rem;
-}
-
-.ai-h2 {
-  font-size: 0.875rem;
-  font-weight: 700;
-  line-height: 1.25rem;
-  border-bottom: 1px solid var(--bs-border-color);
-  padding-bottom: 0.3em;
-}
-
-.ai-h3 {
-  font-size: 0.875rem;
-  font-weight: 700;
-  line-height: 1.1rem;
-}
-
-.ai-h4 {
-  font-size: 0.875rem;
-  font-weight: 700;
-  line-height: 1.1rem;
-}
-
-.ai-h5 {
-  font-size: 0.875rem;
-  font-weight: 700;
-  line-height: 1.1rem;
-}
-
-.ai-h6 {
-  font-size: 0.875rem;
-  font-weight: 700;
-  line-height: 1.1rem;
-  color: var(--bs-secondary);
-}
-
-/* Inline Code */
-.ai-inline-code {
-  background: rgba(110, 118, 129, 0.4);
-  color: var(--custom-ai-color);
-  padding: 0.2em 0.4em;
-  border-radius: 3px;
-  font-size: 0.75em;
-  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', 'Consolas', monospace;
-  white-space: pre-wrap;
-  word-break: break-word;
-}
-
-/* Code Block Wrapper */
-.ai-code-block-wrapper {
-  position: relative;
-  margin: 1em 0;
-  background: rgba(110, 118, 129, 0.15);
-  border: 1px solid var(--bs-border-color);
-  border-radius: 6px;
-  overflow: hidden;
-  font-size: 0.875em;
-}
-
-/* Code Header with Language Tag */
-.ai-code-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 0.5rem 0.75rem;
-  background: rgba(112, 149, 200, 0.2);
-  border-bottom: 1px solid var(--bs-border-color);
-}
-
-.ai-code-language {
-  font-size: 0.875rem;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-}
-
-/* Copy Button Styles */
-.ai-copy-btn {
-  background: transparent;
-  border: none;
-  color: var(--bs-secondary);
-  padding: 0.25rem 0.5rem;
-  border-radius: 4px;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  font-size: 0.875rem;
-}
-
-.ai-copy-btn:hover {
-  background: var(--bs-tertiary-bg, rgba(0, 0, 0, 0.1));
-  color: var(--bs-emphasis-color);
-}
-
-.ai-copy-btn:active {
-  transform: scale(0.95);
-}
-
-.ai-copy-btn-absolute {
-  position: absolute;
-  top: 0.5rem;
-  right: 0.5rem;
-  z-index: 10;
-}
-
-/* Code Pre */
-.ai-code-pre {
-  margin: 0;
-  padding: 0.75rem;
-  overflow-x: auto;
-  background: transparent;
-  line-height: 1.5;
-  font-size: 0.875rem;
-  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', 'Consolas', monospace;
-}
-
-.ai-code-pre code {
-  background: transparent;
-  padding: 0;
-  border: none;
-  font-size: inherit;
-  color: inherit;
-  white-space: pre;
-  word-break: normal;
-}
-
-/* Lists */
-.ai-list {
-  margin: 0;
-  padding-left: 1.5rem;
-  line-height: 1.6;
-  font-size: 0.875rem;
-}
-
-.ai-list-unordered {
-  list-style-type: disc;
-}
-
-.ai-list-ordered {
-  list-style-type: decimal;
-}
-
-.ai-list-item {
-  margin: 0.25em 0;
-  padding-left: 0.25rem;
-}
-
-.ai-list-item > .ai-list {
-  margin: 0.25em 0;
-}
-
-.ai-list-item > p {
-  margin: 0.25em 0;
-}
-
-/* Links */
-.ai-link {
-  color: var(--bs-link-color);
-  text-decoration: underline;
-  text-decoration-color: var(--bs-link-color);
-  text-decoration-thickness: 1px;
-  text-underline-offset: 2px;
-  transition: all 0.2s ease;
-}
-
-.ai-link:hover {
-  color: var(--bs-link-hover-color);
-  text-decoration-color: var(--bs-link-hover-color);
-  text-decoration-thickness: 2px;
-}
-
-/* Blockquotes */
-.ai-blockquote {
-  margin: 1em 0;
-  padding: 0.5em 1em;
-  border-left: 4px solid var(--bs-primary, #0d6efd);
-  background: rgba(110, 118, 129, 0.15);
-  border-radius: 0 4px 4px 0;
-  color: var(--bs-body-color);
-  font-style: italic;
-}
-
-.ai-blockquote > p:first-child {
-  margin-top: 0;
-}
-
-.ai-blockquote > p:last-child {
-  margin-bottom: 0;
-}
-
-/* Highlighted text / mark elements */
-mark,
-.ai-paragraph mark,
-.ai-list-item mark {
-  background: rgba(255, 212, 59, 0.4);
-  color: var(--bs-body-color);
-  padding: 0.1em 0.2em;
-  border-radius: 2px;
-}
-
-/* Tables */
-.ai-table-wrapper {
-  margin: 1em 0;
-  overflow-x: auto;
-  border-radius: 6px;
-  border: 1px solid var(--bs-border-color);
-}
-
-.ai-table {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 0.75rem;
-  background: transparent;
-}
-
-.ai-table-head {
-  background: rgba(110, 118, 129, 0.2);
-  border-bottom: 2px solid var(--bs-border-color);
-}
-
-.ai-table-header-cell {
-  padding: 0.75rem 1rem;
-  text-align: left;
-  font-weight: 600;
-  color: var(--bs-body-color);
-  border-bottom: 2px solid var(--bs-border-color);
-}
-
-.ai-table-body .ai-table-row:nth-child(even) {
-  background: rgba(110, 118, 129, 0.1);
-}
-
-.ai-table-body .ai-table-row:hover {
-  background: rgba(110, 118, 129, 0.2);
-}
-
-.ai-table-cell {
-  padding: 0.75rem 1rem;
-  border-bottom: 1px solid var(--bs-border-color);
-}
-
-.ai-table-body .ai-table-row:last-child .ai-table-cell {
-  border-bottom: none;
-}
-
-/* Horizontal Rule */
-.ai-divider {
-  margin: 1.5em 0;
-  border: none;
-  border-top: 1px solid var(--bs-border-color);
-  opacity: 0.5;
-}
-
-/* Strong and Emphasis */
-.ai-strong {
-  font-weight: 600;
-  color: var(--bs-emphasis-color);
-  font-size: 0.875rem;;
-}
-
-.ai-emphasis {
-  font-style: italic;
-}
-
-/* Improve chat bubble styling for better contrast */
-#remix-ai-chat-history .chat-bubble {
-  background: #fffffe !important;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-}
-
-[data-theme="dark"] #remix-ai-chat-history .chat-bubble {
-  background: var(--custom-onsurface-layer-2) !important;
-}
-
-#remix-ai-chat-history .bubble-user,
-#remix-ai-chat-history .bubble-user .aiMarkup,
-#remix-ai-chat-history .bubble-user .ai-paragraph {
-  min-width: 0;
-  max-width: 100%;
-  overflow-wrap: anywhere;
-  word-break: break-word;
-}
-
-/* Better scrollbar for code blocks */
-.ai-code-pre::-webkit-scrollbar {
-  height: 8px;
-}
-
-.ai-code-pre::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-.ai-code-pre::-webkit-scrollbar-thumb {
-  background: var(--bs-secondary);
-  border-radius: 4px;
-}
-
-.ai-code-pre::-webkit-scrollbar-thumb:hover {
-  background: var(--bs-secondary-color);
-}
-
-/* Responsive adjustments */
-@media (max-width: 768px) {
-  .ai-paragraph {
-    font-size: 0.875rem;
-  }
-
-  .ai-h1 {
-    font-size: 0.875rem;
-  }
-
-  .ai-h2 {
-    font-size: 0.875rem;
-  }
-
-  .ai-h3 {
-    font-size: 0.875rem;
-  }
-
-  .ai-code-pre {
-    font-size: 0.875rem;
-  }
-
-  .ai-table {
-    font-size: 0.875rem;
-  }
-}
-
-
-
-.aiMarkup {
-  display: block;
-  white-space: normal;
-  line-height: var(--bs-body-line-height, 1.5);
-}
-
-/* remove default margins inside elements. Bootstrap is just too generous here.*/
-.aiMarkup :where(p, h1, h2, h3, h4, h5, h6, ul, ol, pre, blockquote, table, hr) {
-  margin: 0 !important;
-}
-
-/* Add clean vertical spacing between elements.*/
-.aiMarkup > :where(* + *) {
-  margin-top: .95rem;
-}
-
-
-.aiMarkup :where(li + li) { margin-top: .45rem; }
-.aiMarkup pre { margin-top: .45rem; }
-
-.aiMarkup :where(h1) { margin-top: 1rem; }
-.aiMarkup :where(h2) { margin-top: .95rem; }
-.aiMarkup :where(h3) { margin-top: .85rem; }
-
-.aiMarkup hr { margin: .95rem 0; }
-
-/* Tool execution indicator */
-.tool-execution-indicator {
-  display: flex;
-  align-items: center;
-  font-size: 0.875rem;
-  padding: 8px 12px;
-  margin-top: 8px;
-  margin-bottom: 8px;
-  border-radius: 8px;
-  background-color: rgba(45, 230, 243, 0.08);
-  border-left: 1px solid rgba(45, 230, 243, 0.32);
-}
-
-.tool-execution-indicator i {
-  color: #2de7f3;
-  font-size: 0.875rem;
-}
-
-.tool-execution-indicator span {
-  color: inherit;
-}
-
-
-.prompt-stop-button {
-  position: absolute;
-  right: 8px;
-  top: 35%;
-  transform: translateY(-50%);
-  width: 36px;
-  height: 36px;
-  padding: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background-color: var(--bs-danger);
-  border: none;
-  border-radius: 5px;
-  cursor: pointer;
-  transition: background-color 0.2s ease;
-}
-
 .ai-assistant-bg {
   background: var(--bs-body-bg) !important;
   position: relative;
@@ -797,20 +691,6 @@ mark,
 .ai-assistant-bg > * {
   position: relative;
   z-index: 1;
-}
-
-/* Sub-agent indicator */
-.subagent-indicator {
-  display: flex;
-  align-items: center;
-  font-size: 0.875rem;
-  padding: 8px 12px;
-  margin-top: 8px;
-  margin-bottom: 8px;
-  border-radius: 8px;
-  background-color: rgba(45, 230, 243, 0.08);
-  border-left: 1px solid rgba(45, 230, 243, 0.32);
-  color: var(--custom-ai-color);
 }
 
 /* Light theme gradient override */
@@ -985,22 +865,33 @@ body.light .chat-history-sidebar .sidebar-header {
   border-bottom: 1px solid #dee2e6 !important;
 }
 
-/* Back button for non-maximized mode */
-.chat-history-back-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.5rem;
-  padding: 0.5rem 1rem;
-  background-color: transparent;
-  border: none;
-  color: var(--bs-body-color);
-  cursor: pointer;
-  font-size: 1rem;
-  transition: background-color 0.2s ease;
+/* "Back to chat" row above the history / changes panels (non-maximized mode) */
+.ai-panel-back-row {
+  padding: 6px 8px;
 }
 
-.chat-history-back-btn:hover {
-  background-color: rgba(0, 0, 0, 0.05);
+.ai-panel-back-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 8px;
+  background: transparent;
+  border: none;
+  border-radius: 6px;
+  color: var(--bs-secondary-color);
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.ai-panel-back-btn i {
+  font-size: 10px;
+}
+
+.ai-panel-back-btn:hover,
+.ai-panel-back-btn:focus-visible {
+  color: var(--bs-emphasis-color);
+  background-color: var(--custom-onsurface-layer-1);
 }
 
 /* Sidebar header styling */
@@ -1049,22 +940,6 @@ body.dark .sidebar-close-btn:hover {
   color: #e0e0e0 !important;
 }
 
-/* New conversation button */
-.btn-new-conversation {
-  background-color: #4a9eff;
-  color: #ffffff;
-  border: none;
-  padding: 0.75rem 1rem;
-  font-weight: 500;
-  border-radius: 6px;
-  transition: background-color 0.2s ease;
-}
-
-.btn-new-conversation:hover {
-  background-color: #3d8ee6;
-  color: #ffffff;
-}
-
 /* Search bar styling */
 .search-bar {
   position: relative;
@@ -1110,46 +985,6 @@ body.dark .search-input {
 [data-theme="dark"] .search-input::placeholder,
 body.dark .search-input::placeholder {
   color: #a0a0b0 !important;
-}
-
-/* Archive toggle button */
-.btn-archive-toggle {
-  background-color: transparent;
-  border: 1px solid var(--bs-border-color);
-  color: var(--bs-body-color);
-  padding: 0.375rem 0.75rem;
-  border-radius: 6px;
-  font-size: 0.875rem;
-  transition: all 0.2s ease;
-}
-
-.btn-archive-toggle:hover {
-  background-color: var(--bs-tertiary-bg);
-}
-
-.btn-archive-toggle.active {
-  background-color: var(--bs-primary);
-  color: #ffffff;
-  border-color: var(--bs-primary);
-}
-
-[data-theme="dark"] .btn-archive-toggle,
-body.dark .btn-archive-toggle {
-  background-color: transparent;
-  border-color: #4a4a5a !important;
-  color: #e0e0e0 !important;
-}
-
-[data-theme="dark"] .btn-archive-toggle:hover,
-body.dark .btn-archive-toggle:hover {
-  background-color: #3a3a4a !important;
-}
-
-[data-theme="dark"] .btn-archive-toggle.active,
-body.dark .btn-archive-toggle.active {
-  background-color: #4a9eff !important;
-  border-color: #4a9eff !important;
-  color: #ffffff !important;
 }
 
 /* RemixAI panel rows (chat history, changes): one look for both themes, from the theme's own colours */
@@ -1393,60 +1228,6 @@ body.dark .conversation-menu-item-danger:active i {
   color: #8e94a6 !important;
 }
 
-.message-copy-btn {
-  background: none;
-  border: none;
-  color: var(--bs-secondary);
-  padding: 0.25rem 0.5rem;
-  cursor: pointer;
-  opacity: 0;
-  transition: opacity 0.2s ease, color 0.2s ease;
-  font-size: 0.9rem;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.message-copy-btn:hover {
-  color: var(--bs-body-color);
-}
-
-.message-copy-btn:active {
-  transform: scale(0.95);
-}
-
-.chat-row:hover .message-copy-btn {
-  opacity: 1;
-}
-
-.chat-bubble:hover .message-copy-btn {
-  opacity: 1;
-}
-
-.user-message-actions {
-  margin-top: 0.5rem;
-}
-
-[data-theme="dark"] .message-copy-btn,
-body.dark .message-copy-btn {
-  color: #a0a0b0;
-}
-
-[data-theme="dark"] .message-copy-btn:hover,
-body.dark .message-copy-btn:hover {
-  color: #e0e0e0;
-}
-
-[data-theme="light"] .message-copy-btn,
-body.light .message-copy-btn {
-  color: #8e94a6;
-}
-
-[data-theme="light"] .message-copy-btn:hover,
-body.light .message-copy-btn:hover {
-  color: #5a5f75;
-}
-
 .ai-assistant-startup {
   align-items: center;
   justify-content: center;
@@ -1487,73 +1268,57 @@ body.light .message-copy-btn:hover {
 }
 
 /* --------------------------------------------------------
-   HITL Auto-Accept Banner
-   Fixed above the prompt area, never scrolls with chat.
+   HITL Auto-Accept Banner: one quiet line where the approval
+   dock sits, above the prompt; never scrolls with the chat.
    -------------------------------------------------------- */
-
-.ai-thinking-banner {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 6px 12px;
-  margin: 0 8px 4px;
-  border-radius: 6px;
-  font-size: 12px;
-  flex-shrink: 0;
-  color: var(--bs-body-color);
-  background: color-mix(in srgb, var(--custom-ai-color) 10%, var(--bs-body-bg));
-  border: 1px solid color-mix(in srgb, var(--custom-ai-color) 25%, var(--bs-body-bg));
-}
-
-.ai-thinking-banner__icon {
-  color: var(--custom-ai-color);
-}
-
-.ai-thinking-banner__text {
-  font-weight: 600;
-  opacity: 0.85;
-}
 
 .hitl-auto-accept-banner {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  padding: 6px 12px;
+  gap: 6px;
+  padding: 2px 4px;
   margin: 0 8px 4px;
-  border-radius: 6px;
-  font-size: 12px;
+  font-size: 11px;
   flex-shrink: 0;
-  color: var(--bs-body-color);
-  background: color-mix(in srgb, var(--bs-warning) 12%, var(--bs-body-bg));
-  border: 1px solid color-mix(in srgb, var(--bs-warning) 25%, var(--bs-body-bg));
+  color: var(--bs-secondary-color);
 }
 
+/* What is on stands out in the AI colour; Turn off stays quiet */
 .hitl-auto-accept-banner__text {
-  opacity: 0.85;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-weight: 500;
+  color: var(--custom-ai-color);
+}
+
+.hitl-auto-accept-banner__text i {
+  font-size: 9px;
 }
 
 .hitl-auto-accept-banner__btn {
+  border: 0;
   background: none;
-  border: 1px solid color-mix(in srgb, var(--bs-body-color) 30%, transparent);
+  padding: 0 4px;
   border-radius: 4px;
-  padding: 2px 10px;
-  font-size: 12px;
-  color: var(--bs-body-color);
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--bs-secondary-color);
   cursor: pointer;
 }
 
-.hitl-auto-accept-banner__btn:hover {
-  background: color-mix(in srgb, var(--bs-body-color) 8%, transparent);
+.hitl-auto-accept-banner__btn:hover,
+.hitl-auto-accept-banner__btn:focus-visible {
+  color: var(--bs-emphasis-color);
+  background: var(--ai-surface-hover);
 }
 
 /* --------------------------------------------------------
-   "Using <model>" strip — same geometry as the auto-accept
-   banner above it so the two stack as one column.
+   "Using <model>" line — a quiet note with the same geometry
+   as the auto-accept banner, so the two stack as one column.
 
-   The banner and this line hang off different parents, and
-   this one's parent paints a lighter strip: the full-bleed
-   row covers it with the panel background so only the inner
-   rounded box shows.
+   Its parent paints a lighter strip: the full-bleed row
+   covers it with the panel background.
    -------------------------------------------------------- */
 
 .rai-panel-strip {
@@ -1564,19 +1329,18 @@ body.light .message-copy-btn:hover {
 .rai-run-model {
   display: flex;
   align-items: center;
-  padding: 4px 12px;
+  gap: 6px;
+  padding: 2px 4px;
   margin: 0 8px 4px;
-  border-radius: 6px;
-  font-size: 12px;
+  font-size: 11px;
   min-width: 0;
-  color: var(--bs-success);
-  background: color-mix(in srgb, var(--bs-success) 10%, var(--bs-body-bg));
-  border: 1px solid color-mix(in srgb, var(--bs-success) 22%, var(--bs-body-bg));
+  color: var(--bs-secondary-color);
 }
 
 .rai-run-model__icon {
-  font-size: 0.7rem;
-  margin-right: 6px;
+  width: 12px;
+  height: 12px;
+  flex-shrink: 0;
 }
 
 .rai-run-model__text {
@@ -1585,14 +1349,9 @@ body.light .message-copy-btn:hover {
   white-space: nowrap;
 }
 
-/* --------------------------------------------------------
-   HITL Pending Approvals Summary Bar
-   -------------------------------------------------------- */
-
-.hitl-pending-summary {
-  padding: 12px;
-  border-bottom: 1px solid var(--bs-border-color);
-  margin-bottom: 8px;
+.rai-run-model__name {
+  font-weight: 500;
+  color: var(--custom-ai-color);
 }
 
 /* --------------------------------------------------------
@@ -1623,68 +1382,6 @@ code {
   font-weight: 600;
   font-size: 12px;
   color: var(--custom-ai-color);
-}
-
-.tool-approval-card__timer {
-  font-size: 12px;
-  color: var(--bs-secondary-color);
-}
-
-.tool-approval-card__file-info {
-  font-size: 12px;
-  color: var(--bs-secondary-color);
-  margin-bottom: 8px;
-}
-
-/* .tool-approval-card__file-info code {
-  color: var(--bs-secondary-color);
-} */
-
-.tool-approval-card__new-file {
-  color: var(--bs-success);
-  margin-left: 6px;
-  font-size: 12px;
-}
-
-.tool-approval-card__deploy-info {
-  font-size: 12px;
-  color: var(--bs-secondary-color);
-  margin-bottom: 8px;
-}
-
-.tool-approval-card__tx-info {
-  font-size: 12px;
-  color: var(--bs-danger);
-  margin-bottom: 8px;
-}
-
-.tool-approval-card__meta-label {
-  margin-left: 6px;
-  font-size: 12px;
-  color: var(--bs-secondary-color);
-}
-
-.tool-approval-card__args-summary {
-  font-size: 12px;
-  margin-bottom: 8px;
-  max-height: 60px;
-  overflow: auto;
-}
-
-.tool-approval-card__args-pre {
-  margin: 0;
-  white-space: pre-wrap;
-  color: var(--bs-body-color);
-}
-
-.tool-approval-card__reviewing {
-  font-size: 12px;
-  color: var(--custom-ai-color);
-  margin-bottom: 8px;
-  padding: 6px 8px;
-  border-radius: 4px;
-  background: color-mix(in srgb, var(--custom-ai-color) 8%, transparent);
-  border: 1px solid color-mix(in srgb, var(--custom-ai-color) 20%, transparent);
 }
 
 
@@ -1765,15 +1462,6 @@ code {
   opacity: 0.85;
 }
 
-.tool-approval-card__btn--review {
-  background: color-mix(in srgb, var(--bs-body-color) 8%, transparent);
-  color: var(--bs-body-color);
-}
-
-.tool-approval-card__btn--review:hover {
-  opacity: 0.85;
-}
-
 /* --------------------------------------------------------
    Chat Area Background Normalization
    When messages exist (chat mode), use the flat body bg
@@ -1814,184 +1502,390 @@ code {
   display: none !important;
 }
 
-/* ===== Dark-themed AI model / provider selector ===== */
+/* ===== Model menu: same surface as the composer's "+" menu, no strokes ===== */
 .remix-ai-model-selector {
-  background-color: #1b1c2b !important;
-  border-color: rgba(255, 255, 255, 0.09) !important;
-  color: #e7e8f0;
+  --rai-hover: var(--custom-onsurface-layer-2);
+  --rai-mm-head-bg: var(--custom-onsurface-layer-1);
+  overflow: hidden;
+  border: 1px solid var(--bs-border-color);
+  border-radius: 8px;
+  background: var(--bs-body-bg);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+  color: var(--bs-body-color);
+  font-size: 12px;
+}
+
+[data-theme="light"] .remix-ai-model-selector {
+  --rai-hover: var(--ai-light-hover);
+  --rai-mm-head-bg: #e4e7ee;
+  --rai-mm-head-hover: var(--ai-light-selected);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
 }
 
 .remix-ai-model-selector .rai-selector-heading {
-  color: #9b9db4;
+  font-size: 10px;
   letter-spacing: 0.04em;
+  color: var(--bs-secondary-color);
 }
 
-/* Sticky search bar */
-.remix-ai-model-selector .rai-search-bar {
-  background-color: #1b1c2b;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+.remix-ai-model-selector .rai-mm-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 8px 4px 12px;
 }
-.remix-ai-model-selector .form-control {
-  background-color: #26273a;
-  border-color: rgba(255, 255, 255, 0.1);
-  color: #e7e8f0;
+
+.remix-ai-model-selector .rai-mm-title {
+  font-size: 10px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--bs-secondary-color);
 }
-.remix-ai-model-selector .form-control:focus {
-  background-color: #26273a;
-  color: #e7e8f0;
+
+.remix-ai-model-selector .rai-mm-search {
+  position: relative;
+  margin: 2px 8px 6px;
+}
+
+.remix-ai-model-selector .rai-mm-search i {
+  position: absolute;
+  left: 9px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 11px;
+  color: var(--bs-secondary-color);
+}
+
+.remix-ai-model-selector .rai-mm-search input {
+  width: 100%;
+  height: 28px;
+  padding: 0 8px 0 26px;
+  font-size: 12px;
+  border: 1px solid var(--bs-border-color);
+  border-radius: 6px;
+  outline: 0;
+  background: var(--custom-onsurface-layer-1);
+  color: var(--bs-body-color);
+}
+
+.remix-ai-model-selector .rai-mm-search input:focus {
   border-color: var(--custom-ai-color);
-  box-shadow: none;
-}
-.remix-ai-model-selector .form-control::placeholder { color: #797b95; }
-
-/* Provider headers and model rows are GroupListMenu's .btn.btn-light */
-.remix-ai-model-selector .btn-light {
-  background-color: transparent !important;
-  color: #e7e8f0 !important;
-  border: 0 !important;
-  border-radius: 0 !important;
-}
-.remix-ai-model-selector .btn-light:hover,
-.remix-ai-model-selector .btn-light:focus {
-  background-color: #2a2b40 !important;
-}
-.remix-ai-model-selector .btn-light:disabled { opacity: 1; }
-
-.remix-ai-model-selector .text-muted { color: #9b9db4 !important; }
-.remix-ai-model-selector .text-primary { color: var(--custom-ai-color) !important; }
-.remix-ai-model-selector .badge.bg-secondary {
-  background-color: #34364e !important;
-  color: #c9cbe0 !important;
 }
 
-/* One card per provider, separated by a divider */
-.remix-ai-model-selector .rai-provider-group {
-  border-top: 1px solid rgba(255, 255, 255, 0.07) !important;
+.remix-ai-model-selector .rai-mm-search input::placeholder {
+  color: var(--bs-secondary-color);
 }
 
-/* Provider header that owns the currently active model */
-.remix-ai-model-selector [data-owns-selection="true"] {
-  background-color: rgba(255, 255, 255, 0.05) !important;
-  box-shadow: inset 3px 0 0 var(--custom-ai-color);
-}
-
-/* The menu body scrolls only as a safety net (many providers on a short
-   panel); its scrollbar is hidden so the sole visible one belongs to the open
-   provider's model list below. */
-.remix-ai-model-selector .rai-model-scroll {
+/* One scroll area for the whole list; the wheel never reaches the chat behind (#7928) */
+.remix-ai-model-selector .rai-mm-scroll {
+  flex: 1 1 auto;
+  min-height: 0;
   overflow-y: auto;
-  scrollbar-width: none;
-}
-
-.remix-ai-model-selector .rai-model-scroll::-webkit-scrollbar {
-  width: 0;
-  height: 0;
-}
-
-/* Nesting guide: models sit indented under their provider with a connector
-   line + inset surface, making the provider→models relationship obvious. */
-.remix-ai-model-selector .rai-model-list {
-  margin-left: 1.4rem;
-  border-left: 1px solid rgba(255, 255, 255, 0.12);
-  background-color: rgba(0, 0, 0, 0.18);
-  /* Capped at 6 rows by ProviderModelList; the nested scrollbar stays slim so
-     it reads as the model list's own, distinct from the popover's. */
+  overscroll-behavior: contain;
   scrollbar-width: thin;
-  scrollbar-color: rgba(255, 255, 255, 0.22) transparent;
+  padding-bottom: 4px;
 }
 
-.remix-ai-model-selector .rai-model-list::-webkit-scrollbar {
-  width: 6px;
-}
-
-.remix-ai-model-selector .rai-model-list::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-.remix-ai-model-selector .rai-model-list::-webkit-scrollbar-thumb {
-  background-color: rgba(255, 255, 255, 0.22);
-  border-radius: 3px;
-}
-
-.remix-ai-model-selector .rai-model-list::-webkit-scrollbar-thumb:hover {
-  background-color: rgba(255, 255, 255, 0.35);
-}
-
-/* Selected model row */
-.remix-ai-model-selector [data-selected="true"] {
-  background-color: rgba(255, 255, 255, 0.06) !important;
-  box-shadow: inset 3px 0 0 var(--custom-ai-color);
-}
-
-/* "Auto Mode": the first entry of the model list, at the same level as the
-   provider headers. Sticky so it stays put while the list scrolls, and tinted
-   with the theme accent so it reads as the recommended choice. */
-.remix-ai-model-selector .rai-auto-row {
+/* Provider header: a tinted bar that sticks while its models scroll */
+.remix-ai-model-selector .rai-mm-head {
   position: sticky;
   top: 0;
-  z-index: 2;
-  padding-left: 0.75rem;
-  padding-right: 0.75rem;
-  border-bottom: 1px solid var(--custom-ai-color) !important;
-  box-shadow: inset 3px 0 0 var(--custom-ai-color);
-  background-color: #1b1c2b;
-  background-image: linear-gradient(
-    135deg,
-    color-mix(in srgb, var(--custom-ai-color) 22%, transparent),
-    color-mix(in srgb, var(--custom-ai-color) 6%, transparent)
-  );
-  transition: background-image 0.15s ease;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 7px 12px 5px;
+  border: 0;
+  background: var(--rai-mm-head-bg);
+  color: var(--bs-body-color);
+  text-align: left;
 }
 
-.remix-ai-model-selector .rai-auto-row:hover,
-.remix-ai-model-selector .rai-auto-row:focus {
-  background-image: linear-gradient(
-    135deg,
-    color-mix(in srgb, var(--custom-ai-color) 36%, transparent),
-    color-mix(in srgb, var(--custom-ai-color) 14%, transparent)
-  );
+.remix-ai-model-selector .rai-mm-head:hover,
+.remix-ai-model-selector .rai-mm-head:focus-visible {
+  background: var(--rai-mm-head-hover, var(--rai-hover));
 }
 
-.remix-ai-model-selector .rai-auto-icon {
+.remix-ai-model-selector .rai-mm-brand {
+  display: inline-flex;
+  justify-content: center;
+  width: 16px;
+  flex-shrink: 0;
+  font-size: 13px;
+  color: var(--bs-secondary-color);
+}
+
+.remix-ai-model-selector .rai-mm-brand.is-on,
+.remix-ai-model-selector .rai-mm-auto-icon {
   color: var(--custom-ai-color);
 }
 
-.remix-ai-model-selector .rai-auto-title {
-  color: var(--custom-ai-color);
+.remix-ai-model-selector .rai-mm-head-text {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
 }
 
-.remix-ai-model-selector .rai-auto-subtitle {
-  color: rgba(231, 232, 240, 0.7);
-}
-
-.remix-ai-model-selector .rai-auto-badge {
-  background-color: color-mix(in srgb, var(--custom-ai-color) 18%, transparent);
-  border: 1px solid var(--custom-ai-color);
-  color: var(--custom-ai-color);
-  font-size: 0.6rem;
-  padding: 1px 6px;
+.remix-ai-model-selector .rai-mm-head-name {
+  font-size: 12px;
   font-weight: 600;
+  color: var(--bs-emphasis-color);
 }
 
-/* "API keys" shortcut in the model-picker header. Uses the AI accent rather
-   than a muted outline: a secondary-outline button next to greyed heading text
-   reads as disabled, and this is an action we want people to find. */
-.rai-api-key-btn {
+.remix-ai-model-selector .rai-mm-head-sub {
+  font-size: 11px;
   color: var(--custom-ai-color);
-  background: color-mix(in srgb, var(--custom-ai-color) 10%, transparent);
-  border: 1px solid color-mix(in srgb, var(--custom-ai-color) 40%, transparent);
-  border-radius: 4px;
-  font-size: 0.72rem;
-  line-height: 1.5;
+  overflow: hidden;
+  text-overflow: ellipsis;
   white-space: nowrap;
-  transition: background-color 0.15s ease, border-color 0.15s ease;
+}
+
+.remix-ai-model-selector .rai-mm-chev {
+  font-size: 10px;
+  color: var(--bs-secondary-color);
+}
+
+.remix-ai-model-selector .rai-mm-key-link,
+.remix-ai-model-selector .rai-mm-key-own {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  white-space: nowrap;
+}
+
+.remix-ai-model-selector .rai-mm-key-link i,
+.remix-ai-model-selector .rai-mm-key-own i {
+  font-size: 9px;
+}
+
+.remix-ai-model-selector .rai-mm-key-link {
+  color: var(--custom-ai-color);
+  cursor: pointer;
+}
+
+.remix-ai-model-selector .rai-mm-key-link:hover {
+  text-decoration: underline;
+}
+
+.remix-ai-model-selector .rai-mm-key-own {
+  color: var(--bs-secondary-color);
+}
+
+.remix-ai-model-selector .rai-mm-count {
+  min-width: 18px;
+  padding: 1px 5px;
+  border-radius: 8px;
+  text-align: center;
+  font-size: 10px;
+  line-height: 14px;
+  color: var(--bs-secondary-color);
+  background: var(--bs-body-bg);
+}
+
+.remix-ai-model-selector .rai-mm-models {
+  padding: 2px 0 4px;
+}
+
+/* Model rows: the name only, one line; the description is in the strip.
+   Inset and rounded like the "+" menu rows, so the hover never meets a header. */
+.remix-ai-model-selector .rai-mm-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: calc(100% - 8px);
+  margin: 0 4px;
+  padding: 5px 8px;
+  border: 0;
+  border-radius: 6px;
+  background: none;
+  color: var(--bs-body-color);
+  text-align: left;
+}
+
+.remix-ai-model-selector .rai-mm-row.is-indented {
+  padding-left: 32px;
+}
+
+.remix-ai-model-selector .rai-mm-row.is-active {
+  background: var(--rai-hover);
+}
+
+.remix-ai-model-selector .rai-mm-row.is-dim .rai-mm-name {
+  opacity: 0.55;
+}
+
+.remix-ai-model-selector .rai-mm-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 1.3;
+  color: var(--bs-emphasis-color);
+}
+
+/* Short reason a row can't be picked ("Pro", "Soon"), next to its lock */
+.remix-ai-model-selector .rai-mm-note {
+  flex-shrink: 0;
+  font-size: 11px;
+  white-space: nowrap;
+  color: var(--bs-secondary-color);
+}
+
+.remix-ai-model-selector .rai-mm-req {
+  color: var(--bs-body-color);
+}
+
+.remix-ai-model-selector .rai-mm-row[data-selected="true"] .rai-mm-name {
+  color: var(--custom-ai-color);
+}
+
+.remix-ai-model-selector .rai-mm-check {
+  font-size: 11px;
+  color: var(--custom-ai-color);
+  flex-shrink: 0;
+}
+
+.remix-ai-model-selector .rai-mm-lock {
+  font-size: 10px;
+  color: var(--bs-secondary-color);
+  flex-shrink: 0;
+}
+
+/* "Auto": the first entry, at the providers' level */
+/* The divider under Auto is its own straight line: the rounded row would bend a border */
+.remix-ai-model-selector .rai-mm-auto {
+  position: relative;
+  margin-top: 4px;
+  margin-bottom: 9px;
+  padding-top: 7px;
+  padding-bottom: 7px;
+}
+
+.remix-ai-model-selector .rai-mm-auto::after {
+  content: '';
+  position: absolute;
+  left: -4px;
+  right: -4px;
+  bottom: -5px;
+  border-top: 1px solid var(--bs-border-color);
+}
+
+/* Recent: the last models picked, across providers, under Auto */
+.remix-ai-model-selector .rai-mm-recent {
+  padding: 2px 0 6px;
+}
+
+.remix-ai-model-selector .rai-mm-caption {
+  padding: 6px 12px 2px;
+  font-size: 10px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--bs-secondary-color);
+}
+
+/* Description strip: fixed height so the list never resizes under the pointer */
+.remix-ai-model-selector .rai-mm-detail {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  flex-shrink: 0;
+  height: 64px;
+  overflow: hidden;
+  padding: 7px 12px 8px;
+  border-top: 1px solid var(--bs-border-color);
+  background: var(--rai-mm-head-bg);
+}
+
+.remix-ai-model-selector .rai-mm-detail-name {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--bs-emphasis-color);
+}
+
+.remix-ai-model-selector .rai-mm-detail-text {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  font-size: 11px;
+  line-height: 1.4;
+  color: var(--bs-secondary-color);
+}
+
+.remix-ai-model-selector .rai-mm-rec {
+  margin-left: 6px;
+  font-size: 10px;
+  font-weight: 400;
+  color: var(--custom-ai-color);
+}
+
+.remix-ai-model-selector .rai-mm-empty {
+  padding: 16px 12px;
+  text-align: center;
+  font-size: 12px;
+  color: var(--bs-secondary-color);
+}
+
+/* Installed Ollama models are GroupListMenu's .btn.btn-light rows */
+.remix-ai-model-selector .btn-light {
+  background: transparent !important;
+  color: var(--bs-body-color) !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  font-size: 12px;
+}
+
+.remix-ai-model-selector .btn-light:hover,
+.remix-ai-model-selector .btn-light:focus-visible {
+  background: var(--rai-hover) !important;
+}
+
+.remix-ai-model-selector .btn-light:disabled {
+  opacity: 1;
+}
+
+.remix-ai-model-selector .rai-ollama-models .btn-light {
+  padding-left: 36px;
+}
+
+.remix-ai-model-selector .text-primary {
+  color: var(--custom-ai-color) !important;
+}
+
+.remix-ai-model-selector .badge.bg-secondary {
+  background: var(--rai-hover) !important;
+  color: var(--bs-secondary-color) !important;
+  font-weight: 400;
+}
+
+/* "API keys" in the header: a quiet text button */
+.rai-api-key-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  border: 0;
+  border-radius: 4px;
+  background: none;
+  padding: 2px 6px;
+  font-size: 11px;
+  white-space: nowrap;
+  color: var(--bs-secondary-color);
+}
+
+.rai-api-key-btn i {
+  font-size: 10px;
 }
 
 .rai-api-key-btn:hover,
 .rai-api-key-btn:focus-visible {
-  color: var(--custom-ai-color);
-  background: color-mix(in srgb, var(--custom-ai-color) 22%, transparent);
-  border-color: var(--custom-ai-color);
+  background: var(--rai-hover);
+  color: var(--bs-emphasis-color);
 }
 
 /* --------------------------------------------------------
@@ -2017,27 +1911,29 @@ code {
 
 /* AI mode: centered reading column. Content is capped at 860px
    while the background and scrollbar still span the full width.
-   (!important beats the Bootstrap p-2 utility on the section.) */
-.ai-mode #remix-ai-chat-history,
+   (!important beats the Bootstrap padding utilities on the sections.) */
 .ai-mode #remix-ai-prompt-area,
 .ai-mode .rai-panel-strip {
   padding-left: max(0.5rem, calc((100% - 860px) / 2)) !important;
   padding-right: max(0.5rem, calc((100% - 860px) / 2)) !important;
 }
 
+.ai-mode #remix-ai-chat-history .ai-transcript {
+  padding-left: calc(max(0.5rem, calc((100% - 860px) / 2)) + 1rem);
+  padding-right: calc(max(0.5rem, calc((100% - 860px) / 2)) + 1rem);
+}
+
 /* AI mode header: line "New chat" and the icons up with the input
    box edges (column padding + the prompt box's .mx-2). */
+/* Same height with or without a conversation (the labelled New Chat button is 1px taller) */
 .ai-mode .ai-mode-heading {
+  min-height: 48px;
   padding-left: calc(max(0.5rem, calc((100% - 860px) / 2)) + 0.5rem) !important;
   padding-right: calc(max(0.5rem, calc((100% - 860px) / 2)) + 0.5rem) !important;
 }
 
-/* Banners that paint their own box (thinking, auto-accept, cooldown): margins
-   rather than padding, so the box itself lines up with the input box edges.
-   The thinking banner renders as an immediate sibling of the auto-accept one,
-   so leaving it out here made it span the full panel while its neighbour sat
-   in the 860px column. */
-.ai-mode .ai-thinking-banner,
+/* Banners that paint their own box (auto-accept, cooldown): margins rather
+   than padding, so the box itself lines up with the input box edges. */
 .ai-mode .hitl-auto-accept-banner,
 .ai-mode [data-id="ai-cooldown-banner"] {
   margin-left: calc(max(0.5rem, calc((100% - 860px) / 2)) + 0.5rem) !important;
@@ -2166,12 +2062,12 @@ body.ai-panel-resizing {
   initial-value: 0deg;
 }
 
-.prompt-area.ai-input-spotlight {
+.ai-composer-box.ai-input-spotlight {
   animation: ai-spot-glow 1.6s ease-out forwards;
 }
 
 /* Border-only ring (masked to a 2px band), following the box radius */
-.prompt-area.ai-input-spotlight::before {
+.ai-composer-box.ai-input-spotlight::before {
   content: '';
   position: absolute;
   inset: -1px;
@@ -2212,14 +2108,583 @@ body.ai-panel-resizing {
 
 /* Reduced motion: no travelling light, just the brief glow */
 @media (prefers-reduced-motion: reduce) {
-  .prompt-area.ai-input-spotlight::before {
+  .ai-composer-box.ai-input-spotlight::before {
     display: none;
   }
 }
 
-/* File change lines inside an AI answer, where the agent changed files */
-.ai-change-group {
+/* The transcript sits 8px inside the input box edges */
+/* The side padding sits on the scrolling transcript, so its scrollbar is at the panel edge */
+#remix-ai-chat-history .ai-transcript {
+  padding-left: 1rem;
+  padding-right: 1rem;
+}
+
+/* --------------------------------------------------------
+   TRANSCRIPT: user bubbles right, answers full width under a
+   "RemixAI" head; markdown, code blocks, activity, plan.
+   -------------------------------------------------------- */
+
+.ai-transcript {
+  --ai-hover: var(--custom-onsurface-layer-2);
+  --ai-bubble: var(--custom-onsurface-layer-2);
+  --ai-code-bg: #1a1b2b;
+  --ai-inline-code: rgba(255, 255, 255, 0.07);
+  --ai-add: #66d7ba;
+  --ai-del: #f1948a;
+  gap: 20px;
+  font-size: 13px;
+  line-height: 1.55;
+  color: var(--bs-body-color);
+}
+
+[data-theme="light"] .ai-transcript {
+  --ai-hover: var(--ai-light-hover);
+  --ai-bubble: var(--ai-light-bubble);
+  --ai-code-bg: #f6f7fa;
+  --ai-inline-code: rgba(0, 0, 0, 0.06);
+  --ai-add: #138d75;
+  --ai-del: #c0392b;
+}
+
+.ai-icon-btn {
+  width: 24px;
+  height: 22px;
+  border: 0;
+  border-radius: 4px;
+  background: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  color: var(--bs-secondary-color);
+}
+
+.ai-icon-btn:hover {
+  background: var(--ai-hover);
+  color: var(--bs-emphasis-color);
+}
+
+.ai-icon-btn.on {
+  color: var(--custom-ai-color);
+}
+
+/* User turn */
+.ai-turn-user {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+}
+
+.ai-bubble {
+  max-width: 85%;
+  padding: 8px 12px;
+  border-radius: 12px 12px 4px 12px;
+  background: var(--ai-bubble);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.ai-user-actions {
+  position: absolute;
+  right: 0;
+  bottom: -22px;
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+
+.ai-turn-user:hover .ai-user-actions,
+.ai-user-actions:focus-within {
+  opacity: 1;
+}
+
+.ai-request-toggle {
+  border: 0;
+  background: none;
+  padding: 0;
+  font-size: 11px;
+  color: var(--bs-secondary-color);
+}
+
+.ai-request-toggle:hover {
+  color: var(--bs-emphasis-color);
+}
+
+.ai-turn-attachments {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.ai-turn-user .ai-turn-attachments {
+  justify-content: flex-end;
+}
+
+.ai-attachment-thumb {
+  max-width: 120px;
+  max-height: 120px;
+  object-fit: cover;
+  border: 1px solid var(--bs-border-color);
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.ai-attachment-file {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 220px;
+  padding: 2px 8px;
+  border: 1px solid var(--bs-border-color);
+  border-radius: 6px;
+  font-size: 12px;
+}
+
+.ai-attachment-file i,
+.ai-capture-caption i {
+  font-size: 0.7rem;
+  color: var(--bs-secondary-color);
+}
+
+.ai-capture-caption {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--bs-secondary-color);
+}
+
+/* Assistant turn */
+.ai-turn-ai {
+  min-width: 0;
+}
+
+.ai-turn-head {
+  display: flex;
+  margin-bottom: 6px;
+}
+
+/* Empty chat: placed from the top by the window height, not centred in the
+   transcript, so tips, banners and the input growing below never move it */
+.assistant-landing {
+  padding-top: max(16px, calc(50vh - 220px));
+}
+
+.ai-turn-icon {
+  width: 14px;
+  height: 14px;
+}
+
+.ai-turn-body,
+.ai-answer {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 0;
+}
+
+.ai-answer.is-muted {
+  color: var(--bs-secondary-color);
+}
+
+.ai-answer-actions {
+  display: flex;
   gap: 2px;
+  margin: -4px 0 0 -6px;
+}
+
+/* Markdown */
+.ai-md {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 0;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+.ai-md :where(p, ul, ol, pre, blockquote, table, hr) {
+  margin: 0;
+}
+
+.ai-md :where(h1, h2, h3, h4, h5, h6) {
+  margin: 4px 0 -4px;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.4;
+  color: var(--bs-emphasis-color);
+}
+
+.ai-md :where(h1, h2) {
+  margin-top: 6px;
+  margin-bottom: -2px;
+  font-size: 14px;
+}
+
+.ai-md :where(ul, ol) {
+  padding-left: 18px;
+}
+
+.ai-md li + li {
+  margin-top: 4px;
+}
+
+.ai-md li > :where(ul, ol) {
+  margin-top: 4px;
+}
+
+.ai-md li::marker {
+  color: var(--bs-secondary-color);
+}
+
+.ai-md strong {
+  font-weight: 600;
+  color: var(--bs-emphasis-color);
+}
+
+.ai-md a {
+  color: var(--bs-link-color);
+  text-underline-offset: 2px;
+}
+
+.ai-md hr {
+  border: 0;
+  border-top: 1px solid var(--bs-border-color);
+}
+
+.ai-md mark {
+  background: rgba(255, 212, 59, 0.4);
+  color: inherit;
+  padding: 0.1em 0.2em;
+  border-radius: 2px;
+}
+
+.ai-md :not(pre) > code,
+.ai-ui-card code {
+  padding: 1px 5px;
+  border-radius: 4px;
+  background: var(--ai-inline-code);
+  color: var(--bs-emphasis-color);
+  font-family: var(--bs-font-monospace);
+  font-size: 11.5px;
+  overflow-wrap: anywhere;
+}
+
+.ai-md blockquote {
+  padding-left: 10px;
+  border-left: 2px solid var(--bs-border-color);
+  color: var(--bs-secondary-color);
+}
+
+.ai-md-table {
+  overflow-x: auto;
+}
+
+.ai-md-table table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+
+.ai-md-table th {
+  padding: 4px 8px 4px 0;
+  text-align: left;
+  font-weight: 600;
+  white-space: nowrap;
+  color: var(--bs-emphasis-color);
+  border-bottom: 1px solid var(--bs-border-color);
+}
+
+.ai-md-table td {
+  padding: 5px 8px 5px 0;
+  vertical-align: top;
+  border-bottom: 1px solid color-mix(in srgb, var(--bs-border-color) 50%, transparent);
+}
+
+.ai-md-table tr:last-child td {
+  border-bottom: 0;
+}
+
+/* Code block */
+.ai-code {
+  border: 1px solid var(--bs-border-color);
+  border-radius: 8px;
+  overflow: hidden;
+  background: var(--ai-code-bg);
+}
+
+.ai-code-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 28px;
+  padding: 0 4px 0 10px;
+  font-size: 11px;
+  text-transform: lowercase;
+  color: var(--bs-secondary-color);
+  border-bottom: 1px solid var(--bs-border-color);
+}
+
+.ai-code-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 22px;
+  padding: 0 6px;
+  border: 0;
+  border-radius: 4px;
+  background: none;
+  font-size: 11px;
+  text-transform: none;
+  color: var(--bs-secondary-color);
+}
+
+.ai-code-btn:hover {
+  background: var(--ai-hover);
+  color: var(--bs-emphasis-color);
+}
+
+.ai-code-body {
+  margin: 0;
+  padding: 8px 10px;
+  overflow-x: auto;
+  font-family: var(--bs-font-monospace);
+  font-size: 11.5px;
+  line-height: 1.6;
+  color: var(--bs-body-color);
+}
+
+.ai-code-body code {
+  padding: 0;
+  background: none;
+  font-size: inherit;
+  color: inherit;
+  white-space: pre;
+}
+
+.ai-code-body.is-folded {
+  -webkit-mask-image: linear-gradient(#000 70%, transparent);
+  mask-image: linear-gradient(#000 70%, transparent);
+}
+
+.ai-code-body::-webkit-scrollbar {
+  height: 8px;
+}
+
+.ai-code-body::-webkit-scrollbar-thumb {
+  background: var(--bs-secondary);
+  border-radius: 4px;
+}
+
+.ai-code-more {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  width: 100%;
+  height: 26px;
+  border: 0;
+  border-top: 1px solid var(--bs-border-color);
+  background: none;
+  font-size: 11px;
+  color: var(--bs-secondary-color);
+}
+
+.ai-code-more:hover {
+  background: var(--ai-hover);
+  color: var(--bs-emphasis-color);
+}
+
+.ai-code-more i {
+  font-size: 9px;
+}
+
+/* Agent activity: quiet lines */
+.ai-activity {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.ai-activity-line {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--bs-secondary-color);
+}
+
+.ai-activity-line > i:first-child {
+  width: 12px;
+  font-size: 10px;
+  text-align: center;
+}
+
+.ai-activity-line.is-live {
+  color: var(--bs-body-color);
+}
+
+.ai-activity-line.is-live > i {
+  color: var(--custom-ai-color);
+}
+
+.ai-activity-line.is-failed > i {
+  color: var(--bs-danger);
+}
+
+.ai-activity-toggle {
+  align-self: flex-start;
+  border: 0;
+  background: none;
+  padding: 2px 0;
+}
+
+.ai-activity-toggle:hover {
+  color: var(--bs-emphasis-color);
+}
+
+.ai-activity-chevron {
+  font-size: 8px;
+}
+
+.ai-activity-sub {
+  padding-left: 20px;
+  font-size: 11.5px;
+}
+
+/* Task plan */
+.ai-plan {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 8px 10px;
+  border: 1px solid var(--bs-border-color);
+  border-radius: 8px;
+  font-size: 12px;
+}
+
+.ai-plan-head {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 2px;
+  font-weight: 600;
+  color: var(--bs-emphasis-color);
+}
+
+.ai-plan-count {
+  font-size: 11px;
+  font-weight: 400;
+  color: var(--bs-secondary-color);
+}
+
+.ai-plan-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.ai-plan-item > i {
+  width: 12px;
+  font-size: 10px;
+  text-align: center;
+}
+
+.ai-plan-item.is-completed {
+  color: var(--bs-secondary-color);
+}
+
+.ai-plan-item.is-completed span {
+  text-decoration: line-through;
+  text-decoration-color: color-mix(in srgb, var(--bs-secondary-color) 50%, transparent);
+}
+
+.ai-plan-item.is-pending > i {
+  color: var(--bs-secondary-color);
+}
+
+.ai-plan-item.is-in_progress > i {
+  color: var(--custom-ai-color);
+}
+
+.ai-plan-item.is-failed > i {
+  color: var(--bs-danger);
+}
+
+.ai-plan-item.is-stopped > i {
+  color: var(--bs-warning);
+}
+
+/* Thinking: three dots at the end of the streaming answer */
+.ai-thinking {
+  display: flex;
+  gap: 4px;
+  padding: 4px 0;
+}
+
+.ai-thinking span {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--custom-ai-color);
+  opacity: 0.3;
+  animation: ai-thinking-dot 1.2s infinite;
+}
+
+.ai-thinking span:nth-child(2) { animation-delay: 0.2s; }
+.ai-thinking span:nth-child(3) { animation-delay: 0.4s; }
+
+@keyframes ai-thinking-dot {
+  0%, 80%, 100% { opacity: 0.25; }
+  40% { opacity: 1; }
+}
+
+/* Generative UI card */
+.ai-ui-card {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 10px 12px;
+  border: 1px solid var(--bs-border-color);
+  border-radius: 8px;
+  font-size: 12px;
+}
+
+.ai-ui-title {
+  margin-bottom: 4px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--bs-emphasis-color);
+}
+
+.ai-ui-section {
+  display: flex;
+  flex-direction: column;
+}
+
+.ai-ui-card .form-label {
+  margin-bottom: 2px !important;
+  font-size: 11px;
+  color: var(--bs-secondary-color);
+}
+
+.ai-ui-card .form-check {
+  min-height: 0;
+  margin-bottom: 2px;
+}
+
+.ai-ui-card .form-check-label {
+  font-size: 12px;
+}
+
+/* File changes inside an answer: one bordered card, a row per file */
+.ai-change-group {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--bs-border-color);
+  border-radius: 8px;
+  overflow: hidden;
 }
 
 .ai-change-line {
@@ -2228,24 +2693,31 @@ body.ai-panel-resizing {
   gap: 8px;
   width: 100%;
   min-width: 0;
-  padding: 4px 8px;
-  border: 1px solid var(--bs-border-color);
-  border-radius: 6px;
-  background: color-mix(in srgb, var(--bs-body-color) 4%, transparent);
+  padding: 6px 10px;
+  border: 0;
+  background: none;
   color: var(--bs-body-color);
-  font-size: 0.8rem;
+  font-size: 12px;
   text-align: left;
 }
 
+.ai-change-line + .ai-change-line {
+  border-top: 1px solid var(--bs-border-color);
+}
+
 button.ai-change-line:hover {
-  background: color-mix(in srgb, var(--custom-ai-color) 10%, transparent);
-  border-color: color-mix(in srgb, var(--custom-ai-color) 40%, transparent);
+  background: var(--ai-hover);
+}
+
+.ai-change-line strong {
+  font-weight: 600;
+  color: var(--bs-emphasis-color);
 }
 
 .ai-change-line > .fa-pen,
 .ai-change-line > .fa-ban {
-  font-size: 0.7rem;
-  color: var(--custom-ai-color);
+  font-size: 10px;
+  color: var(--bs-secondary-color);
   flex-shrink: 0;
 }
 
@@ -2254,9 +2726,7 @@ button.ai-change-line:hover {
 }
 
 .ai-change-line-nested {
-  margin-left: 18px;
-  width: calc(100% - 18px);
-  border-style: dashed;
+  padding-left: 28px;
 }
 
 .ai-change-line-kind {
@@ -2265,46 +2735,25 @@ button.ai-change-line:hover {
 }
 
 .ai-change-line-stat {
-  font-size: 0.75rem;
+  font-size: 11px;
   font-variant-numeric: tabular-nums;
 }
 
+.ai-change-line-stat .text-success {
+  color: var(--ai-add) !important;
+}
+
+.ai-change-line-stat .text-danger {
+  color: var(--ai-del) !important;
+}
+
 .ai-change-line-open {
-  font-size: 0.65rem;
-  opacity: 0.6;
+  font-size: 9px;
+  color: var(--bs-secondary-color);
 }
 
 .ai-change-line-rejected {
   opacity: 0.6;
-  border-style: dashed;
-  background: transparent;
-}
-
-.ai-change-line-rejected > .fa-ban {
-  color: var(--bs-secondary-color);
-}
-
-/* Shortcut pills above the prompt: one line that scrolls sideways when the panel is narrow */
-.ai-shortcut-pills {
-  flex-wrap: nowrap;
-  overflow-x: auto;
-  scrollbar-width: none;
-}
-
-.ai-shortcut-pills::-webkit-scrollbar {
-  display: none;
-}
-
-.ai-shortcut-pills-fade-end {
-  mask-image: linear-gradient(to right, #000 calc(100% - 24px), transparent);
-}
-
-.ai-shortcut-pills-fade-start {
-  mask-image: linear-gradient(to right, transparent, #000 24px);
-}
-
-.ai-shortcut-pills-fade-start.ai-shortcut-pills-fade-end {
-  mask-image: linear-gradient(to right, transparent, #000 24px, #000 calc(100% - 24px), transparent);
 }
 
 /* A rendered component the user has already answered, or that a newer one
@@ -2315,4 +2764,534 @@ button.ai-change-line:hover {
   opacity: 0.55;
   pointer-events: none;
   filter: saturate(0.6);
+}
+
+/* --------------------------------------------------------
+   PANELS: shared tokens, jump to latest, approval dock,
+   answer error / stopped lines, chat history list.
+   -------------------------------------------------------- */
+
+.ai-root {
+  --ai-surface: var(--custom-onsurface-layer-1);
+  --ai-surface-hover: var(--custom-onsurface-layer-2);
+  --ai-field: var(--custom-onsurface-layer-1);
+  --ai-args-bg: #1a1b2b;
+  --ai-success: #66d7ba;
+  --ai-danger: #f1948a;
+  --ai-danger-bg: rgba(241, 148, 138, 0.1);
+  --ai-waiting: #f5c26b;
+}
+
+.ai-root[data-theme="light"] {
+  --ai-surface: #fff;
+  --ai-surface-hover: var(--ai-light-hover);
+  --ai-field: var(--ai-light-selected);
+  --ai-args-bg: #f6f7fa;
+  --ai-success: #138d75;
+  --ai-danger: #c0392b;
+  --ai-danger-bg: rgba(192, 57, 43, 0.07);
+  --ai-waiting: #b9770e;
+}
+
+@keyframes ai-pulse {
+  50% { opacity: 0.3; }
+}
+
+/* Jump to latest: centred above the input (or the approval dock) */
+.ai-chat-history {
+  position: relative;
+}
+
+.ai-jump-latest {
+  position: absolute;
+  left: 50%;
+  bottom: 8px;
+  transform: translateX(-50%);
+  z-index: 2;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 28px;
+  padding: 0 12px;
+  border: 1px solid var(--bs-border-color);
+  border-radius: 14px;
+  background: var(--ai-surface);
+  color: var(--bs-emphasis-color);
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.25);
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.ai-jump-latest:hover,
+.ai-jump-latest:focus-visible {
+  background: var(--ai-surface-hover);
+}
+
+.ai-jump-latest i {
+  font-size: 11px;
+}
+
+.ai-jump-latest-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--custom-ai-color);
+  animation: ai-pulse 1.4s ease-in-out infinite;
+}
+
+/* Approval dock: one card between the chat and the input */
+.ai-approval-dock {
+  flex-shrink: 0;
+  padding: 0 8px 8px;
+}
+
+.ai-mode .ai-approval-dock {
+  padding-left: calc(max(0.5rem, calc((100% - 860px) / 2)) + 0.5rem);
+  padding-right: calc(max(0.5rem, calc((100% - 860px) / 2)) + 0.5rem);
+}
+
+.ai-approval {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px 12px;
+  border: 1px solid var(--bs-border-color);
+  border-radius: 8px;
+  background: var(--bs-body-bg);
+  box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.18);
+  font-size: 12px;
+  color: var(--bs-body-color);
+}
+
+.ai-approval-dock .tool-approval-card {
+  margin: 0;
+  box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.18);
+}
+
+.ai-approval-nav {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  margin: -4px -4px 0 -6px;
+  font-size: 11px;
+  color: var(--bs-secondary-color);
+}
+
+.ai-approval-dock > .ai-approval-nav {
+  margin: 0 0 4px;
+}
+
+.ai-approval-nav > span:not(.flex-grow-1) {
+  padding: 0 4px;
+}
+
+.ai-approval-icon-btn {
+  width: 24px;
+  height: 22px;
+  border: 0;
+  border-radius: 4px;
+  background: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  color: var(--bs-secondary-color);
+}
+
+.ai-approval-icon-btn:hover,
+.ai-approval-icon-btn:focus-visible {
+  background: var(--ai-surface-hover);
+  color: var(--bs-emphasis-color);
+}
+
+.ai-approval-link {
+  border: 0;
+  background: none;
+  padding: 2px 4px;
+  border-radius: 4px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--bs-secondary-color);
+}
+
+.ai-approval-link:hover,
+.ai-approval-link:focus-visible {
+  color: var(--bs-emphasis-color);
+  background: var(--ai-surface-hover);
+}
+
+.ai-approval-link i {
+  font-size: 9px;
+}
+
+.ai-approval-link-ai,
+.ai-approval-link-ai:hover,
+.ai-approval-link-ai:focus-visible {
+  color: var(--custom-ai-color);
+}
+
+.ai-approval-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.ai-approval-icon {
+  width: 26px;
+  height: 26px;
+  flex-shrink: 0;
+  border-radius: 6px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  color: var(--custom-ai-color);
+  background: color-mix(in srgb, var(--custom-ai-color) 14%, transparent);
+}
+
+.ai-approval-text {
+  flex: 1;
+  min-width: 0;
+}
+
+.ai-approval-title {
+  font-size: 13px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ai-approval-title strong {
+  font-weight: 600;
+  color: var(--bs-emphasis-color);
+}
+
+.ai-approval-sub {
+  font-size: 11px;
+  color: var(--bs-secondary-color);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ai-approval-stat {
+  flex-shrink: 0;
+  font-size: 11px;
+}
+
+.ai-approval-add {
+  color: var(--ai-success);
+}
+
+.ai-approval-del {
+  color: var(--ai-danger);
+}
+
+.ai-approval-details {
+  align-self: flex-start;
+  margin: -4px 0 -4px 32px;
+}
+
+.ai-approval-args {
+  margin: 0;
+  max-height: 160px;
+  overflow: auto;
+  padding: 8px;
+  border-radius: 6px;
+  background: var(--ai-args-bg);
+  font-size: 11px;
+  color: var(--bs-body-color);
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+
+.ai-approval-reviewing {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--bs-secondary-color);
+}
+
+.ai-approval-reviewing i {
+  font-size: 11px;
+  color: var(--custom-ai-color);
+}
+
+.ai-approval-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.ai-approval-actions .ai-approval-link {
+  margin-left: -4px;
+}
+
+.ai-approval-actions .btn {
+  font-size: 12px;
+  padding: 2px 12px;
+}
+
+.ai-approval-allow {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: -2px 0 0;
+  font-size: 11px;
+  color: var(--bs-secondary-color);
+  cursor: pointer;
+}
+
+.ai-approval-allow input {
+  width: 12px;
+  height: 12px;
+}
+
+/* The answer waits on the user instead of thinking */
+.ai-waiting {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--bs-secondary-color);
+}
+
+.ai-waiting-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--ai-waiting);
+  animation: ai-pulse 1.4s ease-in-out infinite;
+}
+
+/* Under a partial answer: what went wrong, or that the user stopped it */
+.ai-answer-error {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  border-radius: 6px;
+  background: var(--ai-danger-bg);
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+
+.ai-answer-error > i {
+  color: var(--ai-danger);
+}
+
+.ai-answer-error > span {
+  flex: 1;
+}
+
+.ai-answer-stopped {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  color: var(--bs-secondary-color);
+}
+
+.ai-answer-stopped i {
+  font-size: 8px;
+}
+
+/* Chat history: one-line rows in date groups, Archived as the last row */
+.ai-history {
+  height: 100%;
+  overflow: hidden;
+  background: var(--bs-body-bg);
+}
+
+.ai-history-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px 12px 8px 16px;
+}
+
+.ai-history-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--bs-emphasis-color);
+}
+
+.ai-history-icon-btn {
+  width: 24px;
+  height: 22px;
+  border: 0;
+  border-radius: 4px;
+  background: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  color: var(--bs-secondary-color);
+}
+
+.ai-history-icon-btn:hover,
+.ai-history-icon-btn:focus-visible,
+.ai-history-icon-btn[aria-expanded="true"] {
+  background: var(--ai-surface-hover);
+  color: var(--bs-emphasis-color);
+}
+
+.ai-history-search {
+  position: relative;
+  margin: 0 12px 4px;
+}
+
+.ai-history-search i {
+  position: absolute;
+  left: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 11px;
+  color: var(--bs-secondary-color);
+}
+
+.ai-history-search input {
+  width: 100%;
+  height: 30px;
+  border: 0;
+  outline: 0;
+  border-radius: 6px;
+  padding: 0 10px 0 30px;
+  background: var(--ai-field);
+  color: var(--bs-body-color);
+  font-size: 12px;
+}
+
+.ai-history-search input::placeholder {
+  color: var(--bs-secondary-color);
+}
+
+.ai-history-search input:focus {
+  box-shadow: 0 0 0 1px var(--custom-ai-color);
+}
+
+.ai-history-list {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 0 8px 12px;
+  overscroll-behavior: contain;
+}
+
+.ai-history-group {
+  padding: 12px 8px 4px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--bs-secondary-color);
+}
+
+.ai-conv {
+  position: relative;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 30px;
+  padding: 4px 4px 4px 8px;
+  border: 0;
+  border-radius: 6px;
+  background: none;
+  text-align: left;
+  font-size: 12.5px;
+  color: var(--bs-body-color);
+  cursor: pointer;
+}
+
+.ai-conv:hover,
+.ai-conv:focus-visible,
+.ai-conv-menu-open {
+  background: var(--ai-surface-hover);
+  outline: 0;
+}
+
+.ai-conv-active,
+.ai-conv-active:hover {
+  background: var(--ai-field);
+}
+
+.ai-conv-title {
+  flex: 1;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: color-mix(in srgb, var(--bs-emphasis-color) 85%, transparent);
+}
+
+.ai-conv-active .ai-conv-title {
+  font-weight: 500;
+  color: var(--bs-emphasis-color);
+}
+
+.ai-conv-time {
+  flex-shrink: 0;
+  min-width: 24px;
+  padding-right: 4px;
+  text-align: right;
+  font-size: 11px;
+  color: var(--bs-secondary-color);
+}
+
+/* The time makes way for the menu button on hover, focus and while the menu is open */
+/* Centred without a transform: a transform would make the fixed menu inside it position against the row */
+.ai-conv .conversation-menu-trigger {
+  position: absolute;
+  right: 4px;
+  top: 0;
+  bottom: 0;
+  display: flex;
+  align-items: center;
+}
+
+[role="button"].ai-conv:hover .ai-conv-time,
+[role="button"].ai-conv:focus-within .ai-conv-time,
+.ai-conv-menu-open .ai-conv-time {
+  visibility: hidden;
+}
+
+.ai-conv:hover .conversation-menu-btn,
+.ai-conv:focus-within .conversation-menu-btn,
+.ai-conv-menu-open .conversation-menu-btn {
+  opacity: 1;
+}
+
+.ai-history-archived-row {
+  margin-top: 12px;
+  color: var(--bs-secondary-color);
+}
+
+.ai-history-archived-row > i:first-child {
+  width: 14px;
+  font-size: 11px;
+}
+
+.ai-history-archived-row .ai-conv-title {
+  color: var(--bs-secondary-color);
+}
+
+.ai-history-chevron {
+  font-size: 9px;
+  padding-right: 6px;
+}
+
+/* Header strips of the chat and the side panels: the light colour unless the theme is dark */
+.ai-chat-heading-bg,
+.chat-history-sidebar-header {
+  background-color: #eff1f5;
+}
+
+.ai-chat-heading-bg[data-theme="dark"],
+.chat-history-sidebar-header[data-theme="dark"] {
+  background-color: #222336;
 }

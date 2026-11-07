@@ -118,7 +118,7 @@ function RenderNode({
     const { content, variant = 'body' } = node
     if (variant === 'heading') return <h6 className="fw-semibold mb-1">{content}</h6>
     if (variant === 'caption') return <small className="text-muted">{content}</small>
-    if (variant === 'code') return <code className="ai-inline-code">{content}</code>
+    if (variant === 'code') return <code>{content}</code>
     return <p className="mb-0">{content}</p>
   }
 
@@ -136,8 +136,8 @@ function RenderNode({
 
   case 'card': {
     return (
-      <div className="card border rounded p-2">
-        {node.title && <div className="fw-semibold mb-1 small text-uppercase text-muted">{node.title}</div>}
+      <div className="ai-ui-section">
+        {node.title && <div className="ai-ui-title">{node.title}</div>}
         <div className="d-flex flex-column gap-2">
           {(node.children ?? []).map((c, i) => (
             <RenderNode key={i} node={c as UINode} onAction={onAction} onChange={onChange} depth={depth + 1} />
@@ -365,9 +365,9 @@ export const GenerativeUIRenderer: React.FC<GenerativeUIRendererProps> = ({ payl
 
   return (
     <GenerativeUIErrorBoundary>
-      <div className="generative-ui-component mt-2 p-2 rounded" style={{ border: '1px solid var(--bs-border-color)' }}>
+      <div className="generative-ui-component ai-ui-card">
         {payload.title && (
-          <div className="fw-semibold small mb-2 text-ai">{payload.title}</div>
+          <div className="ai-ui-title">{payload.title}</div>
         )}
         {hasSubmitPath(node) || !hasInputs(node)
           ? <RenderNode node={node} onAction={onAction} depth={0} />
