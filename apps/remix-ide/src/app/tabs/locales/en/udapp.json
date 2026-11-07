@@ -332,5 +332,19 @@
   "udapp.aiSaveAndLock": "Save & Lock",
   "udapp.aiRemoveImage": "Remove image",
   "udapp.aiImagePreviewAlt": "Preview",
-  "udapp.aiFileTooLarge": "File is too large (>10MB)."
+  "udapp.aiFileTooLarge": "File is too large (>10MB).",
+  "udapp.checks.notChecked": "Not checked yet",
+  "udapp.checks.running": "Checks running…",
+  "udapp.checks.compileFailed": "Doesn't compile",
+  "udapp.checks.outOfDate": "File changed since the last check",
+  "udapp.checks.gate": "Checks: {count, plural, one {# high-severity issue} other {# high-severity issues}}",
+  "udapp.checks.clear": "No high-severity issues",
+  "udapp.checks.deployed": "Deployed from this version",
+  "udapp.checks.justNow": "just now",
+  "udapp.checks.minutesAgo": "{count} min ago",
+  "udapp.checks.runChecks": "Run checks",
+  "udapp.checks.viewProgress": "View progress",
+  "udapp.checks.viewErrors": "View errors",
+  "udapp.checks.viewFindings": "View issues",
+  "udapp.checks.viewChecks": "View checks"
 }

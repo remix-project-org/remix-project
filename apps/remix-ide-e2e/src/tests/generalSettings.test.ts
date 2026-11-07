@@ -17,7 +17,7 @@ module.exports = {
   'Should activate `generate contract metadata` ': function (browser) {
     browser.waitForElementVisible('*[data-id="remixIdeSidePanel"]')
       .waitForElementVisible('*[data-id="generate-contract-metadataSwitch"]')
-      .verify.elementPresent('[data-id="generate-contract-metadataSwitch"] .fa-toggle-on')
+      .verify.elementPresent('[data-id="generate-contract-metadataSwitch"][aria-checked="true"]')
       .openFile('contracts/3_Ballot.sol')
       .click('*[data-id="verticalIconsKindsolidity"]')
       .pause(2000)
