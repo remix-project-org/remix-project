@@ -85,6 +85,13 @@ export interface DappConfig {
     gatewayUrl?: string;
     ensDomain?: string;
     hasUnpublishedChanges?: boolean;
+    amplify?: {
+      appId: string;
+      branchName: string;
+      defaultDomain: string;
+      deploymentUrl: string;
+      hasUnpublishedChanges?: boolean;
+    };
   };
 
   config: {
