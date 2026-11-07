@@ -130,8 +130,10 @@ export class ContractAgent {
           `File: ${contract.fileName}\n${contract.content}`
         ).join('\n\n');
 
-        // Format error files properly according to the schema
-        const formattedErrorFiles = Object.entries(result.errfiles).map(([fileName, fileData]: [string, any]) => {
+        // Format error files properly according to the schema. When the
+        // compiler itself threw there are no per-file errors, only a message —
+        // pass that on rather than crash on the missing `errfiles`.
+        const formattedErrorFiles = Object.entries(result.errfiles ?? {}).map(([fileName, fileData]: [string, any]) => {
           const errors = (fileData.errors || []).map((err: any) =>
             `Error at ${err.errorStart}-${err.errorEnd}: ${err.errorMessage}`
           ).join('\n  ');
@@ -140,7 +142,7 @@ export class ContractAgent {
 
         const newPrompt = `
               Compilation parameters:\n${JSON.stringify(compilationParams)}\n\n
-              Compilation errors:\n${formattedErrorFiles}\n\n
+              Compilation errors:\n${formattedErrorFiles || result.errors}\n\n
               Generated contracts:\n${generatedContracts}\n\nConsider other possible solutions and retry this main prompt again: \n${this.mainPrompt}\n `
 
         await statusCallback?.('Regenerating workspace with error fixes...')
@@ -150,6 +152,10 @@ export class ContractAgent {
       await statusCallback?.('Finalizing workspace creation...')
       return result.compilationSucceeded ? await writeAIResults(parsedFiles) : await writeAIResults(parsedFiles) + "\n\n" + COMPILATION_WARNING_MESSAGE
     } catch (error) {
+      // The user only ever sees the generic message below, so this log is
+      // the one place the actual cause (unparseable payload, missing files,
+      // a failed regeneration…) is recorded.
+      remixAILogger.error('[ContractAgent] workspace generation failed:', error)
       await statusCallback?.('Error occurred, cleaning up...')
       this.deleteWorkspace(this.workspaceName )
       this.nAttempts = 0

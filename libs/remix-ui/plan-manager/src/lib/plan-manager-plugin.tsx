@@ -17,7 +17,7 @@
 
 import { ViewPlugin } from '@remixproject/engine-web'
 import React, { useEffect, useMemo, useState, useSyncExternalStore } from 'react'
-import { PluginViewWrapper, DISCORD_URL } from '@remix-ui/helper'
+import { PluginViewWrapper, DISCORD_URL, CustomTooltip } from '@remix-ui/helper'
 // Paddle singleton lives next to this plugin now — `@remix-ui/billing` was
 // removed when Plan Manager became the sole billing surface.
 import { initPaddle, getPaddle, openCheckoutWithTransaction, onPaddleEvent, offPaddleEvent, previewPrices } from './paddle-singleton'
@@ -65,6 +65,7 @@ import {
 } from './plan-manager-machine'
 import { LoginModal, startSignInFlow, OtpDigitInput, OtpDigitInputHandle } from '@remix-ui/login'
 import { planManagerLogger } from './plan-manager-logger'
+import { TASK_COSTS, isStale, pluralTitle, profiledModels, taskCapacity } from './ai-task-costs'
 
 import './plan-manager.css'
 
@@ -3916,6 +3917,13 @@ const PlanManagerOverlay: React.FC<{
                   />
                 )}
 
+                {!checkoutActive && activeSection === 'credits' && ui.showCredits && (
+                  <CreditCapacityPanel
+                    credits={status.hasUnlimitedIncluded ? null : status.paidRemaining + status.includedRemaining}
+                    onTopUp={ui.showTopUps ? (() => setActiveSection('topup')) : undefined}
+                  />
+                )}
+
                 {/*
             Upgrade promo — only on the credits view, no alert already
             showing its own CTA.
@@ -4327,6 +4335,118 @@ function formatResetTime(iso: string, period: QuotaEntry['period'], now: number 
   return `Resets ${d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}`
 }
 
+/**
+ * "What you can do with your credits": the balance expressed as typical AI
+ * tasks, from costs the AI cost benchmark measured (see ai-task-costs.ts).
+ * Hidden until a measurement exists. With unlimited included usage there is
+ * no balance to divide, so it shows what each task typically costs instead.
+ * Costs differ by an order of magnitude between models, so the numbers are
+ * always for one profiled model, picked in the header.
+ */
+/** The profiled model picked in the capacity panel (the default one until a pick). */
+/** Average-across-all-models capacity line: "≈ 7 gas audits + 2 security audits". */
+function avgCapacityLine(credits: number, limit = Infinity): string | null {
+  const models = profiledModels()
+  if (models.length === 0) return null
+  const baseRows = taskCapacity(credits, TASK_COSTS, models[0].tier)
+  const parts = baseRows
+    .filter(row => row.id !== 'autofill-inputs' && row.id !== 'contract-generation-generate')
+    .map(row => {
+      const counts = Object.values(row.counts).filter((c): c is number => (c ?? 0) > 0)
+      const avg = counts.length > 0 ? Math.floor(counts.reduce((a, b) => a + b, 0) / counts.length) : 0
+      if (avg === 0) return null
+      return `${avg} ${pluralTitle(row.title.replace(/ \(.*\)$/, ''), avg)}`
+    })
+    .filter((s): s is string => s !== null)
+    .slice(0, limit === Infinity ? undefined : limit)
+  return parts.length > 0 ? `≈ ${parts.join(' + ')}` : null
+}
+
+const TASK_PUNCHLINES: Record<string, string> = {
+  'gas-audit-simple':          'Slash tx costs before mainnet',
+  'security-audit-complex':    'Catch exploits before hackers do',
+  'frontend-generation':       'From ABI to full dApp UI',
+  'contract-generation-agent': 'Describe it in plain English, deploy it',
+  'fix-compile-error':         'Unblock yourself in seconds',
+  'explain-contract':          'Understand any contract instantly',
+}
+
+const CreditCapacityPanel: React.FC<{ credits: number | null; creditLabel?: string; onTopUp?: () => void }> = ({ credits, creditLabel, onTopUp }) => {
+  const models = profiledModels()
+  const baseRows = models.length > 0 ? taskCapacity(credits, TASK_COSTS, models[0].tier) : []
+  const rows = baseRows.map(row => {
+    const countValues = Object.values(row.counts).filter((c): c is number => (c ?? 0) > 0)
+    const avgCount = countValues.length > 0 ? Math.floor(countValues.reduce((a, b) => a + b, 0) / countValues.length) : 0
+    const costValues = Object.values(row.costs).filter((c): c is number => (c ?? 0) > 0)
+    const avgCost = costValues.length > 0 ? Math.floor(costValues.reduce((a, b) => a + b, 0) / costValues.length) : 0
+    return { ...row, avgCount, avgCost }
+  }).filter(row => credits === null || row.avgCount > 0)
+    .filter(row => row.id !== 'autofill-inputs' && row.id !== 'contract-generation-generate')
+
+  if (rows.length === 0) return null
+
+  // Sort non-default models by average cost per task to get cheapest → priciest range
+  const nonDefaultModels = models.filter(m => m.tier !== 'default')
+  const sortedByPrice = [...nonDefaultModels].sort((a, b) => {
+    const avg = (tier: string) => {
+      const costs = baseRows.map(r => r.costs[tier] ?? 0).filter(c => c > 0)
+      return costs.length > 0 ? costs.reduce((s, c) => s + c, 0) / costs.length : 0
+    }
+    return avg(a.tier) - avg(b.tier)
+  })
+  const cheapest = sortedByPrice[0]
+  const priciest = sortedByPrice[sortedByPrice.length - 1]
+  const modelRange = cheapest && priciest && cheapest.tier !== priciest.tier
+    ? `from glm-flash-latest to Claude Opus`
+    : cheapest?.label ?? ''
+
+  const title = credits === null
+    ? 'Typical credit cost per task'
+    : creditLabel
+      ? `What you can do with ${creditLabel} credits`
+      : 'What you can do with your credits'
+
+  return (
+    <section className="pm-capacity" aria-label={title} data-id="pm-credit-capacity">
+      <div className="pm-capacity__head">
+        <span className="pm-capacity__title">{title}</span>
+        <span className="pm-capacity__hint">{modelRange ? `depending on the model (${modelRange})` : 'depending on the model used'}{isStale() ? ' · outdated' : ''}</span>
+        {onTopUp && (
+          <button className="pm-capacity__cta" onClick={onTopUp}>
+            Top up <i className="fas fa-arrow-right" aria-hidden></i>
+          </button>
+        )}
+      </div>
+      <ul className="pm-capacity__list">
+        {rows.map(row => {
+          const shortTitle = row.title.replace(/ \(.*\)$/, '')
+          const countDisplay = credits === null ? `~${compactCredits(row.avgCost)}` : row.avgCount.toLocaleString()
+          const labelDisplay = credits === null ? shortTitle : pluralTitle(shortTitle, row.avgCount)
+          return (
+            <CustomTooltip
+              key={row.id}
+              placement="right"
+              tooltipId={`pm-credit-capacity-tip-${row.id}`}
+              tooltipText={`~${row.avgCost.toLocaleString()} credits on average · varies by model and contract`}
+            >
+              <li className="pm-capacity__row" data-id={`pm-credit-capacity-${row.id}`}>
+                <span className="pm-capacity__row-count">{countDisplay}</span>
+                <span className="pm-capacity__row-rule" aria-hidden />
+                <span className="pm-capacity__row-body">
+                  <span className="pm-capacity__row-label">{labelDisplay}</span>
+                  {TASK_PUNCHLINES[row.id] && (
+                    <span className="pm-capacity__row-punch">· {TASK_PUNCHLINES[row.id]}</span>
+                  )}
+                </span>
+              </li>
+            </CustomTooltip>
+          )
+        })}
+      </ul>
+    </section>
+  )
+}
+
 const QuotasPanel: React.FC<{
   quotas: QuotaEntry[]
   aiModels: ModelLookup
@@ -4430,7 +4550,9 @@ const QuotasPanel: React.FC<{
                   <span className="pm-quota__period">{periodWord} included</span>
                 </div>
                 {unlimited ? (
-                  <span className="pm-quota__badge pm-quota__badge--unlimited" title="Unlimited included usage">∞ Unlimited</span>
+                  <CustomTooltip placement="top" tooltipId="pm-quota-unlimited-tip" tooltipText="Unlimited included usage">
+                    <span className="pm-quota__badge pm-quota__badge--unlimited">∞ Unlimited</span>
+                  </CustomTooltip>
                 ) : (
                   <div className="pm-quota__counts">
                     <span className="pm-quota__used" data-id={`pm-quota-${slugId}-used`}>{q.used.toLocaleString()}</span>
@@ -5365,13 +5487,14 @@ const CartUpsellStep: React.FC<{
                 <span className="pm-cart-upsell__item-price">{fmtItemSubtotal(item)}</span>
               </div>
               {item.productType === 'credit_package' && (
-                <button
-                  className="pm-cart-upsell__item-remove"
-                  onClick={() => removePackage(item.slug)}
-                  title="Remove from cart"
-                >
-                  <i className="fas fa-times"></i>
-                </button>
+                <CustomTooltip placement="top" tooltipId={`pm-cart-remove-tip-${item.slug}`} tooltipText="Remove from cart">
+                  <button
+                    className="pm-cart-upsell__item-remove"
+                    onClick={() => removePackage(item.slug)}
+                  >
+                    <i className="fas fa-times"></i>
+                  </button>
+                </CustomTooltip>
               )}
             </li>
           ))}
@@ -5717,9 +5840,11 @@ const PaidPlansPanel: React.FC<{
                 <span className="pm-paid-panel__tab-name">{plan.name}</span>
                 {isCurrent && <span className="pm-paid-panel__tab-badge">CURRENT</span>}
                 {!isCurrent && planGift > 0 && (
-                  <span className="pm-paid-panel__tab-gift" title={`${planGift.toLocaleString()} bonus AI credits on sign-up`}>
-                    <i className="fas fa-gift" aria-hidden></i> +{formatCompactNumber(planGift)}
-                  </span>
+                  <CustomTooltip placement="top" tooltipId={`pm-plan-gift-tip-${plan.id}`} tooltipText={`${planGift.toLocaleString()} bonus AI credits on sign-up`}>
+                    <span className="pm-paid-panel__tab-gift">
+                      <i className="fas fa-gift" aria-hidden></i> +{formatCompactNumber(planGift)}
+                    </span>
+                  </CustomTooltip>
                 )}
               </span>
               <span className="pm-paid-panel__tab-price">{planPriceStr}/mo</span>
@@ -5754,11 +5879,19 @@ const PaidPlansPanel: React.FC<{
               <span className="pm-paid-panel__credits-value" aria-label={`${creditsPerMonth.toLocaleString()} credits per month`}>
                 +{formatCompactNumber(Math.round(animatedCredits / 100) * 100)}
               </span>
-              <span className="pm-paid-panel__credits-note">
+              <strong className="pm-paid-panel__credits-note">
                 {selectedIsOneToOne
                   ? <>= <strong>100%</strong> of your plan price, every month</>
                   : 'Topped up automatically, every billing cycle'}
-              </span>
+              </strong>
+              {avgCapacityLine(creditsPerMonth) && (
+                <CustomTooltip placement="top" tooltipId="pm-paid-panel-capacity-tip" tooltipText="Avg. across models. Actual results vary by model and contract.">
+                  <span className="pm-paid-panel__credits-capacity">
+                    <i className="fas fa-arrow-right" aria-hidden></i>
+                    {avgCapacityLine(creditsPerMonth)}
+                  </span>
+                </CustomTooltip>
+              )}
             </div>
           )}
           {giftCredits > 0 && (
@@ -5964,6 +6097,7 @@ const PlansSection: React.FC<{
           Contact us <i className="fas fa-arrow-right" aria-hidden></i>
         </span>
       </a>
+
     </div>
   )
 }
@@ -6163,6 +6297,8 @@ const TopUpSection: React.FC<{
         </div>
       </div>
 
+      <CreditCapacityPanel credits={20000} creditLabel="20k" />
+
       {packages.length === 0 ? (
         <div className="pm-empty">
           <p>No top-up packages available during the Free plan.</p>
@@ -6189,37 +6325,43 @@ const TopUpSection: React.FC<{
             // sqrt keeps the smallest pack visible next to the largest.
             const meterPct = maxCredits > 0 && credits > 0 ? Math.max(8, Math.round(Math.sqrt(credits / maxCredits) * 100)) : 0
             return (
-              <button
+              <CustomTooltip
                 key={t.id}
-                className={`pm-topup__card ${isBest ? 'is-best' : ''} ${isPurchasing ? 'is-purchasing' : ''}`}
-                disabled={disabled}
-                onClick={() => { if (!disabled) onPurchase(t.id) }}
-                title={isUnavailable ? 'Pricing not available right now' : undefined}
-                data-id={`pm-topup-card-${t.id}`}
+                placement="top"
+                tooltipId={`pm-topup-unavail-tip-${t.id}`}
+                tooltipText="Pricing not available right now"
+                hide={!isUnavailable}
               >
-                <div className="pm-topup__badges">
-                  {isBest && <span className="pm-topup__pop"><i className="fas fa-star" aria-hidden></i> Best value</span>}
-                  {!isBest && isPopular && <span className="pm-topup__pop pm-topup__pop--popular"><i className="fas fa-fire" aria-hidden></i> Popular</span>}
-                  {savePct >= 5 && <span className="pm-topup__save">Save {savePct}%</span>}
-                </div>
-                <div className="pm-topup__credits">
-                  <i className="fas fa-bolt" aria-hidden></i>
-                  <span className="pm-topup__credits-num">{credits > 0 ? compactCredits(credits) : '—'}</span>
-                  <span className="pm-topup__credits-unit">AI credits</span>
-                </div>
-                <div className="pm-topup__meter" aria-hidden>
-                  <span style={{ width: `${meterPct}%` }} />
-                </div>
-                <div className="pm-topup__price">{price}</div>
-                <div className="pm-topup__perk">{perKLabel}</div>
-                <span className="pm-topup__buy">
-                  {isPurchasing
-                    ? <><i className="fas fa-spinner fa-spin"></i> Opening…</>
-                    : isUnavailable
-                      ? <>Unavailable</>
-                      : <>Buy {credits > 0 ? compactCredits(credits) : ''} <i className="fas fa-arrow-right"></i></>}
-                </span>
-              </button>
+                <button
+                  className={`pm-topup__card ${isBest ? 'is-best' : ''} ${isPurchasing ? 'is-purchasing' : ''}`}
+                  disabled={disabled}
+                  onClick={() => { if (!disabled) onPurchase(t.id) }}
+                  data-id={`pm-topup-card-${t.id}`}
+                >
+                  <div className="pm-topup__badges">
+                    {isBest && <span className="pm-topup__pop"><i className="fas fa-star" aria-hidden></i> Best value</span>}
+                    {!isBest && isPopular && <span className="pm-topup__pop pm-topup__pop--popular"><i className="fas fa-fire" aria-hidden></i> Popular</span>}
+                    {savePct >= 5 && <span className="pm-topup__save">Save {savePct}%</span>}
+                  </div>
+                  <div className="pm-topup__credits">
+                    <i className="fas fa-bolt" aria-hidden></i>
+                    <span className="pm-topup__credits-num">{credits > 0 ? compactCredits(credits) : '—'}</span>
+                    <span className="pm-topup__credits-unit">AI credits</span>
+                  </div>
+                  <div className="pm-topup__meter" aria-hidden>
+                    <span style={{ width: `${meterPct}%` }} />
+                  </div>
+                  <div className="pm-topup__price">{price}</div>
+                  <div className="pm-topup__perk">{perKLabel}</div>
+                  <span className="pm-topup__buy">
+                    {isPurchasing
+                      ? <><i className="fas fa-spinner fa-spin"></i> Opening…</>
+                      : isUnavailable
+                        ? <>Unavailable</>
+                        : <>Buy {credits > 0 ? compactCredits(credits) : ''} <i className="fas fa-arrow-right"></i></>}
+                  </span>
+                </button>
+              </CustomTooltip>
             )
           })}
         </div>

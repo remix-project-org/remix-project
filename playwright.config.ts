@@ -38,16 +38,29 @@ export default defineConfig({
     {
       name: 'chromium',
       use: { ...devices['Desktop Chrome'] },
+      testIgnore: '**/benchmarks/**',
     },
 
     {
       name: 'firefox',
       use: { ...devices['Desktop Firefox'] },
+      testIgnore: '**/benchmarks/**',
     },
 
     {
       name: 'webkit',
       use: { ...devices['Desktop Safari'] },
+      testIgnore: '**/benchmarks/**',
+    },
+
+    /* AI task cost benchmark — run explicitly with --project=benchmarks; it
+       spends real credits, so the browser projects above never pick it up.
+       See tests/benchmarks/ai-cost/ai-cost.spec.ts. */
+    {
+      name: 'benchmarks',
+      testDir: './tests/benchmarks',
+      use: { ...devices['Desktop Chrome'] },
+      retries: 0,
     },
 
     /* Test against mobile viewports. */
