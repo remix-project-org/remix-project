@@ -6332,35 +6332,35 @@ const TopUpSection: React.FC<{
                 tooltipText="Pricing not available right now"
                 hide={!isUnavailable}
               >
-              <button
-                className={`pm-topup__card ${isBest ? 'is-best' : ''} ${isPurchasing ? 'is-purchasing' : ''}`}
-                disabled={disabled}
-                onClick={() => { if (!disabled) onPurchase(t.id) }}
-                data-id={`pm-topup-card-${t.id}`}
-              >
-                <div className="pm-topup__badges">
-                  {isBest && <span className="pm-topup__pop"><i className="fas fa-star" aria-hidden></i> Best value</span>}
-                  {!isBest && isPopular && <span className="pm-topup__pop pm-topup__pop--popular"><i className="fas fa-fire" aria-hidden></i> Popular</span>}
-                  {savePct >= 5 && <span className="pm-topup__save">Save {savePct}%</span>}
-                </div>
-                <div className="pm-topup__credits">
-                  <i className="fas fa-bolt" aria-hidden></i>
-                  <span className="pm-topup__credits-num">{credits > 0 ? compactCredits(credits) : '—'}</span>
-                  <span className="pm-topup__credits-unit">AI credits</span>
-                </div>
-                <div className="pm-topup__meter" aria-hidden>
-                  <span style={{ width: `${meterPct}%` }} />
-                </div>
-                <div className="pm-topup__price">{price}</div>
-                <div className="pm-topup__perk">{perKLabel}</div>
-                <span className="pm-topup__buy">
-                  {isPurchasing
-                    ? <><i className="fas fa-spinner fa-spin"></i> Opening…</>
-                    : isUnavailable
-                      ? <>Unavailable</>
-                      : <>Buy {credits > 0 ? compactCredits(credits) : ''} <i className="fas fa-arrow-right"></i></>}
-                </span>
-              </button>
+                <button
+                  className={`pm-topup__card ${isBest ? 'is-best' : ''} ${isPurchasing ? 'is-purchasing' : ''}`}
+                  disabled={disabled}
+                  onClick={() => { if (!disabled) onPurchase(t.id) }}
+                  data-id={`pm-topup-card-${t.id}`}
+                >
+                  <div className="pm-topup__badges">
+                    {isBest && <span className="pm-topup__pop"><i className="fas fa-star" aria-hidden></i> Best value</span>}
+                    {!isBest && isPopular && <span className="pm-topup__pop pm-topup__pop--popular"><i className="fas fa-fire" aria-hidden></i> Popular</span>}
+                    {savePct >= 5 && <span className="pm-topup__save">Save {savePct}%</span>}
+                  </div>
+                  <div className="pm-topup__credits">
+                    <i className="fas fa-bolt" aria-hidden></i>
+                    <span className="pm-topup__credits-num">{credits > 0 ? compactCredits(credits) : '—'}</span>
+                    <span className="pm-topup__credits-unit">AI credits</span>
+                  </div>
+                  <div className="pm-topup__meter" aria-hidden>
+                    <span style={{ width: `${meterPct}%` }} />
+                  </div>
+                  <div className="pm-topup__price">{price}</div>
+                  <div className="pm-topup__perk">{perKLabel}</div>
+                  <span className="pm-topup__buy">
+                    {isPurchasing
+                      ? <><i className="fas fa-spinner fa-spin"></i> Opening…</>
+                      : isUnavailable
+                        ? <>Unavailable</>
+                        : <>Buy {credits > 0 ? compactCredits(credits) : ''} <i className="fas fa-arrow-right"></i></>}
+                  </span>
+                </button>
               </CustomTooltip>
             )
           })}
