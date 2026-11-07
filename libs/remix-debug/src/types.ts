@@ -58,6 +58,8 @@ export interface StructLog {
  * The full result object for the default debug_traceTransaction tracer.
  */
 export interface DebugTraceTransactionResult {
+  /** Execution hardfork supplied by a local VM trace provider. */
+  fork?: string;
   /** True if the transaction execution failed (reverted). */
   failed: boolean;
   /** The total gas consumed by the transaction (hex-encoded). */
