@@ -159,6 +159,8 @@ export class PlanManagerPlugin extends ViewPlugin {
   private pendingPlanAfterSignIn: { planId: string; priceId?: number; at: number } | null = null
   // Server-side payments-availability check runs once per session.
   private paymentsAvailabilityChecked = false
+  /** Transactions still being watched after their checkout was closed mid-payment. */
+  private paymentWatchesAfterClose = new Set<string>()
   // Signed-out visitor picked "Start free". Consumed on the next successful
   // login to land them on the top-up screen (with an upgrade option).
   private pendingFreeAfterSignIn: { at: number } | null = null
@@ -501,6 +503,7 @@ export class PlanManagerPlugin extends ViewPlugin {
           msSinceOpen: ctx?.openedAt ? Date.now() - ctx.openedAt : undefined,
         },
       })
+      if (ctx) this.watchPaymentAfterClose(ctx, pending.intent, pending.itemLabel)
     }
     this.checkoutContext = null
     this.store.send({ type: 'CHECKOUT_CLOSED' })
@@ -2694,6 +2697,77 @@ export class PlanManagerPlugin extends ViewPlugin {
     })()
   }
 
+  /**
+   * The user closed the checkout while a payment was in flight — typically a
+   * method approved on their phone (WeChat Pay, UPI) — so the in-checkout
+   * poll stops. Keep watching the transaction: ~11% of paid checkouts landed
+   * after the panel closed, leaving the IDE on the old plan/credits and some
+   * buyers discarding a checkout they had actually paid for.
+   */
+  private watchPaymentAfterClose(ctx: CheckoutContext, intent: CheckoutIntent, label?: string): void {
+    const transactionId = ctx.transactionId
+    if (!ctx.backgroundConfirm || ctx.confirmed || !transactionId || intent === 'payment_method') return
+    if (this.paymentWatchesAfterClose.has(transactionId)) return
+    this.paymentWatchesAfterClose.add(transactionId)
+    // Snapshot now — closing clears the cart and pending intent.
+    const items = this.resolvePurchasedItems()
+    const method = ctx.paymentMethod ?? null
+    const closedAt = Date.now()
+    void (async () => {
+      try {
+        const billingApi: any = await this.call('auth', 'getBillingApi').catch(() => null)
+        if (!billingApi?.getTransactionStatus) return
+        while (Date.now() - closedAt < BACKGROUND_CONFIRM_MAX_MS) {
+          await new Promise(r => setTimeout(r, BACKGROUND_CONFIRM_INTERVAL_MS))
+          if (!this.store.getSnapshot().isAuthenticated) return
+          const resp = await billingApi.getTransactionStatus(transactionId).catch(() => null)
+          const status: string | undefined = resp?.data?.status
+          if (status === 'completed') {
+            const live = this.checkoutContext
+            if (live?.transactionId === transactionId) {
+              // Resumed meanwhile — confirm through that checkout instead.
+              if (this.isCheckoutAwaitingPayment(live)) this.confirmCheckoutFromWebhook(live)
+              return
+            }
+            await this.confirmPaymentAfterClose({ transactionId, intent, label, items, method, closedAt })
+            return
+          }
+          if (status === 'canceled' || status === 'refunded' || status === 'disputed') return
+        }
+      } finally {
+        this.paymentWatchesAfterClose.delete(transactionId)
+      }
+    })()
+  }
+
+  private async confirmPaymentAfterClose(p: {
+    transactionId: string
+    intent: CheckoutIntent
+    label?: string
+    items: CartItem[]
+    method: string | null
+    closedAt: number
+  }): Promise<void> {
+    reportCheckoutTelemetry('checkout.confirmed_after_close', {
+      transactionId: p.transactionId,
+      message: 'Payment completed after the user closed the checkout',
+      detail: { intent: p.intent, method: p.method, msAfterClose: Date.now() - p.closedAt },
+    })
+    this.trackCheckout('confirmed_after_close', p.intent, p.method ?? undefined)
+    this.trackCheckout('completed', p.intent, p.transactionId)
+    // Subscriptions get the "plan upgraded" celebration via purchaseConfirmed;
+    // top-ups have no message of their own.
+    if (p.intent !== 'subscription') {
+      this.call('notification' as any, 'toast', `Payment received — ${p.label ?? 'your credits'} added to your account.`).catch(() => { /* noop */ })
+    }
+    // Another checkout may be open by now; don't let this confirmation
+    // promote that one's result.
+    const snap = this.store.getSnapshot()
+    const otherCheckoutActive = !!snap.pendingCheckout || snap.checkoutResult?.kind === 'processing'
+    await this.completePurchaseRefresh({ intent: p.intent, label: p.label, items: p.items }, { promote: !otherCheckoutActive })
+    void this.loadPendingCheckouts()
+  }
+
   private confirmCheckoutFromWebhook(ctx: CheckoutContext): void {
     ctx.confirmed = true
     this.clearApprovalWatch(ctx)
@@ -2779,13 +2853,14 @@ export class PlanManagerPlugin extends ViewPlugin {
       if (!this.isCheckoutAwaitingPayment(ctx)) return
       if (ctx.stage !== 'payment_failed' || ctx.paymentFailures !== failureNo) return
       const last = payment?.lastPayment
-      this.showDeclineNotice(ctx, last?.status === 'error' ? last.errorCode : null)
+      // `dropped` = stopped by Paddle's risk checks; it carries an error_code (e.g. `fraud`) too.
+      this.showDeclineNotice(ctx, last?.status === 'error' || last?.status === 'dropped' ? last.errorCode : null, last?.status ?? null)
     } finally {
       ctx.declineLookup = false
     }
   }
 
-  private showDeclineNotice(ctx: CheckoutContext, errorCode: string | null): void {
+  private showDeclineNotice(ctx: CheckoutContext, errorCode: string | null, paymentStatus: string | null = null): void {
     const snap = this.store.getSnapshot()
     const hasAddOns = snap.cartItems.length > 1
     // Cheapest paid plan, offered when funds were short on a pricier plan.
@@ -2797,7 +2872,7 @@ export class PlanManagerPlugin extends ViewPlugin {
       transactionId: ctx.transactionId,
       errorCode: errorCode ?? 'unknown',
       message: `Payment declined (${errorCode ?? 'unknown'})`,
-      detail: { method: ctx.paymentMethod ?? null, failures: ctx.paymentFailures, intent: ctx.intent, hasAddOns, offeredCheaperPlan: cheaperPlanName },
+      detail: { method: ctx.paymentMethod ?? null, paymentStatus, failures: ctx.paymentFailures, intent: ctx.intent, hasAddOns, offeredCheaperPlan: cheaperPlanName },
     })
     this.trackCheckout('decline_reason', ctx.intent as CheckoutIntent, errorCode ?? 'unknown')
     this.store.send({
@@ -3343,7 +3418,9 @@ export class PlanManagerPlugin extends ViewPlugin {
      * the processing screen or start another checkout meanwhile, so the
      * snapshot can no longer be trusted to describe this purchase.
      */
-    confirmed?: { intent: CheckoutIntent; label?: string; items: CartItem[] }
+    confirmed?: { intent: CheckoutIntent; label?: string; items: CartItem[] },
+    /** `promote: false` skips flipping the panel's checkout result to success. */
+    opts: { promote?: boolean } = {}
   ): Promise<void> {
     const LOG = '[plan-manager:refresh]'
     planManagerLogger.log(LOG, 'start')
@@ -3364,7 +3441,7 @@ export class PlanManagerPlugin extends ViewPlugin {
     // Promote 'processing' → 'success' in the panel. DATA_LOADED alone won't
     // do it because the data state is usually 'ready' (not 'refreshing') by
     // the time we get here; PURCHASE_CONFIRMED is handled at machine root.
-    this.store.send({ type: 'PURCHASE_CONFIRMED' })
+    if (opts.promote !== false) this.store.send({ type: 'PURCHASE_CONFIRMED' })
     const cr = this.store.getSnapshot().checkoutResult
     const intent = confirmed ? confirmed.intent : cr?.intent
     const label = confirmed ? confirmed.label : cr?.itemLabel
