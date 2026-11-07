@@ -72,6 +72,7 @@ export class DebuggerSolidityState {
   }
 
   extractStateVariables (stateVars, address) {
+    address = this.traceManager.getCurrentStorageAddressAt(this.stepManager.currentStepIndex)
     const storageViewer = new StorageViewer({ stepIndex: this.stepManager.currentStepIndex, tx: this.tx, address: address }, this.storageResolver, this.traceManager)
     decodeState(stateVars, storageViewer).then((result) => {
       this.event.trigger('solidityStateMessage', [''])
