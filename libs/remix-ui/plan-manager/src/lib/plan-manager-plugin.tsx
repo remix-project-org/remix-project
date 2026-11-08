@@ -161,6 +161,8 @@ export class PlanManagerPlugin extends ViewPlugin {
   private paymentsAvailabilityChecked = false
   /** Transactions still being watched after their checkout was closed mid-payment. */
   private paymentWatchesAfterClose = new Set<string>()
+  /** The "payment still being confirmed" leave dialog is showing. */
+  private leavePromptOpen = false
   /** Transactions already confirmed in this session, across every confirmation path. */
   private confirmedTransactionIds = new Set<string>()
   /** Bumped when the signed-in user changes (not on token refresh) so in-flight watches can tell. */
@@ -273,6 +275,16 @@ export class PlanManagerPlugin extends ViewPlugin {
     // cancelled — i.e. `pendingCheckout` goes from set → null), refresh the
     // account data and the unfinished-checkout list so credits/plan and the
     // resume surfaces reflect whatever just happened.
+    // The payment settled (confirmed or declined) while the leave dialog was
+    // open — it would otherwise sit over the success / decline screen still
+    // saying "being confirmed".
+    this.store.subscribe(() => {
+      if (this.leavePromptOpen && !this.isPaymentInFlight()) {
+        this.leavePromptOpen = false
+        this.resolveConfirm(LEAVE_PROMPT_SETTLED)
+      }
+    })
+
     let hadPending = false
     this.store.subscribe(() => {
       const pending = !!this.store.getSnapshot().pendingCheckout
@@ -561,6 +573,7 @@ export class PlanManagerPlugin extends ViewPlugin {
     const method = ctx?.paymentMethod ?? null
     const isWeChat = /wechat/i.test(method || '')
     const provider = !method || method === 'card' ? 'your bank' : paymentMethodLabel(method)
+    this.leavePromptOpen = true
     const choice = await this.requestConfirm({
       eyebrow: 'Payment in progress',
       title: 'Your payment is still being confirmed',
@@ -575,13 +588,14 @@ export class PlanManagerPlugin extends ViewPlugin {
         { value: 'stay', label: 'Keep waiting', variant: 'primary', icon: 'fas fa-hourglass-half' },
         { value: 'leave', label: action === 'close' ? 'Close anyway' : 'Leave checkout', variant: 'ghost' }
       ]
-    })
+    }).finally(() => { this.leavePromptOpen = false })
     const leave = choice === 'leave'
+    const outcome = leave ? 'leave' : choice === LEAVE_PROMPT_SETTLED ? 'settled' : 'stay'
     reportCheckoutTelemetry('checkout.leave_prompt', {
       transactionId: ctx?.transactionId,
-      detail: { action, method, choice: leave ? 'leave' : 'stay', msSinceOpen: ctx?.openedAt ? Date.now() - ctx.openedAt : null },
+      detail: { action, method, choice: outcome, msSinceOpen: ctx?.openedAt ? Date.now() - ctx.openedAt : null },
     })
-    this.trackCheckout('leave_prompt', ctx?.intent, leave ? 'leave' : 'stay')
+    this.trackCheckout('leave_prompt', ctx?.intent, outcome)
     return leave
   }
 
@@ -5306,6 +5320,8 @@ const PADDLE_CONFIG_TIMEOUT_MS = 20_000
 const REGION_BLOCKED_RE = /address_location_not_allowed|unsupported location/i
 const REGION_BLOCKED_MESSAGE = 'Payments aren’t available in your region. Our payment provider can’t accept payments from your current location. If you’re using a VPN, turn it off and try again.'
 const NO_RESUMABLE_CHECKOUTS: PendingCheckout[] = []
+/** Leave-dialog result when the payment settled while it was open. */
+const LEAVE_PROMPT_SETTLED = 'payment_settled'
 /** Unfinished checkouts worth offering — none when payments are blocked here, since resuming can only fail. */
 function resumableCheckouts(snap: PlanManagerSnapshot): PendingCheckout[] {
   return snap.paymentsBlockedInRegion ? NO_RESUMABLE_CHECKOUTS : snap.resumeCheckouts
