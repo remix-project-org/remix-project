@@ -1,0 +1,25 @@
+{
+  "name": "remix-formal-check",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "libs/remix-formal-check/src",
+  "projectType": "library",
+  "implicitDependencies": [],
+  "targets": {
+    "test": {
+      "executor": "@nrwl/workspace:run-commands",
+      "options": {
+        "command": "TS_NODE_PROJECT=libs/remix-formal-check/tsconfig.spec.json mocha -r ts-node/register -r tsconfig-paths/register \"libs/remix-formal-check/test/**/*.spec.ts\"",
+        "cwd": "."
+      }
+    },
+    "lint": {
+      "executor": "@nrwl/linter:eslint",
+      "outputs": ["{options.outputFile}"],
+      "options": {
+        "lintFilePatterns": ["libs/remix-formal-check/**/*.ts"],
+        "eslintConfig": "libs/remix-solidity/.eslintrc"
+      }
+    }
+  },
+  "tags": []
+}

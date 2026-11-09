@@ -82,6 +82,9 @@
             "@remix-ui/plan-manager": [
               "libs/remix-ui/plan-manager/src/index.ts"
             ],
+            "@remix-ui/formal-check": [
+              "libs/remix-ui/formal-check/src/index.ts"
+            ],
             "@remix-ui/panel": [
               "libs/remix-ui/panel/src/index.ts"
             ],
@@ -277,6 +280,9 @@
             ],
             "@remix-project/remix-zkverify-core": [
               "libs/remix-zkverify-core/src/index.ts"
+            ],
+            "@remix-project/remix-formal-check": [
+              "libs/remix-formal-check/src/index.ts"
             ]
         }
     }

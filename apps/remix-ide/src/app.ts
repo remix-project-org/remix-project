@@ -61,6 +61,7 @@ import { NudgePlugin } from './app/plugins/nudge-plugin'
 import { HelpPlugin } from '@remix-ui/modal-help'
 import { PlanManagerPlugin } from '@remix-ui/plan-manager'
 import { RemixGuidePlugin } from './app/plugins/remixGuide'
+import { FormalCheckPlugin } from './app/plugins/formalCheckPlugin'
 import { TemplatesPlugin } from './app/plugins/remix-templates'
 import { fsPlugin } from './app/plugins/electron/fsPlugin'
 import { isoGitPlugin } from './app/plugins/electron/isoGitPlugin'
@@ -716,6 +717,7 @@ class AppComponent {
     this.helpPlugin = new HelpPlugin()
     this.planManager = new PlanManagerPlugin()
     const feedbackPlugin = new FeedbackPlugin()
+    const formalCheckPlugin = new FormalCheckPlugin()
 
     this.engine.register([
       compileTab as any,
@@ -735,7 +737,8 @@ class AppComponent {
       this.nudgePlugin,
       this.helpPlugin,
       this.planManager,
-      feedbackPlugin
+      feedbackPlugin,
+      formalCheckPlugin,
     ])
     this.engine.register([templateExplorerModal, skillExplorerModal, checklistExplorerModal, this.topBar])
 
@@ -826,7 +829,7 @@ class AppComponent {
 
     await this.appManager.activatePlugin(['arkivBasic'])
     await this.appManager.activatePlugin(['arkivNetwork'])
-    await this.appManager.activatePlugin(['storage', 'storageMonitor', 'search', 'compileAndRun', 'dgitApi', 'dgit', 'helpPlugin', 'planManager'])
+    await this.appManager.activatePlugin(['storage', 'storageMonitor', 'search', 'compileAndRun', 'dgitApi', 'dgit', 'helpPlugin', 'planManager', 'formalCheck'])
     await this.appManager.activatePlugin(['solidity-script', 'remix-templates'])
 
     if (isElectron()) {
