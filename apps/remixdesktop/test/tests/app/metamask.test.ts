@@ -17,8 +17,7 @@ function openTemplatesExplorer(browser: NightwatchBrowser) {
 
 const tests = {
   before: function (browser: NightwatchBrowser, done: VoidFunction) {
-    browser.hideToolTips()
-    done()
+    browser.hideToolTips().perform(() => done())
   },
   'open default template': function (browser: NightwatchBrowser) {
     browser
