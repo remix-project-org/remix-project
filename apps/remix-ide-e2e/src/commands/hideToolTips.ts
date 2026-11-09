@@ -58,6 +58,11 @@ class HideToolTips extends EventEmitter {
               opacity: 0 !important;
               visibility: hidden !important;
             }
+            .nudge-modal-backdrop {
+              display: none !important;
+              opacity: 0 !important;
+              visibility: hidden !important;
+            }
           `);
         }, [], done())
       })
