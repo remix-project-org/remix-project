@@ -123,6 +123,74 @@ describe('instrument — appendToContract', () => {
   })
 })
 
+describe('instrument — needs_snapshot', () => {
+  const src = [
+    'contract Vault {',
+    '    uint256 public balance;',
+    '    function withdraw(uint256 amount) external {',
+    '        balance -= amount;',
+    '    }',
+    '}',
+  ].join('\n')
+
+  const bodyStart = src.indexOf('{\n        balance -= amount;')
+  const bodyLength = src.indexOf('\n    }') - bodyStart + '\n    }'.length
+
+  // Build an AST that includes a state variable declaration
+  const ast = {
+    nodeType: 'SourceUnit',
+    src: `0:${src.length}:0`,
+    nodes: [
+      {
+        nodeType: 'ContractDefinition',
+        name: 'Vault',
+        src: `0:${src.length}:0`,
+        nodes: [
+          {
+            nodeType: 'VariableDeclaration',
+            name: 'balance',
+            stateVariable: true,
+            src: '19:22:0',
+            typeName: { nodeType: 'ElementaryTypeName', name: 'uint256' },
+          },
+          {
+            nodeType: 'FunctionDefinition',
+            name: 'withdraw',
+            src: `${bodyStart - 10}:${bodyLength + 10}:0`,
+            body: { nodeType: 'Block', src: `${bodyStart}:${bodyLength}:0` },
+          },
+        ],
+      },
+    ],
+  }
+
+  it('inserts snapshot declaration before assertion', () => {
+    const proposal: ProposalSchema = {
+      english: 'balance should not decrease below zero',
+      target_function: 'withdraw',
+      assertion: 'assert(__snapshot_balance >= amount);',
+      needs_snapshot: ['balance'],
+    }
+    const result = instrument(src, ast as any, proposal)
+    expect(result.source).to.include('uint256 __snapshot_balance = balance;')
+    expect(result.source).to.include('assert(__snapshot_balance >= amount);')
+    // Snapshot must come BEFORE assertion in the inserted text
+    const snapIdx = result.source.indexOf('__snapshot_balance = balance;')
+    const assertIdx = result.source.indexOf('assert(__snapshot_balance')
+    expect(snapIdx).to.be.lessThan(assertIdx)
+  })
+
+  it('throws if snapshot variable not found in AST', () => {
+    const proposal: ProposalSchema = {
+      english: 'test',
+      target_function: 'withdraw',
+      assertion: 'assert(true);',
+      needs_snapshot: ['nonExistentVar'],
+    }
+    expect(() => instrument(src, ast as any, proposal)).to.throw('nonExistentVar')
+  })
+})
+
 describe('instrumentVacuity', () => {
   const src = [
     'contract C {',

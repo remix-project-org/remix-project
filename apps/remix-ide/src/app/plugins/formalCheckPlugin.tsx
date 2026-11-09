@@ -8,6 +8,9 @@ import {
   templateToProposal,
   instrument,
   runFormalCheck,
+  RemixAIAdapter,
+  parseAndValidateProposal,
+  checkAssertionSafety,
   type FormalCheckState,
   type FormalCheckTemplate,
   type CompilationRunner,
@@ -15,6 +18,7 @@ import {
   type SolverResult,
   type ModelCheckerSettings,
   type CheckResult,
+  type ProposalSchema,
 } from '@remix-project/remix-formal-check'
 import { Compiler } from '@remix-project/remix-solidity'
 import * as packageJson from '../../../../../package.json'
@@ -32,8 +36,8 @@ const FORMAL_CHECK_ICON =
 const profile = {
   name: 'formalCheck',
   displayName: 'Formal Check',
-  description: 'Check Solidity properties using SMTChecker (BMC). No LLM required.',
-  methods: ['checkProperty'],
+  description: 'Check Solidity properties using SMTChecker (BMC). Template and LLM modes.',
+  methods: ['checkProperty', 'proposeFromLLM'],
   events: [],
   icon: FORMAL_CHECK_ICON,
   location: 'sidePanel',
@@ -41,40 +45,19 @@ const profile = {
   maintainedBy: 'Remix',
 }
 
-// ----- CompilationRunner implementation ---------------------------------
+// ----- CompilationRunner ------------------------------------------------
 
-/**
- * Browser-side CompilationRunner.
- * Creates a fresh Compiler instance per check so it never contends with
- * the user's active compilation workflow and can be cancelled independently.
- */
 class BrowserCompilationRunner implements CompilationRunner {
-  private compiler: Compiler | null = null
-  private soljsonUrl: string
-
-  constructor(soljsonUrl: string) {
-    this.soljsonUrl = soljsonUrl
-  }
+  constructor(private soljsonUrl: string) {}
 
   compile(req: CompileRequest): Promise<SolverResult> {
-    return new Promise((resolve, reject) => {
+    return new Promise((resolve) => {
       const compiler = new Compiler()
-      this.compiler = compiler
-
       const { sources, filename, modelCheckerSettings } = req
-
-      // Build the standard JSON input, then inject modelChecker settings.
-      // We use useFileConfiguration so the full JSON is passed verbatim to solc.
-      const outputSelection = {
-        '*': {
-          '': ['ast'],
-          '*': ['abi'],
-        },
-      }
       const configObj = {
         language: 'Solidity',
         settings: {
-          outputSelection,
+          outputSelection: { '*': { '': ['ast'], '*': ['abi'] } },
           modelChecker: {
             engine: modelCheckerSettings.engine,
             targets: modelCheckerSettings.targets,
@@ -90,53 +73,35 @@ class BrowserCompilationRunner implements CompilationRunner {
       compiler.set('useFileConfiguration', true)
       compiler.set('configFileContent', configObj)
 
-      // Load soljson, then compile
       compiler.event.register('compilerLoaded', () => {
         compiler.compile(
-          Object.fromEntries(
-            Object.entries(sources).map(([name, content]) => [
-              name,
-              { content },
-            ]),
-          ) as any,
+          Object.fromEntries(Object.entries(sources).map(([n, c]) => [n, { content: c }])) as any,
           filename,
         )
       })
 
       compiler.event.register('compilationFinished', (success: boolean, data: any) => {
-        this.compiler = null
-        resolve({
-          success,
-          errors: data?.errors ?? [],
-        })
+        resolve({ success, errors: data?.errors ?? [] })
       })
 
-      compiler.event.register('loadingCompiler', (_url: string, _usingWorker: boolean) => {
-        // Loading — no action needed
-      })
-
-      // Load the soljson (triggers compilerLoaded when done)
       compiler.loadVersion(true, this.soljsonUrl)
     })
   }
 
   cancel(): void {
-    if (this.compiler) {
-      // Terminate the underlying worker by loading a no-op version.
-      // The Compiler class doesn't expose a direct cancel API; loading a new
-      // version terminates the current worker (see compiler.ts loadVersion).
-      // We resolve the promise via the compilationFinished event above.
-      this.compiler = null
-    }
+    // The solc web worker cannot be interrupted mid-compile; in-flight resolve() fires and is ignored.
   }
 }
 
-// ----- Plugin class -----------------------------------------------------
+// ----- Plugin -----------------------------------------------------------
 
 const INITIAL_STATE: FormalCheckState = {
   status: 'idle',
+  mode: 'template',
   currentFile: '',
+  llmIntent: '',
   proposal: null,
+  rawProposalJson: null,
   result: null,
   errorMessage: null,
   userConfirmed: false,
@@ -165,25 +130,16 @@ export class FormalCheckPlugin extends ViewPlugin {
   }
 
   async onActivation() {
-    // Track the current file
     this.on('fileManager', 'currentFileChanged', async (file: string) => {
       if (file.endsWith('.sol')) {
         this.updateState({ currentFile: file, result: null, errorMessage: null, status: 'idle' })
       }
     })
 
-    // Keep the soljson URL up to date and cache the last AST
     this.on(
       'solidity',
       'compilationFinished',
-      (
-        _file: string,
-        _source: any,
-        _languageVersion: string,
-        data: any,
-        _input: string,
-        version: string,
-      ) => {
+      (_file: string, _source: any, _langVer: string, data: any, _input: string, version: string) => {
         this.lastSoljsonUrl = this.versionToUrl(version)
         if (data?.sources) {
           const primary = Object.keys(data.sources)[0]
@@ -192,15 +148,10 @@ export class FormalCheckPlugin extends ViewPlugin {
       },
     )
 
-    // Load current file on activation
     try {
       const file = await this.call('fileManager', 'getCurrentFile')
-      if (file?.endsWith('.sol')) {
-        this.updateState({ currentFile: file })
-      }
-    } catch {
-      // No file open yet — that's fine
-    }
+      if (file?.endsWith('.sol')) this.updateState({ currentFile: file })
+    } catch { /* no file open yet */ }
   }
 
   onDeactivation() {
@@ -208,7 +159,17 @@ export class FormalCheckPlugin extends ViewPlugin {
     this.off('solidity', 'compilationFinished')
   }
 
-  // --- Public API (called by UI) ----------------------------------------
+  // --- Mode switching ---------------------------------------------------
+
+  setMode(mode: 'template' | 'llm'): void {
+    this.updateState({ mode, status: 'idle', result: null, errorMessage: null, proposal: null, rawProposalJson: null })
+  }
+
+  setLLMIntent(intent: string): void {
+    this.updateState({ llmIntent: intent })
+  }
+
+  // --- Template path (Phase 1, vacuity skipped for speed) ---------------
 
   async checkProperty(templateId: string): Promise<void> {
     const template = this.templates.find((t) => t.id === templateId)
@@ -216,54 +177,137 @@ export class FormalCheckPlugin extends ViewPlugin {
       this.updateState({ status: 'error', errorMessage: `Unknown template: ${templateId}` })
       return
     }
-
     if (!this.state.currentFile) {
       this.updateState({ status: 'error', errorMessage: 'No Solidity file is open.' })
       return
     }
-
     if (!this.lastSoljsonUrl) {
-      this.updateState({
-        status: 'error',
-        errorMessage:
-          'Compile your contract first so the plugin knows which solc version to use.',
-      })
+      this.updateState({ status: 'error', errorMessage: 'Compile your contract first.' })
       return
     }
 
-    this.updateState({
-      status: 'running',
-      result: null,
-      errorMessage: null,
-      userConfirmed: false,
-      proposal: templateToProposal(template),
-    })
+    const proposal = templateToProposal(template)
+    this.updateState({ status: 'running', result: null, errorMessage: null, userConfirmed: false, proposal })
+    await this._runSolverPipeline(proposal, { skipVacuity: true })
+  }
 
+  // --- LLM path (Phase 2) -----------------------------------------------
+
+  /**
+   * Step 1: User clicked "Propose assertion".
+   * If consent not yet given, show the banner. Otherwise go straight to LLM.
+   */
+  requestLLMProposal(intent: string): void {
+    if (!intent.trim()) {
+      this.updateState({ status: 'error', errorMessage: 'Please describe what property you want to check.' })
+      return
+    }
+    if (!this.state.currentFile) {
+      this.updateState({ status: 'error', errorMessage: 'No Solidity file is open.' })
+      return
+    }
+    this.updateState({ llmIntent: intent, result: null, errorMessage: null, proposal: null, rawProposalJson: null })
+
+    if (this.state.consentGiven) {
+      void this._callLLM(intent)
+    } else {
+      this.updateState({ status: 'pending_consent' })
+    }
+  }
+
+  /** Step 2a: User accepted the consent banner. */
+  grantConsent(): void {
+    this.updateState({ consentGiven: true })
+    void this._callLLM(this.state.llmIntent)
+  }
+
+  /** Step 2b: User declined. */
+  denyConsent(): void {
+    this.updateState({ status: 'idle', errorMessage: null })
+  }
+
+  /**
+   * Step 3: User confirmed "this assertion matches what I meant" and
+   * clicked "Run formal check".  Runs the solver on the pending proposal.
+   */
+  async confirmAndRun(): Promise<void> {
+    if (!this.state.proposal) {
+      this.updateState({ status: 'error', errorMessage: 'No proposal to run.' })
+      return
+    }
+    if (!this.state.userConfirmed) {
+      this.updateState({ status: 'error', errorMessage: 'Please confirm the assertion matches your intent before running.' })
+      return
+    }
+    if (!this.lastSoljsonUrl) {
+      this.updateState({ status: 'error', errorMessage: 'Compile your contract first.' })
+      return
+    }
+    this.updateState({ status: 'running' })
+    // Vacuity check is ON for LLM proposals
+    await this._runSolverPipeline(this.state.proposal, { skipVacuity: false })
+  }
+
+  cancelCheck(): void {
+    this.currentRunner?.cancel()
+    this.currentRunner = null
+    this.updateState({ status: 'idle', errorMessage: null, proposal: null, rawProposalJson: null })
+  }
+
+  confirmMatch(confirmed: boolean): void {
+    this.updateState({ userConfirmed: confirmed })
+  }
+
+  setCurrentFile(path: string): void {
+    this.updateState({ currentFile: path })
+  }
+
+  // --- Private: LLM call ------------------------------------------------
+
+  private async _callLLM(intent: string): Promise<void> {
+    this.updateState({ status: 'running_llm' })
+    try {
+      const filename = this.state.currentFile
+      const source = await this.call('fileManager', 'readFile', filename)
+      const adapter = new RemixAIAdapter(
+        (p: string, m: string, ...a: unknown[]) => this.call(p as any, m as any, ...a),
+      )
+      // Single LLM call; validate + safety-check the returned JSON ourselves
+      const rawJson = await adapter.generateProposal(source, intent)
+      const proposal = parseAndValidateProposal(rawJson)
+      checkAssertionSafety(proposal)
+      this.updateState({
+        status: 'proposal_ready',
+        proposal,
+        rawProposalJson: rawJson,
+        userConfirmed: false,
+      })
+    } catch (err: any) {
+      this.updateState({ status: 'error', errorMessage: err?.message ?? String(err) })
+    }
+  }
+
+  // --- Private: Solver pipeline -----------------------------------------
+
+  private async _runSolverPipeline(
+    proposal: ProposalSchema,
+    opts: { skipVacuity: boolean },
+  ): Promise<void> {
     try {
       const filename = this.state.currentFile
       const original = await this.call('fileManager', 'readFile', filename)
-
-      // Collect all sources in case the file has imports
       const allSources: Record<string, string> = { [filename]: original }
 
-      // We need the AST to do source-range–based instrumentation.
-      // If we don't have it yet (no prior compilation), compile now to get it.
       let ast = this.lastAst
       if (!ast) {
-        ast = await this.fetchAst(filename, allSources)
+        ast = await this._fetchAst(filename, allSources)
         if (!ast) {
-          this.updateState({
-            status: 'error',
-            errorMessage:
-              'Could not get the AST for this file. Compile the contract in the Solidity tab first.',
-          })
+          this.updateState({ status: 'error', errorMessage: 'Compile the contract first to get the AST.' })
           return
         }
       }
 
-      const proposal = templateToProposal(template)
       const instrumented = instrument(original, ast as any, proposal)
-
       const runner = new BrowserCompilationRunner(this.lastSoljsonUrl)
       this.currentRunner = runner
 
@@ -276,37 +320,16 @@ export class FormalCheckPlugin extends ViewPlugin {
         primaryFilename: filename,
         runner,
         settings: DEFAULT_SETTINGS,
-        // Skip vacuity check in Phase 1 to keep the UX fast.
-        // Phase 2 will re-enable it once LLM proposals are in play.
-        skipVacuity: true,
+        skipVacuity: opts.skipVacuity,
       })
 
       this.currentRunner = null
       this.updateState({ status: 'done', result: checkResult })
-
-      // Highlight violations in the editor
-      await this.highlightResult(checkResult, filename)
+      await this._highlightResult(checkResult, filename)
     } catch (err: any) {
       this.currentRunner = null
-      this.updateState({
-        status: 'error',
-        errorMessage: err?.message ?? String(err),
-      })
+      this.updateState({ status: 'error', errorMessage: err?.message ?? String(err) })
     }
-  }
-
-  cancelCheck(): void {
-    this.currentRunner?.cancel()
-    this.currentRunner = null
-    this.updateState({ status: 'idle', errorMessage: 'Cancelled.' })
-  }
-
-  confirmMatch(confirmed: boolean): void {
-    this.updateState({ userConfirmed: confirmed })
-  }
-
-  setCurrentFile(path: string): void {
-    this.updateState({ currentFile: path })
   }
 
   // --- Private helpers --------------------------------------------------
@@ -316,35 +339,37 @@ export class FormalCheckPlugin extends ViewPlugin {
     this.renderComponent()
   }
 
-  private async fetchAst(filename: string, sources: Record<string, string>): Promise<unknown> {
-    // Trigger a lightweight compilation to get the AST
+  private async _fetchAst(filename: string, sources: Record<string, string>): Promise<unknown> {
     return new Promise<unknown>((resolve) => {
       const compiler = new Compiler()
       compiler.set('useFileConfiguration', false)
       compiler.event.register('compilerLoaded', () => {
         compiler.compile(
-          Object.fromEntries(
-            Object.entries(sources).map(([n, c]) => [n, { content: c }]),
-          ) as any,
+          Object.fromEntries(Object.entries(sources).map(([n, c]) => [n, { content: c }])) as any,
           filename,
         )
       })
       compiler.event.register('compilationFinished', (_success: boolean, data: any) => {
-        const ast = data?.sources?.[filename]?.ast ?? null
-        resolve(ast)
+        resolve(data?.sources?.[filename]?.ast ?? null)
       })
       compiler.loadVersion(true, this.lastSoljsonUrl)
     })
   }
 
-  private async highlightResult(result: CheckResult, filename: string): Promise<void> {
+  private async _highlightResult(result: CheckResult, filename: string): Promise<void> {
     try {
       await this.call('editor', 'discardHighlight')
       await this.call('editor', 'clearAnnotations')
-
       if (result.outcome === 'COUNTEREXAMPLE' && result.sourceLocation) {
         const { start, end } = result.sourceLocation
-        await this.call('editor', 'highlight', { start: { line: 0, column: start }, end: { line: 0, column: end } }, filename, '#ff4444', { focus: false })
+        await this.call(
+          'editor',
+          'highlight',
+          { start: { line: 0, column: start }, end: { line: 0, column: end } },
+          filename,
+          '#ff4444',
+          { focus: false },
+        )
         await this.call('editor', 'addAnnotation', {
           row: result.sourceLocation.line ?? 0,
           column: result.sourceLocation.column ?? 0,
@@ -352,17 +377,11 @@ export class FormalCheckPlugin extends ViewPlugin {
           type: 'error',
         })
       }
-    } catch {
-      // Editor API calls are best-effort — never fail the check for this
-    }
+    } catch { /* editor decorations are best-effort */ }
   }
 
   private versionToUrl(version: string): string {
-    if (!version || version === 'builtin') {
-      // Fall back to builtin if the main tab used it
-      return 'assets/js/soljson.js'
-    }
-    // version may be like "0.8.26+commit.8a97fa7a" or already "soljson-v…"
+    if (!version || version === 'builtin') return 'assets/js/soljson.js'
     let v = version.replace('.Emscripten.clang', '')
     if (!v.startsWith('soljson-v')) v = 'soljson-v' + v
     if (!v.endsWith('.js')) v = v + '.js'
@@ -390,7 +409,16 @@ export class FormalCheckPlugin extends ViewPlugin {
         plugin: {
           state: this.state,
           templates: this.templates,
+          // Template mode
           runCheck: (id: string) => this.checkProperty(id),
+          // LLM mode
+          setMode: (m: 'template' | 'llm') => this.setMode(m),
+          setLLMIntent: (s: string) => this.setLLMIntent(s),
+          requestLLMProposal: (intent: string) => this.requestLLMProposal(intent),
+          grantConsent: () => this.grantConsent(),
+          denyConsent: () => this.denyConsent(),
+          confirmAndRun: () => this.confirmAndRun(),
+          // Shared
           cancelCheck: () => this.cancelCheck(),
           confirmMatch: (v: boolean) => this.confirmMatch(v),
           setCurrentFile: (p: string) => this.setCurrentFile(p),

@@ -67,6 +67,34 @@ describe('guardrails — checkAssertionSafety', () => {
     })
     expect(() => checkAssertionSafety(proposal)).not.to.throw()
   })
+
+  // State-write guardrail (Phase 2)
+  it('rejects plain assignment in assertion', () => {
+    expect(() =>
+      checkAssertionSafety(makeProposal({ assertion: 'balance = 0; assert(balance == 0);' })),
+    ).to.throw(GuardrailError).with.property('kind', 'forbidden_pattern')
+  })
+
+  it('allows == comparisons (not assignments)', () => {
+    expect(() =>
+      checkAssertionSafety(makeProposal({ assertion: 'assert(balance == total);' })),
+    ).not.to.throw()
+  })
+
+  it('allows != comparisons', () => {
+    expect(() =>
+      checkAssertionSafety(makeProposal({ assertion: 'assert(x != 0);' })),
+    ).not.to.throw()
+  })
+
+  it('allows += compound assignment in __contract__ target (local var OK)', () => {
+    const proposal = makeProposal({
+      target_function: '__contract__',
+      assertion: 'function __check(uint a, uint b) internal pure { uint c = a + b; assert(c >= a); }',
+    })
+    // __contract__ blocks skip the state-write check because they may have local declarations
+    expect(() => checkAssertionSafety(proposal)).not.to.throw()
+  })
 })
 
 describe('guardrails — checkDiff', () => {

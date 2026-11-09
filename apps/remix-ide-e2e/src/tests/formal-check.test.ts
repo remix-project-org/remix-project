@@ -100,6 +100,53 @@ const tests = {
         browser.assert.ok(result.value, 'outcome badge or error message is present')
       })
   },
+
+  // -----------------------------------------------------------------------
+  // group3 — Phase 2 LLM consent flow UI
+  // -----------------------------------------------------------------------
+
+  'Mode toggle switches to LLM input #group3': function (browser: NightwatchBrowser) {
+    browser
+      .addFile('SimpleVault.sol', { content: VAULT_SOL })
+      .openFile('SimpleVault.sol')
+      .clickLaunchIcon('formalCheck')
+      .waitForElementPresent('[data-id="formalCheckModeLLM"]', 5000)
+      .click('[data-id="formalCheckModeLLM"]')
+      .waitForElementPresent('[data-id="formalCheckIntentTextarea"]', 3000)
+      .waitForElementNotPresent('[data-id="formalCheckTemplateSelect"]', 2000)
+  },
+
+  'LLM mode shows Propose button disabled until intent is typed #group3': function (browser: NightwatchBrowser) {
+    browser
+      .clickLaunchIcon('formalCheck')
+      .click('[data-id="formalCheckModeLLM"]')
+      .waitForElementPresent('[data-id="formalCheckProposeBtn"]', 3000)
+      .execute(function () {
+        const btn = document.querySelector('[data-id="formalCheckProposeBtn"]') as HTMLButtonElement
+        return btn ? btn.disabled : true
+      }, [], function (result) {
+        browser.assert.ok(result.value, 'Propose button is disabled when intent is empty')
+      })
+  },
+
+  'Clicking Propose shows the consent banner #group3': function (browser: NightwatchBrowser) {
+    browser
+      .clickLaunchIcon('formalCheck')
+      .click('[data-id="formalCheckModeLLM"]')
+      .waitForElementPresent('[data-id="formalCheckIntentTextarea"]', 3000)
+      .setValue('[data-id="formalCheckIntentTextarea"]', 'withdrawn should never exceed deposited')
+      .click('[data-id="formalCheckProposeBtn"]')
+      // Consent banner must appear before any source leaves the browser
+      .waitForElementPresent('[data-id="formalCheckConsentBanner"]', 3000)
+  },
+
+  'Denying consent returns to idle, hides banner #group3': function (browser: NightwatchBrowser) {
+    browser
+      .waitForElementPresent('[data-id="formalCheckConsentDeny"]', 3000)
+      .click('[data-id="formalCheckConsentDeny"]')
+      .waitForElementNotPresent('[data-id="formalCheckConsentBanner"]', 3000)
+      .waitForElementPresent('[data-id="formalCheckIntentTextarea"]', 3000)
+  },
 }
 
 export default tests

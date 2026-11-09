@@ -20,6 +20,8 @@ interface ASTNode {
   returnParameters?: ASTNode
   stateMutability?: string
   visibility?: string
+  stateVariable?: boolean
+  typeName?: { nodeType: string; name?: string }
 }
 
 /** Parse an AST src string into start/end offsets. */
@@ -68,23 +70,78 @@ function lastContract(ast: ASTNode): ASTNode | undefined {
  *
  * Throws if the AST doesn't contain the requested target.
  */
+// --- Snapshot helpers ---------------------------------------------------
+
+/** Find a state variable by name across all contracts in the AST. */
+function findStateVar(ast: ASTNode, varName: string): ASTNode | undefined {
+  for (const contract of findContracts(ast)) {
+    if (!Array.isArray(contract.nodes)) continue
+    for (const node of contract.nodes) {
+      if (
+        (node.nodeType === 'VariableDeclaration' || node.nodeType === 'StateVariableDeclaration') &&
+        node.stateVariable &&
+        node.name === varName
+      ) {
+        return node
+      }
+      // solc 0.8 wraps state vars in StateVariableDeclaration with a variables array
+      if (node.nodeType === 'StateVariableDeclaration' && Array.isArray((node as any).variables)) {
+        const inner = (node as any).variables.find((v: ASTNode) => v.name === varName)
+        if (inner) return inner
+      }
+    }
+  }
+  return undefined
+}
+
+/**
+ * Build snapshot declaration lines for the given variable names.
+ * Only elementary types (uint*, int*, address, bool, bytes*) are supported.
+ * Throws if a type is unsupported or the variable is not found in the AST.
+ */
+function buildSnapshotDeclarations(ast: ASTNode, varNames: string[]): string[] {
+  const ELEMENTARY = /^(uint|int|address|bool|bytes|string)\d*$/
+  const lines: string[] = []
+  for (const name of varNames) {
+    const node = findStateVar(ast, name)
+    if (!node) {
+      throw new Error(`needs_snapshot: state variable "${name}" not found in AST`)
+    }
+    const typeName = node.typeName?.name ?? ''
+    if (!ELEMENTARY.test(typeName)) {
+      throw new Error(
+        `needs_snapshot: type "${typeName}" of "${name}" is not supported for snapshots (only elementary types)`,
+      )
+    }
+    lines.push(`${typeName} __snapshot_${name} = ${name};`)
+  }
+  return lines
+}
+
+// --- Insertion ----------------------------------------------------------
+
 export function instrument(
   source: string,
   ast: ASTNode,
   proposal: ProposalSchema,
 ): InstrumentedSource {
-  const { target_function: targetFn, assertion } = proposal
+  const { target_function: targetFn, assertion, needs_snapshot } = proposal
+
+  // Build snapshot lines upfront (empty for most templates)
+  const snapshotLines =
+    needs_snapshot.length > 0 ? buildSnapshotDeclarations(ast, needs_snapshot) : []
 
   if (targetFn === '__contract__') {
     return appendToContract(source, ast, assertion)
   }
-  return insertIntoFunction(source, ast, targetFn, assertion)
+  return insertIntoFunction(source, ast, targetFn, snapshotLines, assertion)
 }
 
 function insertIntoFunction(
   source: string,
   ast: ASTNode,
   fnName: string,
+  snapshotLines: string[],
   assertionCode: string,
 ): InstrumentedSource {
   const contracts = findContracts(ast)
@@ -106,8 +163,13 @@ function insertIntoFunction(
     // insert at bodyRange.end - 1.
     const insertOffset = bodyRange.end - 1
 
-    // Build the inserted text: newline + indentation + code + newline
-    const insertion = `\n        ${assertionCode}\n    `
+    // Build the inserted text as a single atomic block so the diff check
+    // only sees one contiguous insertion.
+    const indent = '        '
+    const lines: string[] = []
+    for (const snap of snapshotLines) lines.push(`${indent}${snap}`)
+    lines.push(`${indent}${assertionCode}`)
+    const insertion = '\n' + lines.join('\n') + '\n    '
 
     const result =
       source.slice(0, insertOffset) + insertion + source.slice(insertOffset)

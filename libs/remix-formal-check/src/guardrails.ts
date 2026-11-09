@@ -16,6 +16,11 @@ const FORBIDDEN_PATTERNS: Array<{ pattern: RegExp; reason: string }> = [
   { pattern: /\bsuicide\s*\(/, reason: 'suicide not allowed in formal check assertion' },
 ]
 
+// State-write patterns: assignment operators that are NOT comparisons.
+// Matches `x = `, `x += `, `x -= `, `x[i] = `, etc.
+// Uses a negative lookbehind/lookahead to avoid matching == / != / <= / >=.
+const STATE_WRITE_PATTERN = /(?<![=!<>])=(?!=)/
+
 // Trivially-true assertion patterns we reject early so the user doesn't
 // see a misleading PROVEN badge for a no-op check.
 const TRIVIAL_PATTERNS: Array<{ pattern: RegExp; reason: string }> = [
@@ -42,6 +47,16 @@ export function checkAssertionSafety(proposal: ProposalSchema): void {
     if (pattern.test(code)) {
       throw new GuardrailError(`Rejected: ${reason}`, 'forbidden_pattern')
     }
+  }
+
+  // State-write check (applies to all LLM-supplied assertions and to
+  // non-__contract__ assertions; __contract__ blocks may have local vars
+  // which use = in declarations — skip the write check for them).
+  if (proposal.target_function !== '__contract__' && STATE_WRITE_PATTERN.test(code)) {
+    throw new GuardrailError(
+      'Rejected: assertion must not write to state (found assignment operator)',
+      'forbidden_pattern',
+    )
   }
 
   // Skip trivial-pattern check for __contract__ appended functions because

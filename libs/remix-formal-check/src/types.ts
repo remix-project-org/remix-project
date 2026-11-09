@@ -115,11 +115,24 @@ export interface CheckResult {
 
 // State of the whole pipeline, used by the UI
 export interface FormalCheckState {
-  status: 'idle' | 'running' | 'done' | 'error'
+  /**
+   * idle            → nothing happening
+   * pending_consent → user clicked "Propose" but hasn't yet consented to
+   *                   sending their source to the LLM — show ConsentBanner
+   * running_llm     → waiting for LLM response
+   * proposal_ready  → LLM returned; waiting for user "matches intent" tick
+   * running         → SMTChecker running
+   * done            → check complete; result is set
+   * error           → something failed; errorMessage is set
+   */
+  status: 'idle' | 'pending_consent' | 'running_llm' | 'proposal_ready' | 'running' | 'done' | 'error'
+  mode: 'template' | 'llm'           // which input mode is active
   currentFile: string
+  llmIntent: string                  // user-typed intent (LLM mode)
   proposal: ProposalSchema | null
+  rawProposalJson: string | null     // raw LLM output shown for transparency
   result: CheckResult | null
   errorMessage: string | null
-  userConfirmed: boolean    // "This matches what I meant" checkbox
-  consentGiven: boolean     // source-sent-to-LLM consent
+  userConfirmed: boolean    // "This matches what I meant" checkbox (shown before PROVEN green)
+  consentGiven: boolean     // source-sent-to-LLM consent flag (persists across the session)
 }

@@ -71,6 +71,30 @@ export async function generateAndValidate(
 }
 
 /**
+ * Wraps the Remix `remixAI` plugin's `basic_prompt` method behind LLMProvider.
+ * The plugin layer injects the `call` function so this class stays IDE-free.
+ *
+ * Usage in the plugin:
+ *   new RemixAIAdapter((plugin, method, ...args) => this.call(plugin, method, ...args))
+ */
+export class RemixAIAdapter implements LLMProvider {
+  constructor(
+    private pluginCall: (plugin: string, method: string, ...args: unknown[]) => Promise<string>,
+  ) {}
+
+  async generateProposal(contractSource: string, intent: string): Promise<string> {
+    const prompt = buildProposalPrompt(contractSource, intent)
+    // basic_prompt is a single-turn call; returns the assistant's reply as a string
+    const reply = await this.pluginCall('remixAI', 'basic_prompt', prompt, {})
+    if (typeof reply !== 'string') {
+      throw new Error('remixAI.basic_prompt returned a non-string response')
+    }
+    // Strip markdown code fences if the model wrapped the JSON
+    return reply.replace(/^```(?:json)?\s*/m, '').replace(/\s*```\s*$/m, '').trim()
+  }
+}
+
+/**
  * Builds the system prompt sent to the LLM for proposal generation.
  * The prompt deliberately avoids asking for Solidity files or contract bodies.
  */
