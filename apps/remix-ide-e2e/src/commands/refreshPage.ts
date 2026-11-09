@@ -31,8 +31,9 @@ class RefreshPage extends EventEmitter {
                   opacity: 0 !important;
                   visibility: hidden !important;
                 }
-                `)
-        }, [], done())
+                `);
+          (window as any).__IS_E2E_TEST__ = true
+        }, [], done)
       })
       .perform((done) => {
         done()

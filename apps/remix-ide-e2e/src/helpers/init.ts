@@ -46,7 +46,8 @@ export default function (browser: NightwatchBrowser, callback: VoidFunction, url
             visibility: hidden !important;
           }
         `);
-      }, [], done())
+        (window as any).__IS_E2E_TEST__ = true
+      }, [], done)
     })
     .perform((done) => {
       if (!showTerminal) return done()
@@ -106,7 +107,7 @@ export default function (browser: NightwatchBrowser, callback: VoidFunction, url
             } catch (e) {}
           });
         }
-      }, [], done())
+      }, [], done)
     })
     .perform(() => {
       browser.execute(function () {
