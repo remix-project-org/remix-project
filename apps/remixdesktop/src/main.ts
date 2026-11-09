@@ -313,6 +313,10 @@ ipcMain.handle('config:isE2E', async () => {
   return isE2E
 })
 
+ipcMain.on('config:isE2E:sync', (event) => {
+  event.returnValue = !!isE2E
+})
+
 ipcMain.handle('matomo:trackEvent', async (event, data) => {
   if (data && data[0] && data[0] === 'trackEvent') {
     // data[5] is isClick (optional)

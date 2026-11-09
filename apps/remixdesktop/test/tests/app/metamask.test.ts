@@ -47,6 +47,7 @@ const tests = {
   },
   'connect to Wallet': function (browser: NightwatchBrowser) {
     browser
+      .hideToolTips()
       .clickLaunchIcon('udapp')
       .switchEnvironment('desktopHost') // close the dropdown
       /*
