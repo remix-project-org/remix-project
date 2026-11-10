@@ -285,7 +285,12 @@ export function RemixUiSkillsExplorerModal(props: RemixUiSkillsExplorerModalProp
     'use-circle-wallets'.toLowerCase(),
     'use-developer-controlled-wallets'.toLowerCase(),
     'use-gateway'.toLowerCase(),
-    'use-usdc'.toLowerCase()
+    'use-usdc'.toLowerCase(),
+    'solidity-auditor',
+    'x-ray',
+    'fizz',
+    'fizz-convert',
+    'fizz-sync'
   ]
 
   // Filter skills based on search term and permission level
