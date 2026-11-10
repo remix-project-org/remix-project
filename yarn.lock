@@ -3971,14 +3971,14 @@
     undici "^7.10.0"
     ws "^8.18.2"
 
-"@effect/platform@^0.93.6":
-  version "0.93.6"
-  resolved "https://registry.yarnpkg.com/@effect/platform/-/platform-0.93.6.tgz#7c103a1c4069460a5f6f3152854de823f741cca0"
-  integrity sha512-I5lBGQWzWXP4zlIdPs7z7WHmEFVBQhn+74emr/h16GZX96EEJ6I1rjGaKyZF7mtukbMuo9wEckDPssM8vskZ/w==
+"@effect/platform@^0.97.1":
+  version "0.97.1"
+  resolved "https://registry.yarnpkg.com/@effect/platform/-/platform-0.97.1.tgz#e9fa7a7a5759c9889a28de82e09659bf5943d615"
+  integrity sha512-IevWxwmrxCdeXxbXDx/hiOstHtERRigd1nhZSuHgiFEl7NkBmS/5GVWsRacq4NfJN2uCXqggETKNwij15VEpew==
   dependencies:
     find-my-way-ts "^0.1.6"
-    msgpackr "^1.11.4"
-    multipasta "^0.2.7"
+    msgpackr "^1.11.10"
+    multipasta "^0.2.8"
 
 "@effect/printer-ansi@^0.47.0":
   version "0.47.0"
@@ -26590,10 +26590,10 @@ msgpackr-extract@^3.0.2:
     "@msgpackr-extract/msgpackr-extract-linux-x64" "3.0.3"
     "@msgpackr-extract/msgpackr-extract-win32-x64" "3.0.3"
 
-msgpackr@^1.11.4:
-  version "1.11.5"
-  resolved "https://registry.yarnpkg.com/msgpackr/-/msgpackr-1.11.5.tgz#edf0b9d9cb7d8ed6897dd0e42cfb865a2f4b602e"
-  integrity sha512-UjkUHN0yqp9RWKy0Lplhh+wlpdt9oQBYgULZOiFhV3VclSF1JnSQWZ5r9gORQlNYaUKQoR8itv7g7z1xDDuACA==
+msgpackr@^1.11.10:
+  version "1.12.1"
+  resolved "https://registry.yarnpkg.com/msgpackr/-/msgpackr-1.12.1.tgz#61d48d6becf4d5c4d659b2c5260240dc2c09bd44"
+  integrity sha512-4EUH9tQHnMmEgzW/MdAP0KIfa1T9AF+htl0ffe2n5vb2EKn9y2co8ccpgWko6S52Jy1PQZKwRnx5/KkYjtd9MQ==
   optionalDependencies:
     msgpackr-extract "^3.0.2"
 
@@ -26702,10 +26702,10 @@ multimatch@^3.0.0:
     arrify "^1.0.1"
     minimatch "^3.0.4"
 
-multipasta@^0.2.7:
-  version "0.2.7"
-  resolved "https://registry.yarnpkg.com/multipasta/-/multipasta-0.2.7.tgz#fa8fb38be65eb951fa57cad9e8e758107946eee9"
-  integrity sha512-KPA58d68KgGil15oDqXjkUBEBYc00XvbPj5/X+dyzeo/lWm9Nc25pQRlf1D+gv4OpK7NM0J1odrbu9JNNGvynA==
+multipasta@^0.2.7, multipasta@^0.2.8:
+  version "0.2.9"
+  resolved "https://registry.yarnpkg.com/multipasta/-/multipasta-0.2.9.tgz#8e4b727ba58d1609fb739a37d4e1d1e703e2d0a8"
+  integrity sha512-kAovZHgxryqb0xTFz7OTCPxbas8UBTTwCDhfrlaNecp1/z6xcMfp5PVhDxsW7jONHyDF10/ccp30MxA2+66GJw==
 
 murmurhash3js-revisited@^3.0.0:
   version "3.0.0"
