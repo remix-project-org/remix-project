@@ -93,7 +93,7 @@ export function ResultView({ result, userConfirmed, onConfirmChange }: ResultVie
 function unprovenReasonText(reason: string): string {
   switch (reason) {
     case 'solver_unavailable':
-      return 'SMT solver (Z3) is not available in this browser build. The check could not run. Use the Solidity compiler with Z3 locally for a full verification.'
+      return 'The SMT solver (Z3) could not run in this browser build — the solver requires OS threads that are not available here. For a full verification, run solc with Z3 locally or use the Remix desktop app.'
     case 'timeout':
       return 'The solver timed out before finishing. The property may or may not hold.'
     case 'unsupported_feature':

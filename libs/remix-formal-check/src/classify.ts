@@ -15,6 +15,7 @@ const ASSERTION_VIOLATION_PATTERN = /assertion\s+violation|assert\s+violation/i
 const OVERFLOW_PATTERN = /overflow/i
 const UNDERFLOW_PATTERN = /underflow/i
 const SOLVER_UNAVAILABLE_PATTERN = /not possible since it requires|no smt solver/i
+const THREAD_ERROR_PATTERN = /thread constructor failed|Resource temporarily unavailable/i
 const UNSUPPORTED_FEATURE_PATTERN = /unsupported feature|not supported by/i
 const TIMEOUT_PATTERN = /timeout/i
 const UNPROVED_PATTERN = /could not be proved|unproven/i
@@ -75,6 +76,19 @@ export function classify(
   const warnings = smtDiags
     .filter((d) => !isViolation(d))
     .map((d) => d.formattedMessage || d.message)
+
+  // Thread-creation failure: solc WASM tried to spawn solver threads but the OS refused.
+  // Treat this as solver_unavailable so the UI shows a helpful message rather than
+  // the generic "instrumented source failed to compile" text.
+  const threadErrors = errors.filter((d) => THREAD_ERROR_PATTERN.test(d.message))
+  if (threadErrors.length > 0) {
+    return baseResult(proposal, settings, {
+      outcome: 'NOT_PROVEN',
+      unprovenReason: 'solver_unavailable',
+      smtCheckerWarnings: warnings,
+      unsupportedFeatureWarnings: [],
+    })
+  }
 
   // Compile errors (non-SMT) mean we couldn't even run the solver
   const compileErrors = errors.filter(
