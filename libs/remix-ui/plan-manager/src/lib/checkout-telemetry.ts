@@ -40,7 +40,7 @@ export type CheckoutTelemetryEvent =
   | 'open.error' // our own Paddle.Checkout.open(...) threw
   | 'transaction.created' // * backend returned a transactionId, about to open Paddle
   | 'transaction.error' // * backend never produced a checkout ref — overlay never shown
-  | 'checkout.hosted_fallback' // * opened the hosted URL instead of the inline overlay
+  | 'checkout.hosted_fallback' // * (retired) opened the hosted URL instead of the inline overlay
   | 'checkout.load_timeout' // * overlay never fired checkout.loaded within the watchdog window
   | 'checkout.abandoned' // * user closed the Remix modal hosting the Paddle frame
   | 'checkout.resume' // * user reopened an unfinished checkout (resume banner / top-bar cart)

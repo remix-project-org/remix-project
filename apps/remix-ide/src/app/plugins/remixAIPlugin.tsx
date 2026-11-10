@@ -51,7 +51,7 @@ const profile = {
     'onToolApprovalRequired', 'ollamaModelDiscovered',
     'aiScreenshotCaptured', 'onAIFileChanged',
     'onInactivityTimeout', 'onModelUsed',
-    'onStreamReplace', 'onModelDegraded',
+    'onStreamReplace', 'onModelDegraded', 'onTokenUsage',
     'requestCancelled'
   ],
   icon: 'assets/img/remix-logo-blue.png',

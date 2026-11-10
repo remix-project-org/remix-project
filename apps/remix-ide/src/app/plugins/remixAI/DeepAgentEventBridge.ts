@@ -130,6 +130,13 @@ export class DeepAgentEventBridge {
       plugin.emit('onModelUsed', data)
     })
 
+    // Per-model-call token counts (incl. cache) and running totals for the
+    // run. Lets tooling such as the AI cost benchmark read usage per run
+    // without debug logging.
+    eventEmitter.on('onTokenUsage', (data: Record<string, unknown>) => {
+      plugin.emit('onTokenUsage', data)
+    })
+
     // A drift countermeasure retried a model call: the UI drops the text the
     // first attempt already streamed.
     eventEmitter.on('onStreamReplace', (data: { remove: string; threadId?: string }) => {

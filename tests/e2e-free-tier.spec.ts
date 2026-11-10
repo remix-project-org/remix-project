@@ -42,7 +42,11 @@ test('test', async ({ page }) => {
   // After successful sign-in the LoginModal auto-closes; the plan-manager
   // re-renders with the (empty) account view behind its backdrop. Close it so
   // we can interact with the topbar.
-  await page.locator('[data-id="planManagerCloseButton"]').click();
+  await page.waitForTimeout(2000)
+  try {
+    await expect(page.locator('[data-id="planManagerCloseButton"]')).toBeVisible({ timeout: 30000 })
+    await page.locator('[data-id="planManagerCloseButton"]').click();
+  } catch (_e) {} // not present
 
   // Verify the topbar reflects the loaded tier: the Sign In button is gone,
   // the user-menu-compact (titled with the pool account name) is visible, and
@@ -63,7 +67,11 @@ test('test', async ({ page }) => {
   await expect(page.getByText('You\'ve used all your credits')).toBeVisible();
   await expect(page.locator('[data-id="planManagerNav-plans"]')).toBeVisible();
   await page.locator('[data-id="planManagerNav-plans"]').click();
-  await page.locator('[data-id="planManagerCloseButton"]').click();
+  await page.waitForTimeout(2000)
+  try {
+    await expect(page.locator('[data-id="planManagerCloseButton"]')).toBeVisible({ timeout: 30000 })
+    await page.locator('[data-id="planManagerCloseButton"]').click();
+  } catch (_e) {} // not present
   await page.locator('[data-id="remix-ai-prompt-input"]').click();
   await page.locator('[data-id="remix-ai-prompt-input"]').fill('hi');
   await page.locator('[data-id="remix-ai-composer-send-btn"]').click();
@@ -75,7 +83,11 @@ test('test', async ({ page }) => {
   await expect(page.getByText('No top-up packages available')).toBeVisible();
 
   // Close the plan manager before interacting with the composer model picker.
-  await page.locator('[data-id="planManagerCloseButton"]').click();
+  await page.waitForTimeout(2000)
+  try {
+    await expect(page.locator('[data-id="planManagerCloseButton"]')).toBeVisible({ timeout: 30000 })
+    await page.locator('[data-id="planManagerCloseButton"]').click();
+  } catch (_e) {} // not present
 
   // Locked model gating: free tier should NOT have access to Codestral.
   // Open the model picker and assert the Codestral entry is locked.

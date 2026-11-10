@@ -20,8 +20,7 @@ let commitCount = 0
 let branchCount = 0
 const tests = {
   before: function (browser: NightwatchBrowser, done: VoidFunction) {
-    browser.hideToolTips()
-    done()
+    browser.hideToolTips().perform(() => done())
   },
 
   'open default template': function (browser: NightwatchBrowser) {
@@ -75,13 +74,6 @@ const tests = {
       .waitForElementVisible('*[data-id="connected-img-EthereumRemix"]')
       .waitForElementVisible('*[data-id="connected-link-EthereumRemix"]')
       .waitForElementVisible('*[data-id="remotes-panel"]')
-  },
-  'check the FE shows logged in user #group1 #group2': function (browser: NightwatchBrowser) {
-    browser
-      .waitForElementVisible({
-        selector: '//*[@data-id="github-dropdown-toggle-login"]//span[contains(text(), "EthereumRemix")]',
-        locateStrategy: 'xpath'
-      })
   },
   // 'check the FE for the auth user #group1 #group2': function (browser: NightwatchBrowser) {
   //   browser

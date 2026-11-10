@@ -41,6 +41,15 @@ export interface CheckoutEvent extends MatomoEventBase {
     | 'reactivate'        // un-cancelled a pending cancellation
     | 'desktop_handoff'   // redirected to the web IDE because Paddle can't run in Electron
     | 'signup_to_buy'     // signed-out visitor clicked "Sign up & get <plan>" (name = plan slug)
+    | 'confirmed_async'   // payment confirmed by webhook before Paddle.js emitted completed (value = method)
+    | 'confirmed_after_close' // payment completed after the checkout was closed mid-payment (value = method)
+    | 'leave_prompt' // asked before leaving a checkout with a payment in flight (value = stay|leave)
+    | 'awaiting_approval' // payment stuck waiting on the user ~45s after initiation (value = method)
+    | 'decline_reason'    // payment declined; value = Paddle error_code
+    | 'region_blocked'    // Paddle refused to price for the visitor's location (value = country)
+    | 'signup_free' // signed-out visitor clicked "Start free" on the free card
+    | 'free_welcome' // post-sign-up top-up welcome shown (name = new|returning)
+    | 'topup_upgrade' // upgrade CTA on the top-up screen (name = plan slug, value = welcome|topup)
     // low-cost-models hand-off after a starter-pack purchase (name = armed|announced)
     | 'cheap_models';
 }

@@ -71,6 +71,16 @@ const MAX_CALLOUT_VIEWS = 3
 const AI_MODE_TRIED_KEY = 'remix_ai_mode_tried'
 const AI_MODE_BUTTON_ANCHOR = 'aiReviewModeBtn'
 
+/* Free plan → open plan pricing (on every load, and again during heavy AI chat use) */
+const PLANS_ON_LOAD_ID = 'free-plan-open-plans-on-load'
+const PLANS_ON_AI_USAGE_ID = 'free-plan-open-plans-ai-usage'
+const AI_HEAVY_USAGE_EVENT = 'ai:chat_heavy_usage'
+/** Free-plan users see plan pricing again after this many AI chat messages… */
+const AI_USAGE_PLANS_EVERY = 10
+/** …but never sooner than this after plan pricing was last on screen (persisted across reloads) */
+const AI_USAGE_PLANS_COOLDOWN_MS = 30 * 60_000
+const PLANS_LAST_SHOWN_AT_KEY = 'remix_plans_last_shown_at'
+
 /* ─── Plugin profile ─── */
 
 const profile = {
@@ -129,6 +139,12 @@ export class NudgePlugin extends Plugin {
   // stands down (same audience, weaker copy).
   private _regionalOfferActive = false
   private _activeBanner: NudgeRule | null = null
+  // AI chat messages sent by a free-plan user since plan pricing was last auto-opened.
+  private _freePlanChatCount = 0
+  // Plan-manager panel state, so an auto-open never stacks on (or re-opens
+  // right after) a panel the user already has / just had in front of them.
+  private _planManagerOpen = false
+  private _planManagerOpenedAt = 0
 
   // Type-safe tracker defaulting to NudgeEvent
   private trackMatomoEvent = <T extends MatomoEvent = NudgeEvent>(event: T) => {
@@ -164,7 +180,9 @@ export class NudgePlugin extends Plugin {
 
     // Subscribe to nudge triggers from the engine
     this.engine_.onNudge((rule) => {
-      if (rule.action.autoTrigger && rule.action.actionTarget) {
+      if (rule.id === PLANS_ON_LOAD_ID || rule.id === PLANS_ON_AI_USAGE_ID) {
+        this._autoOpenPlans(rule)
+      } else if (rule.action.autoTrigger && rule.action.actionTarget) {
         // Announcement-style nudges that open their own rich UI instead of
         // rendering one of the built-in cards.
         this._invokeTarget(rule.action.actionTarget)
@@ -278,6 +296,7 @@ export class NudgePlugin extends Plugin {
     // User sent a chat message
     this.on('remixAI', 'chatMessageSent', () => {
       this.engine_.fire('ai:chat_message')
+      this._countFreePlanChat()
       // Fire a real-time auth check event for unauthenticated nudges
       // (can't rely on accumulated 'user:not_logged_in' — it fires on load before auth resolves)
       this.call('auth' as any, 'isAuthenticated').then((isAuth: boolean) => {
@@ -345,9 +364,16 @@ export class NudgePlugin extends Plugin {
 
     // Plan purchased — user is no longer on free plan, retire the upgrade nudge
     this.on('planManager' as any, 'purchaseConfirmed', (info?: { intent?: string; label?: string }) => {
+      if (info?.intent === 'payment_method') {
+        this.engine_.unfire('user:payment_past_due')
+        this.engine_.disableRule('payment-past-due')
+        return
+      }
       this.engine_.unfire('user:on_free_plan')
       this.engine_.disableRule('free-plan-upgrade')
       this.engine_.disableRule('regional-pricing-offer')
+      this.engine_.disableRule(PLANS_ON_LOAD_ID)
+      this.engine_.disableRule(PLANS_ON_AI_USAGE_ID)
 
       // Only celebrate / suppress for an actual plan upgrade (not top-ups,
       // cancellations or reactivations).
@@ -388,7 +414,14 @@ export class NudgePlugin extends Plugin {
 
     // …or when the user closes the plan panel outright after an upgrade.
     this.on('planManager' as any, 'closed', () => {
+      this._planManagerOpen = false
       this._openPendingPlanGuide()
+    })
+
+    this.on('planManager' as any, 'opened', () => {
+      this._planManagerOpen = true
+      this._planManagerOpenedAt = Date.now()
+      this._markPlansShown()
     })
 
     // Credits updated — check if balance is low and nudge to top up
@@ -470,6 +503,70 @@ export class NudgePlugin extends Plugin {
     this.call('helpPlugin' as any, 'showModal', topic).catch(() => { /* help plugin unavailable */ })
   }
 
+  private _aiUsagePlansRule(): NudgeRule {
+    return {
+      id: PLANS_ON_AI_USAGE_ID,
+      condition: all('user:logged_in', 'user:on_free_plan', 'user:can_see_plans', AI_HEAVY_USAGE_EVENT),
+      action: {
+        type: 'modal',
+        autoTrigger: true,
+        actionTarget: 'planManager::open::plans',
+        title: 'Plans',
+        message: 'Open plan pricing for free-plan users who use AI chat a lot.'
+      },
+      showOnce: false,
+      priority: 15
+    }
+  }
+
+  /**
+   * Count AI chat messages from a free-plan user and, every
+   * AI_USAGE_PLANS_EVERY messages (cooldown permitting), pulse
+   * AI_HEAVY_USAGE_EVENT so the plans screen opens again.
+   */
+  private _countFreePlanChat(): void {
+    if (!this.engine_.has('user:on_free_plan')) return
+    this._freePlanChatCount++
+    if (this._freePlanChatCount < AI_USAGE_PLANS_EVERY) return
+    if (Date.now() - this._getPlansLastShownAt() < AI_USAGE_PLANS_COOLDOWN_MS) return
+    this._freePlanChatCount = 0
+    // Guard registrations are one-shot, so re-arm the rule before each pulse.
+    this.engine_.addRule(this._aiUsagePlansRule())
+    this.engine_.fire(AI_HEAVY_USAGE_EVENT)
+    this.engine_.unfire(AI_HEAVY_USAGE_EVENT)
+  }
+
+  /** Open plan pricing for a free-plan user without trampling whatever is on screen. */
+  private async _autoOpenPlans(rule: NudgeRule): Promise<void> {
+    const onLoad = rule.id === PLANS_ON_LOAD_ID
+    // Already looking at it, or (on load) already saw it this session, e.g.
+    // by signing in through the plan manager.
+    if (this._planManagerOpen || (onLoad && this._planManagerOpenedAt > 0)) return
+    if (this._isBlockingModalOpen()) {
+      // Mid-session, don't interrupt another dialog; the next burst of chat
+      // retries. On load, wait for the welcome / migration dialogs to clear.
+      if (!onLoad) return
+      if (!(await this._waitForModalsToClose())) return
+      if (this._planManagerOpen || this._planManagerOpenedAt > 0) return
+    }
+    // The user may have upgraded or signed out while we waited.
+    if (!this.engine_.has('user:logged_in') || !this.engine_.has('user:on_free_plan')) return
+    this._markPlansShown()
+    await this._invokeTarget(rule.action.actionTarget)
+  }
+
+  private _markPlansShown(): void {
+    try { localStorage.setItem(PLANS_LAST_SHOWN_AT_KEY, String(Date.now())) } catch { }
+  }
+
+  private _getPlansLastShownAt(): number {
+    try {
+      return Number(localStorage.getItem(PLANS_LAST_SHOWN_AT_KEY)) || 0
+    } catch {
+      return 0
+    }
+  }
+
   private _isBlockingModalOpen(): boolean {
     try {
       const dialogs = Array.from(document.querySelectorAll('.modal')) as HTMLElement[]
@@ -528,6 +625,10 @@ export class NudgePlugin extends Plugin {
     }
 
     this.engine_.unfire('user:logged_in')
+    // Plan facts belong to the signed-out account; the next sign-in re-checks them.
+    this.engine_.unfire('user:on_free_plan')
+    this.engine_.unfire('user:can_see_plans')
+    this._freePlanChatCount = 0
     this.engine_.fire('user:not_logged_in')
   }
 
@@ -546,11 +647,51 @@ export class NudgePlugin extends Plugin {
         // Non-beta logged-in user — check if they're on the free plan
         // and show an upgrade nudge with live discount copy.
         this._checkFreePlanNudge().catch(() => {})
+        // Renewal failed → prompt to update the payment method (recovers
+        // involuntary churn; most failures are `not_enough_balance`).
+        this._checkPastDueNudge().catch(() => {})
         // First registration only: introduce the free features via the help guide.
         this._maybeShowFreeWelcome(opts).catch(() => {})
       }
     } catch {
       // Permissions not available — skip beta check
+    }
+  }
+
+  /**
+   * Subscribed user whose renewal failed (`past_due`): Paddle keeps retrying
+   * for a while and then cancels, so prompt them to update their payment
+   * method in-app. The action opens Paddle's update-payment-method checkout.
+   */
+  private async _checkPastDueNudge(): Promise<void> {
+    try {
+      const billingApi = await this.call('auth' as any, 'getBillingApi')
+      const resp = await billingApi.getSubscription()
+      const sub = resp?.data?.subscription
+      if (sub?.status !== 'past_due') return
+      const planName: string = sub.planName || 'your plan'
+      this.log('[NudgePlugin] subscription past_due — prompting payment method update', sub.planSlug)
+      this.engine_.addRule({
+        id: 'payment-past-due',
+        condition: 'user:payment_past_due',
+        action: {
+          type: 'widget',
+          position: 'right',
+          hidePermanentDismiss: true,
+          title: 'Your renewal payment failed',
+          message: `We couldn't charge your payment method for ${planName}. Update it to keep your monthly AI credits and paid features — we'll retry right away.`,
+          actionLabel: 'Update payment method',
+          actionTarget: 'planManager::updatePaymentMethod',
+          icon: 'fas fa-credit-card',
+          widgetColor: '#ef4444',
+          widgetBg: 'rgba(239, 68, 68, 0.1)'
+        },
+        showOnce: 'session',
+        priority: 21
+      })
+      this.engine_.fire('user:payment_past_due')
+    } catch (err) {
+      this.log('[NudgePlugin] _checkPastDueNudge failed', err)
     }
   }
 
@@ -656,6 +797,8 @@ export class NudgePlugin extends Plugin {
 
       // 3. Register the rule (dynamic copy baked in) and fire the trigger.
       this.log('[NudgePlugin] _checkFreePlanNudge: registering rule and firing user:on_free_plan', { title, message })
+      // Backend switch for the plans surface — gates auto-opening plan pricing.
+      if (hasPermFeature(permissions, Features.UI_SHOW_PLANS)) this.engine_.fire('user:can_see_plans')
       this.engine_.addRule({
         id: 'free-plan-upgrade',
         condition: 'user:on_free_plan',
@@ -1069,6 +1212,27 @@ export class NudgePlugin extends Plugin {
       showOnce: false,
       priority: 20
     })
+
+    /* ─── Free plan — open plan pricing ─── */
+
+    // Every load (session restore or sign-in), land free-plan users on the
+    // plans screen. Handled by _autoOpenPlans (waits out other dialogs).
+    this.engine_.addRule({
+      id: PLANS_ON_LOAD_ID,
+      condition: all('user:logged_in', 'user:on_free_plan', 'user:can_see_plans', 'lifecycle:APP_LOADED'),
+      action: {
+        type: 'modal',
+        autoTrigger: true,
+        actionTarget: 'planManager::open::plans',
+        title: 'Plans',
+        message: 'Open plan pricing for free-plan users on load.'
+      },
+      showOnce: 'session',
+      priority: 15
+    })
+
+    // Heavy AI chat use on the free plan — pulsed by _countFreePlanChat.
+    this.engine_.addRule(this._aiUsagePlansRule())
 
     /* ─── AI / Code modes announcement ─── */
 

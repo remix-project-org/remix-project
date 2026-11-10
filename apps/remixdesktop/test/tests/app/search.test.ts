@@ -17,8 +17,7 @@ function openTemplatesExplorer(browser: NightwatchBrowser) {
 
 module.exports = {
   before: function (browser: NightwatchBrowser, done: VoidFunction) {
-    browser.hideToolTips()
-    done()
+    browser.hideToolTips().perform(() => done())
   },
   'open default template': function (browser: NightwatchBrowser) {
     browser
@@ -51,7 +50,6 @@ module.exports = {
     browser.waitForElementVisible('*[data-id="remixIdeSidePanel"]')
       .click('*[plugin="search"]')
       .waitForElementVisible('*[id="search_input"]')
-      .click('*[id="search_include"]')
       .waitForElementVisible('*[id="search_include"]')
       .setValue('*[id="search_include"]', ', *.*').pause(2000)
       .setValue('*[id="search_input"]', 'read').sendKeys('*[id="search_input"]', browser.Keys.ENTER)

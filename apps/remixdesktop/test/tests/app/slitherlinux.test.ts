@@ -19,8 +19,7 @@ function openTemplatesExplorer(browser: NightwatchBrowser) {
 
 const tests = {
   before: function (browser: NightwatchBrowser, done: VoidFunction) {
-    browser.hideToolTips()
-    done()
+    browser.hideToolTips().perform(() => done())
   },
   open: function (browser: NightwatchBrowser) {
     browser.hideToolTips().waitForElementVisible('*[data-id="openFolderButton"]', 10000).click('*[data-id="openFolderButton"]')

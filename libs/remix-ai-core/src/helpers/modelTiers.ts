@@ -77,6 +77,32 @@ export function isFrontierModelId(id: string | undefined | null): boolean {
 }
 
 /**
+ * Premium-tier model identifiers: models that consume significantly more
+ * credits per request (Anthropic Opus/Fable, OpenAI GPT-5/o-series, etc.).
+ * Mini variants are always excluded.
+ */
+const HIGH_COST_TOKEN_MARKERS = ['opus', 'fable']
+// Slug-level substrings that identify an expensive model family regardless
+// of version suffix (e.g. "gpt-5.1", "gpt-5.6-luna:batch", "gpt5-turbo").
+const HIGH_COST_SLUG_SUBSTRINGS = ['gpt-5', 'gpt5']
+
+export function isHighCostModelId(id: string | undefined | null): boolean {
+  if (!id) return false
+  // Strip provider prefix (e.g. "openai/") — keep variant suffix for matching.
+  const slug = id.toLowerCase().split('/').pop() || ''
+  const tokens = slug.split(/[^a-z0-9]+/).filter(t => t.length > 0)
+  // Mini variants are never high-cost regardless of the base name.
+  if (tokens.includes('mini')) return false
+  // Named families matched at the token level: opus, fable, …
+  if (HIGH_COST_TOKEN_MARKERS.some(marker => tokens.includes(marker))) return true
+  // GPT-5 family matched as a slug substring (gpt-5.1, gpt-5.6-luna:batch, …).
+  if (HIGH_COST_SLUG_SUBSTRINGS.some(sub => slug.includes(sub))) return true
+  // OpenAI o-series full models: any token that is exactly "o" + digits.
+  if (tokens.some(t => /^o\d+$/.test(t))) return true
+  return false
+}
+
+/**
  * Fisher-Yates with an injectable source of randomness.
  */
 function shuffled<T>(items: T[], random: () => number): T[] {
