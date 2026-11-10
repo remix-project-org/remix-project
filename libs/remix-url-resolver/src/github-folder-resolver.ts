@@ -31,14 +31,19 @@ export const githubFolderResolver = async (url, obj = {}, maxDepth, depth?, root
 
   if (!Array.isArray(child)) return obj
   for (const item of child) {
-    if (item.type === 'file') {
-      if (!item.download_url) continue
-      const response: AxiosResponse = await axios.get(item.download_url)
-      obj[item.path.replace(rootPath, '')] = response.data
-    } else if (maxDepth > depth) {
-      // dir
-      await githubFolderResolver(item.html_url, obj, maxDepth, depth, rootPath)
-    }
+    try {
+      if (item.type === 'file') {
+        if (!item.download_url) continue
+        const response: AxiosResponse = await axios.get(item.download_url)
+        // axios auto-parses JSON responses into objects; always store as a string
+        // so LightningFS can encode it correctly as Uint8Array in IndexedDB.
+        const data = response.data
+        obj[item.path.replace(rootPath, '')] = typeof data === 'string' ? data : JSON.stringify(data, null, 2)
+      } else if (maxDepth > depth) {
+        // dir
+        await githubFolderResolver(item.html_url, obj, maxDepth, depth, rootPath)
+      }
+    } catch (e) {}    
   }
   return obj
 }
