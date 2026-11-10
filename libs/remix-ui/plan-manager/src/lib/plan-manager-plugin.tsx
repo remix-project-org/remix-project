@@ -21,7 +21,8 @@ import { PluginViewWrapper, DISCORD_URL, CustomTooltip } from '@remix-ui/helper'
 // Paddle singleton lives next to this plugin now — `@remix-ui/billing` was
 // removed when Plan Manager became the sole billing surface.
 import { initPaddle, getPaddle, openCheckoutWithTransaction, onPaddleEvent, offPaddleEvent, previewPrices } from './paddle-singleton'
-import { reportCheckoutTelemetry, setCheckoutTelemetryToken, setCheckoutTelemetryEnv } from './checkout-telemetry'
+import { reportCheckoutTelemetry, setCheckoutTelemetryToken, setCheckoutTelemetryEnv, setCheckoutTelemetryVisitor, postBillingBeacon } from './checkout-telemetry'
+import { EXPERIMENTS_CONFIG_KEY, ExperimentDefinition, ExperimentAssignment, parseExperiments, getSubjectId, readOverrides, assign } from './experiments'
 import { endpointUrls } from '@remix-endpoints-helper'
 import type { Paddle, PaddleEventData } from '@paddle/paddle-js'
 import type { CreditsUsageQuery, FeatureGroup, UsageReport, PendingCheckout, TransactionPaymentStatusResponse } from '@remix-api'
@@ -75,7 +76,7 @@ const profile = {
   name: 'planManager',
   displayName: 'Plan & Credits',
   description: 'Manage your subscription, top up credits and review AI usage',
-  methods: ['open', 'close', 'toggle', 'setCheckoutResult', 'reportCreditsExhausted', 'requireAICredits', 'refresh', 'purchaseCredits', 'subscribeToPlan', 'changePlan', 'cancelSubscription', 'reactivateSubscription', 'resolveConfirm', 'cancelCheckout', 'resumeCheckout', 'dismissResumeNudge', 'getPendingCheckouts', 'discardCheckout', 'getBillingLocale', 'updatePaymentMethod'],
+  methods: ['open', 'close', 'toggle', 'setCheckoutResult', 'reportCreditsExhausted', 'requireAICredits', 'refresh', 'purchaseCredits', 'subscribeToPlan', 'changePlan', 'cancelSubscription', 'reactivateSubscription', 'resolveConfirm', 'cancelCheckout', 'resumeCheckout', 'dismissResumeNudge', 'getPendingCheckouts', 'discardCheckout', 'getBillingLocale', 'updatePaymentMethod', 'getExperimentVariant'],
   events: ['opened', 'closed', 'checkoutResultChanged', 'pendingCheckoutsChanged', 'purchaseConfirmed', 'billingLocaleResolved'],
   icon: PLAN_ICON,
   location: 'sidePanel',
@@ -159,6 +160,14 @@ export class PlanManagerPlugin extends ViewPlugin {
   private pendingPlanAfterSignIn: { planId: string; priceId?: number; at: number } | null = null
   // Server-side payments-availability check runs once per session.
   private paymentsAvailabilityChecked = false
+  // ── Product-page views + experiments ──
+  private subjectId = ''
+  private experimentOverrides: Record<string, string> = {}
+  private experimentDefs: ExperimentDefinition[] = []
+  /** Entry point of the latest open, reported with the next product view. */
+  private viewEntry: { entry: string; section: string | null } | null = null
+  private pendingView: { entry: string; section: string | null; at: number } | null = null
+  private viewSentAnonymously = false
   /** Transactions still being watched after their checkout was closed mid-payment. */
   private paymentWatchesAfterClose = new Set<string>()
   /** The "payment still being confirmed" leave dialog is showing. */
@@ -258,6 +267,15 @@ export class PlanManagerPlugin extends ViewPlugin {
       }
     })
 
+    // Each open of the panel is a product-page view (see queueProductView).
+    let viewOpen = false
+    this.store.subscribe(() => {
+      const snap = this.store.getSnapshot()
+      if (snap.isOpen && !viewOpen) this.queueProductView()
+      viewOpen = snap.isOpen
+      if (this.pendingView) this.flushProductView(false)
+    })
+
     // Broadcast the unfinished-checkout list so surfaces outside this panel
     // (notably the top-bar cart button) can render the exact same state
     // without re-fetching. The machine already resets `resumeCheckouts` on
@@ -305,6 +323,9 @@ export class PlanManagerPlugin extends ViewPlugin {
 
   async onActivation(): Promise<void> {
     this.renderComponent()
+    this.subjectId = getSubjectId()
+    this.experimentOverrides = readOverrides()
+    void this.loadExperiments()
     if (typeof window !== 'undefined') window.addEventListener('beforeunload', this.onBeforeUnload)
 
     // Replay last session's region immediately — Paddle can only price-preview
@@ -382,6 +403,13 @@ export class PlanManagerPlugin extends ViewPlugin {
       this.syncedLocaleSignature = ''
       if (s.isAuthenticated) {
         void this.initPaddleSingleton()
+        // A view counted while signed out: report again so the server links
+        // this browser's visits (and experiment exposures) to the account.
+        if (this.viewSentAnonymously) {
+          this.viewSentAnonymously = false
+          this.viewEntry = { entry: 'internal:sign-in', section: null }
+          this.queueProductView()
+        }
         // Auth is the driving motor: every login must (re)load the catalog of
         // available products, exactly like permissions/balance — the anonymous
         // catalog can hide products only available to the signed-in user.
@@ -462,6 +490,7 @@ export class PlanManagerPlugin extends ViewPlugin {
       catalogPlans: snapBefore.catalogPlans?.length ?? 0,
       hasPermissions: !!snapBefore.permissions
     })
+    this.noteEntry(resolved?.reason ?? 'manual', resolved?.initialSection ?? null)
     this.store.send({ type: 'OPEN_OVERLAY', intent: resolved })
     this.closeAfterSignIn = resolved?.reason === 'sign-in' && !snapBefore.isAuthenticated
     void this.checkPaymentsAvailability()
@@ -540,9 +569,77 @@ export class PlanManagerPlugin extends ViewPlugin {
       void this.leaveCheckout('close')
       return
     }
+    if (!wasOpen) this.noteEntry('toggle', null)
     this.store.send({ type: 'TOGGLE_OVERLAY' })
     // Only refresh on the closed → open transition.
     if (!wasOpen) this.refreshOnOpen()
+  }
+
+  // ==================== Product-page views + experiments ====================
+
+  /** Remember what opened the panel: calling plugin + reason (e.g. `remixaiassistant:quota-exhausted`). */
+  private noteEntry(reason: string, section: string | null): void {
+    const from: string = (this as any).currentRequest?.from || 'internal'
+    this.viewEntry = { entry: `${from}:${reason}`.slice(0, 96), section }
+  }
+
+  private async loadExperiments(): Promise<void> {
+    try {
+      const config: any = await this.call('auth' as any, 'getAppConfig')
+      const raw = Array.isArray(config)
+        ? config.find((c: any) => c?.key === EXPERIMENTS_CONFIG_KEY)?.value
+        : config?.[EXPERIMENTS_CONFIG_KEY]
+      this.experimentDefs = parseExperiments(raw)
+      this.renderComponent()
+    } catch (err) {
+      planManagerLogger.warn('[PlanManager:experiments] config unavailable', err)
+    }
+  }
+
+  private isPayingCustomer(): boolean {
+    const snap = this.store.getSnapshot()
+    return snap.isAuthenticated && selectPlanState(snap).kind === 'paid'
+  }
+
+  private experimentAssignments(): Record<string, ExperimentAssignment> {
+    const paying = this.isPayingCustomer()
+    const out: Record<string, ExperimentAssignment> = {}
+    for (const def of this.experimentDefs) out[def.key] = assign(def, this.subjectId || getSubjectId(), this.experimentOverrides, paying)
+    return out
+  }
+
+  /**
+   * Variant to render for an experiment, or null when it isn't defined (the
+   * caller then renders its default). Exposure is recorded with the product
+   * view, so callers only read.
+   */
+  getExperimentVariant(key: string): string | null {
+    return this.experimentAssignments()[key]?.variant ?? null
+  }
+
+  /** Panel just opened: report a product view once we know who's looking. */
+  private queueProductView(): void {
+    const entry = this.viewEntry ?? { entry: 'internal:manual', section: null }
+    this.viewEntry = null
+    this.pendingView = { ...entry, at: Date.now() }
+    // Signed-in visitors: wait for plan data (paying or not), at most a few seconds.
+    window.setTimeout(() => this.flushProductView(true), PRODUCT_VIEW_MAX_WAIT_MS)
+    this.flushProductView(false)
+  }
+
+  private flushProductView(force: boolean): void {
+    const view = this.pendingView
+    if (!view) return
+    const snap = this.store.getSnapshot()
+    if (!force && snap.isAuthenticated && snap.dataState !== 'ready') return
+    this.pendingView = null
+    if (!this.subjectId) this.subjectId = getSubjectId()
+    const experiments: Record<string, string> = {}
+    for (const [key, a] of Object.entries(this.experimentAssignments())) if (a.reported) experiments[key] = a.variant
+    const customer = !snap.isAuthenticated ? 'anon' : this.isPayingCustomer() ? 'paid' : 'free'
+    if (!snap.isAuthenticated) this.viewSentAnonymously = true
+    setCheckoutTelemetryVisitor({ subjectId: this.subjectId, experiments })
+    postBillingBeacon('/product-view', { subjectId: this.subjectId, entry: view.entry, section: view.section, customer, experiments })
   }
 
   /**
@@ -5320,6 +5417,8 @@ const PADDLE_CONFIG_TIMEOUT_MS = 20_000
 const REGION_BLOCKED_RE = /address_location_not_allowed|unsupported location/i
 const REGION_BLOCKED_MESSAGE = 'Payments aren’t available in your region. Our payment provider can’t accept payments from your current location. If you’re using a VPN, turn it off and try again.'
 const NO_RESUMABLE_CHECKOUTS: PendingCheckout[] = []
+/** Longest a product view waits for plan data before it's sent anyway. */
+const PRODUCT_VIEW_MAX_WAIT_MS = 5_000
 /** Leave-dialog result when the payment settled while it was open. */
 const LEAVE_PROMPT_SETTLED = 'payment_settled'
 /** Unfinished checkouts worth offering — none when payments are blocked here, since resuming can only fail. */
