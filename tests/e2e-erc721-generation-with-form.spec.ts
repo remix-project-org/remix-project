@@ -45,8 +45,11 @@ test('e2e-erc721-generation-with-form', async ({ page }) => {
   await page.getByRole('textbox', { name: 'Type "/" for more options or' }).press('Enter');
   await page.getByRole('checkbox', { name: 'Auto-accept all changes' }).check();
   await page.locator('[data-id="tool-approval-approve-button"]').first().click();
-  await page.getByRole('combobox').waitFor({ state: 'visible' });
-  await page.getByRole('combobox').selectOption('openzeppelin');
+  // form selects use the shared Select: a toggle button with a dropdown list
+  const frameworkSelect = page.locator('button[id^="genui-select-"]').first();
+  await frameworkSelect.waitFor({ state: 'visible' });
+  await frameworkSelect.click();
+  await page.locator('.rx-select-menu .dropdown-item', { hasText: /openzeppelin/i }).first().click();
   await page.getByRole('textbox', { name: 'My NFT Collection' }).waitFor({ state: 'visible' });
   await page.getByRole('textbox', { name: 'My NFT Collection' }).click();
   await page.getByRole('textbox', { name: 'My NFT Collection' }).fill('CollectionName');

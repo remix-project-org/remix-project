@@ -28,6 +28,8 @@
 .rx-select-label .n { display: block; color: var(--bs-emphasis-color); overflow-wrap: anywhere; }
 .rx-select-label small { display: block; font-size: 11px; color: var(--bs-secondary-color); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .rx-select-search { position: sticky; top: -4px; margin: -4px -4px 4px; padding: 6px; background: var(--bs-body-bg); border-bottom: 1px solid var(--bs-border-color); display: flex; align-items: center; gap: 6px; z-index: 1; }
+/* items scrolled into view (keyboard, scrollIntoView) stop below the sticky search, not under it */
+.rx-select-menu:has(.rx-select-search) { scroll-padding-top: 44px; }
 .rx-select-search i { color: var(--bs-secondary-color); font-size: 11px; }
 .rx-select-search .form-control { font-size: 12px; }
 .rx-select-empty { padding: 6px 8px; color: var(--bs-secondary-color); }
