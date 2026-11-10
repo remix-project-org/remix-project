@@ -43,7 +43,7 @@ export const githubFolderResolver = async (url, obj = {}, maxDepth, depth?, root
         // dir
         await githubFolderResolver(item.html_url, obj, maxDepth, depth, rootPath)
       }
-    } catch (e) {}    
+    } catch (e) {}
   }
   return obj
 }
