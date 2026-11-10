@@ -2745,6 +2745,76 @@
   padding-right: 52px;
 }
 
+/* Other accounts sharing the user's email — informational. Turns amber when
+   one of them holds credits or a subscription the user might otherwise re-buy. */
+.pm-alert--same-email {
+  --pm-state: var(--bs-info);
+}
+
+.pm-alert--same-email.has-value {
+  --pm-state: var(--bs-warning);
+}
+
+.pm-alert--same-email .pm-alert__desc a,
+.pm-same-email a {
+  color: var(--pm-state, var(--bs-link-color));
+  text-decoration: underline;
+}
+
+.pm-same-email__list {
+  list-style: none;
+  margin: 12px 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.pm-same-email__item {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  border-radius: var(--bs-border-radius);
+  background: color-mix(in srgb, var(--bs-body-color) 5%, transparent);
+  font-size: 12.5px;
+}
+
+.pm-same-email__icon {
+  width: 16px;
+  text-align: center;
+  color: var(--bs-secondary-color);
+}
+
+.pm-same-email__meta {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.pm-same-email__name {
+  color: var(--bs-heading-color);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pm-same-email__sub {
+  font-size: 11px;
+  color: var(--bs-secondary-color);
+}
+
+.pm-same-email__value {
+  color: var(--bs-secondary-color);
+  text-align: right;
+}
+
+.pm-same-email__value.has-value {
+  color: var(--bs-warning);
+  font-weight: 600;
+}
+
 .pm-alert__dismiss {
   position: absolute;
   top: 12px;

@@ -64,6 +64,61 @@ export interface AccountsResponse {
   accounts: LinkedAccount[]
 }
 
+// ==================== Same-Email Accounts ====================
+
+/** An account registered with the caller's (verified) email address. */
+export interface SameEmailAccount {
+  id: number
+  provider: string | null
+  /** Short, non-sensitive label (masked wallet address for SIWE/Base), else null. */
+  display_identifier: string | null
+  name: string | null
+  email_verified: boolean
+  created_at: string | null
+  last_login_at: string | null
+  is_current: boolean
+}
+
+export interface SameEmailSubscription {
+  plan_name: string | null
+  plan_slug: string | null
+  status: string
+  current_period_end: string | null
+  cancel_at_period_end: boolean
+}
+
+/**
+ * Credits and subscriptions are owned by account groups. Groups other than the
+ * caller's are not linked: their balance/subscriptions are not usable from the
+ * account the user is signed in with.
+ */
+export interface SameEmailGroup {
+  group_id: number
+  is_current_group: boolean
+  accounts: SameEmailAccount[]
+  credits: { balance: number; free_credits: number; paid_credits: number }
+  subscriptions: SameEmailSubscription[]
+  has_credits: boolean
+  has_active_subscription: boolean
+}
+
+/**
+ * Response from GET /sso/accounts/same-email (informational only — accounts
+ * are never linked through this endpoint). Non-2xx: 400 NO_EMAIL,
+ * 403 EMAIL_NOT_VERIFIED, 404 USER_NOT_FOUND.
+ */
+export interface SameEmailOverviewResponse {
+  ok: true
+  current_user_id: number
+  current_group_id: number
+  /** Accounts sharing the email that are NOT in the caller's group. */
+  other_account_count: number
+  /** True when any other (unlinked) group holds credits or a live subscription. */
+  other_accounts_have_value: boolean
+  /** Current group first. */
+  groups: SameEmailGroup[]
+}
+
 // ==================== Link Account ====================
 
 export interface LinkAccountRequest {
