@@ -351,7 +351,7 @@ describe('runner', () => {
     const { host, store } = fakeHost('passed')
     await recordManualAnalysis(host, {
       file: FILE,
-      remix: [{ name: 'Transaction origin: ', report: [{ warning: 'Use of tx.origin', location: '0:8:0' }] }],
+      remix: [{ name: 'Transaction origin: ', report: [{ warning: 'Use of tx.origin', location: '0:8:0' }]}],
       solhint: null
     })
     const step = store.get(FILE).steps.analysis
@@ -474,7 +474,7 @@ describe('verdict', () => {
   it('summarizes the verdict for Deploy & Run', () => {
     assert.strictEqual(summarize(input(null)), null)
     assert.deepStrictEqual(summarize(input(checked)), { file: FILE, kind: 'gate', count: 1, checkedAt: 1 })
-    const failed: FileCheckState = { file: FILE, currentHash: 'h1', steps: { compile: done({ status: 'failed', at: 7, data: { errors: [{}, {}] } }) } }
+    const failed: FileCheckState = { file: FILE, currentHash: 'h1', steps: { compile: done({ status: 'failed', at: 7, data: { errors: [{}, {}]} }) } }
     assert.deepStrictEqual(summarize(input(failed)), { file: FILE, kind: 'compile-failed', count: 2, checkedAt: 7 })
     assert.deepStrictEqual(summarize(input(checked, { runningStep: 'analysis' })), { file: FILE, kind: 'running', count: 0, checkedAt: 1 })
   })
@@ -517,7 +517,7 @@ describe('report', () => {
       ignored: { k2: { reason: 'accepted-risk', at: 0 } },
       steps: {
         compile: { status: 'passed', at: 0, origin: 'manual', contentHash: 'h1' },
-        analysis: { status: 'findings', at: 0, origin: 'panel', contentHash: 'h1', findings: [txOrigin, assembly] },
+        analysis: { status: 'findings', at: 0, origin: 'panel', contentHash: 'h1', findings: [txOrigin, assembly]},
         deploy: { status: 'passed', at: 0, origin: 'manual', contentHash: 'h1', data: { contractName: 'Wallet', address: '0xabc', txHash: '0xdef', network: 'Sepolia', chainId: '11155111', openHigh: 1 } },
         verify: { status: 'submitted', at: 0, origin: 'manual' }
       }
@@ -584,7 +584,7 @@ describe('AI security check', () => {
 
 describe('issue filters', () => {
   const issue = (severity: Finding['severity'], sources: Finding['sources'], file: string, title = 't', message = 'm'): Finding =>
-    ({ id: title, severity, title, message, file, sources, items: [], stale: false, keys: [title] })
+    ({ id: title, severity, title, message, file, sources, items: [], stale: false, keys: [title]})
   const list = [
     issue('high', ['slither', 'remix'], FILE, 'Reentrancy in withdraw()'),
     issue('low', ['solhint'], FILE, 'func-visibility'),
@@ -602,7 +602,7 @@ describe('issue filters', () => {
   it('matches on severity, tool, file and search text together', () => {
     const titles = (filter) => list.filter((f) => matchesFilter(f, filter, FILE)).map((f) => f.title)
     assert.strictEqual(titles(NO_FILTER).length, 3)
-    assert.deepStrictEqual(titles({ ...NO_FILTER, severities: ['high', 'low'] }), ['Reentrancy in withdraw()', 'func-visibility'])
+    assert.deepStrictEqual(titles({ ...NO_FILTER, severities: ['high', 'low']}), ['Reentrancy in withdraw()', 'func-visibility'])
     assert.deepStrictEqual(titles({ ...NO_FILTER, sources: ['slither'], file: 'this' }), ['Reentrancy in withdraw()'])
     assert.deepStrictEqual(titles({ ...NO_FILTER, file: 'imports' }), ['divide-before-multiply'])
     assert.deepStrictEqual(titles({ ...NO_FILTER, query: '  feemath ' }), ['divide-before-multiply'])
