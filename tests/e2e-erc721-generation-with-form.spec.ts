@@ -40,9 +40,9 @@ test('e2e-erc721-generation-with-form', async ({ page }) => {
     await expect(page.locator('[data-id="planManagerCloseButton"]')).toBeVisible({ timeout: 30000 })
     await page.locator('[data-id="planManagerCloseButton"]').click();
   } catch { /* not present */ }
-  await page.getByRole('textbox', { name: 'Type "/" for more options or' }).click();
-  await page.getByRole('textbox', { name: 'Type "/" for more options or' }).fill(prompt);
-  await page.getByRole('textbox', { name: 'Type "/" for more options or' }).press('Enter');
+  await page.locator('[data-id="remix-ai-prompt-input"]').click();
+  await page.locator('[data-id="remix-ai-prompt-input"]').fill(prompt);
+  await page.locator('[data-id="remix-ai-prompt-input"]').press('Enter');
   await page.getByRole('checkbox', { name: 'Auto-accept all changes' }).check();
   await page.locator('[data-id="tool-approval-approve-button"]').first().click();
   await page.getByRole('combobox').waitFor({ state: 'visible' });
