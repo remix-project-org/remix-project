@@ -55,7 +55,8 @@ const CompileIssue = ({ api, issue }: { api: any, issue: CompileIssueData }) => 
 
   return (
     <div className={`sc-issue ${issue.severity}`} data-id={`compileIssue-${issue.severity}`}>
-      <button className="sc-issue-row" title={goTo + issue.formatted} onClick={() => canGo && gotoError(api, issue.errFile, issue.errLine, issue.errCol)}>
+      {/* data-id: the file the issue points to, as the previous renderer had it */}
+      <button className="sc-issue-row" data-id={issue.errFile || undefined} title={goTo + issue.formatted} onClick={() => canGo && gotoError(api, issue.errFile, issue.errLine, issue.errCol)}>
         <i className={`fas ${err ? 'fa-circle-xmark sc-err' : 'fa-triangle-exclamation sc-warn'} sc-issue-icon`} aria-hidden="true"></i>
         <span className="sc-issue-main">
           <span className="sc-issue-title">{issue.title}</span>
