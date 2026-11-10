@@ -7,15 +7,17 @@ class HideToolTips extends EventEmitter {
     browser
       .execute(function () {
         // Set global flag to disable all CustomTooltip components
-        (window as any).REMIX_DISABLE_TOOLTIPS = true
-        
+        ;(window as any).REMIX_DISABLE_TOOLTIPS = true
+        // Tell the nudge plugin's render() to return <></> so the backdrop is never mounted
+        ;(window as any).__IS_E2E_TEST__ = true
+
         // Dispatch custom event to notify all CustomTooltip components
-        const event = new CustomEvent('remix-tooltip-toggle', { 
-          detail: { disabled: true } 
+        const event = new CustomEvent('remix-tooltip-toggle', {
+          detail: { disabled: true }
         })
         window.dispatchEvent(event)
-        
-        // Add CSS as backup for any non-CustomTooltip tooltips
+
+        // Hide tooltips, popovers, and nudge modals via CSS
         const style = document.createElement('style')
         style.id = 'nightwatch-disable-tooltips'
         style.textContent = `
@@ -29,38 +31,25 @@ class HideToolTips extends EventEmitter {
             opacity: 0 !important;
             pointer-events: none !important;
           }
+          #nudge-widget-container,
+          .nudge-widget,
+          .nudge-modal-backdrop,
+          .nudge-decoration {
+            display: none !important;
+            opacity: 0 !important;
+            visibility: hidden !important;
+            pointer-events: none !important;
+          }
         `
         const existing = document.getElementById('nightwatch-disable-tooltips')
         if (existing) existing.remove()
         document.head.appendChild(style)
-        
-        // Remove any existing tooltips from DOM
-        document.querySelectorAll('.tooltip, .popover, [role="tooltip"]').forEach(el => {
+
+        // Remove any existing tooltips and nudge nodes from DOM
+        document.querySelectorAll('.tooltip, .popover, [role="tooltip"], .nudge-modal-backdrop, .nudge-widget').forEach(el => {
           try { el.remove() } catch (e) {}
         })
       }, [])
-      .pause(100)
-      .perform((done: any) => {
-        // Hide the nudge widget (product upsell modal) before it can intercept clicks below
-        browser.execute(function () {
-          function addStyle(styleString) {
-            const style = document.createElement('style');
-            style.textContent = styleString;
-            document.head.append(style);
-          }
-
-          addStyle(`
-            #nudge-widget-container,
-            .nudge-widget,
-            .nudge-modal-backdrop,
-            .nudge-decoration {
-              display: none !important;
-              opacity: 0 !important;
-              visibility: hidden !important;
-            }
-          `);
-        }, [], done())
-      })
       .pause(100)
       .perform(() => {
         this.emit('complete')

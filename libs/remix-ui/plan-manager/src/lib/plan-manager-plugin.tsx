@@ -17,7 +17,7 @@
 
 import { ViewPlugin } from '@remixproject/engine-web'
 import React, { useEffect, useMemo, useState, useSyncExternalStore } from 'react'
-import { PluginViewWrapper, DISCORD_URL } from '@remix-ui/helper'
+import { PluginViewWrapper, DISCORD_URL, CustomTooltip } from '@remix-ui/helper'
 // Paddle singleton lives next to this plugin now — `@remix-ui/billing` was
 // removed when Plan Manager became the sole billing surface.
 import { initPaddle, getPaddle, openCheckoutWithTransaction, onPaddleEvent, offPaddleEvent, previewPrices } from './paddle-singleton'
@@ -65,6 +65,7 @@ import {
 } from './plan-manager-machine'
 import { LoginModal, startSignInFlow, OtpDigitInput, OtpDigitInputHandle } from '@remix-ui/login'
 import { planManagerLogger } from './plan-manager-logger'
+import { TASK_COSTS, isStale, pluralTitle, profiledModels, taskCapacity } from './ai-task-costs'
 
 import './plan-manager.css'
 
@@ -158,6 +159,16 @@ export class PlanManagerPlugin extends ViewPlugin {
   private pendingPlanAfterSignIn: { planId: string; priceId?: number; at: number } | null = null
   // Server-side payments-availability check runs once per session.
   private paymentsAvailabilityChecked = false
+  /** Transactions still being watched after their checkout was closed mid-payment. */
+  private paymentWatchesAfterClose = new Set<string>()
+  /** The "payment still being confirmed" leave dialog is showing. */
+  private leavePromptOpen = false
+  /** Transactions already confirmed in this session, across every confirmation path. */
+  private confirmedTransactionIds = new Set<string>()
+  /** Bumped when the signed-in user changes (not on token refresh) so in-flight watches can tell. */
+  private authEpoch = 0
+  private lastAuthed = false
+  private lastAuthUserId: number | null = null
   // Signed-out visitor picked "Start free". Consumed on the next successful
   // login to land them on the top-up screen (with an upgrade option).
   private pendingFreeAfterSignIn: { at: number } | null = null
@@ -253,7 +264,7 @@ export class PlanManagerPlugin extends ViewPlugin {
     // sign-out, so listeners stay in sync with auth for free.
     let lastResume: PendingCheckout[] = []
     this.store.subscribe(() => {
-      const next = this.store.getSnapshot().resumeCheckouts
+      const next = resumableCheckouts(this.store.getSnapshot())
       if (next !== lastResume) {
         lastResume = next
         this.emit('pendingCheckoutsChanged', next)
@@ -264,6 +275,16 @@ export class PlanManagerPlugin extends ViewPlugin {
     // cancelled — i.e. `pendingCheckout` goes from set → null), refresh the
     // account data and the unfinished-checkout list so credits/plan and the
     // resume surfaces reflect whatever just happened.
+    // The payment settled (confirmed or declined) while the leave dialog was
+    // open — it would otherwise sit over the success / decline screen still
+    // saying "being confirmed".
+    this.store.subscribe(() => {
+      if (this.leavePromptOpen && !this.isPaymentInFlight()) {
+        this.leavePromptOpen = false
+        this.resolveConfirm(LEAVE_PROMPT_SETTLED)
+      }
+    })
+
     let hadPending = false
     this.store.subscribe(() => {
       const pending = !!this.store.getSnapshot().pendingCheckout
@@ -284,6 +305,7 @@ export class PlanManagerPlugin extends ViewPlugin {
 
   async onActivation(): Promise<void> {
     this.renderComponent()
+    if (typeof window !== 'undefined') window.addEventListener('beforeunload', this.onBeforeUnload)
 
     // Replay last session's region immediately — Paddle can only price-preview
     // once it has an authenticated client token, and country-targeted messaging
@@ -341,6 +363,12 @@ export class PlanManagerPlugin extends ViewPlugin {
       const sig = `${s.isAuthenticated}|${s.token ?? ''}`
       if (sig === this.lastAuthSig) return
       this.lastAuthSig = sig
+      const authed = !!s.isAuthenticated
+      const userId = s.user?.id ?? null
+      if (authed !== this.lastAuthed || (userId !== null && this.lastAuthUserId !== null && userId !== this.lastAuthUserId)) this.authEpoch++
+      this.lastAuthed = authed
+      if (!authed) this.lastAuthUserId = null
+      else if (userId !== null) this.lastAuthUserId = userId
       // Attach the JWT to checkout telemetry so the admin viewer can attribute
       // failures to a user (the sink is optionalAuth — works without it too).
       setCheckoutTelemetryToken(s.isAuthenticated ? (s.token ?? null) : null)
@@ -500,6 +528,7 @@ export class PlanManagerPlugin extends ViewPlugin {
           msSinceOpen: ctx?.openedAt ? Date.now() - ctx.openedAt : undefined,
         },
       })
+      if (ctx) this.watchPaymentAfterClose(ctx, pending.intent, pending.itemLabel)
     }
     this.checkoutContext = null
     this.store.send({ type: 'CHECKOUT_CLOSED' })
@@ -507,9 +536,74 @@ export class PlanManagerPlugin extends ViewPlugin {
 
   toggle(): void {
     const wasOpen = this.store.getSnapshot().isOpen
+    if (wasOpen && this.isPaymentInFlight()) {
+      void this.leaveCheckout('close')
+      return
+    }
     this.store.send({ type: 'TOGGLE_OVERLAY' })
     // Only refresh on the closed → open transition.
     if (!wasOpen) this.refreshOnOpen()
+  }
+
+  /**
+   * A payment was submitted and is still awaiting its outcome. Leaving now is
+   * how buyers ended up paid-but-unconfirmed: WeChat Pay takes ~2 min to
+   * confirm, and people closed the panel after paying on their phone.
+   */
+  private isPaymentInFlight(): boolean {
+    const ctx = this.checkoutContext
+    const snap = this.store.getSnapshot()
+    return !!ctx && ctx.stage === 'payment_initiated' && !ctx.confirmed && !!snap.pendingCheckout && !snap.checkoutResult
+  }
+
+  /** Leave the checkout from a UI control (X / Back to plans), asking first while a payment is in flight. */
+  async leaveCheckout(action: 'close' | 'back_to_plans'): Promise<void> {
+    if (this.isPaymentInFlight() && !(await this.confirmLeaveDuringPayment(action))) return
+    if (action === 'close') {
+      this.close()
+      return
+    }
+    // The payment may have landed while the dialog was open — keep the result screen.
+    if (this.store.getSnapshot().checkoutResult) return
+    this.cancelCheckout('back_to_plans')
+  }
+
+  private async confirmLeaveDuringPayment(action: 'close' | 'back_to_plans'): Promise<boolean> {
+    const ctx = this.checkoutContext
+    const method = ctx?.paymentMethod ?? null
+    const isWeChat = /wechat/i.test(method || '')
+    const provider = !method || method === 'card' ? 'your bank' : paymentMethodLabel(method)
+    this.leavePromptOpen = true
+    const choice = await this.requestConfirm({
+      eyebrow: 'Payment in progress',
+      title: 'Your payment is still being confirmed',
+      icon: 'fas fa-hourglass-half',
+      message: [
+        isWeChat
+          ? 'WeChat Pay usually takes about 2 minutes to confirm after you pay in the app. Keep this open and your purchase will finish automatically.'
+          : `We're waiting for ${provider} to confirm your payment. Keep this open and your purchase will finish automatically.`,
+        'If you’ve already approved it, closing won’t cancel it — your account updates as soon as it’s confirmed.'
+      ].join('\n'),
+      actions: [
+        { value: 'stay', label: 'Keep waiting', variant: 'primary', icon: 'fas fa-hourglass-half' },
+        { value: 'leave', label: action === 'close' ? 'Close anyway' : 'Leave checkout', variant: 'ghost' }
+      ]
+    }).finally(() => { this.leavePromptOpen = false })
+    const leave = choice === 'leave'
+    const outcome = leave ? 'leave' : choice === LEAVE_PROMPT_SETTLED ? 'settled' : 'stay'
+    reportCheckoutTelemetry('checkout.leave_prompt', {
+      transactionId: ctx?.transactionId,
+      detail: { action, method, choice: outcome, msSinceOpen: ctx?.openedAt ? Date.now() - ctx.openedAt : null },
+    })
+    this.trackCheckout('leave_prompt', ctx?.intent, outcome)
+    return leave
+  }
+
+  /** Browser-level guard (reload / tab close) while a payment is in flight. */
+  private readonly onBeforeUnload = (e: BeforeUnloadEvent): void => {
+    if (!this.isPaymentInFlight()) return
+    e.preventDefault()
+    e.returnValue = ''
   }
 
   /**
@@ -558,6 +652,7 @@ export class PlanManagerPlugin extends ViewPlugin {
     switch (result.kind) {
     case 'processing':
     case 'success':
+      if (result.transactionId) this.confirmedTransactionIds.add(result.transactionId)
       this.store.send({ type: 'CHECKOUT_COMPLETED', transactionId: result.transactionId })
       // Refresh ending with PURCHASE_CONFIRMED so 'processing' promotes to
       // 'success'. A bare loadAccountData() emits DATA_LOADED, which does NOT
@@ -1993,7 +2088,7 @@ export class PlanManagerPlugin extends ViewPlugin {
    * event for live updates.
    */
   getPendingCheckouts(): PendingCheckout[] {
-    return this.store.getSnapshot().resumeCheckouts
+    return resumableCheckouts(this.store.getSnapshot())
   }
 
   /**
@@ -2364,6 +2459,7 @@ export class PlanManagerPlugin extends ViewPlugin {
         break
       }
       this.trackCheckout('completed', pendingIntent, transactionId)
+      if (transactionId) this.confirmedTransactionIds.add(transactionId)
       this.store.send({ type: 'CHECKOUT_COMPLETED', transactionId })
       planManagerLogger.log('[plan-manager:poll] triggered from paddle checkout.completed', { intent: pendingIntent, transactionId })
       // Poll our backend (never Paddle) until the webhook has been processed,
@@ -2693,8 +2789,83 @@ export class PlanManagerPlugin extends ViewPlugin {
     })()
   }
 
+  /**
+   * The user closed the checkout while a payment was in flight — typically a
+   * method approved on their phone (WeChat Pay, UPI) — so the in-checkout
+   * poll stops. Keep watching the transaction: ~11% of paid checkouts landed
+   * after the panel closed, leaving the IDE on the old plan/credits and some
+   * buyers discarding a checkout they had actually paid for.
+   */
+  private watchPaymentAfterClose(ctx: CheckoutContext, intent: CheckoutIntent, label?: string): void {
+    const transactionId = ctx.transactionId
+    if (!ctx.backgroundConfirm || ctx.confirmed || !transactionId || intent === 'payment_method') return
+    if (this.paymentWatchesAfterClose.has(transactionId)) return
+    this.paymentWatchesAfterClose.add(transactionId)
+    // Snapshot now — closing clears the cart and pending intent.
+    const items = this.resolvePurchasedItems()
+    const method = ctx.paymentMethod ?? null
+    const closedAt = Date.now()
+    const epoch = this.authEpoch
+    // Signed out / another user, or confirmed elsewhere (e.g. a resumed checkout).
+    const stale = () => this.authEpoch !== epoch || !this.store.getSnapshot().isAuthenticated || this.confirmedTransactionIds.has(transactionId)
+    void (async () => {
+      try {
+        const billingApi: any = await this.call('auth', 'getBillingApi').catch(() => null)
+        if (!billingApi?.getTransactionStatus) return
+        while (Date.now() - closedAt < BACKGROUND_CONFIRM_MAX_MS) {
+          await new Promise(r => setTimeout(r, BACKGROUND_CONFIRM_INTERVAL_MS))
+          if (stale()) return
+          const resp = await billingApi.getTransactionStatus(transactionId).catch(() => null)
+          if (stale()) return
+          const status: string | undefined = resp?.data?.status
+          if (status === 'completed') {
+            const live = this.checkoutContext
+            if (live?.transactionId === transactionId) {
+              // Resumed meanwhile — confirm through that checkout instead.
+              if (this.isCheckoutAwaitingPayment(live)) this.confirmCheckoutFromWebhook(live)
+              return
+            }
+            await this.confirmPaymentAfterClose({ transactionId, intent, label, items, method, closedAt })
+            return
+          }
+          if (status === 'failed' || status === 'canceled' || status === 'refunded' || status === 'disputed') return
+        }
+      } finally {
+        this.paymentWatchesAfterClose.delete(transactionId)
+      }
+    })()
+  }
+
+  private async confirmPaymentAfterClose(p: {
+    transactionId: string
+    intent: CheckoutIntent
+    label?: string
+    items: CartItem[]
+    method: string | null
+    closedAt: number
+  }): Promise<void> {
+    this.confirmedTransactionIds.add(p.transactionId)
+    reportCheckoutTelemetry('checkout.confirmed_after_close', {
+      transactionId: p.transactionId,
+      message: 'Payment completed after the user closed the checkout',
+      detail: { intent: p.intent, method: p.method, msAfterClose: Date.now() - p.closedAt },
+    })
+    this.trackCheckout('confirmed_after_close', p.intent, p.method ?? undefined)
+    this.trackCheckout('completed', p.intent, p.transactionId)
+    // Subscriptions get the "plan upgraded" celebration via purchaseConfirmed;
+    // top-ups have no message of their own.
+    if (p.intent !== 'subscription') {
+      this.call('notification' as any, 'toast', `Payment received — ${p.label ?? 'your credits'} added to your account.`).catch(() => { /* noop */ })
+    }
+    // This checkout already ended as "closed", so there's no result of ours to
+    // promote — and promoting could mark a different, newer checkout as paid.
+    await this.completePurchaseRefresh({ intent: p.intent, label: p.label, items: p.items }, { promote: false })
+    void this.loadPendingCheckouts()
+  }
+
   private confirmCheckoutFromWebhook(ctx: CheckoutContext): void {
     ctx.confirmed = true
+    if (ctx.transactionId) this.confirmedTransactionIds.add(ctx.transactionId)
     this.clearApprovalWatch(ctx)
     const intent: CheckoutIntent = this.store.getSnapshot().pendingCheckout?.intent ?? 'subscription'
     reportCheckoutTelemetry('checkout.confirmed_async', {
@@ -2778,13 +2949,14 @@ export class PlanManagerPlugin extends ViewPlugin {
       if (!this.isCheckoutAwaitingPayment(ctx)) return
       if (ctx.stage !== 'payment_failed' || ctx.paymentFailures !== failureNo) return
       const last = payment?.lastPayment
-      this.showDeclineNotice(ctx, last?.status === 'error' ? last.errorCode : null)
+      // `dropped` = stopped by Paddle's risk checks; it carries an error_code (e.g. `fraud`) too.
+      this.showDeclineNotice(ctx, last?.status === 'error' || last?.status === 'dropped' ? last.errorCode : null, last?.status ?? null)
     } finally {
       ctx.declineLookup = false
     }
   }
 
-  private showDeclineNotice(ctx: CheckoutContext, errorCode: string | null): void {
+  private showDeclineNotice(ctx: CheckoutContext, errorCode: string | null, paymentStatus: string | null = null): void {
     const snap = this.store.getSnapshot()
     const hasAddOns = snap.cartItems.length > 1
     // Cheapest paid plan, offered when funds were short on a pricier plan.
@@ -2796,7 +2968,7 @@ export class PlanManagerPlugin extends ViewPlugin {
       transactionId: ctx.transactionId,
       errorCode: errorCode ?? 'unknown',
       message: `Payment declined (${errorCode ?? 'unknown'})`,
-      detail: { method: ctx.paymentMethod ?? null, failures: ctx.paymentFailures, intent: ctx.intent, hasAddOns, offeredCheaperPlan: cheaperPlanName },
+      detail: { method: ctx.paymentMethod ?? null, paymentStatus, failures: ctx.paymentFailures, intent: ctx.intent, hasAddOns, offeredCheaperPlan: cheaperPlanName },
     })
     this.trackCheckout('decline_reason', ctx.intent as CheckoutIntent, errorCode ?? 'unknown')
     this.store.send({
@@ -2919,7 +3091,9 @@ export class PlanManagerPlugin extends ViewPlugin {
   private markRegionBlocked(source: 'price_preview' | 'checkout_error' | 'server_check', countryCode?: string | null): void {
     if (this.store.getSnapshot().paymentsBlockedInRegion) return
     this.store.send({ type: 'REGION_PAYMENTS_BLOCKED' })
-    const country = countryCode ?? this.billingLocale?.countryCode ?? null
+    // Only the server's answer is trustworthy here: billingLocale may be a
+    // stale value from localStorage (e.g. from an earlier VPN session).
+    const country = countryCode ?? null
     reportCheckoutTelemetry('checkout.region_blocked', {
       errorCode: 'address_location_not_allowed',
       message: `Paddle won't accept payments from this location (${source})`,
@@ -3340,7 +3514,9 @@ export class PlanManagerPlugin extends ViewPlugin {
      * the processing screen or start another checkout meanwhile, so the
      * snapshot can no longer be trusted to describe this purchase.
      */
-    confirmed?: { intent: CheckoutIntent; label?: string; items: CartItem[] }
+    confirmed?: { intent: CheckoutIntent; label?: string; items: CartItem[] },
+    /** `promote: false` skips flipping the panel's checkout result to success. */
+    opts: { promote?: boolean } = {}
   ): Promise<void> {
     const LOG = '[plan-manager:refresh]'
     planManagerLogger.log(LOG, 'start')
@@ -3361,7 +3537,7 @@ export class PlanManagerPlugin extends ViewPlugin {
     // Promote 'processing' → 'success' in the panel. DATA_LOADED alone won't
     // do it because the data state is usually 'ready' (not 'refreshing') by
     // the time we get here; PURCHASE_CONFIRMED is handled at machine root.
-    this.store.send({ type: 'PURCHASE_CONFIRMED' })
+    if (opts.promote !== false) this.store.send({ type: 'PURCHASE_CONFIRMED' })
     const cr = this.store.getSnapshot().checkoutResult
     const intent = confirmed ? confirmed.intent : cr?.intent
     const label = confirmed ? confirmed.label : cr?.itemLabel
@@ -3740,7 +3916,7 @@ const PlanManagerOverlay: React.FC<{
           <button
             data-id="planManagerCloseButton"
             className="pm-close"
-            onClick={() => plugin.close()}
+            onClick={() => { void plugin.leaveCheckout('close') }}
             aria-label="Close"
           >
             <i className="fas fa-times"></i>
@@ -3862,7 +4038,7 @@ const PlanManagerOverlay: React.FC<{
               pick back up. Always shown while a pending checkout exists (and
               we're not already inside checkout), so it stays in lock-step
               with the top-bar cart button. Not dismissible by design. */}
-                {!checkoutActive && snap.resumeCheckouts.length > 0 && (
+                {!checkoutActive && resumableCheckouts(snap).length > 0 && (
                   <ResumeCheckoutBanner
                     checkout={snap.resumeCheckouts[0]}
                     onResume={() => { void plugin.resumeCheckout(snap.resumeCheckouts[0].transaction_id) }}
@@ -3910,6 +4086,13 @@ const PlanManagerOverlay: React.FC<{
                     refreshDate={refreshDate}
                     planCtx={planCtx}
                     heroCompact={activeAlert === 'beta-transition' || activeAlert === 'plan-lifecycle'}
+                    onTopUp={ui.showTopUps ? (() => setActiveSection('topup')) : undefined}
+                  />
+                )}
+
+                {!checkoutActive && activeSection === 'credits' && ui.showCredits && (
+                  <CreditCapacityPanel
+                    credits={status.hasUnlimitedIncluded ? null : status.paidRemaining + status.includedRemaining}
                     onTopUp={ui.showTopUps ? (() => setActiveSection('topup')) : undefined}
                   />
                 )}
@@ -4028,7 +4211,7 @@ const PlanManagerOverlay: React.FC<{
                         <div className="pm-inline-checkout__header">
                           <button
                             className="pm-inline-checkout__back"
-                            onClick={() => plugin.cancelCheckout('back_to_plans')}
+                            onClick={() => { void plugin.leaveCheckout('back_to_plans') }}
                           >
                             <i className="fas fa-arrow-left"></i>
                             <span>Back to plans</span>
@@ -4325,6 +4508,118 @@ function formatResetTime(iso: string, period: QuotaEntry['period'], now: number 
   return `Resets ${d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}`
 }
 
+/**
+ * "What you can do with your credits": the balance expressed as typical AI
+ * tasks, from costs the AI cost benchmark measured (see ai-task-costs.ts).
+ * Hidden until a measurement exists. With unlimited included usage there is
+ * no balance to divide, so it shows what each task typically costs instead.
+ * Costs differ by an order of magnitude between models, so the numbers are
+ * always for one profiled model, picked in the header.
+ */
+/** The profiled model picked in the capacity panel (the default one until a pick). */
+/** Average-across-all-models capacity line: "≈ 7 gas audits + 2 security audits". */
+function avgCapacityLine(credits: number, limit = Infinity): string | null {
+  const models = profiledModels()
+  if (models.length === 0) return null
+  const baseRows = taskCapacity(credits, TASK_COSTS, models[0].tier)
+  const parts = baseRows
+    .filter(row => row.id !== 'autofill-inputs' && row.id !== 'contract-generation-generate')
+    .map(row => {
+      const counts = Object.values(row.counts).filter((c): c is number => (c ?? 0) > 0)
+      const avg = counts.length > 0 ? Math.floor(counts.reduce((a, b) => a + b, 0) / counts.length) : 0
+      if (avg === 0) return null
+      return `${avg} ${pluralTitle(row.title.replace(/ \(.*\)$/, ''), avg)}`
+    })
+    .filter((s): s is string => s !== null)
+    .slice(0, limit === Infinity ? undefined : limit)
+  return parts.length > 0 ? `≈ ${parts.join(' + ')}` : null
+}
+
+const TASK_PUNCHLINES: Record<string, string> = {
+  'gas-audit-simple':          'Slash tx costs before mainnet',
+  'security-audit-complex':    'Catch exploits before hackers do',
+  'frontend-generation':       'From ABI to full dApp UI',
+  'contract-generation-agent': 'Describe it in plain English, deploy it',
+  'fix-compile-error':         'Unblock yourself in seconds',
+  'explain-contract':          'Understand any contract instantly',
+}
+
+const CreditCapacityPanel: React.FC<{ credits: number | null; creditLabel?: string; onTopUp?: () => void }> = ({ credits, creditLabel, onTopUp }) => {
+  const models = profiledModels()
+  const baseRows = models.length > 0 ? taskCapacity(credits, TASK_COSTS, models[0].tier) : []
+  const rows = baseRows.map(row => {
+    const countValues = Object.values(row.counts).filter((c): c is number => (c ?? 0) > 0)
+    const avgCount = countValues.length > 0 ? Math.floor(countValues.reduce((a, b) => a + b, 0) / countValues.length) : 0
+    const costValues = Object.values(row.costs).filter((c): c is number => (c ?? 0) > 0)
+    const avgCost = costValues.length > 0 ? Math.floor(costValues.reduce((a, b) => a + b, 0) / costValues.length) : 0
+    return { ...row, avgCount, avgCost }
+  }).filter(row => credits === null || row.avgCount > 0)
+    .filter(row => row.id !== 'autofill-inputs' && row.id !== 'contract-generation-generate')
+
+  if (rows.length === 0) return null
+
+  // Sort non-default models by average cost per task to get cheapest → priciest range
+  const nonDefaultModels = models.filter(m => m.tier !== 'default')
+  const sortedByPrice = [...nonDefaultModels].sort((a, b) => {
+    const avg = (tier: string) => {
+      const costs = baseRows.map(r => r.costs[tier] ?? 0).filter(c => c > 0)
+      return costs.length > 0 ? costs.reduce((s, c) => s + c, 0) / costs.length : 0
+    }
+    return avg(a.tier) - avg(b.tier)
+  })
+  const cheapest = sortedByPrice[0]
+  const priciest = sortedByPrice[sortedByPrice.length - 1]
+  const modelRange = cheapest && priciest && cheapest.tier !== priciest.tier
+    ? `from glm-flash-latest to Claude Opus`
+    : cheapest?.label ?? ''
+
+  const title = credits === null
+    ? 'Typical credit cost per task'
+    : creditLabel
+      ? `What you can do with ${creditLabel} credits`
+      : 'What you can do with your credits'
+
+  return (
+    <section className="pm-capacity" aria-label={title} data-id="pm-credit-capacity">
+      <div className="pm-capacity__head">
+        <span className="pm-capacity__title">{title}</span>
+        <span className="pm-capacity__hint">{modelRange ? `depending on the model (${modelRange})` : 'depending on the model used'}{isStale() ? ' · outdated' : ''}</span>
+        {onTopUp && (
+          <button className="pm-capacity__cta" onClick={onTopUp}>
+            Top up <i className="fas fa-arrow-right" aria-hidden></i>
+          </button>
+        )}
+      </div>
+      <ul className="pm-capacity__list">
+        {rows.map(row => {
+          const shortTitle = row.title.replace(/ \(.*\)$/, '')
+          const countDisplay = credits === null ? `~${compactCredits(row.avgCost)}` : row.avgCount.toLocaleString()
+          const labelDisplay = credits === null ? shortTitle : pluralTitle(shortTitle, row.avgCount)
+          return (
+            <CustomTooltip
+              key={row.id}
+              placement="right"
+              tooltipId={`pm-credit-capacity-tip-${row.id}`}
+              tooltipText={`~${row.avgCost.toLocaleString()} credits on average · varies by model and contract`}
+            >
+              <li className="pm-capacity__row" data-id={`pm-credit-capacity-${row.id}`}>
+                <span className="pm-capacity__row-count">{countDisplay}</span>
+                <span className="pm-capacity__row-rule" aria-hidden />
+                <span className="pm-capacity__row-body">
+                  <span className="pm-capacity__row-label">{labelDisplay}</span>
+                  {TASK_PUNCHLINES[row.id] && (
+                    <span className="pm-capacity__row-punch">· {TASK_PUNCHLINES[row.id]}</span>
+                  )}
+                </span>
+              </li>
+            </CustomTooltip>
+          )
+        })}
+      </ul>
+    </section>
+  )
+}
+
 const QuotasPanel: React.FC<{
   quotas: QuotaEntry[]
   aiModels: ModelLookup
@@ -4428,7 +4723,9 @@ const QuotasPanel: React.FC<{
                   <span className="pm-quota__period">{periodWord} included</span>
                 </div>
                 {unlimited ? (
-                  <span className="pm-quota__badge pm-quota__badge--unlimited" title="Unlimited included usage">∞ Unlimited</span>
+                  <CustomTooltip placement="top" tooltipId="pm-quota-unlimited-tip" tooltipText="Unlimited included usage">
+                    <span className="pm-quota__badge pm-quota__badge--unlimited">∞ Unlimited</span>
+                  </CustomTooltip>
                 ) : (
                   <div className="pm-quota__counts">
                     <span className="pm-quota__used" data-id={`pm-quota-${slugId}-used`}>{q.used.toLocaleString()}</span>
@@ -5021,7 +5318,14 @@ const PADDLE_CONFIG_TIMEOUT_MS = 20_000
 
 /** Paddle's "we can't sell to this location" signals (price preview / checkout error). */
 const REGION_BLOCKED_RE = /address_location_not_allowed|unsupported location/i
-const REGION_BLOCKED_MESSAGE = 'Payments aren’t available in your region. Our payment provider can’t accept payments from your current location. If you’re using a VPN, turn it off or connect via another country and try again.'
+const REGION_BLOCKED_MESSAGE = 'Payments aren’t available in your region. Our payment provider can’t accept payments from your current location. If you’re using a VPN, turn it off and try again.'
+const NO_RESUMABLE_CHECKOUTS: PendingCheckout[] = []
+/** Leave-dialog result when the payment settled while it was open. */
+const LEAVE_PROMPT_SETTLED = 'payment_settled'
+/** Unfinished checkouts worth offering — none when payments are blocked here, since resuming can only fail. */
+function resumableCheckouts(snap: PlanManagerSnapshot): PendingCheckout[] {
+  return snap.paymentsBlockedInRegion ? NO_RESUMABLE_CHECKOUTS : snap.resumeCheckouts
+}
 /** How long a payment may sit without an outcome before we explain what's happening. */
 const APPROVAL_HINT_DELAY_MS = 45_000
 /** How long to wait for a past_due renewal to recover after a payment method update. */
@@ -5054,6 +5358,10 @@ function approvalHintMessage(method: string | null | undefined): string {
     return `Waiting for your bank to confirm this payment. Approve it in your banking app or the verification pop-up. ${escape}`
   }
   const label = paymentMethodLabel(m)
+  if (/wechat/.test(m)) {
+    // Paddle confirms WeChat Pay ~2 min after the buyer pays; "try again" here made paid buyers give up.
+    return 'Paid in WeChat? WeChat Pay usually takes about 2 minutes to confirm — keep this open and your purchase will finish automatically. If you haven’t scanned the code yet, scan it with WeChat to pay.'
+  }
   const where = /upi|wechat|alipay|blik|kakao|naver/.test(m) ? `in your ${label} app` : `in the ${label} window`
   return `Waiting for ${label} to confirm your payment — approve it ${where}. ${escape}`
 }
@@ -5358,13 +5666,14 @@ const CartUpsellStep: React.FC<{
                 <span className="pm-cart-upsell__item-price">{fmtItemSubtotal(item)}</span>
               </div>
               {item.productType === 'credit_package' && (
-                <button
-                  className="pm-cart-upsell__item-remove"
-                  onClick={() => removePackage(item.slug)}
-                  title="Remove from cart"
-                >
-                  <i className="fas fa-times"></i>
-                </button>
+                <CustomTooltip placement="top" tooltipId={`pm-cart-remove-tip-${item.slug}`} tooltipText="Remove from cart">
+                  <button
+                    className="pm-cart-upsell__item-remove"
+                    onClick={() => removePackage(item.slug)}
+                  >
+                    <i className="fas fa-times"></i>
+                  </button>
+                </CustomTooltip>
               )}
             </li>
           ))}
@@ -5710,9 +6019,11 @@ const PaidPlansPanel: React.FC<{
                 <span className="pm-paid-panel__tab-name">{plan.name}</span>
                 {isCurrent && <span className="pm-paid-panel__tab-badge">CURRENT</span>}
                 {!isCurrent && planGift > 0 && (
-                  <span className="pm-paid-panel__tab-gift" title={`${planGift.toLocaleString()} bonus AI credits on sign-up`}>
-                    <i className="fas fa-gift" aria-hidden></i> +{formatCompactNumber(planGift)}
-                  </span>
+                  <CustomTooltip placement="top" tooltipId={`pm-plan-gift-tip-${plan.id}`} tooltipText={`${planGift.toLocaleString()} bonus AI credits on sign-up`}>
+                    <span className="pm-paid-panel__tab-gift">
+                      <i className="fas fa-gift" aria-hidden></i> +{formatCompactNumber(planGift)}
+                    </span>
+                  </CustomTooltip>
                 )}
               </span>
               <span className="pm-paid-panel__tab-price">{planPriceStr}/mo</span>
@@ -5747,11 +6058,19 @@ const PaidPlansPanel: React.FC<{
               <span className="pm-paid-panel__credits-value" aria-label={`${creditsPerMonth.toLocaleString()} credits per month`}>
                 +{formatCompactNumber(Math.round(animatedCredits / 100) * 100)}
               </span>
-              <span className="pm-paid-panel__credits-note">
+              <strong className="pm-paid-panel__credits-note">
                 {selectedIsOneToOne
                   ? <>= <strong>100%</strong> of your plan price, every month</>
                   : 'Topped up automatically, every billing cycle'}
-              </span>
+              </strong>
+              {avgCapacityLine(creditsPerMonth) && (
+                <CustomTooltip placement="top" tooltipId="pm-paid-panel-capacity-tip" tooltipText="Avg. across models. Actual results vary by model and contract.">
+                  <span className="pm-paid-panel__credits-capacity">
+                    <i className="fas fa-arrow-right" aria-hidden></i>
+                    {avgCapacityLine(creditsPerMonth)}
+                  </span>
+                </CustomTooltip>
+              )}
             </div>
           )}
           {giftCredits > 0 && (
@@ -5957,6 +6276,7 @@ const PlansSection: React.FC<{
           Contact us <i className="fas fa-arrow-right" aria-hidden></i>
         </span>
       </a>
+
     </div>
   )
 }
@@ -6156,6 +6476,8 @@ const TopUpSection: React.FC<{
         </div>
       </div>
 
+      <CreditCapacityPanel credits={20000} creditLabel="20k" />
+
       {packages.length === 0 ? (
         <div className="pm-empty">
           <p>No top-up packages available during the Free plan.</p>
@@ -6182,37 +6504,43 @@ const TopUpSection: React.FC<{
             // sqrt keeps the smallest pack visible next to the largest.
             const meterPct = maxCredits > 0 && credits > 0 ? Math.max(8, Math.round(Math.sqrt(credits / maxCredits) * 100)) : 0
             return (
-              <button
+              <CustomTooltip
                 key={t.id}
-                className={`pm-topup__card ${isBest ? 'is-best' : ''} ${isPurchasing ? 'is-purchasing' : ''}`}
-                disabled={disabled}
-                onClick={() => { if (!disabled) onPurchase(t.id) }}
-                title={isUnavailable ? 'Pricing not available right now' : undefined}
-                data-id={`pm-topup-card-${t.id}`}
+                placement="top"
+                tooltipId={`pm-topup-unavail-tip-${t.id}`}
+                tooltipText="Pricing not available right now"
+                hide={!isUnavailable}
               >
-                <div className="pm-topup__badges">
-                  {isBest && <span className="pm-topup__pop"><i className="fas fa-star" aria-hidden></i> Best value</span>}
-                  {!isBest && isPopular && <span className="pm-topup__pop pm-topup__pop--popular"><i className="fas fa-fire" aria-hidden></i> Popular</span>}
-                  {savePct >= 5 && <span className="pm-topup__save">Save {savePct}%</span>}
-                </div>
-                <div className="pm-topup__credits">
-                  <i className="fas fa-bolt" aria-hidden></i>
-                  <span className="pm-topup__credits-num">{credits > 0 ? compactCredits(credits) : '—'}</span>
-                  <span className="pm-topup__credits-unit">AI credits</span>
-                </div>
-                <div className="pm-topup__meter" aria-hidden>
-                  <span style={{ width: `${meterPct}%` }} />
-                </div>
-                <div className="pm-topup__price">{price}</div>
-                <div className="pm-topup__perk">{perKLabel}</div>
-                <span className="pm-topup__buy">
-                  {isPurchasing
-                    ? <><i className="fas fa-spinner fa-spin"></i> Opening…</>
-                    : isUnavailable
-                      ? <>Unavailable</>
-                      : <>Buy {credits > 0 ? compactCredits(credits) : ''} <i className="fas fa-arrow-right"></i></>}
-                </span>
-              </button>
+                <button
+                  className={`pm-topup__card ${isBest ? 'is-best' : ''} ${isPurchasing ? 'is-purchasing' : ''}`}
+                  disabled={disabled}
+                  onClick={() => { if (!disabled) onPurchase(t.id) }}
+                  data-id={`pm-topup-card-${t.id}`}
+                >
+                  <div className="pm-topup__badges">
+                    {isBest && <span className="pm-topup__pop"><i className="fas fa-star" aria-hidden></i> Best value</span>}
+                    {!isBest && isPopular && <span className="pm-topup__pop pm-topup__pop--popular"><i className="fas fa-fire" aria-hidden></i> Popular</span>}
+                    {savePct >= 5 && <span className="pm-topup__save">Save {savePct}%</span>}
+                  </div>
+                  <div className="pm-topup__credits">
+                    <i className="fas fa-bolt" aria-hidden></i>
+                    <span className="pm-topup__credits-num">{credits > 0 ? compactCredits(credits) : '—'}</span>
+                    <span className="pm-topup__credits-unit">AI credits</span>
+                  </div>
+                  <div className="pm-topup__meter" aria-hidden>
+                    <span style={{ width: `${meterPct}%` }} />
+                  </div>
+                  <div className="pm-topup__price">{price}</div>
+                  <div className="pm-topup__perk">{perKLabel}</div>
+                  <span className="pm-topup__buy">
+                    {isPurchasing
+                      ? <><i className="fas fa-spinner fa-spin"></i> Opening…</>
+                      : isUnavailable
+                        ? <>Unavailable</>
+                        : <>Buy {credits > 0 ? compactCredits(credits) : ''} <i className="fas fa-arrow-right"></i></>}
+                  </span>
+                </button>
+              </CustomTooltip>
             )
           })}
         </div>
@@ -7435,7 +7763,7 @@ const CheckoutResultScreen: React.FC<{
         <h2 className="pm-result__title">Payments aren’t available in your region</h2>
         <p className="pm-result__body">
           Our payment provider can’t accept payments from your current location, so no checkout was started and nothing was charged.
-          If you’re using a VPN, turn it off or connect via another country, then reload Remix and try again.
+          If you’re using a VPN, turn it off, then reload Remix and try again.
         </p>
         <div className="pm-result__actions">
           <button className="pm-result__btn pm-result__btn--primary" onClick={onViewPlans}>

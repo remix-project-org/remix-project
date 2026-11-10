@@ -7,7 +7,7 @@ import '../css/remix-ai-assistant.css'
 import { ChatCommandParser, GenerationParams, ChatHistory, HandleStreamResponse, AIModel, ANONYMOUS_FALLBACK_MODELS, remixAILogger, modelKey, parseModelKey, findModel, applyByokKeyPolicy, BYOK_API_KEY_SETTINGS, modelTransportProvider, onApiKeysChange, isAutoModelId, isCheapModel, modelSupportsVision, describeCaptureError, type ChatAttachment, type ModelTransport } from '@remix/remix-ai-core'
 import { ToolApprovalRequest, ApiKeyErrorEvent, SCREEN_CAPTURE_SETTING, type ApprovalScope, AIFileChange, AIFileChangeRecord, type ToolStep } from '@remix/remix-ai-core'
 import { ScreenCaptureConsentCard } from './ScreenCaptureConsentCard'
-import { isFrontierModelId } from '@remix/remix-ai-core/model-tiers'
+import { isFrontierModelId, isHighCostModelId } from '@remix/remix-ai-core/model-tiers'
 import { HandleOpenAICompatibleResponse, HandleOllamaResponse } from '@remix/remix-ai-core'
 //@ts-ignore
 import '../css/color.css'
@@ -281,6 +281,7 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
   const menuRef = useRef<any>()
   const [ollamaModels, setOllamaModels] = useState<{ name: string; supported: boolean }[]>([])
   const [selectedModel, setSelectedModel] = useState<AIModel | null>(null)
+  const [dismissedHighCostModelIds, setDismissedHighCostModelIds] = useState<Set<string>>(new Set())
   const selectedModelDegradedDetail = selectedModel
     ? Object.values(degradedModels).find(entry => entry.modelId === selectedModel.id)?.detail
     : undefined
@@ -3474,6 +3475,23 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
     </button>
   )
 
+  const highCostModelBannerEl = isHighCostModelId(selectedModel?.id) && !dismissedHighCostModelIds.has(selectedModel?.id ?? '') && (
+    <div className="high-cost-model-banner" data-id="high-cost-model-banner">
+      <i className="fa fa-coins high-cost-model-banner__icon" aria-hidden="true"></i>
+      <span className="high-cost-model-banner__text">
+        <strong>{selectedModel?.displayName}</strong> is a premium model — each request consumes more credits than standard models.
+      </span>
+      <button
+        className="high-cost-model-banner__dismiss"
+        data-id="high-cost-model-banner-dismiss"
+        aria-label="Dismiss"
+        onClick={() => setDismissedHighCostModelIds(prev => new Set(prev).add(selectedModel?.id ?? ''))}
+      >
+        ✕
+      </button>
+    </div>
+  )
+
   const currentConversationTitle = props.conversations?.find(c => c.id === props.currentConversationId)?.title
   const headerChatTitle = (currentConversationTitle && currentConversationTitle !== 'New Conversation')
     ? currentConversationTitle
@@ -3687,6 +3705,7 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
                   </section>
                   {renderApprovalDock((approval) => openChangesPanel({ kind: 'pending', requestId: approval.requestId }))}
                   {autoAcceptBannerEl}
+                  {highCostModelBannerEl}
                 </div>
               ) : (
               /* Non-Maximized Mode: Toggle between the changes list, history view and chat view */
@@ -3710,6 +3729,7 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
                       />
                     </div>
                     {autoAcceptBannerEl}
+                    {highCostModelBannerEl}
                   </div>
                 ) : props.showHistorySidebar && props.isMaximized === false && props.conversations ? (
                   <div className="d-flex flex-column flex-grow-1 ai-history-view-bg nonMaximizedMode" style={{ overflow: 'hidden', minHeight: 0 }} data-theme={themeTracker && themeTracker?.name.toLowerCase()}>
@@ -3740,6 +3760,7 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
                       />
                     </div>
                     {autoAcceptBannerEl}
+                    {highCostModelBannerEl}
                   </div>
                 ) : (
                   /* Show chat area when sidebar is closed */
@@ -3790,6 +3811,7 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
                     </section>
                     {renderApprovalDock(handleReviewChanges)}
                     {autoAcceptBannerEl}
+                    {highCostModelBannerEl}
                   </div>
                 )
               )}

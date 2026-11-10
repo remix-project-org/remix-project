@@ -1,0 +1,730 @@
+{
+  "version": 1,
+  "measuredAt": "2026-11-06",
+  "models": {
+    "default": {
+      "id": "auto",
+      "label": "Auto LLM Mode",
+      "served": [
+        {
+          "model": "anthropic/claude-opus-5.5",
+          "share": 0.84
+        },
+        {
+          "model": "moonshotai/kimi-k3.1-pro",
+          "share": 0.15
+        },
+        {
+          "model": "z-ai/glm-5.3",
+          "share": 0.01
+        },
+        {
+          "model": "google/gemini-3.8-flash",
+          "share": 0
+        },
+        {
+          "model": "google/gemini-4-argon",
+          "share": 0
+        }
+      ]
+    },
+    "fast": {
+      "id": "haiku-latest",
+      "label": "Anthropic Claude Haiku Latest",
+      "served": [
+        {
+          "model": "anthropic/claude-haiku-5.5",
+          "share": 0.83
+        },
+        {
+          "model": "anthropic/claude-haiku-4.5",
+          "share": 0.17
+        }
+      ]
+    },
+    "premium": {
+      "id": "sonnet-latest",
+      "label": "Anthropic Claude Sonnet Latest",
+      "served": [
+        {
+          "model": "anthropic/claude-sonnet-5.5",
+          "share": 0.99
+        },
+        {
+          "model": "anthropic/claude-sonnet-5",
+          "share": 0.01
+        }
+      ]
+    },
+    "deepseek": {
+      "id": "v4-flash-latest",
+      "label": "DeepSeek V4 Flash Latest",
+      "served": [
+        {
+          "model": "deepseek/deepseek-v4-flash-0731",
+          "share": 1
+        },
+        {
+          "model": "unknown",
+          "share": 0
+        }
+      ]
+    },
+    "glm": {
+      "id": "glm-flash-latest",
+      "label": "glm-flash-latest",
+      "served": [
+        {
+          "model": "z-ai/glm-5.3-flash",
+          "share": 1
+        },
+        {
+          "model": "unknown",
+          "share": 0
+        }
+      ]
+    }
+  },
+  "tasks": [
+    {
+      "id": "gas-audit-simple",
+      "title": "gas audit (simple contract)",
+      "costs": {
+        "default": {
+          "medianCredits": 1035,
+          "p90Credits": 6458,
+          "runs": 9,
+          "successRate": 1,
+          "medianDurationMs": 138890,
+          "servedModels": [
+            {
+              "model": "anthropic/claude-opus-5.5",
+              "share": 0.8
+            },
+            {
+              "model": "moonshotai/kimi-k3.1-pro",
+              "share": 0.2
+            },
+            {
+              "model": "google/gemini-3.8-flash",
+              "share": 0
+            }
+          ]
+        },
+        "fast": {
+          "medianCredits": 101,
+          "p90Credits": 276,
+          "runs": 9,
+          "successRate": 1,
+          "medianDurationMs": 64085,
+          "servedModels": [
+            {
+              "model": "anthropic/claude-haiku-5.5",
+              "share": 1
+            }
+          ]
+        },
+        "premium": {
+          "medianCredits": 1127,
+          "p90Credits": 2297,
+          "runs": 9,
+          "successRate": 1,
+          "medianDurationMs": 46850,
+          "servedModels": [
+            {
+              "model": "anthropic/claude-sonnet-5.5",
+              "share": 1
+            }
+          ]
+        },
+        "deepseek": {
+          "medianCredits": 48,
+          "p90Credits": 113,
+          "runs": 21,
+          "successRate": 0.76,
+          "medianDurationMs": 75143,
+          "servedModels": [
+            {
+              "model": "deepseek/deepseek-v4-flash-0731",
+              "share": 1
+            }
+          ]
+        },
+        "glm": {
+          "medianCredits": 44,
+          "p90Credits": 267,
+          "runs": 15,
+          "successRate": 0.73,
+          "medianDurationMs": 188573,
+          "servedModels": [
+            {
+              "model": "z-ai/glm-5.3-flash",
+              "share": 1
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "security-audit-complex",
+      "title": "security audit (complex contract)",
+      "costs": {
+        "default": {
+          "medianCredits": 3169,
+          "p90Credits": 3470,
+          "runs": 9,
+          "successRate": 1,
+          "medianDurationMs": 93855,
+          "servedModels": [
+            {
+              "model": "anthropic/claude-opus-5.5",
+              "share": 0.81
+            },
+            {
+              "model": "moonshotai/kimi-k3.1-pro",
+              "share": 0.18
+            },
+            {
+              "model": "z-ai/glm-5.3",
+              "share": 0.01
+            }
+          ]
+        },
+        "fast": {
+          "medianCredits": 195,
+          "p90Credits": 281,
+          "runs": 8,
+          "successRate": 1,
+          "medianDurationMs": 74637,
+          "servedModels": [
+            {
+              "model": "anthropic/claude-haiku-5.5",
+              "share": 1
+            }
+          ]
+        },
+        "premium": {
+          "medianCredits": 4088,
+          "p90Credits": 5505,
+          "runs": 9,
+          "successRate": 1,
+          "medianDurationMs": 110036,
+          "servedModels": [
+            {
+              "model": "anthropic/claude-sonnet-5.5",
+              "share": 1
+            }
+          ]
+        },
+        "deepseek": {
+          "medianCredits": 132,
+          "p90Credits": 313,
+          "runs": 16,
+          "successRate": 0.69,
+          "medianDurationMs": 83576,
+          "servedModels": [
+            {
+              "model": "deepseek/deepseek-v4-flash-0731",
+              "share": 1
+            },
+            {
+              "model": "unknown",
+              "share": 0
+            }
+          ]
+        },
+        "glm": {
+          "medianCredits": 123,
+          "p90Credits": 361,
+          "runs": 9,
+          "successRate": 0.56,
+          "medianDurationMs": 144064,
+          "servedModels": [
+            {
+              "model": "z-ai/glm-5.3-flash",
+              "share": 1
+            },
+            {
+              "model": "unknown",
+              "share": 0
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "frontend-generation",
+      "title": "frontend generation",
+      "costs": {
+        "default": {
+          "medianCredits": 5130,
+          "p90Credits": 9157,
+          "runs": 3,
+          "successRate": 1,
+          "medianDurationMs": 247056,
+          "servedModels": [
+            {
+              "model": "anthropic/claude-opus-5.5",
+              "share": 0.87
+            },
+            {
+              "model": "moonshotai/kimi-k3.1-pro",
+              "share": 0.13
+            },
+            {
+              "model": "google/gemini-4-argon",
+              "share": 0
+            }
+          ]
+        },
+        "fast": {
+          "medianCredits": 119,
+          "p90Credits": 120,
+          "runs": 3,
+          "successRate": 1,
+          "medianDurationMs": 39418,
+          "servedModels": [
+            {
+              "model": "anthropic/claude-haiku-5.5",
+              "share": 1
+            }
+          ]
+        },
+        "premium": {
+          "medianCredits": 2659,
+          "p90Credits": 2769,
+          "runs": 3,
+          "successRate": 1,
+          "medianDurationMs": 64682,
+          "servedModels": [
+            {
+              "model": "anthropic/claude-sonnet-5.5",
+              "share": 1
+            }
+          ]
+        },
+        "deepseek": {
+          "medianCredits": 59,
+          "p90Credits": 96,
+          "runs": 6,
+          "successRate": 1,
+          "medianDurationMs": 57185,
+          "servedModels": [
+            {
+              "model": "deepseek/deepseek-v4-flash-0731",
+              "share": 1
+            }
+          ]
+        },
+        "glm": {
+          "medianCredits": 59,
+          "p90Credits": 117,
+          "runs": 3,
+          "successRate": 1,
+          "medianDurationMs": 85218,
+          "servedModels": [
+            {
+              "model": "z-ai/glm-5.3-flash",
+              "share": 1
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "contract-generation-agent",
+      "title": "contract generation",
+      "costs": {
+        "default": {
+          "medianCredits": 1792,
+          "p90Credits": 3165,
+          "runs": 3,
+          "successRate": 0.67,
+          "medianDurationMs": 43340,
+          "servedModels": [
+            {
+              "model": "anthropic/claude-opus-5.5",
+              "share": 0.94
+            },
+            {
+              "model": "z-ai/glm-5.3",
+              "share": 0.06
+            }
+          ]
+        },
+        "fast": {
+          "medianCredits": 65,
+          "p90Credits": 70,
+          "runs": 3,
+          "successRate": 1,
+          "medianDurationMs": 31387,
+          "servedModels": [
+            {
+              "model": "anthropic/claude-haiku-5.5",
+              "share": 1
+            }
+          ]
+        },
+        "premium": {
+          "medianCredits": 1355,
+          "p90Credits": 1370,
+          "runs": 3,
+          "successRate": 1,
+          "medianDurationMs": 32237,
+          "servedModels": [
+            {
+              "model": "anthropic/claude-sonnet-5.5",
+              "share": 1
+            }
+          ]
+        },
+        "deepseek": {
+          "medianCredits": 67,
+          "p90Credits": 90,
+          "runs": 6,
+          "successRate": 0.83,
+          "medianDurationMs": 72837,
+          "servedModels": [
+            {
+              "model": "deepseek/deepseek-v4-flash-0731",
+              "share": 1
+            }
+          ]
+        },
+        "glm": {
+          "medianCredits": 50,
+          "p90Credits": 86,
+          "runs": 3,
+          "successRate": 0.67,
+          "medianDurationMs": 45751,
+          "servedModels": [
+            {
+              "model": "z-ai/glm-5.3-flash",
+              "share": 1
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "contract-generation-generate",
+      "title": "contract generation (/generate)",
+      "costs": {
+        "default": {
+          "medianCredits": 81,
+          "p90Credits": 103,
+          "runs": 3,
+          "successRate": 1,
+          "medianDurationMs": 47222,
+          "servedModels": [
+            {
+              "model": "x-ai/grok-4.7",
+              "share": 0.41
+            },
+            {
+              "model": "google/gemini-3.8-flash",
+              "share": 0.41
+            },
+            {
+              "model": "minimax/minimax-m3.1-flash",
+              "share": 0.17
+            }
+          ]
+        },
+        "fast": {
+          "medianCredits": 126,
+          "p90Credits": 126,
+          "runs": 3,
+          "successRate": 0.33,
+          "medianDurationMs": 240727,
+          "servedModels": [
+            {
+              "model": "anthropic/claude-haiku-4.5",
+              "share": 1
+            },
+            {
+              "model": "anthropic/claude-haiku-5.5",
+              "share": 0
+            }
+          ]
+        },
+        "premium": {
+          "medianCredits": 166,
+          "p90Credits": 380,
+          "runs": 2,
+          "successRate": 1,
+          "medianDurationMs": 26171,
+          "servedModels": [
+            {
+              "model": "anthropic/claude-sonnet-5",
+              "share": 0.98
+            },
+            {
+              "model": "anthropic/claude-sonnet-5.5",
+              "share": 0.02
+            }
+          ]
+        },
+        "deepseek": {
+          "medianCredits": 6,
+          "p90Credits": 24,
+          "runs": 5,
+          "successRate": 1,
+          "medianDurationMs": 23160,
+          "servedModels": [
+            {
+              "model": "deepseek/deepseek-v4-flash-0731",
+              "share": 1
+            }
+          ]
+        },
+        "glm": {
+          "medianCredits": 11,
+          "p90Credits": 28,
+          "runs": 3,
+          "successRate": 0.67,
+          "medianDurationMs": 59274,
+          "servedModels": [
+            {
+              "model": "z-ai/glm-5.3-flash",
+              "share": 1
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "autofill-inputs",
+      "title": "deploy-input autofill",
+      "costs": {
+        "default": {
+          "medianCredits": 2,
+          "p90Credits": 8,
+          "runs": 3,
+          "successRate": 1,
+          "medianDurationMs": 2639,
+          "servedModels": [
+            {
+              "model": "google/gemini-3.8-flash",
+              "share": 0.73
+            },
+            {
+              "model": "minimax/minimax-m3.1-flash",
+              "share": 0.27
+            }
+          ]
+        },
+        "fast": {
+          "medianCredits": 2,
+          "p90Credits": 2,
+          "runs": 3,
+          "successRate": 1,
+          "medianDurationMs": 2619,
+          "servedModels": [
+            {
+              "model": "anthropic/claude-haiku-5.5",
+              "share": 1
+            }
+          ]
+        },
+        "premium": {
+          "medianCredits": 25,
+          "p90Credits": 26,
+          "runs": 3,
+          "successRate": 1,
+          "medianDurationMs": 2656,
+          "servedModels": [
+            {
+              "model": "anthropic/claude-sonnet-5.5",
+              "share": 1
+            }
+          ]
+        },
+        "deepseek": {
+          "medianCredits": 2,
+          "p90Credits": 2,
+          "runs": 6,
+          "successRate": 1,
+          "medianDurationMs": 5615,
+          "servedModels": [
+            {
+              "model": "deepseek/deepseek-v4-flash-0731",
+              "share": 1
+            }
+          ]
+        },
+        "glm": {
+          "medianCredits": 2,
+          "p90Credits": 2,
+          "runs": 3,
+          "successRate": 1,
+          "medianDurationMs": 6146,
+          "servedModels": [
+            {
+              "model": "z-ai/glm-5.3-flash",
+              "share": 1
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "fix-compile-error",
+      "title": "compile error fix",
+      "costs": {
+        "default": {
+          "medianCredits": 82,
+          "p90Credits": 764,
+          "runs": 4,
+          "successRate": 1,
+          "medianDurationMs": 13571,
+          "servedModels": [
+            {
+              "model": "anthropic/claude-opus-5.5",
+              "share": 0.99
+            },
+            {
+              "model": "z-ai/glm-5.3",
+              "share": 0.01
+            },
+            {
+              "model": "anthropic/claude-haiku-5.5",
+              "share": 0
+            }
+          ]
+        },
+        "fast": {
+          "medianCredits": 17,
+          "p90Credits": 17,
+          "runs": 3,
+          "successRate": 1,
+          "medianDurationMs": 11595,
+          "servedModels": [
+            {
+              "model": "anthropic/claude-haiku-5.5",
+              "share": 1
+            }
+          ]
+        },
+        "premium": {
+          "medianCredits": 311,
+          "p90Credits": 311,
+          "runs": 3,
+          "successRate": 1,
+          "medianDurationMs": 11569,
+          "servedModels": [
+            {
+              "model": "anthropic/claude-sonnet-5.5",
+              "share": 1
+            }
+          ]
+        },
+        "deepseek": {
+          "medianCredits": 12,
+          "p90Credits": 15,
+          "runs": 5,
+          "successRate": 1,
+          "medianDurationMs": 11936,
+          "servedModels": [
+            {
+              "model": "deepseek/deepseek-v4-flash-0731",
+              "share": 1
+            }
+          ]
+        },
+        "glm": {
+          "medianCredits": 11,
+          "p90Credits": 13,
+          "runs": 3,
+          "successRate": 1,
+          "medianDurationMs": 12596,
+          "servedModels": [
+            {
+              "model": "z-ai/glm-5.3-flash",
+              "share": 1
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "explain-contract",
+      "title": "contract explanation",
+      "costs": {
+        "default": {
+          "medianCredits": 13,
+          "p90Credits": 14,
+          "runs": 3,
+          "successRate": 1,
+          "medianDurationMs": 9280,
+          "servedModels": [
+            {
+              "model": "z-ai/glm-5.3",
+              "share": 0.71
+            },
+            {
+              "model": "deepseek/deepseek-v4.1-flash-1017",
+              "share": 0.23
+            },
+            {
+              "model": "anthropic/claude-haiku-5.5",
+              "share": 0.06
+            }
+          ]
+        },
+        "fast": {
+          "medianCredits": 11,
+          "p90Credits": 11,
+          "runs": 4,
+          "successRate": 1,
+          "medianDurationMs": 8234,
+          "servedModels": [
+            {
+              "model": "anthropic/claude-haiku-5.5",
+              "share": 1
+            }
+          ]
+        },
+        "premium": {
+          "medianCredits": 214,
+          "p90Credits": 215,
+          "runs": 6,
+          "successRate": 1,
+          "medianDurationMs": 10268,
+          "servedModels": [
+            {
+              "model": "anthropic/claude-sonnet-5.5",
+              "share": 1
+            }
+          ]
+        },
+        "deepseek": {
+          "medianCredits": 8,
+          "p90Credits": 11,
+          "runs": 5,
+          "successRate": 1,
+          "medianDurationMs": 9284,
+          "servedModels": [
+            {
+              "model": "deepseek/deepseek-v4-flash-0731",
+              "share": 1
+            }
+          ]
+        },
+        "glm": {
+          "medianCredits": 7,
+          "p90Credits": 10,
+          "runs": 3,
+          "successRate": 1,
+          "medianDurationMs": 9317,
+          "servedModels": [
+            {
+              "model": "z-ai/glm-5.3-flash",
+              "share": 1
+            }
+          ]
+        }
+      }
+    }
+  ]
+}
