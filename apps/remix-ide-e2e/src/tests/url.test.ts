@@ -378,9 +378,16 @@ module.exports = {
       .url('http://127.0.0.1:8080/#optimize=false&runs=200&url=https://raw.githubusercontent.com/EthVM/evm-source-verification/main/contracts/1/0x011e5846975c6463a8c6337eecf3cbf64e328884/input.json')
       .refreshPage()
       .currentWorkspaceIs('code-sample-')
-      .waitForElementVisible('*[data-id="treeViewDivtreeViewItem@openzeppelin/contracts/access/AccessControl.sol"]')
+      // Wait up to 60s for the JSON to load, all source files to be written, and
+      // the lifecycle to open the first file (which expands its folder hierarchy).
+      // The @openzeppelin folder is always at the root so it appears without any
+      // manual expansion once the workspace is populated.
+      .waitForElementVisible('*[data-id="treeViewLitreeViewItem@openzeppelin"]', 60000)
+      .waitForElementVisible('*[data-id="treeViewLitreeViewItemcontracts"]', 10000)
       .openFile('contracts')
+      .waitForElementVisible('*[data-id="treeViewLitreeViewItemcontracts/governance"]', 10000)
       .openFile('contracts/governance')
+      .waitForElementVisible('*[data-id="treeViewLitreeViewItemcontracts/governance/UnionGovernor.sol"]', 10000)
       .openFile('contracts/governance/UnionGovernor.sol')
   },
 
