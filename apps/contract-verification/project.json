@@ -46,6 +46,13 @@
         "eslintConfig": "apps/contract-verification/.eslintrc"
       }
     },
+    "test": {
+      "executor": "@nrwl/workspace:run-commands",
+      "options": {
+        "command": "TS_NODE_PROJECT=apps/contract-verification/tsconfig.spec.json mocha --timeout 20000 -r ts-node/register \"apps/contract-verification/test/**/*.spec.ts\"",
+        "cwd": "."
+      }
+    },
     "serve": {
       "executor": "@nrwl/webpack:dev-server",
       "defaultConfiguration": "development",

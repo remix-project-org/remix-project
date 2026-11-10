@@ -1,35 +1,10 @@
 import { CompilerAbstract } from '@remix-project/remix-solidity'
 import { AbstractVerifier } from './AbstractVerifier'
 import type { LookupResponse, SourceFile, SubmittedContract, VerificationResponse, VerificationStatus } from '../types'
-import { getAddress } from 'ethers'
-
-interface SourcifyVerificationRequest {
-  stdJsonInput: any
-  compilerVersion: string
-  contractIdentifier: string
-  creationTransactionHash?: string
-}
+import { sourcify } from 'explorer-verify/clients/sourcify'
+import { type ExplorerVerifyRoute, poll, submit, toVerifyInput } from './explorerVerify'
 
 type SourcifyVerificationStatus = 'exact_match' | 'match' | null
-
-interface SourcifyVerificationResponse {
-  verificationId: string
-}
-
-interface SourcifyCheckStatusResponse {
-  isJobCompleted: boolean
-  verificationId: string
-  jobStartTime: string
-  jobFinishTime: string
-  contract: {
-    match: SourcifyVerificationStatus
-    creationMatch: SourcifyVerificationStatus
-    runtimeMatch: SourcifyVerificationStatus
-    chainId: string
-    address: string
-  }
-  error?: SourcifyErrorResponse
-}
 
 interface SourcifyErrorResponse {
   customCode: string
@@ -60,50 +35,15 @@ export class SourcifyVerifier extends AbstractVerifier {
     super(apiUrl, explorerUrl)
   }
 
+  /** The explorer-verify route for this verifier's settings. */
+  protected explorerVerifyRoute(): ExplorerVerifyRoute {
+    return { backend: 'sourcify', clients: [sourcify()], route: { backend: 'sourcify', apiUrl: this.apiUrl } }
+  }
+
   async verify(submittedContract: SubmittedContract, compilerAbstract: CompilerAbstract): Promise<VerificationResponse> {
-    const metadata = JSON.parse(compilerAbstract.data.contracts[submittedContract.filePath][submittedContract.contractName].metadata)
-    const compilerVersion = `v${metadata.compiler.version}`
-    const contractIdentifier = `${submittedContract.filePath}:${submittedContract.contractName}`
-
-    let stdJsonInput: any
-    if (typeof compilerAbstract.input === 'string') {
-      stdJsonInput = JSON.parse(compilerAbstract.input)
-    } else {
-      stdJsonInput = compilerAbstract.input
-    }
-
-    const body: SourcifyVerificationRequest = {
-      stdJsonInput,
-      compilerVersion,
-      contractIdentifier,
-    }
-
-    const response = await fetch(`${this.apiUrl}/v2/verify/${submittedContract.chainId}/${submittedContract.address}`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(body)
-    })
-
-    if (!response.ok) {
-      if (response.status === 409) {
-        return { status: 'already verified', receiptId: null, lookupUrl: this.getContractCodeUrl(submittedContract.address, submittedContract.chainId) }
-      }
-
-      const errorResponse: SourcifyErrorResponse = await response.json()
-      console.error('Error on Sourcify verification at ' + this.apiUrl + '\nStatus: ' + response.status + '\nResponse: ' + JSON.stringify(errorResponse))
-      throw new Error(errorResponse.message || 'Verification failed')
-    }
-
-    const verificationResponse: SourcifyVerificationResponse = await response.json()
-
-    return {
-      status: 'pending',
-      receiptId: verificationResponse.verificationId,
-      receiptLookupUrl: this.receiptLookupUrl(verificationResponse.verificationId),
-      lookupUrl: this.getContractCodeUrl(submittedContract.address, submittedContract.chainId),
-    }
+    const { jobId, ...response } = await submit(this.explorerVerifyRoute(), toVerifyInput(submittedContract, compilerAbstract))
+    const lookupUrl = this.getContractCodeUrl(submittedContract.address, submittedContract.chainId)
+    return jobId ? { ...response, lookupUrl, receiptLookupUrl: this.receiptLookupUrl(jobId) } : { ...response, lookupUrl }
   }
 
   receiptLookupUrl(receiptId: string): string {
@@ -111,57 +51,7 @@ export class SourcifyVerifier extends AbstractVerifier {
   }
 
   async checkVerificationStatus(receiptId: string, chainId: string): Promise<VerificationResponse> {
-    const response = await fetch(`${this.apiUrl}/v2/verify/${receiptId}`, {
-      method: 'GET',
-    })
-
-    if (!response.ok) {
-      let errorResponse: SourcifyErrorResponse
-      try {
-        errorResponse = await response.json()
-      } catch {
-        //pass
-      }
-      if (errorResponse) {
-        console.error('Error checking Sourcify verification status at ' + this.apiUrl + '\nStatus: ' + response.status + '\nResponse: ' + JSON.stringify(errorResponse))
-        throw new Error(errorResponse.message || 'Status check failed')
-      } else {
-        const responseText = await response.text()
-        console.error('Error checking Sourcify verification status at ' + this.apiUrl + '\nStatus: ' + response.status + '\nResponse: ' + responseText)
-        throw new Error(responseText)
-      }
-    }
-
-    const checkStatusResponse: SourcifyCheckStatusResponse = await response.json()
-
-    if (!checkStatusResponse.isJobCompleted) {
-      return { status: 'pending', receiptId }
-    }
-
-    if (checkStatusResponse.error) {
-      if (checkStatusResponse.error.customCode === 'already_verified') {
-        return { status: 'already verified', receiptId, message: checkStatusResponse.error.message }
-      }
-      const message = checkStatusResponse.error.message || 'Unknown error'
-      return { status: 'failed', receiptId, message }
-    }
-
-    let status: VerificationStatus
-    switch (checkStatusResponse.contract.match) {
-    case 'exact_match':
-      status = 'exactly verified'
-      break
-    case 'match':
-      status = 'verified'
-      break
-    default:
-      status = 'not verified'
-      break
-    }
-    return {
-      status,
-      receiptId,
-    }
+    return poll(this.explorerVerifyRoute(), receiptId)
   }
 
   async lookup(contractAddress: string, chainId: string): Promise<LookupResponse> {
