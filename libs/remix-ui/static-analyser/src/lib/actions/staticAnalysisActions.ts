@@ -10,14 +10,14 @@ import { RemixUiStaticAnalyserProps } from '@remix-ui/static-analyser'
  * @param dispatch { React.Dispatch<any> } analysisReducer function's dispatch method
  */
 export const compilation = (analysisModule: AnalysisTab,
-  dispatch: React.Dispatch<RemixUiStaticAnalyserReducerActionType>, onCompilationFinished?: () => void) => {
+  dispatch: React.Dispatch<RemixUiStaticAnalyserReducerActionType>, onCompilationFinished?: (file: string, source: SourceWithTarget) => void) => {
   if (analysisModule) {
     analysisModule.on(
       'solidity',
       'compilationFinished',
       (file: string, source: SourceWithTarget, languageVersion: string, data: CompilationResult, input: string, version: string) => {
         if (languageVersion.indexOf('soljson') !== 0) return
-        onCompilationFinished && onCompilationFinished()
+        onCompilationFinished && onCompilationFinished(file, source)
         dispatch({ type: 'compilationFinished', payload: { file, source, languageVersion, data, input, version } })
       }
     )

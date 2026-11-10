@@ -14,6 +14,7 @@ import { CodeAnalysis } from '@remix-project/remix-analyzer'
 import Tab from 'react-bootstrap/Tab'
 import Tabs from 'react-bootstrap/Tabs'
 import { AnalysisTab, SolHintReport } from '../staticanalyser'
+import { SourceWithTarget } from '@remixproject/plugin-api'
 import { run } from './actions/staticAnalysisActions'
 import { BasicTitle, calculateWarningStateEntries } from './components/BasicTitle'
 import { Nav, TabContainer } from 'react-bootstrap'
@@ -30,8 +31,13 @@ export interface RemixUiStaticAnalyserProps {
 
 type tabSelectionType = 'remix' | 'solhint' | 'slither' | 'none'
 
+// what was compiled: the file and the content of every source in the compilation
+const compiledSourceKey = (file: string, source: SourceWithTarget) =>
+  JSON.stringify([file, Object.entries(source?.sources || {}).map(([path, s]) => [path, s.content]).sort()])
+
 export const RemixUiStaticAnalyser = (props: RemixUiStaticAnalyserProps) => {
   const [runner] = useState(new CodeAnalysis())
+  const lastCompiledKey = useRef<string>(null)
   const platform = useContext(platformContext)
   const appContext = useContext(AppContext)
   const { trackMatomoEvent } = useContext(TrackingContext)
@@ -107,8 +113,13 @@ export const RemixUiStaticAnalyser = (props: RemixUiStaticAnalyserProps) => {
 
   useEffect(() => {
     // one compilationFinished listener per plugin: the engine ignores a second registration,
-    // so clearing the previous results has to happen in this one
-    compilation(props.analysisModule, dispatch, () => {
+    // so clearing the previous results has to happen in this one.
+    // Only a changed source clears them: auto-compile often recompiles the same code
+    // right after a run, which would wipe the results that were just shown.
+    compilation(props.analysisModule, dispatch, (file, source) => {
+      const key = compiledSourceKey(file, source)
+      if (key === lastCompiledKey.current) return
+      lastCompiledKey.current = key
       setHints([])
       setSlitherWarnings([])
       setSsaWarnings([])
