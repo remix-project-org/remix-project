@@ -1,5 +1,5 @@
 import { Plugin } from '@remixproject/engine'
-import { AuthUser, AuthProvider as AuthProviderType, ApiClient, SSOApiService, CreditsApiService, PermissionsApiService, BillingApiService, ProductsApiService, CheckoutsApiService, InviteApiService, TestPoolApiService, EthSkillsApiService, Credits, InviteValidateResponse, InviteRedeemResponse, RegistrationMode, RegistrationModeResponse, LoginMode, LoginModeResponse, ACCESS_POLICY_ERROR_CODES, AccessPolicy, AccessPolicyResponse, AppConfig, PublicPlan, PoolCheckoutResponse, PoolReleaseResponse, PoolStatusResponse } from '@remix-api'
+import { AuthUser, AuthProvider as AuthProviderType, ApiClient, SSOApiService, CreditsApiService, PermissionsApiService, BillingApiService, ProductsApiService, CheckoutsApiService, InviteApiService, TestPoolApiService, EthSkillsApiService, Credits, InviteValidateResponse, InviteRedeemResponse, RegistrationMode, RegistrationModeResponse, LoginMode, LoginModeResponse, ACCESS_POLICY_ERROR_CODES, AccessPolicy, AccessPolicyResponse, AppConfig, PublicPlan, PoolCheckoutResponse, PoolReleaseResponse, PoolStatusResponse, SameEmailOverviewResponse } from '@remix-api'
 import { endpointUrls } from '@remix-endpoints-helper'
 import { QueryParams } from '@remix-project/remix-lib'
 import { getAddress } from 'ethers'
@@ -10,8 +10,8 @@ const profile = {
   name: 'auth',
   displayName: 'Authentication',
   description: 'Handles SSO authentication and credits',
-  methods: ['login', 'logout', 'getUser', 'getCredits', 'refreshCredits', 'linkAccount', 'getLinkedAccounts', 'unlinkAccount', 'getApiClient', 'getSSOApi', 'getCreditsApi', 'getPermissionsApi', 'getBillingApi', 'getProductsApi', 'getCheckoutsApi', 'getEthSkillsApi', 'checkPermission', 'hasPermission', 'getAllPermissions', 'refreshPermissions', 'checkPermissions', 'getFeaturesByCategory', 'getFeatureLimit', 'getPaddleConfig', 'fetchGitHubToken', 'disconnectGitHub', 'getInviteApi', 'validateInviteToken', 'redeemInviteToken', 'getPendingInviteToken', 'setPendingInviteToken', 'setPendingInviteValidation', 'clearPendingInviteToken', 'getPendingInviteValidation', 'isAuthenticated', 'getToken', 'getRegistrationMode', 'getLoginMode', 'refreshLoginMode', 'getAccessPolicy', 'refreshAccessPolicy', 'notifyEmailOtpLogin', 'getAppConfig', 'refreshAppConfig', 'getAppConfigValue', 'getPublicPlans', 'reportUserLocale', 'poolCheckout', 'poolRelease', 'poolStatus', 'poolReleaseAll', 'isPoolAvailable'],
-  events: ['authStateChanged', 'creditsUpdated', 'accountLinked', 'gitHubTokenReady', 'inviteTokenDetected', 'inviteTokenRedeemed', 'registrationModeChanged', 'loginModeChanged', 'accessPolicyChanged', 'appConfigChanged']
+  methods: ['login', 'logout', 'getUser', 'getCredits', 'refreshCredits', 'linkAccount', 'getLinkedAccounts', 'unlinkAccount', 'getSameEmailAccounts', 'getApiClient', 'getSSOApi', 'getCreditsApi', 'getPermissionsApi', 'getBillingApi', 'getProductsApi', 'getCheckoutsApi', 'getEthSkillsApi', 'checkPermission', 'hasPermission', 'getAllPermissions', 'refreshPermissions', 'checkPermissions', 'getFeaturesByCategory', 'getFeatureLimit', 'getPaddleConfig', 'fetchGitHubToken', 'disconnectGitHub', 'getInviteApi', 'validateInviteToken', 'redeemInviteToken', 'getPendingInviteToken', 'setPendingInviteToken', 'setPendingInviteValidation', 'clearPendingInviteToken', 'getPendingInviteValidation', 'isAuthenticated', 'getToken', 'getRegistrationMode', 'getLoginMode', 'refreshLoginMode', 'getAccessPolicy', 'refreshAccessPolicy', 'notifyEmailOtpLogin', 'getAppConfig', 'refreshAppConfig', 'getAppConfigValue', 'getPublicPlans', 'reportUserLocale', 'poolCheckout', 'poolRelease', 'poolStatus', 'poolReleaseAll', 'isPoolAvailable'],
+  events: ['authStateChanged', 'creditsUpdated', 'accountLinked', 'gitHubTokenReady', 'inviteTokenDetected', 'inviteTokenRedeemed', 'registrationModeChanged', 'loginModeChanged', 'accessPolicyChanged', 'appConfigChanged', 'sameEmailAccountsChanged']
 }
 
 export class AuthPlugin extends Plugin {
@@ -52,6 +52,11 @@ export class AuthPlugin extends Plugin {
    * feature_groups instead of the stale cached snapshot.
    */
   private freshPermissions: any | null = null
+  /** Last same-email overview for the signed-in user (null = none / not loaded / no verified email). */
+  private sameEmailOverview: SameEmailOverviewResponse | null = null
+  /** Monotonic id so only the latest same-email request may write the cache. */
+  private sameEmailRequestSeq = 0
+  private sameEmailInflight: Promise<SameEmailOverviewResponse | null> | null = null
 
   /** Debug-gated logger – silent when DEBUG is false */
   private log(...args: any[]) {
@@ -323,7 +328,7 @@ export class AuthPlugin extends Plugin {
     const token = await this.getToken()
     if (user && token) {
       this.log('[AuthPlugin] refreshPermissions – re-emitting authStateChanged')
-      this.emit('authStateChanged', {
+      this.emitAuthState({
         isAuthenticated: true,
         user,
         token
@@ -760,7 +765,7 @@ export class AuthPlugin extends Plugin {
         this.scheduleRefresh(data.accessToken)
 
         // Emit auth state change
-        this.emit('authStateChanged', {
+        this.emitAuthState({
           isAuthenticated: true,
           user: data.user,
           token: data.accessToken
@@ -955,7 +960,7 @@ export class AuthPlugin extends Plugin {
       // Schedule proactive refresh based on access token expiry
       this.scheduleRefresh(result.accessToken)
 
-      this.emit('authStateChanged', {
+      this.emitAuthState({
         isAuthenticated: true,
         user: result.user,
         token: result.accessToken,
@@ -992,7 +997,7 @@ export class AuthPlugin extends Plugin {
       this.clearStoredAuth()
 
       // Emit auth state change
-      this.emit('authStateChanged', {
+      this.emitAuthState({
         isAuthenticated: false,
         user: null,
         token: null
@@ -1288,7 +1293,7 @@ export class AuthPlugin extends Plugin {
           const userStr = localStorage.getItem('remix_user')
           const user = userStr ? JSON.parse(userStr) : null
           if (user) {
-            this.emit('authStateChanged', { isAuthenticated: true, user, token: newAccessToken })
+            this.emitAuthState({ isAuthenticated: true, user, token: newAccessToken })
             this.refreshCredits().catch(console.error)
           } else {
             this.emit('tokenRefreshed', { token: newAccessToken })
@@ -1404,6 +1409,79 @@ export class AuthPlugin extends Plugin {
     }
   }
 
+  /**
+   * Single entry point for `authStateChanged`. Besides broadcasting, it keeps
+   * the same-email overview in sync: every sign-in path, session restore and
+   * `refreshPermissions()` (run after email verification) passes through here.
+   */
+  private emitAuthState(state: { isAuthenticated: boolean; user?: any; token?: string | null; [key: string]: any }): void {
+    this.emit('authStateChanged', state)
+    if (!state?.isAuthenticated) {
+      this.sameEmailRequestSeq++
+      this.sameEmailInflight = null
+      this.setSameEmailOverview(null)
+      return
+    }
+    // Never expose the previous user's overview while the new one loads.
+    const userId = Number(state.user?.sub)
+    if (this.sameEmailOverview && Number.isInteger(userId) && userId !== this.sameEmailOverview.current_user_id) {
+      this.setSameEmailOverview(null)
+    }
+    void this.refreshSameEmailAccounts()
+  }
+
+  /**
+   * Other (unlinked) accounts registered with the user's verified email, and
+   * whether they hold credits or a subscription. Informational only — accounts
+   * are never linked from here. Resolves to null when signed out or when the
+   * user has no verified email yet.
+   */
+  async getSameEmailAccounts(forceRefresh = false): Promise<SameEmailOverviewResponse | null> {
+    if (!forceRefresh) {
+      if (this.sameEmailInflight) return this.sameEmailInflight
+      if (this.sameEmailOverview) return this.sameEmailOverview
+    }
+    return this.refreshSameEmailAccounts()
+  }
+
+  private refreshSameEmailAccounts(): Promise<SameEmailOverviewResponse | null> {
+    const seq = ++this.sameEmailRequestSeq
+    const isLatest = () => seq === this.sameEmailRequestSeq
+    const request = (async (): Promise<SameEmailOverviewResponse | null> => {
+      try {
+        const token = await this.getToken()
+        if (!token) {
+          if (isLatest()) this.setSameEmailOverview(null)
+          return null
+        }
+        const response = await this.ssoApi.getSameEmailAccounts()
+        if (!isLatest()) return this.sameEmailInflight ?? this.sameEmailOverview
+        if (response.ok && response.data) {
+          this.setSameEmailOverview(response.data)
+        } else if (response.status >= 400 && response.status < 500) {
+          // NO_EMAIL / EMAIL_NOT_VERIFIED / USER_NOT_FOUND: nothing to show (yet).
+          this.setSameEmailOverview(null)
+        } else {
+          this.log('[AuthPlugin] Same-email lookup failed transiently:', response.status, response.error)
+        }
+        return this.sameEmailOverview
+      } catch (error) {
+        this.log('[AuthPlugin] Same-email lookup error:', error)
+        return this.sameEmailOverview
+      } finally {
+        if (this.sameEmailInflight === request) this.sameEmailInflight = null
+      }
+    })()
+    this.sameEmailInflight = request
+    return request
+  }
+
+  private setSameEmailOverview(next: SameEmailOverviewResponse | null): void {
+    if (JSON.stringify(next) === JSON.stringify(this.sameEmailOverview)) return
+    this.sameEmailOverview = next
+    this.emit('sameEmailAccountsChanged' as any, next)
+  }
+
   private desktopAuthListenersRegistered = false
 
   private registerDesktopAuthListeners(): void {
@@ -1423,7 +1501,7 @@ export class AuthPlugin extends Plugin {
 
         this.scheduleRefresh(data.accessToken)
 
-        this.emit('authStateChanged', {
+        this.emitAuthState({
           isAuthenticated: true,
           user: data.user,
           token: data.accessToken
@@ -1500,7 +1578,7 @@ export class AuthPlugin extends Plugin {
       this.completeDesktopAuthIfPending(accessToken, refreshToken, user)
     }
 
-    this.emit('authStateChanged', {
+    this.emitAuthState({
       isAuthenticated: true,
       user,
       token: accessToken,
@@ -1544,7 +1622,7 @@ export class AuthPlugin extends Plugin {
           }
           this.log('[AuthPlugin] Refresh failed, clearing session')
           this.clearStoredAuth()
-          this.emit('authStateChanged', {
+          this.emitAuthState({
             isAuthenticated: false,
             user: null,
             token: null
@@ -1556,7 +1634,7 @@ export class AuthPlugin extends Plugin {
         const userStr = localStorage.getItem('remix_user')
         const user = userStr ? JSON.parse(userStr) : null
         if (user && refreshedToken) {
-          this.emit('authStateChanged', {
+          this.emitAuthState({
             isAuthenticated: true,
             user,
             token: refreshedToken
@@ -1586,7 +1664,7 @@ export class AuthPlugin extends Plugin {
         }
 
         if (user) {
-          this.emit('authStateChanged', {
+          this.emitAuthState({
             isAuthenticated: true,
             user,
             token
@@ -1608,7 +1686,7 @@ export class AuthPlugin extends Plugin {
           const userStr = localStorage.getItem('remix_user')
           const user = userStr ? JSON.parse(userStr) : null
           if (user && refreshedToken) {
-            this.emit('authStateChanged', {
+            this.emitAuthState({
               isAuthenticated: true,
               user,
               token: refreshedToken
@@ -1624,7 +1702,7 @@ export class AuthPlugin extends Plugin {
         } else {
           this.log('[AuthPlugin] Refresh failed, clearing session')
           this.clearStoredAuth()
-          this.emit('authStateChanged', {
+          this.emitAuthState({
             isAuthenticated: false,
             user: null,
             token: null
@@ -1637,7 +1715,7 @@ export class AuthPlugin extends Plugin {
       // An unverifiable token should not grant access.
       this.log('[AuthPlugin] Cannot reach auth server, clearing session')
       this.clearStoredAuth()
-      this.emit('authStateChanged', {
+      this.emitAuthState({
         isAuthenticated: false,
         user: null,
         token: null
@@ -1987,7 +2065,7 @@ export class AuthPlugin extends Plugin {
       // Schedule proactive token refresh
       this.scheduleRefresh(result.token)
 
-      this.emit('authStateChanged', {
+      this.emitAuthState({
         isAuthenticated: true,
         user: result.user,
         token: result.token,
@@ -2128,7 +2206,7 @@ export class AuthPlugin extends Plugin {
       }
 
       console.log('[Base] Login successful!')
-      this.emit('authStateChanged', {
+      this.emitAuthState({
         isAuthenticated: true,
         user: result.user,
         token: result.token,
@@ -2327,7 +2405,7 @@ export class AuthPlugin extends Plugin {
     this.scheduleRefresh(access_token)
 
     // Emit auth state change
-    this.emit('authStateChanged', {
+    this.emitAuthState({
       isAuthenticated: true,
       user: authUser,
       token: access_token
@@ -2395,7 +2473,7 @@ export class AuthPlugin extends Plugin {
 
     // Also clear auth state
     this.clearStoredAuth()
-    this.emit('authStateChanged', {
+    this.emitAuthState({
       isAuthenticated: false,
       user: null,
       token: null
