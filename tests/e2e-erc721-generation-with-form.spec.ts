@@ -43,7 +43,7 @@ test('e2e-erc721-generation-with-form', async ({ page }) => {
   await page.locator('[data-id="remix-ai-prompt-input"]').click();
   await page.locator('[data-id="remix-ai-prompt-input"]').fill(prompt);
   await page.locator('[data-id="remix-ai-prompt-input"]').press('Enter');
-  await page.getByRole('checkbox', { name: 'Auto-accept all changes' }).check();
+  await page.locator('[data-id="hitl-auto-accept-checkbox"]').check();
   await page.locator('[data-id="tool-approval-approve-button"]').first().click();
   await page.getByRole('combobox').waitFor({ state: 'visible' });
   await page.getByRole('combobox').selectOption('openzeppelin');
