@@ -415,6 +415,8 @@ module.exports = {
       .waitForElementVisible('*[data-id="workspace-name-input"]')
       .setValue('*[data-id="workspace-name-input"]', 'workspace_name')
       .click('*[data-id="validateWorkspaceButton"]')
+      // the previous workspace has a tests folder too: wait for the switch, or the old node goes stale
+      .currentWorkspaceIs('workspace_name')
       .waitForElementVisible('*[data-id="treeViewLitreeViewItemtests"]')
       .click('*[data-id="treeViewLitreeViewItemtests"]')
       .addFile('test.sol', { content: 'test' })
@@ -435,11 +437,14 @@ module.exports = {
       .waitForElementVisible('*[data-id="workspace-name-input"]')
       .setValue('*[data-id="workspace-name-input"]', 'workspace_name_1')
       .click('*[data-id="validateWorkspaceButton"]')
-      .waitForElementVisible('*[data-id="treeViewLitreeViewItemtests"]')
+      // wait until the old tree (with test.sol) is gone before touching the new one
+      .currentWorkspaceIs('workspace_name_1')
       .waitForElementNotPresent('*[data-id="treeViewLitreeViewItemtest.sol"]')
-      .switchWorkspace('workspace_name')
       .waitForElementVisible('*[data-id="treeViewLitreeViewItemtests"]')
+      .switchWorkspace('workspace_name')
       .currentWorkspaceIs('workspace_name')
+      .waitForElementVisible('*[data-id="treeViewLitreeViewItemtest.sol"]')
+      .waitForElementVisible('*[data-id="treeViewLitreeViewItemtests"]')
   },
 
   'Should rename a workspace #group1': function (browser: NightwatchBrowser) {
