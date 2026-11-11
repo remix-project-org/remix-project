@@ -3,6 +3,7 @@ import React, {useState, useEffect, useContext, useRef, ReactNode, ReactHTMLElem
 import './remix-ui-grid-cell.css'
 import FiltersContext from "./filtersContext"
 import { CustomTooltip } from '@remix-ui/helper'
+import { ToggleSwitch } from '@remix-ui/toggle'
 import { ChildCallbackContext } from './remix-ui-grid-section'
 
 interface RemixUIGridCellProps {
@@ -103,15 +104,19 @@ export const RemixUIGridCell = (props: RemixUIGridCellProps) => {
                 }
               </div> }
               { props.children }
-              { filterCon.showPin && <button
-                className={`${pinned ? 'fas fa-toggle-on fa-lg text-dark' : 'fas fa-toggle-off fa-lg text-secondary'}` + ` fa-regular border-0 p-0 mt-2 align-self-end me-1 remixui_grid_cell_pin`}
-                style={{ fontSize: 'large' }}
+              { filterCon.showPin && <span
+                className="d-flex mt-2 align-self-end me-1"
                 data-id={`${pinned ? `${props.id}-pinned` : `${props.id}-unpinned`}`}
-                onClick={async () => {
-                  if (!props.pinStateCallback) setPinned(!pinned)
-                  if (await props.pinStateCallback(!pinned)) setPinned(!pinned)
-                }}
-              ></button>}
+              >
+                <ToggleSwitch
+                  id={`${props.id}-pin`}
+                  isOn={pinned}
+                  onClick={async () => {
+                    if (!props.pinStateCallback) setPinned(!pinned)
+                    if (await props.pinStateCallback(!pinned)) setPinned(!pinned)
+                  }}
+                />
+              </span>}
             </div>
           </div>
 

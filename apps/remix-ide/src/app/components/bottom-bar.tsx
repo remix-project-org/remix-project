@@ -3,6 +3,7 @@ import { Plugin } from '@remixproject/engine'
 import { DebuggerEvent, MatomoEvent, Features, BottomBarEvent } from '@remix-api';
 import { TrackingContext } from '@remix-ide/tracking'
 import { CustomTooltip, isQuickDappRemixVMIdentifier, normalizeQuickDappEnvironment } from '@remix-ui/helper'
+import { ToggleSwitch } from '@remix-ui/toggle'
 import { QuickDappContractSelector, QuickDappSetupOptions, QuickDappFigmaPreparationResult } from '@remix-ui/quick-dapp-v2'
 import { appActionTypes, AppAction, AppContext, useAuth } from '@remix-ui/app'
 import './styles/bottom-bar.css'
@@ -624,10 +625,9 @@ For Inline mode, preserve the existing /frontend overwrite confirmation flow.`
       </div>
       <div className="copilot-toggle">
         <span className={aiSwitch ? 'on' : ''}>AI copilot</span>
-        <label className="switch" data-id="copilot_toggle">
-          <input type="checkbox" checked={aiSwitch} onChange={toggleAI} />
-          <span className="slider"></span>
-        </label>
+        <span className="d-flex" data-id="copilot_toggle">
+          <ToggleSwitch id="copilotToggle" size="sm" tone="ai" isOn={aiSwitch} onClick={toggleAI} />
+        </span>
       </div>
       {quickDappStartSetup && (
         <QuickDappContractSelector

@@ -68,6 +68,7 @@
   "filePanel.copyFileName": "Copy name",
   "filePanel.copyFilePath": "Copy path",
   "filePanel.contractflattener": "Flatten",
+  "filePanel.preDeployChecks": "Open in Pre-deploy Checks",
   "filePanel.nahmii-compiler": "Compile for Nahmii",
   "filePanel.solidityumlgen": "Generate UML",
   "filePanel.doc-gen": "Generate Docs",

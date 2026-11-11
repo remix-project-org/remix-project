@@ -12,7 +12,7 @@ const profile = {
   name: 'solidityStaticAnalysis',
   displayName: 'Solidity Analyzers',
   methods: ['analyze'],
-  events: [],
+  events: ['analysisFinished'],
   icon: 'assets/img/staticAnalysis.webp',
   description: 'Analyze your code using Remix, Solhint and Slither.',
   kind: 'analysis',
@@ -50,7 +50,7 @@ export default class AnalysisTab extends ViewPlugin {
       await this.call('manager', 'activatePlugin', 'solidity')
     }
 
-    this.event.register('staticAnaysisWarning', (count) => {
+    this.event.register('staticAnalysisWarning', (count) => {
       let payloadType = ''
       const error = this.hints?.find(hint => hint.type === 'error')
       if (error && this.solhintEnabled) {

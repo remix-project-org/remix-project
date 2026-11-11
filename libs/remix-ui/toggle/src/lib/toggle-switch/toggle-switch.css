@@ -1,0 +1,54 @@
+/* App-wide switch: a <button role="switch"> with a track and a sliding knob.
+   Colours come from the theme (--custom-primary and the --custom-switch-* variables). */
+.remix-switch {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+  vertical-align: middle;
+}
+.remix-switch:disabled { cursor: not-allowed; opacity: .45; }
+.remix-switch:focus { outline: none; }
+.remix-switch:focus-visible .remix-switch-track { outline: 2px solid var(--custom-primary); outline-offset: 2px; }
+
+.remix-switch-track {
+  position: relative;
+  display: block;
+  flex-shrink: 0;
+  width: 28px;
+  height: 16px;
+  border-radius: 999px;
+  background: var(--custom-switch-off);
+  transition: background-color .15s ease;
+}
+.remix-switch-knob {
+  position: absolute;
+  top: 50%;
+  left: 0;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--custom-switch-knob-off);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, .3);
+  transform: translate(2px, -50%);
+  transition: transform .15s ease, background-color .15s ease;
+}
+.remix-switch[aria-checked="true"] .remix-switch-track { background: var(--custom-primary); }
+.remix-switch[aria-checked="true"] .remix-switch-knob { background: var(--custom-switch-knob-on); transform: translate(14px, -50%); }
+.remix-switch-ai[aria-checked="true"] .remix-switch-track { background: var(--custom-ai-color); }
+
+.remix-switch-sm .remix-switch-track { width: 22px; height: 12px; }
+.remix-switch-sm .remix-switch-knob { width: 8px; height: 8px; }
+.remix-switch-sm[aria-checked="true"] .remix-switch-knob { transform: translate(12px, -50%); }
+
+.remix-switch-label { white-space: nowrap; }
+
+@media (prefers-reduced-motion: reduce) {
+  .remix-switch-track, .remix-switch-knob { transition: none; }
+}

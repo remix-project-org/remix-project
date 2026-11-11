@@ -8,7 +8,7 @@ const profile = {
   name: 'udappEnv',
   displayName: 'Udapp Environment',
   description: 'Maintains the schema for deployment and execution environment',
-  methods: ['getUI', 'getSelectedAccount', 'getLoadedAccounts', 'isSmartAccount', 'getDefaultProvider', 'getPassphrasePrompt', 'getSelectedProvider', 'getNetwork', 'changeExecutionContext'],
+  methods: ['getUI', 'getSelectedAccount', 'setSelectedAccount', 'getLoadedAccounts', 'isSmartAccount', 'getDefaultProvider', 'getPassphrasePrompt', 'getSelectedProvider', 'getNetwork', 'changeExecutionContext'],
   events: []
 }
 
@@ -43,6 +43,13 @@ export class EnvironmentPlugin extends Plugin {
   getSelectedAccount () {
     const state = this.getWidgetState?.()
     return state?.accounts?.selectedAccount || state?.accounts?.defaultAccounts[0]?.account
+  }
+
+  /** Selects one of the accounts loaded for the current environment, as picking it in the UI does. */
+  setSelectedAccount (address: string) {
+    const account = this.getLoadedAccounts().find((item: Account) => item.account?.toLowerCase() === address?.toLowerCase())
+    if (!account) throw new Error(`Account ${address} is not available in the current environment`)
+    this.getDispatch()({ type: 'SET_SELECTED_ACCOUNT', payload: account.account })
   }
 
   getLoadedAccounts () {
