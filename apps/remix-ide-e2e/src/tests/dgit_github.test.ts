@@ -65,9 +65,11 @@ module.exports = {
         selector: '//*[@data-id="clone-panel-content"]//*[@data-id="fetch-repositories"]',
         locateStrategy: 'xpath'
       })
+      // the select stays disabled while repositories load; a click before that is ignored
       .waitForElementVisible({
-        selector: '//*[@data-id="clone-panel-content"]//*[@id="repository-select"]',
-        locateStrategy: 'xpath'
+        selector: '//*[@data-id="clone-panel-content"]//*[@id="repository-select" and not(@disabled)]',
+        locateStrategy: 'xpath',
+        timeout: 30000
       })
       .click({
         selector: '//*[@data-id="clone-panel-content"]//*[@id="repository-select"]',
@@ -258,9 +260,11 @@ module.exports = {
         selector: '//*[@data-id="remotes-panel-content"]//*[@data-id="fetch-repositories"]',
         locateStrategy: 'xpath'
       })
+      // the select stays disabled while repositories load; a click before that is ignored
       .waitForElementVisible({
-        selector: '//*[@data-id="remotes-panel-content"]//*[@id="repository-select"]',
-        locateStrategy: 'xpath'
+        selector: '//*[@data-id="remotes-panel-content"]//*[@id="repository-select" and not(@disabled)]',
+        locateStrategy: 'xpath',
+        timeout: 30000
       })
       .click({
         selector: '//*[@data-id="remotes-panel-content"]//*[@id="repository-select"]',
