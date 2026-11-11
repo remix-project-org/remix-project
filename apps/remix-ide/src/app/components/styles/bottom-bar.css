@@ -18,7 +18,18 @@
 .bottom-bar .bottom-bar-ai-actions {
     display: flex;
     align-items: center;
-    gap: 2px;
+    gap: 4px;
+    margin-left: -8px;
+}
+
+.bottom-bar .btn-ai {
+    gap: 6px !important;
+    padding: 4px 8px !important;
+    font-size: 11px !important;
+}
+
+.bottom-bar .btn-ai i {
+    font-size: 10px;
 }
   
 .bottom-bar .copilot-toggle {
