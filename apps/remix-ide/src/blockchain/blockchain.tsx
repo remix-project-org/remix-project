@@ -190,7 +190,7 @@ export class Blockchain extends Plugin {
 
     this.on('txRunner','transactionBroadcasted', async (txhash, isUserOp) => {
       if (isUserOp) trackMatomoEvent(this, { category: 'udapp', action: 'safeSmartAccount', name: 'txBroadcastedFromSmartAccount', isClick: false })
-      // logTransaction(txhash, 'gui')
+      this.logTransaction(txhash, 'gui')
       const network = await this.executionContext.detectNetwork()
       if (!network) return
       if (network.name === 'VM') return
@@ -222,6 +222,22 @@ export class Blockchain extends Plugin {
         )
       }
     })
+  }
+
+  async logTransaction(txhash, origin) {
+    const network = await this.detectNetwork()
+    const actionName = origin === 'plugin' ? 'sendTransaction-from-plugin' : 'sendTransaction-from-gui'
+
+    if (network && network.id) {
+      trackMatomoEvent(this, { category: 'udapp', action: actionName, name: `${txhash}-${network.id}`, isClick: false })
+    } else {
+      try {
+        const networkString = JSON.stringify(network)
+        trackMatomoEvent(this, { category: 'udapp', action: actionName, name: `${txhash}-${networkString}`, isClick: false })
+      } catch (e) {
+        trackMatomoEvent(this, { category: 'udapp', action: actionName, name: `${txhash}-unknownnetwork`, isClick: false })
+      }
+    }
   }
 
   discardPreviousConnectionAttempt () {
@@ -765,24 +781,8 @@ export class Blockchain extends Plugin {
     // Expose web3 for QuickDapp bridge (bypasses plugin queue)
     ;(globalThis as any).__remixVM_web3 = this.web3()
 
-    const logTransaction = async (txhash, origin) => {
-      const network = await this.detectNetwork()
-      const actionName = origin === 'plugin' ? 'sendTransaction-from-plugin' : 'sendTransaction-from-gui';
-
-      if (network && network.id) {
-        trackMatomoEvent(this, { category: 'udapp', action: actionName, name: `${txhash}-${network.id}`, isClick: false })
-      } else {
-        try {
-          const networkString = JSON.stringify(network)
-          trackMatomoEvent(this, { category: 'udapp', action: actionName, name: `${txhash}-${networkString}`, isClick: false })
-        } catch (e) {
-          trackMatomoEvent(this, { category: 'udapp', action: actionName, name: `${txhash}-unknownnetwork`, isClick: false })
-        }
-      }
-    }
-
     this.on('web3Provider', 'transactionBroadcasted', (txhash) => {
-      logTransaction(txhash, 'plugin')
+      this.logTransaction(txhash, 'plugin')
     })
 
     this.call('txRunner', 'resetInternalRunner')
