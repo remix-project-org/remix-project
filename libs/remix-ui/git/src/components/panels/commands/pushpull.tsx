@@ -167,6 +167,11 @@ export const PushPull = () => {
   }, [context.remotes])
 
   const branchSearchPlaceholder = intl.formatMessage({ id: 'gitui.branchSearchPlaceholder' })
+  const upstreamName = context.upstream ? context.upstream.name : ''
+
+  // keep the chosen value visible even before it is in the list (e.g. a remote not fetched yet)
+  const withValue = (options: SelectOption[], value: string): SelectOption[] =>
+    value && !options.some((o) => o.value === value) ? [{ value, label: value }, ...options] : options
 
   const pushPullIsDisabled = () => {
     return localBranch === '' || remoteBranch === '' || !context.upstream || context.remotes.length === 0
@@ -186,7 +191,7 @@ export const PushPull = () => {
       <label className="pt-3 text-uppercase"><FormattedMessage id="gitui.localBranchLabel" /></label>
       <Select
         id='commands-local-branch-select'
-        options={localBranchOptions}
+        options={withValue(localBranchOptions, localBranch)}
         disabled={context.branches.length === 0}
         onChange={onLocalBranchChange}
         value={localBranch}
@@ -198,7 +203,7 @@ export const PushPull = () => {
       <label className="pt-3 text-uppercase"><FormattedMessage id="gitui.remoteBranchLabel" /></label>
       <Select
         id='commands-remote-branch-select'
-        options={remoteBranchOptions}
+        options={withValue(remoteBranchOptions, remoteBranch)}
         disabled={context.branches.length === 0}
         onChange={onRemoteBranchChange}
         value={remoteBranch}
@@ -210,10 +215,10 @@ export const PushPull = () => {
       <label className="pt-3 text-uppercase"><FormattedMessage id="gitui.remoteLabel" /></label>
       <Select
         id='commands-remote-origin-select'
-        options={localRemotesOptions}
+        options={withValue(localRemotesOptions, upstreamName)}
         disabled={context.remotes.length === 0}
         onChange={onRemoteChange}
-        value={context.upstream ? context.upstream.name : ''}
+        value={upstreamName}
         placeholder={branchSearchPlaceholder}
         searchable
         searchPlaceholder={branchSearchPlaceholder}
