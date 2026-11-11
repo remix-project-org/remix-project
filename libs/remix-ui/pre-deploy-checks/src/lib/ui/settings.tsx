@@ -1,10 +1,8 @@
 import React from 'react'
 import { FormattedMessage, IntlShape, useIntl } from 'react-intl'
-import { ToggleSwitch } from '@remix-ui/toggle'
-import { CHECK_STEPS, CheckStepId, StepToggles } from '../types'
+import { StepToggles } from '../types'
+import { CheckList } from './check-list'
 import { CompilerSummary, PreDeployChecksActions } from './types'
-
-const OPTIONAL_STEPS = CHECK_STEPS.filter((id) => id !== 'compile')
 
 function compilerLine (intl: IntlShape, compiler: CompilerSummary | null): string {
   if (!compiler?.version) return ''
@@ -37,20 +35,7 @@ export function Settings ({ toggles, compiler, disabled, onBack, plugin }: Setti
       <section className="pdc-card pdc-settings" data-id="preDeployChecks-settings">
         <div className="pdc-title"><FormattedMessage id="preDeployChecks.checksToRun" /></div>
         <p className="pdc-sub mb-2"><FormattedMessage id="preDeployChecks.checksToRunHint" /></p>
-        {OPTIONAL_STEPS.map((id: CheckStepId) => (
-          <label className="pdc-toggle" key={id} htmlFor={`preDeployChecks-toggle-${id}`}>
-            <span>
-              <span className="pdc-toggle-name"><FormattedMessage id={`preDeployChecks.step.${id}`} /></span>
-              <small><FormattedMessage id={`preDeployChecks.stepHint.${id}`} /></small>
-            </span>
-            <ToggleSwitch
-              id={`preDeployChecks-toggle-${id}`}
-              isOn={toggles[id]}
-              disabled={disabled}
-              onClick={() => plugin.setToggle(id, !toggles[id])}
-            />
-          </label>
-        ))}
+        <CheckList toggles={toggles} disabled={disabled} plugin={plugin} />
       </section>
       <section className="pdc-card pdc-settings">
         <div className="pdc-title"><FormattedMessage id="preDeployChecks.compiler" /></div>

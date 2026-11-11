@@ -3,8 +3,9 @@ import { FormattedMessage, useIntl } from 'react-intl'
 import { CustomTooltip } from '@remix-ui/helper'
 import { aggregateFindings } from '../findings'
 import { isStale } from '../store'
-import { CHECK_STEPS, Finding } from '../types'
+import { Finding } from '../types'
 import { deriveVerdict, toolLines } from '../verdict'
+import { CheckList } from './check-list'
 import { splitPath } from './format'
 import { Issues } from './issues'
 import { Deployment, Outputs } from './outputs'
@@ -53,22 +54,16 @@ function Header ({ file, onSettings }: { file: string, onSettings: () => void })
   )
 }
 
-function Intro ({ view, plugin, onSettings }: { view: PreDeployChecksViewState, plugin: PreDeployChecksActions, onSettings: () => void }) {
-  const steps = CHECK_STEPS.filter((id) => id === 'compile' || view.toggles[id])
+function Intro ({ view, plugin }: { view: PreDeployChecksViewState, plugin: PreDeployChecksActions }) {
   return (
     <section className="pdc-card pdc-intro" data-id="preDeployChecks-intro">
       <div className="pdc-title"><FormattedMessage id="preDeployChecks.intro.title" /></div>
       <div className="pdc-sub"><FormattedMessage id="preDeployChecks.intro.text" /></div>
-      <ul className="pdc-intro-list">
-        {steps.map((id) => <li key={id}><i className="far fa-circle" aria-hidden="true"></i><FormattedMessage id={`preDeployChecks.step.${id}`} /></li>)}
-      </ul>
+      <CheckList toggles={view.toggles} disabled={view.running} plugin={plugin} />
       <div className="pdc-actions">
         <button className="btn pdc-btn btn-primary" data-id="preDeployChecks-run" onClick={() => plugin.startRun(view.file)}>
           <FormattedMessage id="preDeployChecks.run" />
         </button>
-      </div>
-      <div className="text-center mt-2">
-        <button className="pdc-link-btn pdc-muted" data-id="preDeployChecks-chooseChecks" onClick={onSettings}><FormattedMessage id="preDeployChecks.chooseChecks" /></button>
       </div>
     </section>
   )
@@ -116,7 +111,7 @@ export function PreDeployChecksUI ({ plugin, view }: PreDeployChecksUIProps) {
     <div className={`pdc ${themeClass}`} data-id="preDeployChecks">
       <Header file={file} onSettings={() => setPage('settings')} />
       {verdict.kind === 'not-checked' ? (
-        <Intro view={view} plugin={plugin} onSettings={() => setPage('settings')} />
+        <Intro view={view} plugin={plugin} />
       ) : (
         <>
           <StatusCard file={file} verdict={verdict} actions={actions} cancelling={view.cancelling} now={now} plugin={plugin} />

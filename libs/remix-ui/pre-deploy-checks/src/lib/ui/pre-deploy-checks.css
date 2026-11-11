@@ -153,11 +153,12 @@
 
 /* intro, settings, empty */
 .pdc-intro { padding: 16px; }
-.pdc-intro-list { list-style: none; padding: 0; margin: 12px 0 0; display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: var(--bs-secondary-color); }
-.pdc-intro-list i { width: 14px; margin-right: 6px; }
+.pdc-intro .pdc-check-list { margin-top: 12px; }
 .pdc-settings { padding: 12px; }
 .pdc-toggle { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 6px 0; font-size: 12px; color: var(--bs-body-color); cursor: pointer; margin: 0; }
 .pdc-toggle-name { display: block; color: var(--bs-emphasis-color); }
 .pdc-toggle small { display: block; color: var(--bs-secondary-color); font-size: 11px; }
+.pdc-toggle-off .pdc-toggle-name { color: var(--bs-secondary-color); }
+.pdc-toggle-locked { cursor: default; }
 .pdc-empty { text-align: center; padding: 48px 16px; }
 .pdc-empty > i { font-size: 28px; color: var(--bs-secondary-color); margin-bottom: 12px; }

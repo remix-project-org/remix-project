@@ -31,12 +31,20 @@ module.exports = {
 
   'Should choose the checks in the settings #group1': function (browser: NightwatchBrowser) {
     browser
+      // the intro card and the settings page show the same switches
+      .assert.elementPresent('*[data-id="preDeployChecks-intro"] *[data-id="preDeployChecks-toggle-compileSwitch"][aria-checked="true"][disabled]')
+      .click('*[data-id="preDeployChecks-intro"] *[data-id="preDeployChecks-toggle-flattenSwitch"]')
+      .waitForElementPresent('*[data-id="preDeployChecks-intro"] *[data-id="preDeployChecks-toggle-flattenSwitch"][aria-checked="false"]')
       .click('*[data-id="preDeployChecks-openSettings"]')
       .waitForElementVisible('*[data-id="preDeployChecks-settings"]')
       .assert.elementPresent('*[data-id="preDeployChecks-toggle-aiSwitch"][aria-checked="false"]')
       .assert.elementPresent('*[data-id="preDeployChecks-toggle-analysisSwitch"][aria-checked="true"]')
+      .assert.elementPresent('*[data-id="preDeployChecks-toggle-flattenSwitch"][aria-checked="false"]')
+      .click('*[data-id="preDeployChecks-toggle-flattenSwitch"]')
+      .waitForElementPresent('*[data-id="preDeployChecks-toggle-flattenSwitch"][aria-checked="true"]')
       .click('*[data-id="preDeployChecks-back"]')
       .waitForElementVisible('*[data-id="preDeployChecks-intro"]')
+      .assert.elementPresent('*[data-id="preDeployChecks-intro"] *[data-id="preDeployChecks-toggle-flattenSwitch"][aria-checked="true"]')
   },
 
   'Should run the checks on a clean contract #group1': function (browser: NightwatchBrowser) {
