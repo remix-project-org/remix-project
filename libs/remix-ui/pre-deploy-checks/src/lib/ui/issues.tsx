@@ -273,16 +273,8 @@ interface IssuesProps {
 /** One flat list sorted by severity then line; compile errors first; ignored issues behind a toggle (design §4). */
 export function Issues ({ file, findings, compileErrors, lines, running, plugin }: IssuesProps) {
   const [showIgnored, setShowIgnored] = useState(false)
-  const [filter, setFilterState] = useState<IssueFilter>(NO_FILTER)
-  // while filtering, the section keeps the height it had before, so a shorter list doesn't stop the panel
-  // scrolling and change its width when the scrollbar goes away
-  const sectionRef = useRef<HTMLElement>(null)
-  const [heldHeight, setHeldHeight] = useState<number | null>(null)
-  const setFilter = (next: IssueFilter) => {
-    if (!isFiltering(next)) setHeldHeight(null)
-    else if (!isFiltering(filter) && sectionRef.current) setHeldHeight(sectionRef.current.offsetHeight)
-    setFilterState(next)
-  }
+  // a shorter filtered list may drop the scrollbar: the panel reserves its gutter (CSS), so the width holds
+  const [filter, setFilter] = useState<IssueFilter>(NO_FILTER)
   // the issue just ignored keeps its place for a few seconds with an Undo
   const [justIgnored, setJustIgnored] = useState<string | null>(null)
   useEffect(() => {
@@ -307,7 +299,7 @@ export function Issues ({ file, findings, compileErrors, lines, running, plugin 
   const counts = SEVERITIES.map((severity) => ({ severity, count: open.filter((f) => f.severity === severity && !f.stale).length })).filter((c) => c.count)
 
   return (
-    <section data-id="preDeployChecks-issues" ref={sectionRef} style={heldHeight ? { minHeight: heldHeight } : undefined}>
+    <section data-id="preDeployChecks-issues">
       <div className="pdc-section-head">
         <span className="pdc-section-title"><FormattedMessage id="preDeployChecks.issues" /></span>
         <span className="pdc-section-meta" data-id="preDeployChecks-counts">

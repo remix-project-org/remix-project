@@ -467,7 +467,9 @@ export class PreDeployChecksPlugin extends ViewPlugin implements CheckHost {
     const md = buildReport(this.store.get(file), { date: new Date(), contractName, compiler: this.compiler || undefined })
     const path = reportFileName(file, contractName)
     await this.call('fileManager', 'writeFile', path, md)
-    await this.call('fileManager', 'open', path)
+    // rendered, like a .md opened from the file explorer; this also keeps the contract as the current file
+    await this.call('doc-viewer' as any, 'viewDocs', [path])
+    this.call('tabs' as any, 'focus', 'doc-viewer')
   }
 
   // ---------------------------------------------------------------- view

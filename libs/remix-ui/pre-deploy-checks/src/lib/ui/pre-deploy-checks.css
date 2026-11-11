@@ -2,6 +2,8 @@
    Type scale: 14 title / 13 body / 12 secondary / 11 meta. Spacing on a 4px grid. */
 .pdc { display: flex; flex-direction: column; gap: 16px; min-height: 100%; padding: 12px 12px 24px; font-size: 13px; color: var(--bs-body-color); }
 .pdc .min-w-0 { min-width: 0; }
+/* the panel's scroll container: keep the scrollbar's space, so a list shortened by a filter doesn't change the width */
+#preDeployChecks { scrollbar-gutter: stable; }
 
 /* severity colours per theme quality: the theme files only give a readable dark-mode text colour under
    [data-bs-theme=dark], which Remix doesn't set, so the panel carries its own tones */

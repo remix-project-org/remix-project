@@ -251,12 +251,14 @@ module.exports = {
       .clickLaunchIcon('preDeployChecks')
       .waitForElementVisible(status('deployed'), 30000)
       .click('*[data-id="preDeployChecks-saveReport"]')
-      .pause(2000)
-      .getEditorValue((content) => {
-        browser.assert.ok(content.includes('# Pre-deploy checks: Wallet'), 'report title')
-        browser.assert.ok(content.includes('not a security audit'), 'disclaimer')
-        browser.assert.ok(content.includes('Deployed with 1 open high-severity issue'), 'deployment with an open high issue recorded')
-      })
+      // the report opens rendered in the doc viewer, and the panel stays on the contract
+      .waitForElementVisible('#plugin-doc-viewer', 30000)
+      .frame('plugin-doc-viewer')
+      .waitForElementContainsText('.aiMarkup', 'Pre-deploy checks: Wallet', 30000)
+      .assert.containsText('.aiMarkup', 'not a security audit')
+      .assert.containsText('.aiMarkup', 'Deployed with 1 open high-severity issue')
+      .frameParent()
+      .waitForElementContainsText('*[data-id="preDeployChecks-file"]', 'Wallet.sol')
       .end()
   }
 }
