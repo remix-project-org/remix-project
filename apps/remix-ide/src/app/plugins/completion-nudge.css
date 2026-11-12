@@ -1,0 +1,299 @@
+/* ============================
+   AI code completion promo (one-time explainer modal)
+   --cn-accent is set inline per state (sign in / credits / …)
+   ============================ */
+
+.cn-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 9000;
+  background: rgba(0, 0, 0, 0.45);
+  animation: cn-fade 0.2s ease-out;
+}
+
+.cn-modal {
+  --cn-accent: var(--custom-ai-color, #8b5cf6);
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 520px;
+  max-width: calc(100vw - 32px);
+  max-height: calc(100vh - 64px);
+  overflow-y: auto;
+  z-index: 9001;
+  border-radius: 14px;
+  background: var(--custom-onsurface-layer-2, #1a1a2e);
+  color: var(--bs-body-color, #e2e2e2);
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.45), 0 0 0 1px color-mix(in srgb, var(--cn-accent) 25%, transparent);
+  animation: cn-in 0.28s ease-out;
+}
+
+@keyframes cn-fade {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes cn-in {
+  from { opacity: 0; transform: translate(-50%, -48%) scale(0.96); }
+  to { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+}
+
+.cn-close {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  z-index: 2;
+  width: 28px;
+  height: 28px;
+  border: none;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.35);
+  color: rgba(255, 255, 255, 0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.8rem;
+  cursor: pointer;
+}
+
+.cn-close:hover {
+  background: rgba(0, 0, 0, 0.55);
+  color: #fff;
+}
+
+/* ─── Demo (mini editor) ─── */
+
+.cn-demo {
+  position: relative;
+  padding: 1.5rem 1.25rem 2.25rem;
+  background:
+    radial-gradient(120% 90% at 0% 0%, color-mix(in srgb, var(--cn-accent) 22%, transparent) 0%, transparent 60%),
+    linear-gradient(160deg, #0d1324 0%, #121a30 100%);
+  border-bottom: 1px solid color-mix(in srgb, var(--cn-accent) 20%, transparent);
+}
+
+.cn-demo-code {
+  font-family: 'Fira Code', Menlo, Consolas, monospace;
+  font-size: 0.78rem;
+  line-height: 1.7;
+  color: #d4d4e0;
+  white-space: pre;
+  overflow: hidden;
+}
+
+.cn-kw { color: #c792ea; }
+.cn-fn { color: #82aaff; }
+.cn-ty { color: #4ec9b0; }
+.cn-str { color: #c3e88d; }
+
+.cn-demo-line {
+  display: flex;
+  align-items: center;
+}
+
+.cn-typed {
+  display: inline-block;
+  overflow: hidden;
+  vertical-align: bottom;
+  animation: cn-type 6s steps(8, end) infinite;
+}
+
+.cn-caret {
+  display: inline-block;
+  width: 2px;
+  height: 1.05em;
+  margin-left: 1px;
+  background: var(--cn-accent);
+  animation: cn-blink 1s step-end infinite;
+}
+
+/* Suggestion: appears as faded "ghost" text, then turns solid when accepted */
+.cn-ghost {
+  color: #8a8fa8;
+  font-style: italic;
+  opacity: 0;
+  animation: cn-ghost 6s ease-in-out infinite;
+}
+
+.cn-ghost .cn-str { color: inherit; }
+
+.cn-ghost--block {
+  animation-name: cn-ghost-block;
+}
+
+.cn-demo-key {
+  position: absolute;
+  right: 1.25rem;
+  bottom: 0.7rem;
+  font-size: 0.7rem;
+  color: #a2a3bd;
+  opacity: 0;
+  animation: cn-key 6s ease-in-out infinite;
+}
+
+.cn-demo-key kbd,
+.cn-benefits kbd {
+  padding: 0.05rem 0.35rem;
+  border-radius: 4px;
+  border: 1px solid color-mix(in srgb, var(--cn-accent) 50%, transparent);
+  background: color-mix(in srgb, var(--cn-accent) 18%, transparent);
+  color: inherit;
+  font-size: 0.7rem;
+  font-weight: 600;
+}
+
+/* 0–25% type "require(" · 25–40% ghost fades in · 62% Tab · 66% accepted · hold · reset */
+@keyframes cn-type {
+  0% { max-width: 0; }
+  25%, 100% { max-width: 8ch; }
+}
+
+@keyframes cn-ghost {
+  0%, 26% { opacity: 0; color: #8a8fa8; font-style: italic; }
+  38%, 62% { opacity: 1; color: #8a8fa8; font-style: italic; }
+  66%, 92% { opacity: 1; color: #d4d4e0; font-style: normal; }
+  100% { opacity: 0; }
+}
+
+@keyframes cn-ghost-block {
+  0%, 30% { opacity: 0; color: #8a8fa8; font-style: italic; }
+  42%, 62% { opacity: 1; color: #8a8fa8; font-style: italic; }
+  66%, 92% { opacity: 1; color: #d4d4e0; font-style: normal; }
+  100% { opacity: 0; }
+}
+
+@keyframes cn-key {
+  0%, 36% { opacity: 0; transform: translateY(4px); }
+  42%, 62% { opacity: 1; transform: translateY(0); }
+  70%, 100% { opacity: 0; }
+}
+
+@keyframes cn-blink {
+  50% { opacity: 0; }
+}
+
+/* ─── Copy ─── */
+
+.cn-body {
+  padding: 1.25rem 1.5rem 1.25rem;
+}
+
+.cn-eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--cn-accent);
+}
+
+.cn-title {
+  margin: 0.4rem 0 0.5rem;
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: var(--bs-body-color, #e2e2e2);
+}
+
+.cn-lead {
+  margin: 0 0 0.9rem;
+  font-size: 0.85rem;
+  line-height: 1.55;
+  color: var(--bs-secondary-color, #a2a3bd);
+}
+
+.cn-benefits {
+  list-style: none;
+  margin: 0 0 1.1rem;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.cn-benefits li {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.6rem;
+  font-size: 0.82rem;
+  line-height: 1.45;
+}
+
+.cn-benefits li > i {
+  flex: 0 0 22px;
+  height: 22px;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.7rem;
+  color: var(--cn-accent);
+  background: color-mix(in srgb, var(--cn-accent) 15%, transparent);
+}
+
+.cn-benefits code {
+  color: var(--cn-accent);
+}
+
+.cn-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.cn-primary {
+  background: var(--cn-accent) !important;
+  border: none !important;
+  /* Dark text like the theme's .btn-primary — every accent here is a light/bright color */
+  color: #222336 !important;
+  font-weight: 700;
+  font-size: 0.85rem;
+  padding: 0.45rem 1rem;
+  border-radius: 8px;
+}
+
+.cn-primary:hover {
+  filter: brightness(1.1);
+}
+
+.cn-secondary {
+  background: transparent !important;
+  border: 1px solid color-mix(in srgb, var(--cn-accent) 55%, transparent) !important;
+  color: var(--cn-accent) !important;
+  font-weight: 600;
+  font-size: 0.85rem;
+  padding: 0.4rem 0.9rem;
+  border-radius: 8px;
+}
+
+.cn-later {
+  margin-left: auto;
+  font-size: 0.8rem;
+  color: var(--bs-secondary-color, #a2a3bd) !important;
+  text-decoration: none !important;
+}
+
+.cn-footnote {
+  margin: 0.9rem 0 0;
+  font-size: 0.72rem;
+  color: var(--bs-secondary-color, #888);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cn-modal,
+  .cn-backdrop,
+  .cn-typed,
+  .cn-caret,
+  .cn-ghost,
+  .cn-demo-key {
+    animation: none;
+  }
+
+  .cn-ghost,
+  .cn-demo-key {
+    opacity: 1;
+  }
+}
