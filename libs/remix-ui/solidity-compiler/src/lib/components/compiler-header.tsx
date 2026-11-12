@@ -100,7 +100,7 @@ const CompileMoreToggle = React.forwardRef(
         onClick(e)
       }}
     >
-      <i className="fas fa-angle-down" aria-hidden="true"></i>
+      <i className="fas fa-chevron-down" aria-hidden="true"></i>
     </button>
   )
 )
