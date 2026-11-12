@@ -331,18 +331,18 @@ export const templatesRepository = [
         displayName: 'Anonymous Voting',
         description: 'Cast a verifiable vote using Pedersen commitments and nullifiers',
       },
-      { value: "recursiveNr", tagList: ["ZKP", "Noir"],
+      /*{ value: "recursiveNr", tagList: ["ZKP", "Noir"],
         displayName: 'Recursive Proof',
         description: "Inner circuit marked #[recursive] for Noir's native proof aggregation",
-      },
+      },*/
       { value: "sudokuNr", tagList: ["ZKP", "Noir"],
         displayName: 'ZK Sudoku',
         description: 'Prove knowledge of a valid 4×4 Sudoku solution without revealing it',
       },
-      { value: "zkKYCNr", tagList: ["ZKP", "Noir"],
+      /*{ value: "zkKYCNr", tagList: ["ZKP", "Noir"],
         displayName: 'ZK KYC',
         description: 'Selective credential disclosure — prove age and nationality without revealing personal data',
-      },
+      },*/
     ]
   },
   {
