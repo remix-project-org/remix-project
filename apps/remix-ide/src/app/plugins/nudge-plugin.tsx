@@ -69,6 +69,8 @@ const CALLOUT_VIEWS_KEY = 'remix_nudge_callout_views'
 const MAX_CALLOUT_VIEWS = 3
 /** Set the first time the user enters AI mode; ends the AI button's attention animation */
 const AI_MODE_TRIED_KEY = 'remix_ai_mode_tried'
+/** Tip shown when a first visit opens in AI mode (ai_mode_first experiment) */
+const AI_MODE_FIRST_TIP_ID = 'ai-mode-first-tip'
 const AI_MODE_BUTTON_ANCHOR = 'aiReviewModeBtn'
 
 /* Free plan → open plan pricing (on every load, and again during heavy AI chat use) */
@@ -281,6 +283,8 @@ export class NudgePlugin extends Plugin {
     // the user has found it: close the intro callout, stop the AI button's
     // attention animation, and never show either again.
     this.on('remixaiassistant', 'aiModeChanged', (active: boolean) => {
+      // Left AI mode: the "how to switch back" tip has done its job.
+      if (!active && this.state.callout?.id === AI_MODE_FIRST_TIP_ID) this._closeCallout()
       if (!active) return
       try { localStorage.setItem(AI_MODE_TRIED_KEY, 'true') } catch { }
       if (this.state.callout?.id === AI_MODE_INTRO_ID) this._closeCallout()
@@ -538,6 +542,10 @@ export class NudgePlugin extends Plugin {
 
   /** Open plan pricing for a free-plan user without trampling whatever is on screen. */
   private async _autoOpenPlans(rule: NudgeRule): Promise<void> {
+    // plans_autoopen experiment: 'contextual' drops both automatic openings
+    // and leaves plans to the contextual surfaces (locks, low / no credits).
+    const variant = await this.call('planManager' as any, 'exposeExperiment', 'plans_autoopen').catch(() => null)
+    if (variant === 'contextual') return
     const onLoad = rule.id === PLANS_ON_LOAD_ID
     // Already looking at it, or (on load) already saw it this session, e.g.
     // by signing in through the plan manager.
@@ -1306,6 +1314,7 @@ export class NudgePlugin extends Plugin {
   /** Fire a context event into the nudge engine */
   fire(eventId: string): void {
     this.engine_.fire(eventId)
+    if (eventId === 'lifecycle:APP_LOADED') void this._maybeStartInAiMode()
   }
 
   /** Add a rule programmatically from another plugin */
@@ -1448,6 +1457,41 @@ export class NudgePlugin extends Plugin {
   private _retireRule(id: string): void {
     this.engine_.disableRule(id)
     this._persistPermanentDismiss(id)
+  }
+
+  /**
+   * ai_mode_first experiment: on a browser's first visit, open the IDE in AI
+   * mode and point at the switcher so the way back to the files is obvious.
+   * Both arms are recorded when the first load completes.
+   */
+  private async _maybeStartInAiMode(): Promise<void> {
+    if (window.__IS_E2E_TEST__ || (window as any).electronAPI) return
+    const firstLoad = await this.call('remixaiassistant' as any, 'isFirstLoad').catch(() => false)
+    if (!firstLoad) return
+    const variant = await this.call('planManager' as any, 'exposeExperiment', 'ai_mode_first').catch(() => null)
+    if (variant !== 'ai') return
+    // Let first-visit dialogs (welcome, domain migration) go first.
+    if (this._isBlockingModalOpen() && !(await this._waitForModalsToClose())) return
+    if (await this.call('remixaiassistant' as any, 'isAIModeActive').catch(() => false)) return
+    await this.call('remixaiassistant' as any, 'maximizePanel').catch(() => {})
+    const tip: NudgeRule = {
+      id: AI_MODE_FIRST_TIP_ID,
+      condition: 'lifecycle:APP_LOADED',
+      action: {
+        type: 'callout',
+        anchor: 'aiModeSwitcher',
+        badge: 'AI mode',
+        title: 'Describe what you want to build',
+        message: 'RemixAI writes, compiles and explains the code for you. Your files and the editor are one click away: switch to Code at any time.',
+        actionLabel: 'Switch to Code',
+        actionTarget: 'remixaiassistant::restorePanel',
+        secondaryLabel: 'Got it'
+      },
+      showOnce: true,
+      priority: 30
+    }
+    this.trackMatomoEvent({ category: 'nudge', action: 'triggered', name: AI_MODE_FIRST_TIP_ID, isClick: false })
+    await this._showCallout(tip)
   }
 
   /* ─── Callout management (anchored popover, type:'callout') ─── */

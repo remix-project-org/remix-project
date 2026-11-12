@@ -106,16 +106,27 @@ export function readOverrides(): Record<string, string> {
   return stored
 }
 
+/** Browser driven by a test runner (Playwright / WebDriver) or flagged as an E2E run. */
+export function isAutomatedBrowser(): boolean {
+  try {
+    return !!(globalThis as any).__IS_E2E_TEST__ || (typeof navigator !== 'undefined' && navigator.webdriver === true)
+  } catch {
+    return false
+  }
+}
+
 /**
  * Variant for one experiment. `isPayingCustomer` matters for
  * `audience: 'non_paying'` experiments — paying users get the control and
- * aren't counted.
+ * aren't counted. Automated browsers always get the control (a forced
+ * variant still applies) so test suites see a stable UI.
  */
 export function assign(
   def: ExperimentDefinition,
   subjectId: string,
   overrides: Record<string, string>,
-  isPayingCustomer: boolean
+  isPayingCustomer: boolean,
+  automated = false
 ): ExperimentAssignment {
   const control = def.variants[0].key
   const forced = overrides[def.key]
@@ -124,7 +135,7 @@ export function assign(
     const winner = def.winner && def.variants.some(v => v.key === def.winner) ? def.winner : control
     return { variant: winner, reported: false }
   }
-  if (def.status !== 'running') return { variant: control, reported: false }
+  if (def.status !== 'running' || automated) return { variant: control, reported: false }
   if (def.audience === 'non_paying' && isPayingCustomer) return { variant: control, reported: false }
   return { variant: pickVariant(def, subjectId), reported: true }
 }

@@ -22,7 +22,7 @@ import { PluginViewWrapper, DISCORD_URL, CustomTooltip } from '@remix-ui/helper'
 // removed when Plan Manager became the sole billing surface.
 import { initPaddle, getPaddle, openCheckoutWithTransaction, onPaddleEvent, offPaddleEvent, previewPrices } from './paddle-singleton'
 import { reportCheckoutTelemetry, setCheckoutTelemetryToken, setCheckoutTelemetryEnv, setCheckoutTelemetryVisitor, postBillingBeacon } from './checkout-telemetry'
-import { EXPERIMENTS_CONFIG_KEY, ExperimentDefinition, ExperimentAssignment, parseExperiments, getSubjectId, readOverrides, assign } from './experiments'
+import { EXPERIMENTS_CONFIG_KEY, ExperimentDefinition, ExperimentAssignment, parseExperiments, getSubjectId, readOverrides, assign, isAutomatedBrowser } from './experiments'
 import { endpointUrls } from '@remix-endpoints-helper'
 import type { Paddle, PaddleEventData } from '@paddle/paddle-js'
 import type { CreditsUsageQuery, FeatureGroup, UsageReport, PendingCheckout, TransactionPaymentStatusResponse, SameEmailOverviewResponse } from '@remix-api'
@@ -78,7 +78,7 @@ const profile = {
   name: 'planManager',
   displayName: 'Plan & Credits',
   description: 'Manage your subscription, top up credits and review AI usage',
-  methods: ['open', 'close', 'toggle', 'setCheckoutResult', 'reportCreditsExhausted', 'requireAICredits', 'refresh', 'purchaseCredits', 'subscribeToPlan', 'changePlan', 'cancelSubscription', 'reactivateSubscription', 'resolveConfirm', 'cancelCheckout', 'resumeCheckout', 'dismissResumeNudge', 'getPendingCheckouts', 'discardCheckout', 'getBillingLocale', 'updatePaymentMethod', 'getExperimentVariant'],
+  methods: ['open', 'close', 'toggle', 'setCheckoutResult', 'reportCreditsExhausted', 'requireAICredits', 'refresh', 'purchaseCredits', 'subscribeToPlan', 'changePlan', 'cancelSubscription', 'reactivateSubscription', 'resolveConfirm', 'cancelCheckout', 'resumeCheckout', 'dismissResumeNudge', 'getPendingCheckouts', 'discardCheckout', 'getBillingLocale', 'updatePaymentMethod', 'getExperimentVariant', 'exposeExperiment'],
   events: ['opened', 'closed', 'checkoutResultChanged', 'pendingCheckoutsChanged', 'purchaseConfirmed', 'billingLocaleResolved'],
   icon: PLAN_ICON,
   location: 'sidePanel',
@@ -172,6 +172,14 @@ export class PlanManagerPlugin extends ViewPlugin {
   private subjectId = ''
   private experimentOverrides: Record<string, string> = {}
   private experimentDefs: ExperimentDefinition[] = []
+  /** Settles once the definitions were read (or the config failed). */
+  private experimentsLoaded: Promise<void> = Promise.resolve()
+  private experimentsReady = false
+  /** Experiments whose decision point this visitor reached this session: key → variant. */
+  private exposedExperiments: Record<string, string> = {}
+  /** Feature keys per feature group (public plans), for the focused feature-gate offer. */
+  private groupFeatures: Map<string, Set<string>> | null = null
+  private groupFeaturesLoading = false
   /** Entry point of the latest open, reported with the next product view. */
   private viewEntry: { entry: string; section: string | null } | null = null
   private pendingView: { entry: string; section: string | null; at: number } | null = null
@@ -333,7 +341,7 @@ export class PlanManagerPlugin extends ViewPlugin {
     this.renderComponent()
     this.subjectId = getSubjectId()
     this.experimentOverrides = readOverrides()
-    void this.loadExperiments()
+    this.experimentsLoaded = this.loadExperiments()
     if (typeof window !== 'undefined') window.addEventListener('beforeunload', this.onBeforeUnload)
 
     // Replay last session's region immediately — Paddle can only price-preview
@@ -556,9 +564,20 @@ export class PlanManagerPlugin extends ViewPlugin {
    */
   async open(intent?: OpenIntent | string): Promise<void> {
     // Support string shortcut from nudge targets: 'topup' → { initialSection: 'topup' }
-    const resolved: OpenIntent | undefined = typeof intent === 'string'
+    let resolved: OpenIntent | undefined = typeof intent === 'string'
       ? { initialSection: intent as OpenIntent['initialSection'] }
       : intent
+    // Out of credits: which screen helps most (top-up / plans / balance) is
+    // an experiment. Only applied once definitions are known, so the exposure
+    // matches what was shown.
+    if (resolved?.reason === 'quota-exhausted' && this.experimentsReady) {
+      const variant = this.getExperimentVariant('out_of_credits_offer')
+      const section = variant ? OUT_OF_CREDITS_SECTIONS[variant] : undefined
+      if (section) {
+        resolved = { ...resolved, initialSection: section }
+        void this.exposeExperiment('out_of_credits_offer', variant)
+      }
+    }
     const snapBefore = this.store.getSnapshot()
     planManagerLogger.log('[PlanManager:open] called', {
       rawIntent: intent,
@@ -669,9 +688,11 @@ export class PlanManagerPlugin extends ViewPlugin {
         ? config.find((c: any) => c?.key === EXPERIMENTS_CONFIG_KEY)?.value
         : config?.[EXPERIMENTS_CONFIG_KEY]
       this.experimentDefs = parseExperiments(raw)
-      this.renderComponent()
     } catch (err) {
       planManagerLogger.warn('[PlanManager:experiments] config unavailable', err)
+    } finally {
+      this.experimentsReady = true
+      this.renderComponent()
     }
   }
 
@@ -683,17 +704,85 @@ export class PlanManagerPlugin extends ViewPlugin {
   private experimentAssignments(): Record<string, ExperimentAssignment> {
     const paying = this.isPayingCustomer()
     const out: Record<string, ExperimentAssignment> = {}
-    for (const def of this.experimentDefs) out[def.key] = assign(def, this.subjectId || getSubjectId(), this.experimentOverrides, paying)
+    const automated = isAutomatedBrowser()
+    for (const def of this.experimentDefs) out[def.key] = assign(def, this.subjectId || getSubjectId(), this.experimentOverrides, paying, automated)
     return out
   }
 
   /**
    * Variant to render for an experiment, or null when it isn't defined (the
-   * caller then renders its default). Exposure is recorded with the product
-   * view, so callers only read.
+   * caller then renders its default). Read-only: call exposeExperiment at the
+   * moment the variant actually makes a difference.
    */
   getExperimentVariant(key: string): string | null {
     return this.experimentAssignments()[key]?.variant ?? null
+  }
+
+  /**
+   * The visitor reached this experiment's decision point: return the variant
+   * to apply and record the exposure (once per session, control included, so
+   * both arms are counted on the same population). Waits briefly for the
+   * definitions. `shown` = the variant the caller already rendered; if it
+   * differs (definitions arrived later) nothing is recorded. Null when the
+   * experiment isn't defined — apply the default.
+   */
+  async exposeExperiment(key: string, shown?: string | null): Promise<string | null> {
+    if (!this.experimentsReady) {
+      await Promise.race([this.experimentsLoaded, new Promise(r => setTimeout(r, EXPERIMENTS_WAIT_MS))])
+    }
+    const a = this.experimentAssignments()[key]
+    if (!a) return null
+    if (shown !== undefined && shown !== a.variant) return shown
+    if (a.reported && this.exposedExperiments[key] === undefined) {
+      if (!this.subjectId) this.subjectId = getSubjectId()
+      this.exposedExperiments = { ...this.exposedExperiments, [key]: a.variant }
+      setCheckoutTelemetryVisitor({ subjectId: this.subjectId, experiments: this.exposedExperiments })
+      postBillingBeacon('/experiment-exposure', { subjectId: this.subjectId, experiments: { [key]: a.variant } })
+      this.trackCheckout('experiment', key, a.variant)
+    }
+    return a.variant
+  }
+
+  /** Feature keys of every feature group in the public plans catalog (loaded once, on demand). */
+  private ensureGroupFeatures(): void {
+    if (this.groupFeatures || this.groupFeaturesLoading) return
+    this.groupFeaturesLoading = true
+    this.call('auth' as any, 'getPublicPlans')
+      .then((plans: any[]) => {
+        const map = new Map<string, Set<string>>()
+        for (const p of Array.isArray(plans) ? plans : []) {
+          const keys = (Array.isArray(p?.features) ? p.features : [])
+            .filter((f: any) => f && f.is_enabled !== false)
+            .map((f: any) => f.feature_name ?? f.name)
+            .filter((k: unknown): k is string => typeof k === 'string')
+          map.set(normalizePlanKey(p?.name), new Set(keys))
+        }
+        this.groupFeatures = map
+        this.renderComponent()
+      })
+      .catch((err) => planManagerLogger.warn('[PlanManager:experiments] public plans unavailable', err))
+      .finally(() => { this.groupFeaturesLoading = false })
+  }
+
+  /**
+   * Cheapest paid plan whose feature group includes `feature` — the focused
+   * offer when a locked feature opened the panel. Null when it can't be
+   * decided: catalog or public plans not loaded, no plan includes it, or a
+   * cheaper plan's feature group isn't public (it might include the feature,
+   * and pointing at a pricier plan would mislead).
+   */
+  featureOfferPlan(feature: string | null | undefined, plans: any[]): any | null {
+    if (!feature) return null
+    if (!this.groupFeatures) { this.ensureGroupFeatures(); return null }
+    const paid = [...plans]
+      .filter(p => (Number(p?.priceUsd) || 0) > 0)
+      .sort((a, b) => (Number(a.priceUsd) || 0) - (Number(b.priceUsd) || 0))
+    for (const plan of paid) {
+      const features = this.groupFeatures.get(normalizePlanKey(plan?.featureGroupName))
+      if (!features) return null
+      if (features.has(feature)) return plan
+    }
+    return null
   }
 
   /** Panel just opened: report a product view once we know who's looking. */
@@ -713,8 +802,7 @@ export class PlanManagerPlugin extends ViewPlugin {
     if (!force && snap.isAuthenticated && snap.dataState !== 'ready') return
     this.pendingView = null
     if (!this.subjectId) this.subjectId = getSubjectId()
-    const experiments: Record<string, string> = {}
-    for (const [key, a] of Object.entries(this.experimentAssignments())) if (a.reported) experiments[key] = a.variant
+    const experiments = this.exposedExperiments
     const customer = !snap.isAuthenticated ? 'anon' : this.isPayingCustomer() ? 'paid' : 'free'
     if (!snap.isAuthenticated) this.viewSentAnonymously = true
     setCheckoutTelemetryVisitor({ subjectId: this.subjectId, experiments })
@@ -4555,7 +4643,8 @@ const PlanManagerOverlay: React.FC<{
                     />
                   )}
                   {!(snap.pendingCheckout && !snap.checkoutResult) && snap.cartItems.length === 0 && ui.showPlans && activeSection === 'plans' && (
-                    <PlansSection
+                    <ExperimentPlansSection
+                      plugin={plugin}
                       plans={visiblePlans}
                       currentPlanId={planCtx.planId}
                       userFeatureGroups={snap.permissions?.feature_groups ?? []}
@@ -5514,6 +5603,10 @@ const REGION_BLOCKED_MESSAGE = 'Payments aren’t available in your region. Our 
 const NO_RESUMABLE_CHECKOUTS: PendingCheckout[] = []
 /** Longest a product view waits for plan data before it's sent anyway. */
 const PRODUCT_VIEW_MAX_WAIT_MS = 5_000
+/** out_of_credits_offer variant → section the panel opens on. */
+const OUT_OF_CREDITS_SECTIONS: Record<string, OpenIntent['initialSection']> = { topup: 'topup', plans: 'plans', balance: 'credits' }
+/** Longest a decision point waits for experiment definitions before applying the default. */
+const EXPERIMENTS_WAIT_MS = 3_000
 /** Leave-dialog result when the payment settled while it was open. */
 const LEAVE_PROMPT_SETTLED = 'payment_settled'
 /** Unfinished checkouts worth offering — none when payments are blocked here, since resuming can only fail. */
@@ -6101,42 +6194,21 @@ function planIsCreditsOneToOne(plan: any): boolean {
   return (credits / CREDITS_PER_USD) * 100 >= priceCents * 0.98
 }
 
-const PaidPlansPanel: React.FC<{
-  plans: any[]
-  currentPlanId: string | null
-  userFeatureGroups: FeatureGroup[]
-  isTrialEligible: boolean
-  purchasingId: string | null
-  cancelledNotice: { expiresOn: string | null } | null
-  localizedPrices: Record<string, LocalizedCatalogPrice> | null
-  readOnly?: boolean
-  onSignUp?: (planId: string, priceId?: number) => void
-  onSubscribe: (planId: string, priceId?: number) => void
-  onCancel: () => void
-  onReactivate: () => void
-}> = ({ plans, currentPlanId, userFeatureGroups, isTrialEligible, purchasingId, cancelledNotice, localizedPrices, readOnly, onSignUp, onSubscribe, onCancel, onReactivate }) => {
-  const defaultId = (currentPlanId && plans.some(p => p.id === currentPlanId))
-    ? currentPlanId
-    : plans.find(p => p.id === 'lite')?.id ?? plans[0]?.id ?? null
-  const [selectedId, setSelectedId] = React.useState<string | null>(defaultId)
-  const selectedPlan = plans.find(p => p.id === selectedId) ?? plans[0] ?? null
-  const animatedCredits = useCountUp(Number(selectedPlan?.creditsPerMonth) || 0)
-  // On short screens fold the secondary features so price, credits and the
-  // buy button fit without scrolling.
-  const isShortViewport = useMediaQuery('(max-height: 900px)')
-  const [showAllFeatures, setShowAllFeatures] = useState(false)
-  if (!selectedPlan) return null
-
-  const pricesArr: any[] = Array.isArray(selectedPlan.prices) ? selectedPlan.prices : []
+/**
+ * Display price of a plan's default price: localized list price, the intro
+ * discount price when one applies, and the price id to check out with.
+ */
+function planPriceInfo(plan: any, localizedPrices: Record<string, LocalizedCatalogPrice> | null): { priceLabel: string; discountedPriceLabel: string | null; priceId: number | undefined } {
+  const pricesArr: any[] = Array.isArray(plan?.prices) ? plan.prices : []
   const activePrices = pricesArr.filter((pr: any) => pr.is_active !== false)
   const defaultPrice = activePrices.find((pr: any) => pr.is_default) ?? activePrices[0] ?? null
-  const selectedPaddleId = paddlePriceIdOf(defaultPrice, selectedPlan)
-  const localized = selectedPaddleId ? localizedPrices?.[selectedPaddleId] ?? null : null
-  const priceCents = defaultPrice?.price_cents ?? selectedPlan.priceUsd ?? 0
+  const paddleId = paddlePriceIdOf(defaultPrice, plan)
+  const localized = paddleId ? localizedPrices?.[paddleId] ?? null : null
+  const priceCents = defaultPrice?.price_cents ?? plan?.priceUsd ?? 0
   const priceLabel = localized ? localized.formatted : (priceCents > 0 ? `$${(priceCents / 100).toFixed(2)}` : '$0')
-  const selectedPriceId: number | undefined = typeof defaultPrice?.id === 'number' ? defaultPrice.id : undefined
+  const priceId: number | undefined = typeof defaultPrice?.id === 'number' ? defaultPrice.id : undefined
 
-  const introDiscount = (selectedPlan.introDiscounts ?? [])[0] ?? null
+  const introDiscount = (plan?.introDiscounts ?? [])[0] ?? null
   let discountedPriceLabel: string | null = null
   if (introDiscount && priceCents > 0) {
     const isPct = introDiscount.discountType === 'percentage'
@@ -6150,6 +6222,47 @@ const PaidPlansPanel: React.FC<{
       if (dc < priceCents) discountedPriceLabel = `$${(dc / 100).toFixed(2)}`
     }
   }
+  return { priceLabel, discountedPriceLabel, priceId }
+}
+
+const PaidPlansPanel: React.FC<{
+  plans: any[]
+  currentPlanId: string | null
+  userFeatureGroups: FeatureGroup[]
+  isTrialEligible: boolean
+  purchasingId: string | null
+  cancelledNotice: { expiresOn: string | null } | null
+  localizedPrices: Record<string, LocalizedCatalogPrice> | null
+  readOnly?: boolean
+  onSignUp?: (planId: string, priceId?: number) => void
+  onSubscribe: (planId: string, priceId?: number) => void
+  onCancel: () => void
+  onReactivate: () => void
+  /** default_plan experiment variant (null = not running / not loaded → current default). */
+  defaultPlanVariant?: string | null
+  /** Called once with the variant actually pre-selected, for a visitor without a plan in this list. */
+  onDefaultPlanShown?: (variant: string | null) => void
+}> = ({ plans, currentPlanId, userFeatureGroups, isTrialEligible, purchasingId, cancelledNotice, localizedPrices, readOnly, onSignUp, onSubscribe, onCancel, onReactivate, defaultPlanVariant, onDefaultPlanShown }) => {
+  const hasCurrentPlan = !!currentPlanId && plans.some(p => p.id === currentPlanId)
+  const defaultId = hasCurrentPlan
+    ? currentPlanId
+    : defaultPlanVariant === 'middle'
+      ? middlePricedPlan(plans)?.id ?? null
+      : plans.find(p => p.id === 'lite')?.id ?? plans[0]?.id ?? null
+  const [selectedId, setSelectedId] = React.useState<string | null>(defaultId)
+  // Exposure for default_plan: only prospects get a pre-selection to compare.
+  useEffect(() => {
+    if (!hasCurrentPlan) onDefaultPlanShown?.(defaultPlanVariant ?? null)
+  }, [])
+  const selectedPlan = plans.find(p => p.id === selectedId) ?? plans[0] ?? null
+  const animatedCredits = useCountUp(Number(selectedPlan?.creditsPerMonth) || 0)
+  // On short screens fold the secondary features so price, credits and the
+  // buy button fit without scrolling.
+  const isShortViewport = useMediaQuery('(max-height: 900px)')
+  const [showAllFeatures, setShowAllFeatures] = useState(false)
+  if (!selectedPlan) return null
+
+  const { priceLabel, discountedPriceLabel, priceId: selectedPriceId } = planPriceInfo(selectedPlan, localizedPrices)
 
   const creditsPerMonth = Number(selectedPlan.creditsPerMonth) || 0
   const giftCredits = planGiftCredits(selectedPlan)
@@ -6358,6 +6471,118 @@ const PaidPlansPanel: React.FC<{
   )
 }
 
+/** Middle plan by price (the second of three); the cheapest when there are fewer than three. */
+function middlePricedPlan(plans: any[]): any | null {
+  const sorted = [...plans].sort((a, b) => (Number(a?.priceUsd) || 0) - (Number(b?.priceUsd) || 0))
+  return sorted.length >= 3 ? sorted[Math.floor((sorted.length - 1) / 2)] : sorted[0] ?? null
+}
+
+/**
+ * Signed-in plans screen with the sales experiments applied: the focused
+ * feature-gate offer (feature_gate_offer) and the pre-selected plan
+ * (default_plan). Exposures are recorded here, where the variant is shown.
+ */
+const ExperimentPlansSection: React.FC<React.ComponentProps<typeof PlansSection> & { plugin: PlanManagerPlugin }> = ({ plugin, ...props }) => {
+  const { requiredFeature, plans } = props
+  const offerPlan = requiredFeature ? plugin.featureOfferPlan(requiredFeature, plans) : null
+  const offerVariant = offerPlan ? plugin.getExperimentVariant('feature_gate_offer') : null
+  const [showAllPlans, setShowAllPlans] = useState(false)
+  useEffect(() => { setShowAllPlans(false) }, [requiredFeature])
+  // Both arms count only when a focused offer could have been shown.
+  useEffect(() => {
+    if (offerPlan && offerVariant) void plugin.exposeExperiment('feature_gate_offer', offerVariant)
+  }, [requiredFeature, offerPlan?.id, offerVariant])
+
+  if (offerPlan && offerVariant === 'focused' && !showAllPlans) {
+    const paidPlans = plans.filter((p: any) => (Number(p?.priceUsd) || 0) > 0)
+    return (
+      <FeatureOfferCard
+        feature={requiredFeature as string}
+        plan={offerPlan}
+        allPaidPlansInclude={paidPlans.every((p: any) => plugin.featureOfferPlan(requiredFeature, [p]) !== null)}
+        localizedPrices={props.localizedPrices}
+        isTrialEligible={props.isTrialEligible}
+        purchasingId={props.purchasingId}
+        onSubscribe={(planId, priceId) => {
+          trackMatomoEvent(plugin, { category: 'checkout', action: 'feature_offer', name: 'subscribe', value: requiredFeature as string, isClick: true })
+          props.onSubscribe(planId, priceId)
+        }}
+        onShowAllPlans={() => {
+          trackMatomoEvent(plugin, { category: 'checkout', action: 'feature_offer', name: 'all_plans', value: requiredFeature as string, isClick: true })
+          setShowAllPlans(true)
+        }}
+      />
+    )
+  }
+  return (
+    <PlansSection
+      {...props}
+      defaultPlanVariant={plugin.getExperimentVariant('default_plan')}
+      onDefaultPlanShown={(variant) => { void plugin.exposeExperiment('default_plan', variant) }}
+    />
+  )
+}
+
+/**
+ * Focused answer to "I clicked a locked feature": that feature, the cheapest
+ * plan that includes it and one button — instead of the full plan grid.
+ */
+const FeatureOfferCard: React.FC<{
+  feature: string
+  plan: any
+  allPaidPlansInclude: boolean
+  localizedPrices: Record<string, LocalizedCatalogPrice> | null
+  isTrialEligible: boolean
+  purchasingId: string | null
+  onSubscribe: (planId: string, priceId?: number) => void
+  onShowAllPlans: () => void
+}> = ({ feature, plan, allPaidPlansInclude, localizedPrices, isTrialEligible, purchasingId, onSubscribe, onShowAllPlans }) => {
+  const label = FEATURE_LABELS[feature as keyof typeof FEATURE_LABELS] ?? feature
+  const { priceLabel, discountedPriceLabel, priceId } = planPriceInfo(plan, localizedPrices)
+  const credits = Number(plan.creditsPerMonth) || 0
+  const trialDays = Number(plan.trialPeriodDays) || 0
+  const showTrial = trialDays > 0 && isTrialEligible
+  const isPurchasing = purchasingId === plan.id
+  // Credits are stated above; the catalog's credit line ("Free +200k…") would repeat it, mislabelled as free.
+  const highlights: string[] = (plan.features ?? []).filter((f: string) => !/credits/i.test(f)).slice(0, 4)
+
+  return (
+    <div className="pm-feature-offer" data-id="pm-feature-offer" data-required-feature={feature}>
+      <div className="pm-feature-offer__eyebrow"><i className="fas fa-lock-open" aria-hidden></i> Unlock</div>
+      <h2 className="pm-feature-offer__title">{label}</h2>
+      <p className="pm-feature-offer__sub">
+        {allPaidPlansInclude ? 'Included in every paid plan. ' : `Included in ${plan.name}. `}
+        <strong>{plan.name}</strong> is the lowest-priced option{credits > 0 && <> and adds <strong>{compactCredits(credits)} AI credits</strong> every month</>}.
+      </p>
+      <div className="pm-feature-offer__price">
+        {discountedPriceLabel && <span className="pm-feature-offer__price-was">{priceLabel}</span>}
+        <span className="pm-feature-offer__price-num">{discountedPriceLabel ?? priceLabel}</span>
+        <span className="pm-feature-offer__price-per">per month</span>
+      </div>
+      {highlights.length > 0 && (
+        <ul className="pm-feature-offer__list">
+          {highlights.map(h => <li key={h}><i className="fas fa-check" aria-hidden></i>{h}</li>)}
+        </ul>
+      )}
+      <button
+        type="button"
+        className="pm-feature-offer__cta"
+        data-id="pm-feature-offer-subscribe"
+        disabled={purchasingId !== null}
+        onClick={() => onSubscribe(plan.id, priceId)}
+      >
+        {isPurchasing
+          ? <><i className="fas fa-spinner fa-spin" aria-hidden></i> Opening checkout…</>
+          : showTrial ? `Start ${trialDays}-day free trial` : `Get ${plan.name}`}
+      </button>
+      <p className="pm-feature-offer__fine">Monthly subscription, renews automatically, cancel anytime. Prices include VAT/tax for your location where applicable.</p>
+      <button type="button" className="pm-feature-offer__all" data-id="pm-feature-offer-all-plans" onClick={onShowAllPlans}>
+        Compare all plans <i className="fas fa-arrow-right" aria-hidden></i>
+      </button>
+    </div>
+  )
+}
+
 const PlansSection: React.FC<{
   plans: any[]
   currentPlanId: string | null
@@ -6383,7 +6608,9 @@ const PlansSection: React.FC<{
   onSignUp?: (planId: string, priceId?: number) => void
   /** Signed-out "Start free" CTA on the free card. */
   onStartFree?: () => void
-}> = ({ plans, currentPlanId, userFeatureGroups, isTrialEligible, purchasingId, requiredFeature, onSubscribe, onCancel, onReactivate, cancelledNotice, localizedPrices, readOnly, onSignUp, onStartFree }) => {
+  defaultPlanVariant?: string | null
+  onDefaultPlanShown?: (variant: string | null) => void
+}> = ({ plans, currentPlanId, userFeatureGroups, isTrialEligible, purchasingId, requiredFeature, onSubscribe, onCancel, onReactivate, cancelledNotice, localizedPrices, readOnly, onSignUp, onStartFree, defaultPlanVariant, onDefaultPlanShown }) => {
   if (plans.length === 0) {
     return (
       <div className="pm-empty">
@@ -6451,6 +6678,8 @@ const PlansSection: React.FC<{
             onSubscribe={onSubscribe}
             onCancel={onCancel}
             onReactivate={onReactivate}
+            defaultPlanVariant={defaultPlanVariant}
+            onDefaultPlanShown={onDefaultPlanShown}
           />
         )}
       </div>
@@ -7410,6 +7639,8 @@ const SignInPromptScreen: React.FC<{
               readOnly
               onSignUp={handleSignUpForPlan}
               onStartFree={handleStartFree}
+              defaultPlanVariant={plugin.getExperimentVariant('default_plan')}
+              onDefaultPlanShown={(variant) => { void plugin.exposeExperiment('default_plan', variant) }}
               onSubscribe={() => { /* display only — the sign-up CTAs are the entry points */ }}
               onCancel={() => { /* display only */ }}
               onReactivate={() => { /* display only */ }}
