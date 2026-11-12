@@ -5,6 +5,7 @@ import { TrackingContext } from '@remix-ide/tracking'
 import { CustomTooltip, isQuickDappRemixVMIdentifier, normalizeQuickDappEnvironment } from '@remix-ui/helper'
 import { QuickDappContractSelector, QuickDappSetupOptions, QuickDappFigmaPreparationResult } from '@remix-ui/quick-dapp-v2'
 import { appActionTypes, AppAction, AppContext, useAuth } from '@remix-ui/app'
+import type { CompletionNudge } from '../plugins/completion-nudge'
 import './styles/bottom-bar.css'
 
 interface BottomBarProps {
@@ -30,6 +31,8 @@ export const BottomBar = ({ plugin }: BottomBarProps) => {
   }
   const [explaining, setExplaining] = useState(false)
   const [aiSwitch, setAiSwitch] = useState(true)
+  // Why AI completions aren't running (signed out, out of credits…), from nudgePlugin
+  const [completionNudge, setCompletionNudge] = useState<CompletionNudge | null>(null)
   const [currentExt, setCurrentExt] = useState('')
   const [currentFilePath, setCurrentFilePath] = useState('')
   const [isDebugging, setIsDebugging] = useState(false)
@@ -46,6 +49,24 @@ export const BottomBar = ({ plugin }: BottomBarProps) => {
     sourceFileName: string
   } | null>(null)
   const createDappRef = useRef<() => Promise<void>>(async () => {})
+
+  useEffect(() => {
+    const onNudge = (nudge: CompletionNudge | null) => setCompletionNudge(nudge || null)
+    plugin.on('nudgePlugin' as any, 'completionNudgeChanged', onNudge)
+    // nudgePlugin may still be activating, and may have published before we subscribed
+    let attempts = 0
+    let timer: ReturnType<typeof setTimeout> | null = null
+    const sync = () => {
+      plugin.call('nudgePlugin' as any, 'getCompletionNudge')
+        .then((nudge: CompletionNudge | null) => onNudge(nudge))
+        .catch(() => { if (++attempts < 10) timer = setTimeout(sync, 3000) })
+    }
+    sync()
+    return () => {
+      if (timer) clearTimeout(timer)
+      plugin.off('nudgePlugin' as any, 'completionNudgeChanged')
+    }
+  }, [])
 
   useEffect(() => {
     const getAI = async () => {
@@ -623,6 +644,30 @@ For Inline mode, preserve the existing /frontend overwrite confirmation flow.`
         </CustomTooltip>
       </div>
       <div className="copilot-toggle">
+        {completionNudge && (
+          <div className={`copilot-nudge copilot-nudge--${completionNudge.kind}`} data-id={`copilotNudge-${completionNudge.kind}`}>
+            <CustomTooltip placement="top" tooltipText={completionNudge.tooltip}>
+              <button
+                className="copilot-nudge-cta"
+                onClick={() => plugin.call('nudgePlugin' as any, 'completionNudgeAction').catch(() => {})}
+                data-id="copilotNudgeAction"
+              >
+                <i className={completionNudge.icon}></i>
+                <span>{completionNudge.label}</span>
+              </button>
+            </CustomTooltip>
+            <CustomTooltip placement="top" tooltipText="Hide for this session. Switch off AI copilot to stop completions altogether.">
+              <button
+                className="copilot-nudge-hide"
+                onClick={() => plugin.call('nudgePlugin' as any, 'dismissCompletionNudge').catch(() => {})}
+                aria-label="Hide for this session"
+                data-id="copilotNudgeHide"
+              >
+                <i className="fas fa-times"></i>
+              </button>
+            </CustomTooltip>
+          </div>
+        )}
         <span className={aiSwitch ? 'on' : ''}>AI copilot</span>
         <label className="switch" data-id="copilot_toggle">
           <input type="checkbox" checked={aiSwitch} onChange={toggleAI} />

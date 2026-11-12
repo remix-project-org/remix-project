@@ -43,6 +43,90 @@
 .bottom-bar .copilot-toggle span.on {
     color: var(--text-bright);
 }
+
+/* AI completions unavailable (signed out / no credits …) — persistent pill next to the toggle */
+.bottom-bar .copilot-nudge {
+    --cpn-accent: var(--custom-ai-color, #8b5cf6);
+    display: flex;
+    align-items: center;
+    height: 22px;
+    border-radius: 11px;
+    border: 1px solid color-mix(in srgb, var(--cpn-accent) 45%, transparent);
+    background: color-mix(in srgb, var(--cpn-accent) 12%, transparent);
+    animation: copilot-nudge-in 0.35s ease-out;
+    overflow: hidden;
+}
+
+.bottom-bar .copilot-nudge--credits {
+    --cpn-accent: #f59e0b;
+}
+
+.bottom-bar .copilot-nudge--verify-email {
+    --cpn-accent: #60a5fa;
+}
+
+.bottom-bar .copilot-nudge--upgrade {
+    --cpn-accent: #a78bfa;
+}
+
+.bottom-bar .copilot-nudge-cta,
+.bottom-bar .copilot-nudge-hide {
+    display: flex;
+    align-items: center;
+    height: 100%;
+    border: none;
+    background: transparent;
+    color: var(--cpn-accent);
+    cursor: pointer;
+}
+
+.bottom-bar .copilot-nudge-cta {
+    gap: 6px;
+    padding: 0 4px 0 9px;
+}
+
+.bottom-bar .copilot-nudge-cta i {
+    font-size: 10px;
+}
+
+/* Overrides the generic .copilot-toggle span label style */
+.bottom-bar .copilot-nudge-cta span {
+    font-family: 'Nunito Sans', sans-serif;
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--cpn-accent);
+    white-space: nowrap;
+    max-width: 230px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.bottom-bar .copilot-nudge-cta:hover span {
+    text-decoration: underline;
+}
+
+.bottom-bar .copilot-nudge-hide {
+    padding: 0 8px 0 4px;
+    font-size: 9px;
+    opacity: 0.6;
+}
+
+.bottom-bar .copilot-nudge-hide:hover {
+    opacity: 1;
+}
+
+/* One soft glow on arrival so it's noticed without nagging */
+@keyframes copilot-nudge-in {
+    0% { opacity: 0; transform: translateX(6px); }
+    60% { opacity: 1; transform: translateX(0); box-shadow: 0 0 0 0 color-mix(in srgb, var(--cpn-accent) 55%, transparent); }
+    100% { box-shadow: 0 0 0 6px transparent; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .bottom-bar .copilot-nudge {
+        animation: none;
+    }
+}
   
 .bottom-bar .switch {
     position: relative;
