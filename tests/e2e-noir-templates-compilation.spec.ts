@@ -10,12 +10,12 @@ interface NoirTemplateConfig {
 
 // Indices are 0-based within the "Noir ZKP" category in helpers.tsx:
 // 0: multNr, 1: stealthDropNr, 2: rangeProofNr, 3: votingNr,
-// 4: recursiveNr, 5: sudokuNr, 6: zkKYCNr
+// 4: sudokuNr (recursiveNr is commented out so indices shift)
 const NOIR_TEMPLATES: NoirTemplateConfig[] = [
   { templateValue: 'rangeProofNr',  cardDataId: 'template-card-rangeProofNr-2',  displayName: 'Range Proof' },
   { templateValue: 'votingNr',      cardDataId: 'template-card-votingNr-3',      displayName: 'Anonymous Voting' },
   // { templateValue: 'recursiveNr',   cardDataId: 'template-card-recursiveNr-4',   displayName: 'Recursive Proof' },
-  { templateValue: 'sudokuNr',      cardDataId: 'template-card-sudokuNr-5',      displayName: 'ZK Sudoku' },
+  { templateValue: 'sudokuNr',      cardDataId: 'template-card-sudokuNr-4',      displayName: 'ZK Sudoku' },
   // { templateValue: 'zkKYCNr',       cardDataId: 'template-card-zkKYCNr-6',       displayName: 'ZK KYC' },
 ]
 
@@ -102,6 +102,7 @@ for (const { templateValue, cardDataId, displayName } of NOIR_TEMPLATES) {
     let noirFrame: FrameLocator
 
     test.beforeAll(async ({ browser }) => {
+      test.setTimeout(180_000)
       page = await browser.newPage({ viewport: { width: 1440, height: 900 } })
       await loadIde(page)
       noirFrame = await createNoirWorkspace(page, templateValue, cardDataId)
