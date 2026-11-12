@@ -9,8 +9,8 @@ const profile = {
   name: 'udappDeploy',
   displayName: 'Udapp Deploy',
   description: 'Handles contract deployment UI and state',
-  methods: ['getUI', 'getGasLimit', 'getValueUnit', 'getMaxFee', 'getMaxPriorityFee', 'getBaseFeePerGas', 'getGasPrice', 'getConfirmSettings', 'getValue', 'getGasEstimationPrompt', 'getMainnetPrompt', 'getGasPriceStatus', 'setValue', 'setValueUnit', 'setBaseFeePerGas', 'getCompiledContracts', 'getSelectedContractItem'],
-  events: []
+  methods: ['getUI', 'getGasLimit', 'getValueUnit', 'getMaxFee', 'getMaxPriorityFee', 'getBaseFeePerGas', 'getGasPrice', 'getConfirmSettings', 'getValue', 'getGasEstimationPrompt', 'getMainnetPrompt', 'getGasPriceStatus', 'setValue', 'setValueUnit', 'setBaseFeePerGas', 'getCompiledContracts', 'getSelectedContractItem', 'selectContract'],
+  events: ['contractDeployed']
 }
 
 export class DeployPlugin extends Plugin {
@@ -82,6 +82,19 @@ export class DeployPlugin extends Plugin {
     const selectedIndex = this.getWidgetState()?.selectedContractIndex
 
     return this.getWidgetState()?.contracts?.contractList[selectedIndex]
+  }
+
+  /**
+   * Selects a compiled contract of a file in the Deploy tab and shows that tab.
+   * Returns false when the file has not been compiled into the list yet.
+   */
+  selectContract(filePath: string, contractName?: string): boolean {
+    const contractList = this.getWidgetState()?.contracts?.contractList || []
+    let index = contractList.findIndex((contract) => contract.filePath === filePath && contract.name === contractName)
+    if (index < 0) index = contractList.findIndex((contract) => contract.filePath === filePath)
+    if (index >= 0) this.getDispatch()({ type: 'SET_SELECTED_CONTRACT_INDEX', payload: index })
+    window.dispatchEvent(new CustomEvent('udapp:switchTab', { detail: { tab: 'deploy' } }))
+    return index >= 0
   }
 
   setGasPriceStatus(status: boolean) {

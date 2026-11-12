@@ -194,38 +194,52 @@ export async function deployContract(selectedContract: ContractData, args: strin
   }
 }
 
-async function createInstance(selectedContract: ContractData, args, deployMode: OZDeployMode, isVerifyChecked: boolean, plugin: DeployPlugin) {
+async function createInstance(selectedContract: ContractData, args: string | any[], deployMode: OZDeployMode, isVerifyChecked: boolean, plugin: DeployPlugin) {
   const contractMetadata = await plugin.call('compilerMetadata', 'deployMetadataOf', selectedContract.name, selectedContract.contract.file)
   const compilerContracts = await plugin.call('compilerArtefacts', 'getLastCompilationResult')
   const currentParams = !deployMode.deployWithProxy && !deployMode.upgradeWithProxy ? args : ''
   let overSize
   try {
-    overSize = await selectedContract.isOverSizeLimit(currentParams)
+    overSize = await selectedContract.isOverSizeLimit(currentParams as string)
   } catch (error) {
     // return statusCb(`creation of ${selectedContract.name} errored: ${error.message ? error.message : error}`)
   }
   if (overSize && (overSize.overSizeEip170 || overSize.overSizeEip3860)) {
-    return new Promise((resolve, reject) => {
+    const forceSend = await new Promise<boolean>((resolve) => {
       plugin.call('notification', 'modal', {
         id: 'contractCodeSizeOverLimit',
         title: 'Contract code size over limit',
         message: isOverSizePrompt(overSize),
         okLabel: 'Force Send',
-        okFn: async () => {
-          await deployOnBlockchain(selectedContract, args, contractMetadata, compilerContracts, plugin)
-          resolve(undefined)
-        },
+        okFn: () => resolve(true),
         cancelLabel: 'Cancel',
-        cancelFn: () => {
-          reject(`creation of ${selectedContract.name} canceled by user.`)
-        }
+        cancelFn: () => resolve(false),
+        hideFn: () => resolve(false)
       })
     })
+    if (!forceSend) throw new Error(`creation of ${selectedContract.name} canceled by user.`)
   }
   const result = await deployOnBlockchain(selectedContract, args, contractMetadata, compilerContracts, plugin)
   await plugin.call('udappDeployedContracts', 'addInstance', result.address, selectedContract.contract.abi, selectedContract.name, selectedContract)
   const data = await plugin.call('compilerArtefacts', 'getCompilerAbstract', selectedContract.contract.file)
   await plugin.call('compilerArtefacts', 'addResolvedContract', result.address, data)
+
+  try {
+    // lets other plugins (Pre-deploy Checks) record which file and contract were deployed where
+    const network = await plugin.call('udappEnv', 'getNetwork')
+    const txResult = result.txResult || {}
+    plugin.emit('contractDeployed', {
+      filePath: selectedContract.contract.file,
+      contractName: selectedContract.name,
+      address: result.address,
+      txHash: txResult.transactionHash || txResult.receipt?.transactionHash,
+      chainId: network?.chainId && network.chainId !== '-' ? network.chainId.toString() : undefined,
+      network: network?.name,
+      verify: isVerifyChecked
+    })
+  } catch (e) {
+    console.error('Could not announce the deployment', e)
+  }
 
   if (isVerifyChecked) {
     const networkStatus = await plugin.call('udappEnv', 'getNetwork')
@@ -240,7 +254,8 @@ async function createInstance(selectedContract: ContractData, args, deployMode: 
         address: result.address,
         contractName: selectedContract.name,
         filePath: selectedContract.contract.file,
-        args: args
+        // the verifier ABI-encodes the arguments, so it needs them as a list, not the typed-in string
+        args: typeof args === 'string' ? (args.trim() ? execution.txFormat.parseFunctionParams(args) : []) : args
       }
 
       setTimeout(async () => {
@@ -257,7 +272,7 @@ async function createInstance(selectedContract: ContractData, args, deployMode: 
   return result
 }
 
-async function deployOnBlockchain (selectedContract: ContractData, args: string, contractMetadata: any, compilerContracts: any, plugin: DeployPlugin) {
+async function deployOnBlockchain (selectedContract: ContractData, args: string | any[], contractMetadata: any, compilerContracts: any, plugin: DeployPlugin) {
   const networkStatus = await plugin.call('udappEnv', 'getNetwork')
   await trackMatomoEvent(plugin, { category: 'udapp', action: 'DeployContractTo', name: networkStatus.name || 'unknown', isClick: false })
   if (!contractMetadata || (contractMetadata && contractMetadata.autoDeployLib)) {

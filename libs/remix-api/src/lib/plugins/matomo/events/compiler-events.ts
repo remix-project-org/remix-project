@@ -17,6 +17,7 @@ export interface SolidityCompilerEvent extends MatomoEventBase {
   category: 'solidityCompiler';
   action: 
     | 'runStaticAnalysis'
+    | 'openPreDeployChecks'
     | 'solidityScan'
     | 'staticAnalysis'
     | 'initiate';

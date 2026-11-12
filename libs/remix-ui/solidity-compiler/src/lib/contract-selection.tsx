@@ -259,6 +259,11 @@ export const ContractSelection = (props: ContractSelectionProps) => {
     plugin.call('menuicons', 'select', 'solidityStaticAnalysis')
   }
 
+  const openPreDeployChecks = () => {
+    trackMatomoEvent({ category: 'solidityCompiler', action: 'openPreDeployChecks', isClick: true })
+    ;(api as any).call('preDeployChecks', 'open', props.compiledFileName)
+  }
+
   const handleScanContinue = async () => {
     await handleSolidityScan(
       api,
@@ -306,6 +311,21 @@ export const ContractSelection = (props: ContractSelectionProps) => {
                   <img id="ssaLogo" className="remixui_storageLogo me-2" src="assets/img/staticAnalysisColorBlue.webp" />
                   <span>
                     <FormattedMessage id="solidity.runStaticAnalysis" />
+                  </span>
+                </span>
+              </button>
+            </CustomTooltip>
+            <CustomTooltip
+              placement={'auto-end'}
+              tooltipId="openPreDeployChecksTooltip"
+              tooltipClasses="text-nowrap"
+              tooltipText={`${intl.formatMessage({ id: 'solidity.openPreDeployChecks.tooltip' })}`}
+            >
+              <button data-id="compilerOpenPreDeployChecks" className="btn border" onClick={openPreDeployChecks}>
+                <span>
+                  <i className="fa-regular fa-clipboard-check me-2 text-primary"></i>
+                  <span>
+                    <FormattedMessage id="solidity.openPreDeployChecks" />
                   </span>
                 </span>
               </button>

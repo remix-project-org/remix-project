@@ -121,7 +121,7 @@ module.exports = {
       .waitForElementVisible('*[data-id="settings-sidebar-general"]')
       .click('*[data-id="settings-sidebar-general"]')
       .pause(100)
-      .waitForElementPresent('[data-id="save-evm-stateSwitch"] > .fa-toggle-on')
+      .waitForElementPresent('[data-id="save-evm-stateSwitch"][aria-checked="true"]')
   },
 
   'Should deploy default storage contract; store value and ensure that state is saved. #group4 #group5': function (browser: NightwatchBrowser) {

@@ -332,7 +332,7 @@ export interface DeploymentResult {
   contractAddress?: string;
   transactionHash: string;
   gasUsed: number | bigint;
-  effectiveGasPrice: string;
+  effectiveGasPrice?: string;
   blockNumber: number | bigint;
   logs: any[];
 }

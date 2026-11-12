@@ -13,3 +13,16 @@
     background-color: var(--bs-dropdown-link-hover-bg) !important;
     color: var(--bs-dropdown-link-hover-color) !important;
 }
+
+/* Pre-deploy Checks status line above the Deploy button. The panel's own tones, readable in both theme qualities */
+.udapp-checks-status { width: 100%; display: flex; align-items: center; gap: 8px; margin-bottom: 8px; padding: 6px 10px; border: 0; border-radius: 4px; font-size: 12px; background: var(--custom-onsurface-layer-2); color: var(--bs-body-color); }
+.udapp-checks-status:hover { background: var(--custom-onsurface-layer-3); }
+.udapp-checks-status > i { width: 14px; text-align: center; flex-shrink: 0; }
+.udapp-checks-link { flex-shrink: 0; color: var(--custom-primary); }
+.udapp-checks-status:hover .udapp-checks-link { text-decoration: underline; }
+.udapp-checks-dark { --udapp-checks-danger: #f1948a; --udapp-checks-warning: #f5c26b; --udapp-checks-success: #66d7ba; }
+.udapp-checks-light { --udapp-checks-danger: #c0392b; --udapp-checks-warning: #b9770e; --udapp-checks-success: #138d75; }
+.udapp-checks-danger > i { color: var(--udapp-checks-danger); }
+.udapp-checks-warning > i { color: var(--udapp-checks-warning); }
+.udapp-checks-success > i { color: var(--udapp-checks-success); }
+.udapp-checks-neutral > i { color: var(--bs-secondary-color); }
