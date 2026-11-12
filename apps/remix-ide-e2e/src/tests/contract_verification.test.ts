@@ -25,11 +25,11 @@ const tests = {
   'Should select a chain by searching #group1': function (browser: NightwatchBrowser) {
     browser
       .click('[data-id="chainDropdownbox"]')
-      .sendKeys('[data-id="chainDropdownbox"]', 's')
-      .sendKeys('[data-id="chainDropdownbox"]', 'c')
-      .sendKeys('[data-id="chainDropdownbox"]', 'r')
+      .waitForElementVisible('[data-id="network-dropdownSearch"]')
+      .setValue('[data-id="network-dropdownSearch"]', 'scr')
       .click('[data-id="534351"]')
-      .assert.attributeContains('[data-id="chainDropdownbox"]', 'value', "Scroll Sepolia Testnet (534351)")
+      .assert.attributeEquals('[data-id="chainDropdownbox"]', 'data-value', '534351')
+      .assert.textContains('[data-id="chainDropdownbox"]', 'Scroll Sepolia Testnet (534351)')
   }
 }
 

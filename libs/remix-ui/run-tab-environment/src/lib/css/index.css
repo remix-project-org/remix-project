@@ -1,21 +1,7 @@
-.environment-item-hover {
-  padding: .25rem .5rem !important;
-}
-
-.environment-item-hover:hover {
-    background-color: var(--custom-onsurface-layer-3) !important;
-    border-radius: 4px !important;
-    color: var(--theme-text-color, --bs-gray-500) !important;
-  }
   .account-item-hover:hover {
     background-color: var(--custom-onsurface-layer-3) !important;
     border-radius: 0 !important;
     color: var(--theme-text-color, --bs-gray-600) !important;
-  }
-  .category-item-hover:hover {
-    background-color: var(--custom-onsurface-layer-4) !important;
-    border-radius: 0 !important;
-    color: var(--theme-text-color, --bs-gray-500) !important;
   }
   .account-balance-container {
     position: relative;
@@ -171,51 +157,16 @@
     font-size: 0.7rem;
   }
 
-  .env-toggle {
-    background-color: var(--custom-onsurface-layer-2);
-    cursor: pointer;
-    padding: 8px 16px !important;
-  }
-
-  .env-toggle:hover {
-    background-color: var(--custom-onsurface-layer-3) !important;
-  }
-
   .env-subcategory-wrapper,
   .env-subcategory-wrapper > .dropdown {
     display: flex;
     flex-shrink: 0;
   }
 
-  .env-subcategory-toggle {
-    background-color: var(--custom-onsurface-layer-2);
-    border: 1px solid var(--bs-border-color);
-    border-radius: var(--bs-border-radius);
-    color: inherit;
-    cursor: pointer;
-    padding: 8px 16px;
-    font-size: inherit;
-    line-height: 1.5;
-    white-space: nowrap;
-    height: 100%;
-    min-width: 80px;
-  }
-
-  .env-subcategory-toggle > div {
-    width: 100%;
-  }
-
-  .env-subcategory-toggle:hover {
-    background-color: var(--custom-onsurface-layer-3);
-  }
-
-  .env-toggle-content {
-    display: flex;
-    flex-grow: 1;
-    overflow: hidden;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
+  /* the sub-category list is as wide as its names, not as the toggle */
+  .env-subcategory-wrapper .rx-select-menu {
+    width: max-content;
+    min-width: var(--rx-select-ref-width, 100%);
   }
 
   .dropdown-menu-env {

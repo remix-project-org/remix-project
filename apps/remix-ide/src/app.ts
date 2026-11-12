@@ -30,6 +30,7 @@ import { TheGraphPlugin } from './app/plugins/thegraph'
 import { SolidityUmlGen } from './app/plugins/solidity-umlgen'
 import { VyperCompilationDetailsPlugin } from './app/plugins/vyper-compilation-details'
 import { ContractFlattener } from './app/plugins/contractFlattener'
+import { PreDeployChecksPlugin } from './app/plugins/pre-deploy-checks'
 
 import { WalkthroughService } from './walkthroughService'
 
@@ -528,6 +529,7 @@ class AppComponent {
 
     const udappEnvPlugin = new EnvironmentPlugin()
     const udappDeployPlugin = new DeployPlugin()
+    const preDeployChecks = new PreDeployChecksPlugin()
     const udappDeployedContractsPlugin = new DeployedContractsPlugin()
     const udappTransactionsPlugin = new TransactionsPlugin()
     const udappEezPlugin = new EezPlugin()
@@ -591,6 +593,7 @@ class AppComponent {
       domainMigration,
       remixGuide,
       contractFlattener,
+      preDeployChecks,
       solidityScript,
       templates,
       git,
@@ -1002,6 +1005,8 @@ class AppComponent {
     await this.appManager.activatePlugin(['udappDeployedContracts'])
     await this.appManager.activatePlugin(['udappTransactions'])
     await this.appManager.activatePlugin(['udappEez'])
+    // listens to compile and file events from the start, so it also reflects tools run by hand
+    await this.appManager.activatePlugin(['preDeployChecks'])
   }
 }
 

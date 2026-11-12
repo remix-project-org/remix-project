@@ -17,7 +17,7 @@ module.exports = {
   'Should activate `generate contract metadata` ': function (browser) {
     browser.waitForElementVisible('*[data-id="remixIdeSidePanel"]')
       .waitForElementVisible('*[data-id="generate-contract-metadataSwitch"]')
-      .verify.elementPresent('[data-id="generate-contract-metadataSwitch"] .fa-toggle-on')
+      .verify.elementPresent('[data-id="generate-contract-metadataSwitch"][aria-checked="true"]')
       .openFile('contracts/3_Ballot.sol')
       .click('*[data-id="verticalIconsKindsolidity"]')
       .pause(2000)
@@ -109,7 +109,7 @@ module.exports = {
       .click('*[data-id="settingsTabDropdownItemnever"]')
       .pause(500)
       .assert.containsText('*[data-id="settingsTabDropdownToggleai-screen-capture-consent"]', 'Never allow')
-      .refresh()
+      .refreshPage()
       .waitForElementVisible('*[data-id="topbar-settingsIcon"]')
       .click('*[data-id="topbar-settingsIcon"]')
       .waitForElementVisible('*[data-id="settings-sidebar-ai"]')

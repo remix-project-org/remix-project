@@ -68,6 +68,7 @@
   "filePanel.copyFileName": "Copy name",
   "filePanel.copyFilePath": "Copy path",
   "filePanel.contractflattener": "Flatten",
+  "filePanel.preDeployChecks": "Open in Pre-deploy Checks",
   "filePanel.nahmii-compiler": "Compile for Nahmii",
   "filePanel.solidityumlgen": "Generate UML",
   "filePanel.doc-gen": "Generate Docs",
@@ -175,5 +176,8 @@
   "filePanel.openInNewWindow": "Open in New Window",
   "filePanel.showInFolder": "Show in Folder",
   "filePanel.removeFromRecent": "Remove from Recent",
-  "filePanel.gitSectionLabel": "GIT"
+  "filePanel.gitSectionLabel": "GIT",
+  "filePanel.addAISkills": "Add AI skills…",
+  "filePanel.addAISkillsSub": "Skill packs RemixAI can use, saved in skills/",
+  "filePanel.addAISkillsLocked": "Needs a plan with AI skills"
 }

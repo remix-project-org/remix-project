@@ -148,10 +148,7 @@ const tests = {
     'check the commands #group4': function (browser: NightwatchBrowser) {
         browser
             .click('*[data-id="commands-panel"]')
-            .waitForElementVisible({
-                selector: "//div[@id='commands-remote-origin-select']//div[contains(@class, 'singleValue') and contains(text(), 'origin')]",
-                locateStrategy: 'xpath'
-            })
+            .waitForElementVisible('*[data-id="commands-remote-origin-select"][data-value="origin"]')
     },
     'switch to origin2 #group4': function (browser: NightwatchBrowser) {
         browser
@@ -165,10 +162,7 @@ const tests = {
     'check the commands for origin2 #group4': function (browser: NightwatchBrowser) {
         browser
             .click('*[data-id="commands-panel"]')
-            .waitForElementVisible({
-                selector: "//div[@id='commands-remote-origin-select']//div[contains(@class, 'singleValue') and contains(text(), 'origin2')]",
-                locateStrategy: 'xpath'
-            })
+            .waitForElementVisible('*[data-id="commands-remote-origin-select"][data-value="origin2"]')
     },
     'sync the commit #group4': function (browser: NightwatchBrowser) {
         browser
@@ -206,10 +200,7 @@ const tests = {
     'check the commands for origin #group4': function (browser: NightwatchBrowser) {
         browser
             .click('*[data-id="commands-panel"]')
-            .waitForElementVisible({
-                selector: "//div[@id='commands-remote-origin-select']//div[contains(@class, 'singleValue') and contains(text(), 'origin')]",
-                locateStrategy: 'xpath'
-            })
+            .waitForElementVisible('*[data-id="commands-remote-origin-select"][data-value="origin"]')
     },
     'check the commit ahead #group4': function (browser: NightwatchBrowser) {
         browser

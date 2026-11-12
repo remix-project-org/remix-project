@@ -91,12 +91,16 @@ const tests = {
         selector: '//*[@data-id="remotes-panel-content"]//*[@id="repository-select"]',
         locateStrategy: 'xpath'
       })
+      .setValue({
+        selector: '//*[@data-id="remotes-panel-content"]//*[@data-id="repository-selectSearch"]',
+        locateStrategy: 'xpath'
+      }, 'awesome-remix')
       .waitForElementVisible({
-        selector: '//*[@data-id="remotes-panel-content"]//*[contains(text(), "awesome-remix")]',
+        selector: '//*[@data-id="remotes-panel-content"]//*[@data-id="repository-select-remix-project-org/awesome-remix"]',
         locateStrategy: 'xpath'
       })
       .click({
-        selector: '//*[@data-id="remotes-panel-content"]//*[contains(text(), "awesome-remix")]',
+        selector: '//*[@data-id="remotes-panel-content"]//*[@data-id="repository-select-remix-project-org/awesome-remix"]',
         locateStrategy: 'xpath'
       })
       .waitForElementVisible({
@@ -124,18 +128,9 @@ const tests = {
     browser
       .pause(1000)
       .click('*[data-id="commands-panel"]')
-      .waitForElementVisible({
-        selector: "//div[@id='commands-remote-branch-select']//div[contains(@class, 'singleValue') and contains(text(), 'main')]",
-        locateStrategy: 'xpath'
-      })
-      .waitForElementVisible({
-        selector: "//div[@id='commands-remote-origin-select']//div[contains(@class, 'singleValue') and contains(text(), 'newremote')]",
-        locateStrategy: 'xpath'
-      })
-      .waitForElementVisible({
-        selector: "//div[@id='commands-local-branch-select']//div[contains(@class, 'singleValue') and contains(text(), 'main')]",
-        locateStrategy: 'xpath'
-      })
+      .waitForElementVisible('*[data-id="commands-remote-branch-select"][data-value="main"]')
+      .waitForElementVisible('*[data-id="commands-remote-origin-select"][data-value="newremote"]')
+      .waitForElementVisible('*[data-id="commands-local-branch-select"][data-value="main"]')
       .pause(1000)
       .getAttribute({
         selector: '//*[@data-id="sourcecontrol-pull"]',
@@ -171,18 +166,9 @@ const tests = {
     browser
       .pause(1000)
       .click('*[data-id="commands-panel"]')
-      .waitForElementVisible({
-        selector: "//div[@id='commands-remote-branch-select']//div[contains(@class, 'singleValue') and contains(text(), 'main')]",
-        locateStrategy: 'xpath'
-      })
-      .waitForElementNotPresent({
-        selector: "//div[@id='commands-remote-origin-select']//div[contains(@class, 'singleValue') and contains(text(), 'newremote')]",
-        locateStrategy: 'xpath'
-      })
-      .waitForElementVisible({
-        selector: "//div[@id='commands-local-branch-select']//div[contains(@class, 'singleValue') and contains(text(), 'main')]",
-        locateStrategy: 'xpath'
-      })
+      .waitForElementVisible('*[data-id="commands-remote-branch-select"][data-value="main"]')
+      .waitForElementNotPresent('*[data-id="commands-remote-origin-select"][data-value="newremote"]')
+      .waitForElementVisible('*[data-id="commands-local-branch-select"][data-value="main"]')
       .getAttribute({
         selector: '//*[@data-id="sourcecontrol-pull"]',
         locateStrategy: 'xpath'

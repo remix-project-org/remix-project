@@ -252,16 +252,6 @@ export const PromptArea: React.FC<PromptAreaProps> = ({
       { name: 'model', description: 'Switch AI model', category: 'Settings', action: handleSetModel, requiredFeatures: []},
     ]
     if (handleOpenSettings) cmds.push({ name: 'settings', description: 'Open RemixAI settings', category: 'Settings', action: handleOpenSettings, requiredFeatures: []})
-    if (handleLoadSkills) {
-      cmds.push({
-        name: 'load-skills',
-        description: 'Load skills',
-        category: 'Audit',
-        action: handleLoadSkills,
-        disabled: false,
-        requiredFeatures: [Features.SKILLS_BASIC]
-      })
-    }
     if (handleLoadAuditChecklist) {
       cmds.push({
         name: 'audit',
@@ -287,7 +277,7 @@ export const PromptArea: React.FC<PromptAreaProps> = ({
     if (handleLoadSkills) {
       cmds.push({
         name: 'load-skills',
-        description: 'Skills',
+        description: 'Load skills',
         category: 'Skills',
         action: handleLoadSkills,
         disabled: false,

@@ -60,7 +60,7 @@ module.exports = {
 
       .url('http://127.0.0.1:8080/#autoCompile=true&optimize=true&runs=300&code=cHJhZ21hIHNvbGlkaXR5ID49MC42LjAgPDAuNy4wOwoKaW1wb3J0ICJodHRwczovL2dpdGh1Yi5jb20vT3BlblplcHBlbGluL29wZW56ZXBwZWxpbi1jb250cmFjdHMvYmxvYi9tYXN0ZXIvY29udHJhY3RzL2FjY2Vzcy9Pd25hYmxlLnNvbCI7Cgpjb250cmFjdCBHZXRQYWlkIGlzIE93bmFibGUgewogIGZ1bmN0aW9uIHdpdGhkcmF3KCkgZXh0ZXJuYWwgb25seU93bmVyIHsKICB9Cn0')
       .refreshPage() // we do one reload for making sure we already have the default workspace
-      .verify.elementPresent('[data-id="compilerContainerAutoCompile"]:checked')
+      .verify.elementPresent('#autoCompile[aria-checked="true"]')
       .click('[for="autoCompile"]') // we set it too false again
       .click('[for="autoCompile"]') // back to True in the local storage
       .assert.containsText('*[data-id="compilerContainerCompileBtn"]', 'contract-76747f6e19.sol')
@@ -292,11 +292,11 @@ module.exports = {
       .clickLaunchIcon('solidity')
       .pause(2000)
       .click('[data-id="compilerContainerCompileBtn"]')
-      .waitForElementPresent('select[id="compiledContracts"] option[value=MyToken]', 60000)
+      .waitForElementPresent('*[data-id="compiledContract-MyToken"]', 60000)
       .clickLaunchIcon('udapp')
       .selectContract('MyToken')
       .waitForElementPresent('[data-id="contractGUIDeployWithProxyLabel"]')
-      .waitForElementPresent('[data-id="contractGUIDeployWithProxy"] button i.fa-toggle-on')
+      .waitForElementPresent('[data-id="contractGUIDeployWithProxy"] button[aria-checked="true"]')
   },
 
   'Should select upgrade with proxy option from URL params #group2': function (browser: NightwatchBrowser) {
@@ -312,11 +312,11 @@ module.exports = {
       .clickLaunchIcon('solidity')
       .waitForElementVisible('[data-id="compilerContainerCompileBtn"]')
       .click('[data-id="compilerContainerCompileBtn"]')
-      .waitForElementPresent('select[id="compiledContracts"] option[value=MyToken]', 60000)
+      .waitForElementPresent('*[data-id="compiledContract-MyToken"]', 60000)
       .clickLaunchIcon('udapp')
       .selectContract('MyToken')
       .waitForElementPresent('[data-id="contractGUIUpgradeImplementationLabel"]')
-      .waitForElementPresent('[data-id="contractGUIUpgradeImplementation"] button i.fa-toggle-on')
+      .waitForElementPresent('[data-id="contractGUIUpgradeImplementation"] button[aria-checked="true"]')
   },
 
   'Should load using various URL compiler params #group2': function (browser: NightwatchBrowser) {
@@ -331,10 +331,10 @@ module.exports = {
         selector: "//*[@data-id='selectedVersion' and contains(.,'0.8.16+commit.07a7930e')]",
         locateStrategy: 'xpath'
       })
-      .assert.containsText('#evmVersionSelector option[data-id="selected"]', 'istanbul')
-      .assert.containsText('#compilerLanguageSelector option[data-id="selected"]', 'Yul')
-      .verify.elementPresent('#optimize:checked')
-      .verify.elementPresent('#autoCompile:checked')
+      .assert.attributeEquals('#evmVersionSelector', 'data-value', 'istanbul')
+      .assert.attributeEquals('#compilerLanguageSelector', 'data-value', 'Yul')
+      .verify.elementPresent('#optimize[aria-checked="true"]')
+      .verify.elementPresent('#autoCompile[aria-checked="true"]')
       .verify.attributeEquals('#runs', 'value', '300')
       .url('http://127.0.0.1:8080/#version=0.8.7')
       .refreshPage()
@@ -365,9 +365,9 @@ module.exports = {
         locateStrategy: 'xpath'
       })
       // default values
-      .assert.containsText('#evmVersionSelector option[data-id="selected"]', 'default')
+      .assert.attributeEquals('#evmVersionSelector', 'data-value', 'default')
       .verify.elementPresent('#optimize')
-      .assert.not.elementPresent('#optimize:checked')
+      .assert.not.elementPresent('#optimize[aria-checked="true"]')
       .verify.elementPresent('#runs:disabled')
       .click('[for="optimize"')
       .verify.attributeEquals('#runs', 'value', '200')

@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react' // eslint-disable-line
 import { Room } from '@solarpunkltd/swarm-collaborative-docs'
 import type { RoomInvite } from '@solarpunkltd/swarm-collaborative-docs'
+import { Select } from '@remix-ui/helper'
 import { CollabSettings, CollabTransport, loadSettings, parseInviteInput } from './settings'
 
 export const TRANSPORT_LABEL: Record<CollabTransport, string> = {
@@ -101,10 +102,14 @@ export const CollabDialogForm = ({ dataRef, initialMode, initialInvite, isActive
         <summary className="small">Connection</summary>
         {!fixedTransport && (
           <>
-            <label className="form-label small mb-0 mt-2">Transport</label>
-            <select className="form-select form-select-sm mb-2" value={settings.transport} onChange={(e) => update({ transport: e.target.value as CollabTransport })}>
-              {Object.entries(TRANSPORT_LABEL).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
-            </select>
+            <label className="form-label small mb-0 mt-2" htmlFor="swarmCollabTransport">Transport</label>
+            <Select
+              id="swarmCollabTransport"
+              className="mb-2"
+              value={settings.transport}
+              onChange={(value) => update({ transport: value as CollabTransport })}
+              options={Object.entries(TRANSPORT_LABEL).map(([value, label]) => ({ value, label }))}
+            />
           </>
         )}
         {(fixedTransport ?? settings.transport) === 'signaling-server' && (

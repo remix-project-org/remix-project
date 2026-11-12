@@ -183,7 +183,7 @@ export class WorkspaceSync {
   }
 
   private async seedFromWorkspace(): Promise<number> {
-    const paths = (await this.listFiles('/')).filter(isShareable).slice(0, MAX_FILES)
+    const paths = await this.listFiles('/')
     const contents = await Promise.all(paths.map(async (path) => ({ path, content: await this.readText(path) })))
     const seedable = contents.filter((entry) => entry.content !== null)
 
@@ -205,7 +205,7 @@ export class WorkspaceSync {
       const path = normalizePath(key)
       if (found.length >= MAX_FILES) break
       if (!entry.isDirectory) {
-        found.push(path)
+        if (isShareable(path)) found.push(path)
       } else if (!isExcluded(path)) {
         await this.listFiles(path, found)
       }

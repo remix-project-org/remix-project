@@ -4,13 +4,15 @@ This guide explains how to set up and use Ollama with Remix IDE for local AI-pow
 
 ## Table of Contents
 - [What is Ollama?](#what-is-ollama)
+- [Model compatible with the Remix IDE](#model-compatible-with-the-remix-ide)
+- [Restrictions](#restrictions)
 - [Installation](#installation)
 - [CORS Configuration](#cors-configuration)
 - [Model Download and Management](#model-download-and-management)
 - [Recommended Models](#recommended-models)
 - [Using Ollama in Remix IDE](#using-ollama-in-remix-ide)
 - [Troubleshooting](#troubleshooting)
-- [Advanced Configuration](#advanced-configuration)
+- [Getting Help](#getting-help)
 
 ## What is Ollama?
 

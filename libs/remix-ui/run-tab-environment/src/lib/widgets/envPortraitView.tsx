@@ -1,5 +1,5 @@
 import React, { useMemo, useState, useRef } from 'react'
-import { AddressToggle, CustomMenu, CustomTooltip, EnvironmentToggle, shortenAddress, SmartAccountPromptTitle } from "@remix-ui/helper"
+import { AddressToggle, CustomMenu, CustomTooltip, Select, shortenAddress, SmartAccountPromptTitle } from "@remix-ui/helper"
 import { Dropdown } from "react-bootstrap"
 import { useIntl } from 'react-intl'
 import { EnvAppContext } from '../contexts'
@@ -26,8 +26,6 @@ function EnvironmentPortraitView() {
   }
   const intl = useIntl()
   const [isAccountDropdownOpen, setIsAccountDropdownOpen] = useState(false)
-  const [isEnvironmentDropdownOpen, setIsEnvironmentDropdownOpen] = useState(false)
-  const [isSubCategoryDropdownOpen, setIsSubCategoryDropdownOpen] = useState(false)
   const [openKebabMenuId, setOpenKebabMenuId] = useState<string | null>(null)
   const [editingAccountId, setEditingAccountId] = useState<string | null>(null)
   const [editingAlias, setEditingAlias] = useState<string>('')
@@ -275,6 +273,9 @@ function EnvironmentPortraitView() {
     }
   }
 
+  // a category is listed once, under its name; providers without a category are listed by name
+  const providerItemKey = (provider: Provider) => provider.category ? provider.category.split(' ').join('_') : provider.name
+
   const uniqueDropdownItems = useMemo(() => {
     const categoryMap = new Map<string, Provider>()
     const itemsWithoutCategory: Provider[] = []
@@ -432,50 +433,22 @@ function EnvironmentPortraitView() {
         {widgetState.fork.isVisible.resetUI && <ResetUI />}
         {!widgetState.fork.isVisible.forkUI && !widgetState.fork.isVisible.resetUI && (
           <div className="d-flex gap-2">
-            <Dropdown className="flex-grow-1" show={isEnvironmentDropdownOpen} onToggle={(isOpen) => {
-              if (isOpen) {
-                trackMatomoEvent({ category: 'udapp', action: 'environmentDropdownOpen', name: selectedProvider?.category || selectedProvider?.displayName || 'Remix VM' })
-              }
-              if (isOpen && isSubCategoryDropdownOpen) setIsSubCategoryDropdownOpen(false)
-              if (isOpen && isAccountDropdownOpen) setIsAccountDropdownOpen(false)
-              setIsEnvironmentDropdownOpen(isOpen)
-              if (!isOpen) setIsSubCategoryDropdownOpen(false)
-            }}>
-              <Dropdown.Toggle
-                as={EnvironmentToggle}
-                data-id="settingsSelectEnvOptions"
-                className="w-100 d-inline-block border form-control env-toggle"
-                environmentUI={null}
-              >
-                <div className="env-toggle-content">
-                  <div className="text-truncate" style={{ color: 'var(--bs-heading-color)' }}>
-                    <span data-id={`selected-provider-${widgetState.providers.selectedProvider}`}> { selectedProvider?.category || selectedProvider?.displayName || 'Remix VM' }</span>
-                  </div>
-                  <i className="fas fa-caret-down text-secondary ms-2 flex-shrink-0"></i>
-                </div>
-              </Dropdown.Toggle>
-
-              <Dropdown.Menu as={CustomMenu} className="w-100 custom-dropdown-items overflow-hidden dropdown-menu-env p-1">
-                {
-                  uniqueDropdownItems.map((provider, index) => {
-                    return (
-                      <Dropdown.Item key={index} onClick={() => handleProviderSelection(provider)} data-id={`dropdown-item-${provider.category ? provider.category?.split(' ')?.join('_') : provider.name}`} className="environment-item-hover">
-                        {provider.category ? provider.category : provider.displayName}
-                      </Dropdown.Item>
-                    )})
+            <Select
+              id="settingsSelectEnvOptions"
+              className="flex-grow-1"
+              value={selectedProvider ? providerItemKey(selectedProvider) : ''}
+              options={uniqueDropdownItems.map((provider) => ({ value: providerItemKey(provider), label: provider.category ? provider.category : provider.displayName }))}
+              itemDataId={(o) => `dropdown-item-${o.value}`}
+              renderValue={() => <span data-id={`selected-provider-${widgetState.providers.selectedProvider}`}>{selectedProvider?.category || selectedProvider?.displayName || 'Remix VM'}</span>}
+              onToggle={(isOpen) => {
+                if (isOpen) {
+                  trackMatomoEvent({ category: 'udapp', action: 'environmentDropdownOpen', name: selectedProvider?.category || selectedProvider?.displayName || 'Remix VM' })
                 }
-              </Dropdown.Menu>
-            </Dropdown>
+              }}
+              onChange={(key) => handleProviderSelection(uniqueDropdownItems.find((provider) => providerItemKey(provider) === key))}
+            />
             <div className="env-subcategory-wrapper">
-              <EnvCategoryUI
-                key={selectedProvider?.category || widgetState.providers.selectedProvider}
-                isOpen={isSubCategoryDropdownOpen}
-                onToggle={(isOpen: boolean) => {
-                  setIsSubCategoryDropdownOpen(isOpen)
-                  if (isOpen) setIsEnvironmentDropdownOpen(false)
-                  if (isOpen && isAccountDropdownOpen) setIsAccountDropdownOpen(false)
-                }}
-              />
+              <EnvCategoryUI key={selectedProvider?.category || widgetState.providers.selectedProvider} />
             </div>
           </div>)}
         {!widgetState.fork.isVisible.resetUI && (

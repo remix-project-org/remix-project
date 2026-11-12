@@ -65,20 +65,26 @@ module.exports = {
         selector: '//*[@data-id="clone-panel-content"]//*[@data-id="fetch-repositories"]',
         locateStrategy: 'xpath'
       })
+      // the select stays disabled while repositories load; a click before that is ignored
       .waitForElementVisible({
-        selector: '//*[@data-id="clone-panel-content"]//*[@id="repository-select"]',
-        locateStrategy: 'xpath'
+        selector: '//*[@data-id="clone-panel-content"]//*[@id="repository-select" and not(@disabled)]',
+        locateStrategy: 'xpath',
+        timeout: 30000
       })
       .click({
         selector: '//*[@data-id="clone-panel-content"]//*[@id="repository-select"]',
         locateStrategy: 'xpath'
       })
+      .setValue({
+        selector: '//*[@data-id="clone-panel-content"]//*[@data-id="repository-selectSearch"]',
+        locateStrategy: 'xpath'
+      }, 'awesome-remix')
       .waitForElementVisible({
-        selector: '//*[@data-id="clone-panel-content"]//*[contains(text(), "awesome-remix")]',
+        selector: '//*[@data-id="clone-panel-content"]//*[@data-id="repository-select-remix-project-org/awesome-remix"]',
         locateStrategy: 'xpath'
       })
       .click({
-        selector: '//*[@data-id="clone-panel-content"]//*[contains(text(), "awesome-remix")]',
+        selector: '//*[@data-id="clone-panel-content"]//*[@data-id="repository-select-remix-project-org/awesome-remix"]',
         locateStrategy: 'xpath'
       })
       .waitForElementVisible({
@@ -89,8 +95,12 @@ module.exports = {
         selector: '//*[@data-id="clone-panel-content"]//*[@id="branch-select"]',
         locateStrategy: 'xpath'
       })
+      .waitForElementVisible({
+        selector: '//*[@data-id="clone-panel-content"]//*[@data-id="branch-select-master"]',
+        locateStrategy: 'xpath'
+      })
       .click({
-        selector: '//*[@data-id="clone-panel-content"]//*[contains(text(), "master")]',
+        selector: '//*[@data-id="clone-panel-content"]//*[@data-id="branch-select-master"]',
         locateStrategy: 'xpath'
       })
       .waitForElementVisible({
@@ -110,18 +120,9 @@ module.exports = {
     browser
       .clickLaunchIcon('dgit')
       .click('*[data-id="commands-panel"]')
-      .waitForElementVisible({
-        selector: "//div[@id='commands-remote-branch-select']//div[contains(@class, 'singleValue') and contains(text(), 'master')]",
-        locateStrategy: 'xpath'
-      })
-      .waitForElementVisible({
-        selector: "//div[@id='commands-remote-origin-select']//div[contains(@class, 'singleValue') and contains(text(), 'origin')]",
-        locateStrategy: 'xpath'
-      })
-      .waitForElementVisible({
-        selector: "//div[@id='commands-local-branch-select']//div[contains(@class, 'singleValue') and contains(text(), 'master')]",
-        locateStrategy: 'xpath'
-      })
+      .waitForElementVisible('*[data-id="commands-remote-branch-select"][data-value="master"]')
+      .waitForElementVisible('*[data-id="commands-remote-origin-select"][data-value="origin"]')
+      .waitForElementVisible('*[data-id="commands-local-branch-select"][data-value="master"]')
   },
   'check the remotes #group1': function (browser: NightwatchBrowser) {
     browser
@@ -206,18 +207,9 @@ module.exports = {
   'check the commands panel for links #group1': function (browser: NightwatchBrowser) {
     browser
       .click('*[data-id="commands-panel"]')
-      .waitForElementVisible({
-        selector: "//div[@id='commands-remote-branch-select']//div[contains(@class, 'singleValue') and contains(text(), 'links')]",
-        locateStrategy: 'xpath'
-      })
-      .waitForElementVisible({
-        selector: "//div[@id='commands-remote-origin-select']//div[contains(@class, 'singleValue') and contains(text(), 'origin')]",
-        locateStrategy: 'xpath'
-      })
-      .waitForElementVisible({
-        selector: "//div[@id='commands-local-branch-select']//div[contains(@class, 'singleValue') and contains(text(), 'links')]",
-        locateStrategy: 'xpath'
-      })
+      .waitForElementVisible('*[data-id="commands-remote-branch-select"][data-value="links"]')
+      .waitForElementVisible('*[data-id="commands-remote-origin-select"][data-value="origin"]')
+      .waitForElementVisible('*[data-id="commands-local-branch-select"][data-value="links"]')
   },
   'reload page and check login persistence #group1': function (browser: NightwatchBrowser) {
     browser
@@ -268,20 +260,26 @@ module.exports = {
         selector: '//*[@data-id="remotes-panel-content"]//*[@data-id="fetch-repositories"]',
         locateStrategy: 'xpath'
       })
+      // the select stays disabled while repositories load; a click before that is ignored
       .waitForElementVisible({
-        selector: '//*[@data-id="remotes-panel-content"]//*[@id="repository-select"]',
-        locateStrategy: 'xpath'
+        selector: '//*[@data-id="remotes-panel-content"]//*[@id="repository-select" and not(@disabled)]',
+        locateStrategy: 'xpath',
+        timeout: 30000
       })
       .click({
         selector: '//*[@data-id="remotes-panel-content"]//*[@id="repository-select"]',
         locateStrategy: 'xpath'
       })
+      .setValue({
+        selector: '//*[@data-id="remotes-panel-content"]//*[@data-id="repository-selectSearch"]',
+        locateStrategy: 'xpath'
+      }, 'awesome-remix')
       .waitForElementVisible({
-        selector: '//*[@data-id="remotes-panel-content"]//*[contains(text(), "awesome-remix")]',
+        selector: '//*[@data-id="remotes-panel-content"]//*[@data-id="repository-select-remix-project-org/awesome-remix"]',
         locateStrategy: 'xpath'
       })
       .click({
-        selector: '//*[@data-id="remotes-panel-content"]//*[contains(text(), "awesome-remix")]',
+        selector: '//*[@data-id="remotes-panel-content"]//*[@data-id="repository-select-remix-project-org/awesome-remix"]',
         locateStrategy: 'xpath'
       })
       .waitForElementVisible({
@@ -309,18 +307,9 @@ module.exports = {
     browser
       .pause(1000)
       .click('*[data-id="commands-panel"]')
-      .waitForElementVisible({
-        selector: "//div[@id='commands-remote-branch-select']//div[contains(@class, 'singleValue') and contains(text(), 'main')]",
-        locateStrategy: 'xpath'
-      })
-      .waitForElementVisible({
-        selector: "//div[@id='commands-remote-origin-select']//div[contains(@class, 'singleValue') and contains(text(), 'newremote')]",
-        locateStrategy: 'xpath'
-      })
-      .waitForElementVisible({
-        selector: "//div[@id='commands-local-branch-select']//div[contains(@class, 'singleValue') and contains(text(), 'main')]",
-        locateStrategy: 'xpath'
-      })
+      .waitForElementVisible('*[data-id="commands-remote-branch-select"][data-value="main"]')
+      .waitForElementVisible('*[data-id="commands-remote-origin-select"][data-value="newremote"]')
+      .waitForElementVisible('*[data-id="commands-local-branch-select"][data-value="main"]')
       .pause(1000)
       .getAttribute({
         selector: '//*[@data-id="sourcecontrol-pull"]',
@@ -356,18 +345,9 @@ module.exports = {
     browser
       .pause(1000)
       .click('*[data-id="commands-panel"]')
-      .waitForElementVisible({
-        selector: "//div[@id='commands-remote-branch-select']//div[contains(@class, 'singleValue') and contains(text(), 'main')]",
-        locateStrategy: 'xpath'
-      })
-      .waitForElementNotPresent({
-        selector: "//div[@id='commands-remote-origin-select']//div[contains(@class, 'singleValue') and contains(text(), 'newremote')]",
-        locateStrategy: 'xpath'
-      })
-      .waitForElementVisible({
-        selector: "//div[@id='commands-local-branch-select']//div[contains(@class, 'singleValue') and contains(text(), 'main')]",
-        locateStrategy: 'xpath'
-      })
+      .waitForElementVisible('*[data-id="commands-remote-branch-select"][data-value="main"]')
+      .waitForElementNotPresent('*[data-id="commands-remote-origin-select"][data-value="newremote"]')
+      .waitForElementVisible('*[data-id="commands-local-branch-select"][data-value="main"]')
       .getAttribute({
         selector: '//*[@data-id="sourcecontrol-pull"]',
         locateStrategy: 'xpath'

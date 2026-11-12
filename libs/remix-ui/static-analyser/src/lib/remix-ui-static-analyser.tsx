@@ -14,6 +14,7 @@ import { CodeAnalysis } from '@remix-project/remix-analyzer'
 import Tab from 'react-bootstrap/Tab'
 import Tabs from 'react-bootstrap/Tabs'
 import { AnalysisTab, SolHintReport } from '../staticanalyser'
+import { SourceWithTarget } from '@remixproject/plugin-api'
 import { run } from './actions/staticAnalysisActions'
 import { BasicTitle, calculateWarningStateEntries } from './components/BasicTitle'
 import { Nav, TabContainer } from 'react-bootstrap'
@@ -30,8 +31,13 @@ export interface RemixUiStaticAnalyserProps {
 
 type tabSelectionType = 'remix' | 'solhint' | 'slither' | 'none'
 
+// what was compiled: the file and the content of every source in the compilation
+const compiledSourceKey = (file: string, source: SourceWithTarget) =>
+  JSON.stringify([file, Object.entries(source?.sources || {}).map(([path, s]) => [path, s.content]).sort()])
+
 export const RemixUiStaticAnalyser = (props: RemixUiStaticAnalyserProps) => {
   const [runner] = useState(new CodeAnalysis())
+  const lastCompiledKey = useRef<string>(null)
   const platform = useContext(platformContext)
   const appContext = useContext(AppContext)
   const { trackMatomoEvent } = useContext(TrackingContext)
@@ -106,7 +112,18 @@ export const RemixUiStaticAnalyser = (props: RemixUiStaticAnalyserProps) => {
   }
 
   useEffect(() => {
-    compilation(props.analysisModule, dispatch)
+    // one compilationFinished listener per plugin: the engine ignores a second registration,
+    // so clearing the previous results has to happen in this one.
+    // Only a changed source clears them: auto-compile often recompiles the same code
+    // right after a run, which would wipe the results that were just shown.
+    compilation(props.analysisModule, dispatch, (file, source) => {
+      const key = compiledSourceKey(file, source)
+      if (key === lastCompiledKey.current) return
+      lastCompiledKey.current = key
+      setHints([])
+      setSlitherWarnings([])
+      setSsaWarnings([])
+    })
   }, [props])
 
   useEffect(() => {
@@ -116,14 +133,6 @@ export const RemixUiStaticAnalyser = (props: RemixUiStaticAnalyserProps) => {
 
   useEffect(() => {
     props.event.trigger('staticAnalysisWarning', [-1])
-  }, [state])
-
-  useEffect(() => {
-    props.analysisModule.on('solidity', 'compilationFinished', (fileName, source, languageVersion, data) => {
-      setHints([])
-      setSlitherWarnings([])
-      setSsaWarnings([])
-    })
   }, [state])
 
   useEffect(() => {
@@ -229,7 +238,7 @@ export const RemixUiStaticAnalyser = (props: RemixUiStaticAnalyserProps) => {
         }
       }
     }
-    props.event.trigger('staticAnaysisWarning', [newWarningCount])
+    props.event.trigger('staticAnalysisWarning', [newWarningCount])
     setWarningState(newWarningState)
   }
 
@@ -359,12 +368,12 @@ export const RemixUiStaticAnalyser = (props: RemixUiStaticAnalyserProps) => {
       const slitherTotal = slitherWarnings && state.data && state.source !== null ? slitherWarnings.filter((x) => !x.options.isLibrary && x.hasWarning).length : 0
       const ssaTotal = ssaWarnings && state.data && state.source !== null ? ssaWarnings.filter((x) => !x.options.isLibrary && x.hasWarning).length : 0
       const hintsTotal = hints && state.data && state.source !== null ? hints.length : 0
-      props.event.trigger('staticAnaysisWarning', [
+      props.event.trigger('staticAnalysisWarning', [
         slitherTotal + ssaTotal + hintsTotal === 0 ? -1 : !solhintEnabled && !basicEnabled && !slitherEnabled ? -1 : slitherTotal + ssaTotal + hintsTotal
       ])
     }
     if (!hideWarnings && showLibsWarning) {
-      props.event.trigger('staticAnaysisWarning', [
+      props.event.trigger('staticAnalysisWarning', [
         slitherWarnings.length + ssaWarnings.length + hints.length === 0
           ? -1
           : !solhintEnabled && !basicEnabled && !slitherEnabled
@@ -376,10 +385,10 @@ export const RemixUiStaticAnalyser = (props: RemixUiStaticAnalyserProps) => {
       const slitherTotal = slitherWarnings && state.data && state.source !== null ? slitherWarnings.filter((x) => x.options.type === 'error').length : 0
       const ssaTotal = ssaWarnings && state.data && state.source !== null ? ssaWarnings.filter((x) => x.options.type === 'error').length : 0
       const hintsTotal = hints && state.data && state.source !== null ? hints.filter((x) => x.type === 'error').length : 0
-      props.event.trigger('staticAnaysisWarning', [slitherTotal + ssaTotal + hintsTotal === 0 ? -1 : slitherTotal + ssaTotal + hintsTotal])
+      props.event.trigger('staticAnalysisWarning', [slitherTotal + ssaTotal + hintsTotal === 0 ? -1 : slitherTotal + ssaTotal + hintsTotal])
     }
     if (hideWarnings && !solhintEnabled && !slitherEnabled && !basicEnabled) {
-      props.event.trigger('staticAnaysisWarning', [-1])
+      props.event.trigger('staticAnalysisWarning', [-1])
     }
   }, [hideWarnings, showLibsWarning])
 
@@ -400,7 +409,7 @@ export const RemixUiStaticAnalyser = (props: RemixUiStaticAnalyserProps) => {
       hintsTotal = hints.length
       props.analysisModule.solhintEnabled = true
     }
-    props.event.trigger('staticAnaysisWarning', [slitherTotal + ssaTotal + hintsTotal === 0 ? -1 : slitherTotal + ssaTotal + hintsTotal])
+    props.event.trigger('staticAnalysisWarning', [slitherTotal + ssaTotal + hintsTotal === 0 ? -1 : slitherTotal + ssaTotal + hintsTotal])
   }, [hints.length, slitherWarnings.length, ssaWarnings.length])
 
   useEffect(() => {
@@ -420,7 +429,7 @@ export const RemixUiStaticAnalyser = (props: RemixUiStaticAnalyserProps) => {
     if (hints && solhintEnabled && state.data && state.source !== null) {
       hintsTotal = hints.length
     }
-    props.event.trigger('staticAnaysisWarning', [slitherTotal + ssaTotal + hintsTotal === 0 ? -1 : slitherTotal + ssaTotal + hintsTotal])
+    props.event.trigger('staticAnalysisWarning', [slitherTotal + ssaTotal + hintsTotal === 0 ? -1 : slitherTotal + ssaTotal + hintsTotal])
   }, [solhintEnabled, basicEnabled, slitherEnabled, showSlither])
 
   const handleSlitherEnabled = async () => {
@@ -839,7 +848,7 @@ export const RemixUiStaticAnalyser = (props: RemixUiStaticAnalyserProps) => {
         console.debug('Could not remove event listener from solidityStaticAnalysis:', error.message)
       }
     }
-  }, [state.data, state.source, state.file, state, props])
+  }, [state.data, state.source, state.file, state, props, isSupportedVersion, showSlither, categoryIndex, slitherEnabled, solhintEnabled, basicEnabled])
 
   return (
     <div className="analysis_3ECCBV px-3 pb-1">

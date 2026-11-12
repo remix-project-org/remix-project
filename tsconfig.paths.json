@@ -130,6 +130,9 @@
             "@remix-ui/static-analyser": [
               "libs/remix-ui/static-analyser/src/index.ts"
             ],
+            "@remix-ui/pre-deploy-checks": [
+              "libs/remix-ui/pre-deploy-checks/src/index.ts"
+            ],
             "@remix-ui/tabs": [
               "libs/remix-ui/tabs/src/index.ts"
             ],

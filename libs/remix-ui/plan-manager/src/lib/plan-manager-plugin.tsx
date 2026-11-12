@@ -24,7 +24,7 @@ import { initPaddle, getPaddle, openCheckoutWithTransaction, onPaddleEvent, offP
 import { reportCheckoutTelemetry, setCheckoutTelemetryToken, setCheckoutTelemetryEnv } from './checkout-telemetry'
 import { endpointUrls } from '@remix-endpoints-helper'
 import type { Paddle, PaddleEventData } from '@paddle/paddle-js'
-import type { CreditsUsageQuery, FeatureGroup, UsageReport, PendingCheckout, TransactionPaymentStatusResponse } from '@remix-api'
+import type { CreditsUsageQuery, FeatureGroup, UsageReport, PendingCheckout, TransactionPaymentStatusResponse, SameEmailOverviewResponse } from '@remix-api'
 import { Features, FEATURE_LABELS, trackMatomoEvent } from '@remix-api'
 import type { CheckoutEvent } from '@remix-api'
 import * as packageJson from '../../../../../package.json'
@@ -59,10 +59,12 @@ import {
   selectCheckoutResult,
   selectPurchasingProductId,
   selectUiVisibility,
+  selectOtherSameEmailGroups,
   hasFeature,
   type QuotaEntry,
   type UiVisibility
 } from './plan-manager-machine'
+import { SameEmailAccountsBanner, SameEmailAccountsModalBody, sameEmailValueSignature } from './same-email-accounts'
 import { LoginModal, startSignInFlow, OtpDigitInput, OtpDigitInputHandle } from '@remix-ui/login'
 import { planManagerLogger } from './plan-manager-logger'
 import { TASK_COSTS, isStale, pluralTitle, profiledModels, taskCapacity } from './ai-task-costs'
@@ -103,6 +105,8 @@ export interface BillingLocale {
 }
 
 const BILLING_LOCALE_STORAGE_KEY = 'remix:billing-locale'
+/** Per-user fingerprint of the last same-email value the post-login modal showed. */
+const SAME_EMAIL_NOTICE_STORAGE_KEY = 'remix:same-email-notice'
 
 /**
  * Last session's resolved locale. Paddle can only price-preview once it is
@@ -131,6 +135,10 @@ export class PlanManagerPlugin extends ViewPlugin {
   private lastAuthSig = ''
   // Guard so we only auto-load the resume list once per auth session.
   private resumeCheckoutsLoaded = false
+  /** Guards against stacking the same-email modal when overview events arrive in bursts. */
+  private sameEmailNoticeOpen = false
+  /** Dedupe key for the `same_email_detected` Matomo event. */
+  private lastSameEmailTrackKey = ''
   // Starter-pack purchase confirmed; the low-cost-models modal waits until the
   // user leaves the checkout success screen.
   private pendingCheapModelsAnnouncement = false
@@ -411,11 +419,17 @@ export class PlanManagerPlugin extends ViewPlugin {
         if (p?.token) setCheckoutTelemetryToken(p.token)
       })
       this.on('auth', 'creditsUpdated', () => { void this.loadAccountData() })
+      this.on('auth', 'sameEmailAccountsChanged' as any, (overview: SameEmailOverviewResponse | null) => {
+        this.handleSameEmailAccounts(overview)
+      })
       // Initial sync — auth might already be settled by the time we activate.
       const user = await this.call('auth', 'getUser').catch(() => null)
       if (user) {
         const token = await this.call('auth', 'getToken').catch(() => null)
         onAuthChange({ isAuthenticated: true, token, user })
+        void this.call('auth', 'getSameEmailAccounts' as any)
+          .then((overview: SameEmailOverviewResponse | null) => this.handleSameEmailAccounts(overview))
+          .catch(() => {})
       } else {
         this.store.send({ type: 'AUTH_CHANGED', isAuthenticated: false })
       }
@@ -429,6 +443,71 @@ export class PlanManagerPlugin extends ViewPlugin {
       }
     } catch (err) {
       planManagerLogger.warn('[PlanManager] nudge failed', err)
+    }
+  }
+
+  /**
+   * Same-email overview from the auth plugin (refetched on every sign-in,
+   * session restore and email verification). Feeds the panel banner and, when
+   * another account holds credits or a subscription, a one-time modal.
+   */
+  private handleSameEmailAccounts(overview: SameEmailOverviewResponse | null): void {
+    this.store.send({ type: 'SAME_EMAIL_ACCOUNTS_LOADED', overview: overview ?? null })
+    if (overview && overview.other_account_count > 0) {
+      // The initial getSameEmailAccounts() and the change event can both deliver the same overview.
+      const key = `${overview.current_user_id}|${overview.other_account_count}|${sameEmailValueSignature(overview)}`
+      if (key !== this.lastSameEmailTrackKey) {
+        this.lastSameEmailTrackKey = key
+        trackMatomoEvent(this, {
+          category: 'checkout',
+          action: 'same_email_detected',
+          name: overview.other_accounts_have_value ? 'with_value' : 'no_value',
+          value: overview.other_account_count,
+          isClick: false
+        })
+      }
+    }
+    void this.maybeShowSameEmailNotice(overview)
+  }
+
+  private async maybeShowSameEmailNotice(overview: SameEmailOverviewResponse | null): Promise<void> {
+    if (!overview?.other_accounts_have_value || this.sameEmailNoticeOpen) return
+    const signature = sameEmailValueSignature(overview)
+    if (!signature) return
+    const storageKey = `${SAME_EMAIL_NOTICE_STORAGE_KEY}:${overview.current_user_id}`
+    try {
+      if (localStorage.getItem(storageKey) === signature) return
+    } catch { /* storage unavailable — show it */ }
+    // Never interrupt a payment in progress; the next sign-in/reload retries.
+    const snap = this.store.getSnapshot()
+    if (snap.pendingCheckout && !snap.checkoutResult) return
+
+    this.sameEmailNoticeOpen = true
+    try {
+      try { localStorage.setItem(storageKey, signature) } catch { /* noop */ }
+      const groups = selectOtherSameEmailGroups({ sameEmailAccounts: overview })
+      trackMatomoEvent(this, {
+        category: 'checkout',
+        action: 'same_email_modal',
+        value: groups.filter(g => g.has_credits || g.subscriptions.length > 0).length,
+        isClick: false
+      })
+      await this.call('notification' as any, 'modal', {
+        id: 'sameEmailAccountsNotice',
+        title: 'You have other Remix accounts',
+        message: (
+          <SameEmailAccountsModalBody
+            groups={groups}
+            onSupportClick={() => trackMatomoEvent(this, { category: 'checkout', action: 'same_email_support', name: 'modal', isClick: true })}
+          />
+        ),
+        okLabel: 'Got it'
+      })
+    } catch (err) {
+      try { localStorage.removeItem(storageKey) } catch { /* noop */ }
+      planManagerLogger.warn('[PlanManager] same-email notice failed', err)
+    } finally {
+      this.sameEmailNoticeOpen = false
     }
   }
 
@@ -3766,6 +3845,7 @@ const PlanManagerOverlay: React.FC<{
   const canUpgrade = useMemo(() => selectCanUpgrade(snap), [snap])
   const checkoutResult = selectCheckoutResult(snap)
   const purchasingProductId = selectPurchasingProductId(snap)
+  const sameEmailGroups = useMemo(() => selectOtherSameEmailGroups(snap), [snap.sameEmailAccounts])
 
   // Localized list prices for the plan cards + top-up grid. One batched
   // Paddle PricePreview call covering every visible price; the cards fall
@@ -4043,6 +4123,21 @@ const PlanManagerOverlay: React.FC<{
                     checkout={snap.resumeCheckouts[0]}
                     onResume={() => { void plugin.resumeCheckout(snap.resumeCheckouts[0].transaction_id) }}
                     onDiscard={() => { void plugin.discardCheckout(snap.resumeCheckouts[0].transaction_id) }}
+                  />
+                )}
+
+                {/* Other accounts with the same email may already hold credits
+              or a plan — say so before the user buys again on this one. */}
+                {!checkoutActive && sameEmailGroups.length > 0 && (
+                  <SameEmailAccountsBanner
+                    groups={sameEmailGroups}
+                    onTrack={(action, name, value) => trackMatomoEvent(plugin, {
+                      category: 'checkout',
+                      action,
+                      name,
+                      value,
+                      isClick: action !== 'same_email_banner'
+                    })}
                   />
                 )}
 

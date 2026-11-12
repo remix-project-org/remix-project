@@ -1,9 +1,29 @@
-import React, {useRef} from 'react' // eslint-disable-line
+import React, {useRef, useState} from 'react' // eslint-disable-line
 import { FormattedMessage } from 'react-intl'
 import * as packageJson from '../../../../../../../package.json'
 import { AppModal, ModalTypes } from '@remix-ui/app'
 import { BasicVMProvider } from './vm-provider'
 import { Hardfork } from '@ethereumjs/common'
+import { Select } from '@remix-ui/helper'
+
+const evmTypeOptions = Object.keys(Hardfork).map((key) => ({ value: Hardfork[key], label: key }))
+
+// the modal reads its values from the form, so the picked fork goes in a hidden input
+function EvmTypeSelect () {
+  const [evmType, setEvmType] = useState<string>(Hardfork.Osaka)
+  return (
+    <>
+      <Select
+        id="CustomForkEvmType"
+        portal
+        value={evmType}
+        options={evmTypeOptions}
+        onChange={setEvmType}
+      />
+      <input type="hidden" name="evmType" value={evmType} />
+    </>
+  )
+}
 
 export class CustomForkVMProvider extends BasicVMProvider {
   nodeUrl: string
@@ -56,16 +76,8 @@ export class CustomForkVMProvider extends BasicVMProvider {
             />
           </div>
           <div>
-            <label className="mt-3 mb-1">EVM</label>
-            <select data-id="CustomForkEvmType" name="evmType" defaultValue="merge" className="border form-control border-end-0">
-              {Object.keys(Hardfork).map((value, index) => {
-                return (
-                  <option value={Hardfork[value]} key={index}>
-                    {value}
-                  </option>
-                )
-              })}
-            </select>
+            <label className="mt-3 mb-1" htmlFor="CustomForkEvmType">EVM</label>
+            <EvmTypeSelect />
           </div>
         </div>
       )

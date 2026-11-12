@@ -1,0 +1,166 @@
+/* Pre-deploy Checks panel. Theme variables only (--bs-*, --custom-*).
+   Type scale: 14 title / 13 body / 12 secondary / 11 meta. Spacing on a 4px grid. */
+.pdc { display: flex; flex-direction: column; gap: 16px; min-height: 100%; padding: 12px 12px 24px; font-size: 13px; color: var(--bs-body-color); }
+.pdc .min-w-0 { min-width: 0; }
+/* the panel's scroll container: keep the scrollbar's space, so a list shortened by a filter doesn't change the width */
+#preDeployChecks { scrollbar-gutter: stable; }
+
+/* severity colours per theme quality: the theme files only give a readable dark-mode text colour under
+   [data-bs-theme=dark], which Remix doesn't set, so the panel carries its own tones */
+.pdc-dark { --pdc-layer-3: var(--custom-onsurface-layer-3); --pdc-high: #f1948a; --pdc-medium: #f5c26b; --pdc-low: #85c1e9; --pdc-info: #a2a3bd; --pdc-ok: #66d7ba; }
+/* the light theme has no --custom-onsurface-layer-3: raised surfaces (tags, hovers) use the panel's own */
+.pdc-light { --pdc-layer-3: #e8ebf2; --pdc-high: #c0392b; --pdc-medium: #b9770e; --pdc-low: #2471a3; --pdc-info: #6c757d; --pdc-ok: #138d75; }
+.pdc-sev-high { color: var(--pdc-high); }
+.pdc-sev-medium { color: var(--pdc-medium); }
+.pdc-sev-low { color: var(--pdc-low); }
+.pdc-sev-info { color: var(--pdc-info); }
+.pdc-ok { color: var(--pdc-ok); }
+
+.pdc-card { background: var(--custom-onsurface-layer-1); border-radius: 8px; }
+.pdc-title { font-size: 14px; font-weight: 600; color: var(--bs-emphasis-color); line-height: 20px; }
+.pdc-sub { font-size: 12px; color: var(--bs-secondary-color); line-height: 16px; margin-top: 2px; }
+.pdc-hint { font-size: 11px; color: var(--bs-secondary-color); padding: 0 4px; margin-bottom: 8px; }
+.pdc-mono { font-family: var(--bs-font-monospace); font-size: 11px; }
+.pdc-dim { opacity: .5; }
+
+.pdc-icon-btn { background: none; border: 0; padding: 2px 4px; color: var(--bs-secondary-color); border-radius: 4px; }
+.pdc-icon-btn:hover { background: var(--pdc-layer-3); color: var(--bs-emphasis-color); }
+.pdc-info-btn { font-size: 13px; cursor: help; }
+.pdc-link-btn { background: none; border: 0; padding: 0; font-size: 12px; color: var(--custom-primary); }
+.pdc-link-btn:hover { text-decoration: underline; }
+.pdc-link-btn.pdc-muted { color: var(--bs-secondary-color); }
+
+.pdc-btn { flex: 1; font-size: 13px; font-weight: 500; padding: 8px 12px; border-radius: 6px; line-height: 16px; white-space: nowrap; }
+.pdc-btn-icon { font-size: 11px; }
+.pdc-btn-quiet { background: var(--custom-onsurface-layer-2); border: 1px solid var(--bs-border-color); color: var(--bs-emphasis-color); }
+.pdc-btn-quiet:hover { background: var(--pdc-layer-3); color: var(--bs-emphasis-color); }
+.pdc-btn-danger-outline { background: transparent; color: var(--pdc-high); border: 1px solid rgba(var(--bs-danger-rgb), .5); }
+.pdc-btn-danger-outline:hover { background: rgba(var(--bs-danger-rgb), .12); color: var(--pdc-high); border-color: var(--bs-danger); }
+.pdc-actions { display: flex; gap: 8px; margin-top: 16px; }
+
+/* header */
+.pdc-header { display: flex; align-items: center; gap: 8px; padding: 0 4px; }
+.pdc-header-icon { font-size: 16px; color: var(--bs-secondary-color); }
+.pdc-file { font-size: 13px; font-weight: 600; color: var(--bs-emphasis-color); line-height: 16px; }
+.pdc-folder { font-size: 11px; color: var(--bs-secondary-color); line-height: 16px; }
+.pdc-back { display: flex; align-items: center; gap: 8px; font-size: 14px; font-weight: 600; color: var(--bs-emphasis-color); }
+
+/* status */
+.pdc-status { padding: 16px; }
+.pdc-status-icon { width: 36px; height: 36px; flex-shrink: 0; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-size: 16px; }
+.pdc-tone-danger { color: var(--pdc-high); background: rgba(var(--bs-danger-rgb), .14); }
+.pdc-tone-warning { color: var(--pdc-medium); background: rgba(var(--bs-warning-rgb), .14); }
+.pdc-tone-success { color: var(--pdc-ok); background: rgba(var(--bs-success-rgb), .14); }
+.pdc-tone-neutral { color: var(--bs-secondary-color); background: var(--custom-onsurface-layer-2); }
+.pdc-confirm { margin-top: 16px; padding: 12px; border-radius: 6px; background: rgba(var(--bs-danger-rgb), .1); }
+.pdc-confirm-text { font-size: 12px; line-height: 16px; color: var(--bs-emphasis-color); }
+.pdc-confirm .pdc-actions { margin-top: 12px; }
+
+/* sections */
+.pdc-section-head { display: flex; align-items: baseline; justify-content: space-between; padding: 0 4px; margin-bottom: 8px; }
+.pdc-section-title { font-size: 12px; font-weight: 600; color: var(--bs-emphasis-color); }
+.pdc-section-meta { display: flex; gap: 8px; font-size: 11px; color: var(--bs-secondary-color); }
+.pdc-section-meta b { font-weight: 600; }
+.pdc-section-meta b.pdc-sev-low, .pdc-section-meta b.pdc-sev-info { color: var(--bs-emphasis-color); }
+.pdc-notes { display: flex; flex-direction: column; gap: 4px; padding: 0 4px; margin-bottom: 8px; }
+.pdc-note { display: flex; gap: 8px; align-items: baseline; font-size: 12px; line-height: 16px; color: var(--bs-secondary-color); }
+.pdc-note > i { width: 14px; text-align: center; flex-shrink: 0; }
+
+/* issues */
+/* no vertical padding, so a row's hover reaches the card's edge; the card doesn't clip, so the Ignore menu can open past
+   its bottom, and the first and last rows carry the corners */
+.pdc-list-card { padding: 0; }
+.pdc-list-card > .pdc-issues:first-child > .pdc-issue:first-child > .pdc-issue-row,
+.pdc-list-card > .pdc-issues:first-child > .pdc-issue:first-child.pdc-just-ignored { border-radius: 8px 8px 0 0; }
+.pdc-list-card > .pdc-issues:last-child > .pdc-issue:last-child:not(.open) > .pdc-issue-row,
+.pdc-list-card > .pdc-issues:last-child > .pdc-issue:last-child > .pdc-issue-body,
+.pdc-list-card > .pdc-issues:last-child > .pdc-issue:last-child.pdc-just-ignored { border-radius: 0 0 8px 8px; }
+.pdc-issues { list-style: none; margin: 0; padding: 0; }
+.pdc-issue + .pdc-issue .pdc-issue-row::before { content: ''; position: absolute; top: 0; left: 36px; right: 12px; border-top: 1px solid var(--bs-border-color); opacity: .6; }
+.pdc-issue-row { position: relative; width: 100%; display: flex; align-items: flex-start; gap: 10px; background: none; border: 0; padding: 8px 12px; text-align: left; color: var(--bs-body-color); cursor: pointer; }
+.pdc-issue-row:hover, .pdc-issue.open .pdc-issue-row { background: var(--custom-onsurface-layer-2); }
+.pdc-issue-icon { font-size: 13px; width: 14px; margin-top: 2px; text-align: center; }
+.pdc-issue-text { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.pdc-issue-title { font-size: 13px; line-height: 18px; color: var(--bs-emphasis-color); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pdc-issue-preview { font-size: 12px; line-height: 16px; color: var(--bs-secondary-color); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pdc-issue-line { font-size: 11px; line-height: 18px; color: var(--bs-secondary-color); flex-shrink: 0; }
+.pdc-issue-chevron { width: 10px; text-align: center; font-size: 9px; line-height: 18px; color: var(--bs-secondary-color); opacity: .7; flex-shrink: 0; margin-left: -2px; }
+.pdc-issue-row:hover .pdc-issue-chevron { opacity: 1; color: var(--bs-emphasis-color); }
+.pdc-issue-body { padding: 0 12px 12px 36px; background: var(--custom-onsurface-layer-2); font-size: 12px; line-height: 16px; }
+.pdc-issue-body p { margin: 0 0 8px; color: var(--bs-body-color); white-space: pre-wrap; word-break: break-word; }
+.pdc-tags { display: flex; flex-wrap: wrap; gap: 4px; }
+.pdc-tag { font-size: 11px; line-height: 16px; padding: 0 6px; border-radius: 4px; background: var(--pdc-layer-3); color: var(--bs-secondary-color); }
+.pdc-issue-actions { display: flex; align-items: center; gap: 8px; margin-top: 8px; font-size: 11px; color: var(--bs-secondary-color); }
+
+/* ignore: "Ignore ▾" menu, the Undo line, ignored rows */
+.pdc-ignore { position: relative; }
+.pdc-ignore-btn { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; line-height: 16px; padding: 4px 10px; border-radius: 4px; border: 1px solid var(--bs-border-color); background: var(--custom-onsurface-layer-1); color: var(--bs-body-color); }
+.pdc-ignore-btn:hover, .pdc-ignore-btn.active { background: var(--pdc-layer-3); color: var(--bs-emphasis-color); }
+.pdc-ignore-btn i { font-size: 11px; }
+.pdc-ignore-btn .pdc-ignore-caret { font-size: 8px; margin-left: 2px; }
+.pdc-ignore-menu { position: absolute; right: 0; top: calc(100% + 4px); z-index: 5; min-width: 180px; padding: 0 0 4px; border-radius: 6px; background: var(--custom-onsurface-layer-1); border: 1px solid var(--bs-border-color); box-shadow: 0 6px 16px rgba(0, 0, 0, .35); }
+.pdc-ignore-menu-head { font-size: 10px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--bs-secondary-color); padding: 8px 12px 6px; margin-bottom: 4px; border-bottom: 1px solid var(--bs-border-color); cursor: default; }
+.pdc-ignore-menu-item { display: flex; align-items: center; gap: 8px; width: 100%; background: none; border: 0; padding: 6px 12px; font-size: 12px; text-align: left; color: var(--bs-emphasis-color); }
+.pdc-ignore-menu-item i { width: 14px; text-align: center; font-size: 11px; color: var(--bs-secondary-color); }
+.pdc-ignore-menu-item:hover { background: var(--pdc-layer-3); }
+.pdc-ignore-menu-item:hover i { color: var(--custom-primary); }
+.pdc-just-ignored { display: flex; align-items: center; gap: 10px; padding: 10px 12px; font-size: 12px; color: var(--bs-secondary-color); background: var(--custom-onsurface-layer-2); }
+.pdc-just-ignored > i { width: 14px; text-align: center; }
+.pdc-just-ignored b { font-weight: 600; color: var(--bs-emphasis-color); }
+.pdc-ignored-row { position: relative; display: flex; align-items: flex-start; gap: 10px; padding: 8px 12px; }
+.pdc-ignored-row .pdc-issue-icon, .pdc-ignored-row .pdc-issue-text { opacity: .55; }
+.pdc-ignored-row .pdc-link-btn { line-height: 18px; flex-shrink: 0; }
+.pdc-issue + .pdc-ignored-row::before { content: ''; position: absolute; top: 0; left: 36px; right: 12px; border-top: 1px solid var(--bs-border-color); opacity: .6; }
+.pdc-ignored-toggle { width: 100%; display: flex; align-items: center; gap: 8px; background: none; border: 0; border-top: 1px solid var(--bs-border-color); padding: 8px 12px; font-size: 12px; color: var(--bs-secondary-color); text-align: left; }
+.pdc-ignored-toggle i { font-size: 9px; width: 14px; text-align: center; }
+.pdc-ignored-toggle:hover { color: var(--bs-emphasis-color); }
+/* search and filters. Widths are fixed or capped so filtering never changes the panel's width */
+.pdc-search { position: relative; margin-bottom: 8px; }
+.pdc-search .form-control { width: 100%; padding: 6px 40px 6px 28px; font-size: 12px; line-height: 18px; background: var(--bs-light); }
+.pdc-search .form-control::placeholder { color: var(--bs-secondary-color); }
+.pdc-search-icon { position: absolute; left: 10px; top: 50%; transform: translateY(-50%); font-size: 11px; color: var(--bs-secondary-color); pointer-events: none; }
+.pdc-filter-btn { position: absolute; right: 2px; top: 50%; transform: translateY(-50%); width: 34px; height: 22px; display: inline-flex; align-items: center; justify-content: center; gap: 3px; background: none; border: 0; padding: 0; border-radius: 4px; font-size: 11px; color: var(--bs-secondary-color); }
+.pdc-filter-btn:hover, .pdc-filter-btn.open { background: var(--pdc-layer-3); color: var(--bs-emphasis-color); }
+.pdc-filter-btn.on { color: var(--custom-primary); }
+.pdc-filter-badge { font-size: 10px; font-weight: 600; line-height: 1; }
+.pdc-filter-menu { width: 220px; max-width: 100%; }
+.pdc-filter-menu .pdc-ignore-menu-head:not(:first-child) { border-top: 1px solid var(--bs-border-color); margin-top: 4px; }
+.pdc-filter-item { display: flex; align-items: center; gap: 8px; margin: 0; padding: 5px 12px; min-width: 0; font-size: 12px; color: var(--bs-emphasis-color); cursor: pointer; }
+.pdc-filter-item:hover { background: var(--pdc-layer-3); }
+.pdc-filter-item .form-check-input { margin: 0; flex-shrink: 0; }
+.pdc-filter-item i { width: 12px; text-align: center; font-size: 11px; flex-shrink: 0; }
+.pdc-filter-count { margin-left: auto; padding-left: 8px; font-size: 11px; color: var(--bs-secondary-color); flex-shrink: 0; }
+.pdc-filter-summary { display: flex; align-items: baseline; gap: 4px; min-width: 0; }
+.pdc-filter-summary .pdc-link-btn { font-size: 11px; flex-shrink: 0; }
+.pdc-empty-list { display: flex; align-items: center; gap: 8px; padding: 12px; font-size: 12px; color: var(--bs-secondary-color); }
+
+/* outputs and deployment. Outputs (at most the flattened file and the report) stay pinned to the bottom of the
+   panel so a long issue list doesn't hide them; the background is the side panel's */
+.pdc-outputs { position: sticky; bottom: 0; z-index: 1; margin: auto -12px -24px; padding: 12px 12px 16px; background: var(--bs-light); border-top: 1px solid var(--bs-border-color); }
+.pdc-output { display: flex; align-items: center; gap: 10px; padding: 8px 12px; }
+.pdc-output + .pdc-output { border-top: 1px solid var(--bs-border-color); }
+.pdc-output > i { width: 14px; text-align: center; color: var(--bs-secondary-color); }
+.pdc-output-name { font-size: 13px; line-height: 18px; color: var(--bs-emphasis-color); }
+.pdc-output-meta { font-size: 11px; line-height: 16px; color: var(--bs-secondary-color); }
+.pdc-deployment { padding: 12px; }
+.pdc-address { display: flex; align-items: center; gap: 4px; background: var(--custom-onsurface-layer-2); border-radius: 4px; padding: 4px 4px 4px 8px; margin-top: 8px; }
+.pdc-address .pdc-mono { flex: 1; min-width: 0; color: var(--bs-emphasis-color); }
+.pdc-meta { font-size: 12px; color: var(--bs-secondary-color); margin-top: 8px; }
+.pdc-receipts { list-style: none; padding: 0; margin: 4px 0 0; display: flex; flex-direction: column; gap: 4px; font-size: 12px; }
+.pdc-receipt-name { color: var(--bs-body-color); }
+.pdc-receipt-status { color: var(--bs-secondary-color); }
+.pdc-receipt-verified { color: var(--pdc-ok); }
+.pdc-receipt-failed { color: var(--pdc-high); }
+.pdc-receipt-message { font-size: 11px; color: var(--bs-secondary-color); }
+
+/* intro, settings, empty */
+.pdc-intro { padding: 16px; }
+.pdc-intro .pdc-check-list { margin-top: 12px; }
+.pdc-settings { padding: 12px; }
+.pdc-toggle { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 6px 0; font-size: 12px; color: var(--bs-body-color); cursor: pointer; margin: 0; }
+.pdc-toggle-name { display: block; color: var(--bs-emphasis-color); }
+.pdc-toggle small { display: block; color: var(--bs-secondary-color); font-size: 11px; }
+.pdc-toggle-off .pdc-toggle-name { color: var(--bs-secondary-color); }
+.pdc-toggle-locked { cursor: default; }
+.pdc-empty { text-align: center; padding: 48px 16px; }
+.pdc-empty > i { font-size: 28px; color: var(--bs-secondary-color); margin-bottom: 12px; }

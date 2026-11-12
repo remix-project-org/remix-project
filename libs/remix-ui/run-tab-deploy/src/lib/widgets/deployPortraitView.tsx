@@ -1,7 +1,7 @@
 import React, { useContext, useEffect, useMemo, useRef, useState } from 'react'
 import { FormattedMessage } from 'react-intl'
 import { Dropdown } from 'react-bootstrap'
-import { AddressToggle, CustomMenu, CustomToggle, CustomTooltip, extractNameFromKey, getMultiValsString, ProxyAddressToggle, ProxyDropdownMenu, shortenDate, shortenProxyAddress } from '@remix-ui/helper'
+import { CustomTooltip, extractNameFromKey, getMultiValsString, ProxyAddressToggle, ProxyDropdownMenu, Select, shortenDate, shortenProxyAddress } from '@remix-ui/helper'
 import { CopyToClipboard } from '@remix-ui/clipboard'
 import { DeployAppContext } from '../contexts'
 import { Provider } from '@remix-ui/run-tab-environment'
@@ -12,6 +12,7 @@ import { deployContract, getNetworkProxyAddresses } from '../actions'
 import { ToggleSwitch } from '@remix-ui/toggle'
 import { ContractKebabMenu } from './contractKebabMenu'
 import { VerificationSettingsUI } from '../components/verificationSettingsUI'
+import { ChecksStatusLine } from './checksStatusLine'
 import { TrackingContext } from '@remix-ide/tracking'
 import { useAuth } from '@remix-ui/app'
 
@@ -395,149 +396,134 @@ function DeployPortraitView() {
         </div>
         <div className="px-3 pb-3">
           {/* Contract Selection */}
-          <div className="d-flex pb-3">
-            <Dropdown className="w-100">
-              <div className='d-flex align-items-center justify-content-between'>
-                <Dropdown.Toggle as={AddressToggle} className="w-100 d-inline-block border form-control deploy-address-toggle" style={{ backgroundColor: 'var(--custom-onsurface-layer-2)' }} data-id="contractDropdownToggle">
-                  <div className="d-flex align-items-center">
-                    <div className="me-auto text-nowrap text-truncate overflow-hidden font-sm w-100">
-                      <div className="d-flex align-items-center justify-content-between w-100">
-                        <div className='d-flex flex-column align-items-start'>
-                          <div className="text-truncate font-sm" style={{ color: themeQuality === 'dark' ? 'white' : 'black' }}>
-                            <span>{ (selectedContract?.name) || 'Contract' }</span>
-                          </div>
-                          <div style={{ color: 'var(--bs-tertiary-color)' }}>
-                            <span className="small">{extractNameFromKey(selectedContract?.filePath) || 'No contract selected'}</span>
-                          </div>
-                        </div>
-                        {selectedContract && !selectedContract?.isCompiled && !selectedContract?.isCompiling && (
-                          <div
-                            className="btn btn-primary d-flex align-items-center justify-content-center"
-                            data-id="compile-deploy-tab"
-                            role="button"
-                            tabIndex={0}
-                            style={{
-                              padding: "4px 8px",
-                              height: "28px",
-                              fontFamily: "Nunito Sans, sans-serif",
-                              fontSize: "11px",
-                              fontWeight: 700,
-                              lineHeight: "14px",
-                              whiteSpace: "nowrap",
-                              cursor: "pointer"
-                            }}
-                            onClick={async (e) => {
-                              e.stopPropagation()
-                              trackMatomoEvent?.({ category: 'udapp', action: 'compileContract', name: selectedContract?.name, isClick: true })
-                              if (selectedContract?.filePath) {
-                                dispatch({ type: 'SET_COMPILING', payload: selectedContract.filePath })
-                                await plugin.call('solidity', 'compile', selectedContract.filePath)
-                              }
-                            }}
-                            onKeyDown={(e) => {
-                              if (e.key === 'Enter' || e.key === ' ') {
-                                e.preventDefault()
-                                e.currentTarget.click()
-                              }
-                            }}
-                          >
-                            <i className="fas fa-play"></i>
-                            <span className="ms-2" style={{ lineHeight: "12px", position: "relative", top: "1px" }}>
-                              Compile
-                            </span>
-                          </div>
-                        )}
-                        {selectedContract?.isCompiled && (
-                          <div
-                            role="button"
-                            tabIndex={0}
-                            style={{ cursor: "pointer" }}
-                            onClick={async (e) => {
-                              e.stopPropagation()
-                              trackMatomoEvent?.({ category: 'udapp', action: 'recompileContract', name: selectedContract?.name, isClick: true })
-                              if (selectedContract?.filePath) {
-                                dispatch({ type: 'SET_COMPILING', payload: selectedContract.filePath })
-                                try {
-                                  await plugin.call('solidity', 'compile', selectedContract.filePath)
-                                } catch (error) {
-                                  console.error('Compilation error: ', error)
-                                  dispatch({ type: 'SET_COMPILING', payload: selectedContract.filePath })
-                                }
-                              }
-                            }}
-                            onKeyDown={(e) => {
-                              if (e.key === 'Enter' || e.key === ' ') {
-                                e.preventDefault()
-                                e.currentTarget.click()
-                              }
-                            }}
-                          >
-                            <span className={`badge border p-2 text-success`} style={{ fontWeight: 'light', backgroundColor: 'var(--custom-onsurface-layer-3)' }}>
-                              <i className="fas fa-check"></i> Compiled
-                            </span>
-                          </div>
-                        )}
-                        {selectedContract?.isCompiling && (
-                          <div>
-                            <span className={`badge border p-2 text-info`} style={{ fontWeight: 'light', backgroundColor: 'var(--custom-onsurface-layer-3)' }}>
-                              <i className="fas fa-spinner fa-spin"></i> Compiling
-                            </span>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                </Dropdown.Toggle>
-                <span
-                  ref={contractKebabIconRef}
-                  className="ms-2"
-                  style={{ color: 'var(--bs-tertiary-color)', position: 'relative' }}
-                  onClick={handleKebabClick}
-                >
-                  <i className="fas fa-ellipsis-v px-1" style={{ cursor: 'pointer', fontSize: '1rem' }}></i>
-                </span>
-              </div>
-
-              {widgetState.contracts.contractList.length > 0 && (
-                <Dropdown.Menu as={CustomMenu} className="w-100 custom-dropdown-items overflow-hidden" style={{ backgroundColor: 'var(--custom-onsurface-layer-1)', '--theme-text-color': themeQuality === 'dark' ? 'white' : 'black', padding: '4px' } as React.CSSProperties} data-id="contractDropdownMenu">
-                  {widgetState.contracts.contractList.map((contract, index) => (
-                    <Dropdown.Item key={`${contract.filePath}:${contract.name}`} className="d-flex align-items-center contract-dropdown-item-hover px-2" onClick={() => {
-                      trackMatomoEvent?.({ category: 'udapp', action: 'contractSelected', name: contract.name, isClick: true })
-                      dispatch({ type: 'SET_SELECTED_CONTRACT_INDEX', payload: index })
-                    }} data-id={`contractDropdownItem-${contract.name}`}>
-                      <div className="me-auto text-nowrap text-truncate overflow-hidden font-sm w-100">
-                        <div className="d-flex align-items-center justify-content-between w-100">
-                          <div className='d-flex flex-column align-items-start'>
-                            <div className="text-truncate" style={{ color: themeQuality === 'dark' ? 'white' : 'black' }}>
-                              <span>{contract.name}</span>
-                            </div>
-                            <div style={{ color: 'var(--bs-tertiary-color)' }}>
-                              <span className="small">{extractNameFromKey(contract.filePath)}</span>
-                            </div>
-                          </div>
-                          <div>
-                            {contract.isCompiled && (
-                              <span className={`badge border p-2 text-success`} style={{ fontWeight: 'light', backgroundColor: 'var(--custom-onsurface-layer-3)' }}>
-                                <i className="fas fa-check"></i> Compiled
-                              </span>
-                            )}
-                            {contract.isCompiling && (
-                              <span className={`badge border p-2 text-info`} style={{ fontWeight: 'light', backgroundColor: 'var(--custom-onsurface-layer-3)' }}>
-                                <i className="fas fa-spinner fa-spin"></i> Compiling
-                              </span>)}
-                            {!contract.isCompiled && !contract.isCompiling && (
-                              <span className={`badge border p-2 text-secondary`} style={{ fontWeight: 'light', backgroundColor: 'var(--custom-onsurface-layer-3)' }}>
-                                Not compiled
-                              </span>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                    </Dropdown.Item>
-                  ))}
-                </Dropdown.Menu>
+          <div className="d-flex align-items-center pb-3">
+            <Select
+              id="contractDropdown"
+              dataId="contractDropdownToggle"
+              menuDataId="contractDropdownMenu"
+              menuClassName={widgetState.contracts.contractList.length > 0 ? 'deploy-contract-menu' : 'd-none'}
+              value={String(widgetState.selectedContractIndex)}
+              options={widgetState.contracts.contractList.map((contract, index) => ({
+                value: String(index),
+                label: contract.name,
+                sub: extractNameFromKey(contract.filePath),
+                end: (
+                  <span className="ms-auto flex-shrink-0">
+                    {contract.isCompiled && (
+                      <span className={`badge border px-1 text-success`} style={{ fontWeight: 'light', backgroundColor: 'var(--custom-onsurface-layer-3)' }}>
+                        <i className="fas fa-check"></i> Compiled
+                      </span>
+                    )}
+                    {contract.isCompiling && (
+                      <span className={`badge border px-1 text-info`} style={{ fontWeight: 'light', backgroundColor: 'var(--custom-onsurface-layer-3)' }}>
+                        <i className="fas fa-spinner fa-spin"></i> Compiling
+                      </span>)}
+                    {!contract.isCompiled && !contract.isCompiling && (
+                      <span className={`badge border px-1 text-secondary`} style={{ fontWeight: 'light', backgroundColor: 'var(--custom-onsurface-layer-3)' }}>
+                        Not compiled
+                      </span>
+                    )}
+                  </span>
+                )
+              }))}
+              itemDataId={(o) => `contractDropdownItem-${widgetState.contracts.contractList[Number(o.value)]?.name}`}
+              renderValue={() => (
+                <>
+                  <span className="n">{selectedContract?.name || 'Contract'}</span>
+                  <span className="p">{extractNameFromKey(selectedContract?.filePath) || 'No contract selected'}</span>
+                </>
               )}
-            </Dropdown>
+              onChange={(value) => {
+                const index = Number(value)
+                trackMatomoEvent?.({ category: 'udapp', action: 'contractSelected', name: widgetState.contracts.contractList[index]?.name, isClick: true })
+                dispatch({ type: 'SET_SELECTED_CONTRACT_INDEX', payload: index })
+              }}
+            />
+            {/* compile state of the selected contract, beside the picker */}
+            {selectedContract && <div className="ms-2 flex-shrink-0">
+              {selectedContract && !selectedContract?.isCompiled && !selectedContract?.isCompiling && (
+                <div
+                  className="btn btn-primary d-flex align-items-center justify-content-center"
+                  data-id="compile-deploy-tab"
+                  role="button"
+                  tabIndex={0}
+                  style={{
+                    padding: "4px 8px",
+                    height: "28px",
+                    fontFamily: "Nunito Sans, sans-serif",
+                    fontSize: "11px",
+                    fontWeight: 700,
+                    lineHeight: "14px",
+                    whiteSpace: "nowrap",
+                    cursor: "pointer"
+                  }}
+                  onClick={async (e) => {
+                    e.stopPropagation()
+                    trackMatomoEvent?.({ category: 'udapp', action: 'compileContract', name: selectedContract?.name, isClick: true })
+                    if (selectedContract?.filePath) {
+                      dispatch({ type: 'SET_COMPILING', payload: selectedContract.filePath })
+                      await plugin.call('solidity', 'compile', selectedContract.filePath)
+                    }
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault()
+                      e.currentTarget.click()
+                    }
+                  }}
+                >
+                  <i className="fas fa-play"></i>
+                  <span className="ms-2" style={{ lineHeight: "12px", position: "relative", top: "1px" }}>
+                    Compile
+                  </span>
+                </div>
+              )}
+              {selectedContract?.isCompiled && (
+                <div
+                  role="button"
+                  tabIndex={0}
+                  style={{ cursor: "pointer" }}
+                  onClick={async (e) => {
+                    e.stopPropagation()
+                    trackMatomoEvent?.({ category: 'udapp', action: 'recompileContract', name: selectedContract?.name, isClick: true })
+                    if (selectedContract?.filePath) {
+                      dispatch({ type: 'SET_COMPILING', payload: selectedContract.filePath })
+                      try {
+                        await plugin.call('solidity', 'compile', selectedContract.filePath)
+                      } catch (error) {
+                        console.error('Compilation error: ', error)
+                        dispatch({ type: 'SET_COMPILING', payload: selectedContract.filePath })
+                      }
+                    }
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault()
+                      e.currentTarget.click()
+                    }
+                  }}
+                >
+                  <span className={`badge border p-2 text-success`} style={{ fontWeight: 'light', backgroundColor: 'var(--custom-onsurface-layer-3)' }}>
+                    <i className="fas fa-check"></i> Compiled
+                  </span>
+                </div>
+              )}
+              {selectedContract?.isCompiling && (
+                <div>
+                  <span className={`badge border p-2 text-info`} style={{ fontWeight: 'light', backgroundColor: 'var(--custom-onsurface-layer-3)' }}>
+                    <i className="fas fa-spinner fa-spin"></i> Compiling
+                  </span>
+                </div>
+              )}
+            </div>}
+            <span
+              ref={contractKebabIconRef}
+              className="ms-2"
+              style={{ color: 'var(--bs-tertiary-color)', position: 'relative' }}
+              onClick={handleKebabClick}
+            >
+              <i className="fas fa-ellipsis-v px-1" style={{ cursor: 'pointer', fontSize: '1rem' }}></i>
+            </span>
             <ContractKebabMenu
               show={isContractMenuOpen && contractKebabIconRef.current !== null}
               //@ts-ignore
@@ -852,35 +838,19 @@ function DeployPortraitView() {
                   }}
                   style={{ backgroundColor: 'var(--bs-body-bg)', color: themeQuality === 'dark' ? 'white' : 'black', flex: 1, paddingRight: '4rem' }}
                 />
-                <Dropdown style={{ position: 'absolute', right: '0.5rem', top: '50%', transform: 'translateY(-50%)', zIndex: 2 }}>
-                  <Dropdown.Toggle
-                    as={CustomToggle}
-                    className="btn-sm border-0 p-0 ps-1 text-secondary rounded"
-                    style={{ backgroundColor: 'var(--custom-onsurface-layer-2)', color: themeQuality === 'dark' ? 'white' : 'black' }}
-                    icon="fas fa-caret-down ms-2"
-                    useDefaultIcon={false}
-                  >
-                    {widgetState.valueUnit}
-                  </Dropdown.Toggle>
-                  <Dropdown.Menu style={{ backgroundColor: 'var(--custom-onsurface-layer-2)', '--theme-text-color': themeQuality === 'dark' ? 'white' : 'black', '--bs-dropdown-min-width' : '4rem', padding: 0 } as React.CSSProperties}>
-                    <Dropdown.Item className="unit-dropdown-item-hover" onClick={() => {
-                      trackMatomoEvent?.({ category: 'udapp', action: 'valueUnitChange', name: 'wei', isClick: true })
-                      dispatch({ type: 'SET_VALUE_UNIT', payload: 'wei' })
-                    }} style={{ color: themeQuality === 'dark' ? 'white' : 'black' }}>wei</Dropdown.Item>
-                    <Dropdown.Item className="unit-dropdown-item-hover" onClick={() => {
-                      trackMatomoEvent?.({ category: 'udapp', action: 'valueUnitChange', name: 'gwei', isClick: true })
-                      dispatch({ type: 'SET_VALUE_UNIT', payload: 'gwei' })
-                    }} style={{ color: themeQuality === 'dark' ? 'white' : 'black' }}>gwei</Dropdown.Item>
-                    <Dropdown.Item className="unit-dropdown-item-hover" onClick={() => {
-                      trackMatomoEvent?.({ category: 'udapp', action: 'valueUnitChange', name: 'finney', isClick: true })
-                      dispatch({ type: 'SET_VALUE_UNIT', payload: 'finney' })
-                    }} style={{ color: themeQuality === 'dark' ? 'white' : 'black' }}>finney</Dropdown.Item>
-                    <Dropdown.Item className="unit-dropdown-item-hover" onClick={() => {
-                      trackMatomoEvent?.({ category: 'udapp', action: 'valueUnitChange', name: 'ether', isClick: true })
-                      dispatch({ type: 'SET_VALUE_UNIT', payload: 'ether' })
-                    }} style={{ color: themeQuality === 'dark' ? 'white' : 'black' }}>ether</Dropdown.Item>
-                  </Dropdown.Menu>
-                </Dropdown>
+                <div style={{ position: 'absolute', right: '0.5rem', top: '50%', transform: 'translateY(-50%)', zIndex: 2 }}>
+                  <Select
+                    id="deployValueUnit"
+                    compact
+                    align="end"
+                    value={widgetState.valueUnit}
+                    options={['wei', 'gwei', 'finney', 'ether'].map((unit) => ({ value: unit, label: unit }))}
+                    onChange={(unit) => {
+                      trackMatomoEvent?.({ category: 'udapp', action: 'valueUnitChange', name: unit, isClick: true })
+                      dispatch({ type: 'SET_VALUE_UNIT', payload: unit as typeof widgetState.valueUnit })
+                    }}
+                  />
+                </div>
               </div>
             </div>
 
@@ -974,6 +944,7 @@ function DeployPortraitView() {
 
             {/* Deploy Button */}
             <div>
+              <ChecksStatusLine filePath={selectedContract?.filePath} />
               <button
                 onClick={handleDeployClick}
                 data-id="deployButton"

@@ -1,5 +1,8 @@
 import { TemplateExplorerContext } from '../../context/template-explorer-context'
 import React, { useContext, useEffect } from 'react'
+import { Select } from '@remix-ui/helper'
+
+const contractTypeOptions = ['ERC20', 'ERC721', 'ERC1155'].map((type) => ({ value: type, label: type }))
 
 export function ContractTagSelector (props: any) {
   const { state } = useContext(TemplateExplorerContext)
@@ -11,29 +14,22 @@ export function ContractTagSelector (props: any) {
   return (
     <div className="d-flex align-items-center gap-2">
       <div className="tem-wizard-select-wrapper">
-        <select
+        <Select
           id="contract-wizard-language-dropdown"
-          data-id="contract-wizard-language-dropdown"
-          className="tem-wizard-select"
+          value="Solidity"
+          options={[{ value: 'Solidity', label: 'Solidity' }]}
+          onChange={() => {}}
           disabled
-        >
-          <option>Solidity</option>
-        </select>
-        <i className="fa-solid fa-chevron-down tem-wizard-select-arrow"></i>
+        />
       </div>
       <div className="tem-wizard-select-wrapper">
-        <select
+        <Select
           id="contract-wizard-contract-type-dropdown"
-          data-id="contract-wizard-contract-type-dropdown"
-          className="tem-wizard-select"
           value={state.contractTag}
-          onChange={(e) => props.switching(e.target.value.toLowerCase() as 'erc20' | 'erc721' | 'erc1155')}
-        >
-          <option data-id="contract-wizard-contract-type-dropdown-item-erc20" value="ERC20">ERC20</option>
-          <option data-id="contract-wizard-contract-type-dropdown-item-erc721" value="ERC721">ERC721</option>
-          <option data-id="contract-wizard-contract-type-dropdown-item-erc1155" value="ERC1155">ERC1155</option>
-        </select>
-        <i className="fa-solid fa-chevron-down tem-wizard-select-arrow"></i>
+          options={contractTypeOptions}
+          onChange={(value) => props.switching(value.toLowerCase() as 'erc20' | 'erc721' | 'erc1155')}
+          itemDataId={(o) => `contract-wizard-contract-type-dropdown-item-${o.value.toLowerCase()}`}
+        />
       </div>
     </div>
   )

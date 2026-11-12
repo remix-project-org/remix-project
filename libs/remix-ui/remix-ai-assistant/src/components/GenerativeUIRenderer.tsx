@@ -1,5 +1,6 @@
-import React, { useState } from 'react'
+import React, { useId, useState } from 'react'
 import { GenerativeUIPayload } from '@remix/remix-ai-core'
+import { Select } from '@remix-ui/helper'
 
 // ─── Error Boundary ───────────────────────────────────────────────────────────
 
@@ -95,6 +96,41 @@ function FormWrapper({ node, onAction, depth }: { node: FormNode; onAction: (act
   )
 }
 
+// ─── Select field — the shared Select keeps its value here ────────────────────
+
+function SelectField({ node, onChange }: { node: SelectNode; onChange?: (name: string, value: any) => void }) {
+  const [value, setValue] = useState('')
+  // several forms can be on screen with the same field names
+  const id = `genui-select-${node.name}-${useId().replace(/:/g, '')}`
+  return (
+    <div className="mb-1 position-relative">
+      <label htmlFor={id} className="form-label small mb-1">{node.label}{node.required && <span className="text-danger ms-1">*</span>}</label>
+      <Select
+        id={id}
+        value={value}
+        options={(node.options ?? []).map(opt => ({
+          value: optValue(opt),
+          label: optLabel(opt)
+        }))}
+        onChange={v => { setValue(v); onChange?.(node.name, v) }}
+        placeholder="Select…"
+      />
+      {/* Select is a button: this hidden field keeps the native required check that blocks the submit */}
+      {node.required && (
+        <input
+          tabIndex={-1}
+          aria-hidden="true"
+          required
+          value={value}
+          onChange={() => {}}
+          className="position-absolute bottom-0 start-0 w-100 opacity-0"
+          style={{ height: 1, padding: 0, border: 0, pointerEvents: 'none' }}
+        />
+      )}
+    </div>
+  )
+}
+
 // ─── Recursive node renderer ──────────────────────────────────────────────────
 
 function RenderNode({
@@ -177,22 +213,7 @@ function RenderNode({
   }
 
   case 'select': {
-    return (
-      <div className="mb-1">
-        <label className="form-label small mb-1">{node.label}{node.required && <span className="text-danger ms-1">*</span>}</label>
-        <select
-          className="form-select form-select-sm"
-          required={node.required}
-          onChange={e => onChange?.(node.name, e.target.value)}
-          defaultValue=""
-        >
-          <option value="" disabled>Select…</option>
-          {(node.options ?? []).map(opt => (
-            <option key={optValue(opt)} value={optValue(opt)}>{optLabel(opt)}</option>
-          ))}
-        </select>
-      </div>
-    )
+    return <SelectField node={node} onChange={onChange} />
   }
 
   case 'radio_group': {

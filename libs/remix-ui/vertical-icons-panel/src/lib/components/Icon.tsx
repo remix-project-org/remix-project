@@ -37,6 +37,7 @@ const shortLabels: Record<string, string> = {
   search: 'Search',
   solidity: 'Compile',
   udapp: 'Deploy',
+  preDeployChecks: 'Checks',
   debugger: 'Debug',
   'quick-dapp-v2': 'Frontend',
   pluginManager: 'Plugins'
