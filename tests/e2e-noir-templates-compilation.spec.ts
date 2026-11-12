@@ -14,9 +14,9 @@ interface NoirTemplateConfig {
 const NOIR_TEMPLATES: NoirTemplateConfig[] = [
   { templateValue: 'rangeProofNr',  cardDataId: 'template-card-rangeProofNr-2',  displayName: 'Range Proof' },
   { templateValue: 'votingNr',      cardDataId: 'template-card-votingNr-3',      displayName: 'Anonymous Voting' },
-  { templateValue: 'recursiveNr',   cardDataId: 'template-card-recursiveNr-4',   displayName: 'Recursive Proof' },
+  // { templateValue: 'recursiveNr',   cardDataId: 'template-card-recursiveNr-4',   displayName: 'Recursive Proof' },
   { templateValue: 'sudokuNr',      cardDataId: 'template-card-sudokuNr-5',      displayName: 'ZK Sudoku' },
-  { templateValue: 'zkKYCNr',       cardDataId: 'template-card-zkKYCNr-6',       displayName: 'ZK KYC' },
+  // { templateValue: 'zkKYCNr',       cardDataId: 'template-card-zkKYCNr-6',       displayName: 'ZK KYC' },
 ]
 
 async function loadIde(page: Page) {
