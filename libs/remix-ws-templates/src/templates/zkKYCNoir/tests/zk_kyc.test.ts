@@ -23,12 +23,12 @@ describe('ZK KYC', () => {
     // using nargo or the Noir stdlib, then replace the placeholder below.
     const inputs = {
       age: '25',
-      nationality_code: '840',           // e.g., 840 = USA
+      nationality_code: '840', // e.g., 840 = USA
       document_secret: '0xdeadbeef',
-      credential_hash: '',               // <-- replace with pedersen([25, 840, 0xdeadbeef])[0]
+      credential_hash: '', // <-- replace with pedersen([25, 840, 0xdeadbeef])[0]
       min_age: '18',
       required_nationality: '840',
-      check_nationality: '1',            // 1 = enforce nationality, 0 = skip
+      check_nationality: '1', // 1 = enforce nationality, 0 = skip
     }
 
     const program = new Noir(noir_program)
