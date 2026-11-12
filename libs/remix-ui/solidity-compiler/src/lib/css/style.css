@@ -258,7 +258,10 @@
 .sc-file-row i { color: var(--bs-secondary-color); }
 .sc-file-row .n { color: var(--bs-emphasis-color); }
 
-.sc-compile { width: 100%; margin-top: 4px; display: flex; align-items: center; justify-content: center; gap: 8px; min-width: 0; }
+.sc-compile-group { display: flex; margin-top: 4px; min-width: 0; }
+.sc-compile { flex: 1; display: flex; align-items: center; justify-content: center; gap: 8px; min-width: 0; border-top-right-radius: 0; border-bottom-right-radius: 0; }
+.sc-compile-group > .dropdown { display: flex; }
+.sc-compile-more { padding: 0 10px; border-top-left-radius: 0; border-bottom-left-radius: 0; border-left: 1px solid rgba(0, 0, 0, .2); }
 
 /* results, right under Compile */
 .sc-results { display: flex; flex-direction: column; gap: 8px; margin-top: 4px; word-break: break-word; }

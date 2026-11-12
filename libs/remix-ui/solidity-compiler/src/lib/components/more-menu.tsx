@@ -34,22 +34,29 @@ const MoreToggle = React.forwardRef(
   )
 )
 
+// the items of a .sc-menu: icon, name and an optional line under it
+export const MenuItems = ({ items }: { items: MoreMenuItem[] }) => (
+  <>
+    {items.map((item, i) => item === 'divider'
+      ? <Dropdown.Divider key={i} />
+      : (
+        <Dropdown.Item as="button" key={i} id={item.id} data-id={item.dataId} disabled={item.disabled} onClick={item.onClick}>
+          <i className={`${item.icon} fa-fw`}></i>
+          <span>
+            <span className="n">{item.text}</span>
+            {item.sub && <small>{item.sub}</small>}
+          </span>
+        </Dropdown.Item>
+      ))}
+  </>
+)
+
 // the ⋯ button of a section label row and its menu of rare actions
 export const MoreMenu = ({ label, dataId, items }: { label: string, dataId: string, items: MoreMenuItem[] }) => (
   <Dropdown align="end">
     <Dropdown.Toggle as={MoreToggle} label={label} dataId={dataId} />
     <Dropdown.Menu className="sc-menu" data-id={`${dataId}-items`}>
-      {items.map((item, i) => item === 'divider'
-        ? <Dropdown.Divider key={i} />
-        : (
-          <Dropdown.Item as="button" key={i} id={item.id} data-id={item.dataId} disabled={item.disabled} onClick={item.onClick}>
-            <i className={`${item.icon} fa-fw`}></i>
-            <span>
-              <span className="n">{item.text}</span>
-              {item.sub && <small>{item.sub}</small>}
-            </span>
-          </Dropdown.Item>
-        ))}
+      <MenuItems items={items} />
     </Dropdown.Menu>
   </Dropdown>
 )

@@ -1,7 +1,8 @@
-import React from 'react'
+import React, { Ref } from 'react'
 import { FormattedMessage, useIntl } from 'react-intl'
+import { Dropdown } from 'react-bootstrap'
 import { CustomTooltip } from '@remix-ui/helper'
-import { MoreMenu } from './more-menu'
+import { MoreMenu, MenuItems } from './more-menu'
 
 export type CompileWithValue = 'remix' | 'hardhat' | 'foundry' | 'truffle'
 
@@ -14,9 +15,6 @@ export const frameworkNames: Record<Exclude<CompileWithValue, 'remix'>, string> 
 interface CompilerHeaderProps {
   showMenu: boolean
   onAddCustomCompiler: () => void
-  onCompileAndRun: () => void
-  compileAndRunDisabled: boolean
-  onCopyDevRunScriptTag: () => void
   onShowLicense: () => void
 }
 
@@ -33,16 +31,6 @@ export const CompilerHeader = (props: CompilerHeaderProps) => {
           dataId="compilerMoreMenu"
           items={[
             { icon: 'fas fa-plus', text: <FormattedMessage id="solidity.addACustomCompiler" />, sub: <FormattedMessage id="solidity.addACustomCompilerSub" />, dataId: 'compilerAddCustomCompiler', onClick: props.onAddCustomCompiler },
-            {
-              icon: 'fas fa-play',
-              text: <FormattedMessage id="solidity.compileAndRunScriptMenu" />,
-              sub: <FormattedMessage id="solidity.compileAndRunScriptSub" />,
-              id: 'compileAndRunBtn',
-              dataId: 'compilerContainerCompileAndRunBtn',
-              disabled: props.compileAndRunDisabled,
-              onClick: props.onCompileAndRun
-            },
-            { icon: 'far fa-copy', text: <FormattedMessage id="solidity.copyDevRunScriptTag" />, dataId: 'compilerCopyDevRunScriptTag', onClick: props.onCopyDevRunScriptTag },
             'divider',
             { icon: 'far fa-file-certificate', text: <FormattedMessage id="solidity.compilerLicenseMenu" />, dataId: 'compilerShowLicense', onClick: props.onShowLicense }
           ]}
@@ -91,25 +79,64 @@ interface CompileButtonProps {
   disabled: boolean
   iconRef: React.MutableRefObject<HTMLElement>
   onCompile: () => void
+  onCompileAndRun: () => void
 }
 
-// the panel's only primary action
-export const CompileButton = ({ fileName, disabled, iconRef, onCompile }: CompileButtonProps) => {
+const CompileMoreToggle = React.forwardRef(
+  (
+    { onClick, label, disabled, 'aria-expanded': expanded }: { onClick: (e: React.MouseEvent) => void, label: string, disabled: boolean, 'aria-expanded'?: boolean },
+    ref: Ref<HTMLButtonElement>
+  ) => (
+    <button
+      ref={ref}
+      type="button"
+      className="btn btn-primary sc-compile-more"
+      aria-label={label}
+      aria-expanded={expanded}
+      data-id="compilerCompileMore"
+      disabled={disabled}
+      onClick={(e) => {
+        e.preventDefault()
+        onClick(e)
+      }}
+    >
+      <i className="fas fa-angle-down" aria-hidden="true"></i>
+    </button>
+  )
+)
+
+// the panel's only primary action, with Compile and run script behind its ▾
+export const CompileButton = ({ fileName, disabled, iconRef, onCompile, onCompileAndRun }: CompileButtonProps) => {
   const intl = useIntl()
   const name = fileName || `<${intl.formatMessage({ id: 'solidity.noFileSelected' })}>`
 
   return (
-    <CustomTooltip
-      placement="auto"
-      tooltipId="overlay-tooltip-compile"
-      tooltipText={<div className="text-start"><b>Ctrl+S</b> <FormattedMessage id="solidity.toCompile" /> {fileName}</div>}
-    >
-      <button id="compileBtn" data-id="compilerContainerCompileBtn" className="btn btn-primary sc-compile remixui_disabled" onClick={onCompile} disabled={disabled}>
-        <i ref={iconRef} className="fas fa-sync" aria-hidden="true"></i>
-        <span className="text-truncate">
-          <FormattedMessage id="solidity.compile" /> {name}
-        </span>
-      </button>
-    </CustomTooltip>
+    <div className="sc-compile-group">
+      <CustomTooltip
+        placement="auto"
+        tooltipId="overlay-tooltip-compile"
+        tooltipText={<div className="text-start"><b>Ctrl+S</b> <FormattedMessage id="solidity.toCompile" /> {fileName}</div>}
+      >
+        <button id="compileBtn" data-id="compilerContainerCompileBtn" className="btn btn-primary sc-compile remixui_disabled" onClick={onCompile} disabled={disabled}>
+          <i ref={iconRef} className="fas fa-sync" aria-hidden="true"></i>
+          <span className="text-truncate">
+            <FormattedMessage id="solidity.compile" /> {name}
+          </span>
+        </button>
+      </CustomTooltip>
+      <Dropdown align="end">
+        <Dropdown.Toggle as={CompileMoreToggle} label={intl.formatMessage({ id: 'solidity.moreCompileOptions' })} disabled={disabled} />
+        <Dropdown.Menu className="sc-menu" data-id="compilerCompileMore-items">
+          <MenuItems items={[{
+            icon: 'fas fa-play',
+            text: <FormattedMessage id="solidity.compileAndRunScriptMenu" />,
+            sub: <FormattedMessage id="solidity.compileAndRunScriptSub" />,
+            id: 'compileAndRunBtn',
+            dataId: 'compilerContainerCompileAndRunBtn',
+            onClick: onCompileAndRun
+          }]} />
+        </Dropdown.Menu>
+      </Dropdown>
+    </div>
   )
 }
