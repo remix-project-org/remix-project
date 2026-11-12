@@ -104,5 +104,6 @@ libs/remix-ai-core/test/*
 .playwright-cli/*
 
 SESSIONS.md
+SESSIONS-archive.md
 TODO.md
 tests/benchmarks/ai-cost/results/

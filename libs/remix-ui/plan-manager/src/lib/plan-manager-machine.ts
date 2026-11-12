@@ -32,7 +32,9 @@ import type {
   SubscriptionPlan,
   CreditPackage,
   PermissionsResponse,
-  PendingCheckout
+  PendingCheckout,
+  SameEmailOverviewResponse,
+  SameEmailGroup
 } from '@remix-api'
 import { Features } from '@remix-api'
 import { planManagerLogger, setPlanManagerLoggingEnabled } from './plan-manager-logger'
@@ -152,6 +154,11 @@ export interface PlanManagerSnapshot {
    * (`address_location_not_allowed`) — checkout cannot work from here.
    */
   paymentsBlockedInRegion: boolean
+  /**
+   * Other (unlinked) accounts registered with the user's verified email —
+   * pushed by the auth plugin's `sameEmailAccountsChanged`. Informational.
+   */
+  sameEmailAccounts: SameEmailOverviewResponse | null
   errorMessage: string | null
   /**
    * Why the panel was opened. Set on the most recent OPEN_OVERLAY when a
@@ -298,6 +305,8 @@ interface MachineContext {
   resumeCheckouts: PendingCheckout[]
   resumeNudgeDismissed: boolean
   paymentsBlockedInRegion: boolean
+  // same-email accounts (out-of-band, from the auth plugin)
+  sameEmailAccounts: SameEmailOverviewResponse | null
   // overlay routing
   openIntent: OpenIntent | null
   // confirm dialog
@@ -337,6 +346,7 @@ export type PlanManagerEvent =
   | { type: 'RESUME_CHECKOUTS_LOADED'; checkouts: PendingCheckout[] }
   | { type: 'RESUME_NUDGE_DISMISS' }
   | { type: 'REGION_PAYMENTS_BLOCKED' }
+  | { type: 'SAME_EMAIL_ACCOUNTS_LOADED'; overview: SameEmailOverviewResponse | null }
   | { type: 'CHECKOUT_RESULT_META'; meta: Record<string, string> }
   // Plugin-side signal: backend confirmed the purchase + we just refreshed
   // permissions/credits/sub. Promotes 'processing' → 'success' regardless of
@@ -371,6 +381,7 @@ const initialContext: MachineContext = {
   resumeCheckouts: [],
   resumeNudgeDismissed: false,
   paymentsBlockedInRegion: false,
+  sameEmailAccounts: null,
   openIntent: null,
   confirmDialog: null,
   lastError: null
@@ -406,6 +417,7 @@ export const planManagerMachine = setup({
       // Resume nudge is per-user — drop it (and its dismissal) on sign-out.
       context.resumeCheckouts = []
       context.resumeNudgeDismissed = false
+      context.sameEmailAccounts = null
     },
     setData: ({ context, event }) => {
       if (event.type !== 'DATA_LOADED') return
@@ -552,6 +564,10 @@ export const planManagerMachine = setup({
     },
     setPaymentsBlockedInRegion: ({ context }) => {
       context.paymentsBlockedInRegion = true
+    },
+    setSameEmailAccounts: ({ context, event }) => {
+      if (event.type !== 'SAME_EMAIL_ACCOUNTS_LOADED') return
+      context.sameEmailAccounts = event.overview
     },
     mergeCheckoutResultMeta: ({ context, event }) => {
       if (event.type !== 'CHECKOUT_RESULT_META' || !context.checkoutResult) return
@@ -758,6 +774,7 @@ export const planManagerMachine = setup({
     RESUME_CHECKOUTS_LOADED: { actions: ['setResumeCheckouts']},
     RESUME_NUDGE_DISMISS: { actions: ['dismissResumeNudge']},
     REGION_PAYMENTS_BLOCKED: { actions: ['setPaymentsBlockedInRegion']},
+    SAME_EMAIL_ACCOUNTS_LOADED: { actions: ['setSameEmailAccounts']},
     CHECKOUT_RESULT_META: { actions: ['mergeCheckoutResultMeta']}
   }
 })
@@ -799,6 +816,7 @@ export function snapshotFromActor(actor: AnyActorRef): PlanManagerSnapshot {
     resumeCheckouts: ctx.resumeCheckouts,
     resumeNudgeDismissed: ctx.resumeNudgeDismissed,
     paymentsBlockedInRegion: ctx.paymentsBlockedInRegion,
+    sameEmailAccounts: ctx.sameEmailAccounts,
     errorMessage: ctx.lastError,
     isTrialEligible: ctx.isTrialEligible,
     openIntent: ctx.openIntent,
@@ -844,6 +862,17 @@ function deriveLifecycle(daysUntilExpiry: number): PlanLifecycle {
  * Beta detection — confirmed against /permissions/ live response:
  *   { feature_groups: [{ name: 'beta', expires_at: null|string, ... }] }
  */
+/**
+ * Same-email account groups other than the one the user is signed in with
+ * (their credits/subscriptions are not usable from this account). Empty when
+ * there are none or the overview hasn't loaded.
+ */
+export function selectOtherSameEmailGroups(snap: Pick<PlanManagerSnapshot, 'sameEmailAccounts'>): SameEmailGroup[] {
+  const overview = snap.sameEmailAccounts
+  if (!overview || overview.other_account_count <= 0) return []
+  return overview.groups.filter(g => !g.is_current_group && g.accounts.length > 0)
+}
+
 export function selectBetaGroup(snap: PlanManagerSnapshot) {
   const groups = snap.permissions?.feature_groups
   if (!groups) return null

@@ -12,6 +12,7 @@ import { deployContract, getNetworkProxyAddresses } from '../actions'
 import { ToggleSwitch } from '@remix-ui/toggle'
 import { ContractKebabMenu } from './contractKebabMenu'
 import { VerificationSettingsUI } from '../components/verificationSettingsUI'
+import { ChecksStatusLine } from './checksStatusLine'
 import { TrackingContext } from '@remix-ide/tracking'
 import { useAuth } from '@remix-ui/app'
 
@@ -974,6 +975,7 @@ function DeployPortraitView() {
 
             {/* Deploy Button */}
             <div>
+              <ChecksStatusLine filePath={selectedContract?.filePath} />
               <button
                 onClick={handleDeployClick}
                 data-id="deployButton"

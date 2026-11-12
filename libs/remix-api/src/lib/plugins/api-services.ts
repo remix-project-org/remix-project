@@ -16,6 +16,7 @@ import {
   Credits,
   LinkedAccount,
   AccountsResponse,
+  SameEmailOverviewResponse,
   LinkAccountRequest,
   LinkAccountResponse,
   GitHubLinkRequest,
@@ -208,6 +209,16 @@ export class SSOApiService {
    */
   async unlinkAccount(userId: number): Promise<ApiResponse<GenericSuccessResponse>> {
     return this.apiClient.delete<GenericSuccessResponse>(`/accounts/${userId}`)
+  }
+
+  /**
+   * Informational overview of other (unlinked) accounts registered with the
+   * caller's verified email, and whether they hold credits or subscriptions.
+   * Fails with 400 NO_EMAIL / 403 EMAIL_NOT_VERIFIED when there is nothing
+   * to look up yet.
+   */
+  async getSameEmailAccounts(): Promise<ApiResponse<SameEmailOverviewResponse>> {
+    return this.apiClient.get<SameEmailOverviewResponse>('/accounts/same-email')
   }
   
   /**

@@ -13,7 +13,7 @@ const profile = {
   displayName: 'Contract Flattener',
   description: 'Flatten solidity contracts',
   methods: ['flattenAContract', 'flattenContract'],
-  events: [],
+  events: ['contractFlattened'],
   maintainedBy: 'Remix'
 }
 
@@ -71,6 +71,7 @@ export class ContractFlattener extends Plugin {
     }
     if (write) {
       await this.call('fileManager', 'writeFile', path, result)
+      if (result) this.emit('contractFlattened', filePath, path)
     }
     trackMatomoEvent(this, { category: 'plugin', action: 'contractFlattener', name: 'flattenAContract', isClick: false })
     // clean up memory references & return result

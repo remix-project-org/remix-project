@@ -51,5 +51,11 @@ export interface CheckoutEvent extends MatomoEventBase {
     | 'free_welcome' // post-sign-up top-up welcome shown (name = new|returning)
     | 'topup_upgrade' // upgrade CTA on the top-up screen (name = plan slug, value = welcome|topup)
     // low-cost-models hand-off after a starter-pack purchase (name = armed|announced)
-    | 'cheap_models';
+    | 'cheap_models'
+    // Other (unlinked) accounts share the user's email — duplicate-purchase guard
+    | 'same_email_detected' // overview loaded with other accounts (name = with_value|no_value, value = other account count)
+    | 'same_email_banner' // Plan & Credits banner shown (name = with_value|no_value, value = other account count)
+    | 'same_email_expand' // banner "Show accounts" clicked (value = other account count)
+    | 'same_email_modal' // one-time post-login modal shown (value = accounts holding credits/subscription)
+    | 'same_email_support'; // support link clicked (name = banner|modal)
 }
