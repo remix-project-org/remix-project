@@ -10,6 +10,10 @@ import { trackMatomoEvent as baseTrackMatomoEvent, NudgeEvent, MatomoEvent, Feat
 import * as packageJson from '../../../../../package.json'
 import './nudge-widget.css'
 import axios from 'axios'
+import {
+  COMPLETION_NUDGE_KINDS, CompletionPromoModal, buildCompletionNudge, completionCta,
+  type CompletionNudge, type CompletionNudgeKind
+} from './completion-nudge'
 
 declare global {
   interface Window { __IS_E2E_TEST__?: boolean }
@@ -81,14 +85,31 @@ const AI_USAGE_PLANS_EVERY = 10
 const AI_USAGE_PLANS_COOLDOWN_MS = 30 * 60_000
 const PLANS_LAST_SHOWN_AT_KEY = 'remix_plans_last_shown_at'
 
+/* AI code completion — pill next to the copilot toggle + explainer per state, repeated on a cooldown */
+const COMPLETION_PROMO_PREFIX = 'completion-promo-'
+const COMPLETION_BLOCKED_EVENT_PREFIX = 'ai:completion_blocked:'
+const TYPING_PAUSED_EVENT = 'editor:typing_paused'
+/** The explainer waits for this many separate edits in a code file… */
+const COMPLETION_PROMO_MIN_EDITS = 3
+/** …and then for the user to stop typing this long, so it never lands mid-keystroke */
+const COMPLETION_PROMO_PAUSE_MS = 3500
+/** Kinds whose pill the user hid with its ×, for this browser session */
+const COMPLETION_PILL_HIDDEN_KEY = 'remix_completion_nudge_hidden'
+/** When each kind's explainer was last on screen ({ kind: epoch ms }) */
+const COMPLETION_PROMO_LAST_SHOWN_KEY = 'remix_completion_promo_last_shown'
+/** While the problem lasts, the explainer comes back at most once per session and no sooner than this */
+const COMPLETION_PROMO_COOLDOWN_MS = 3 * 24 * 60 * 60_000
+/** Files the editor offers inline completion for (mirrors the bottom bar) */
+const COMPLETION_FILE_EXTENSIONS = ['sol', 'vy', 'circom', 'js', 'ts']
+
 /* ─── Plugin profile ─── */
 
 const profile = {
   name: 'nudgePlugin',
   displayName: 'Nudge Plugin',
   description: 'Contextual feature discovery widget — surfaces tips, CTAs, and hints based on user context',
-  methods: ['dismiss', 'dismissPermanent', 'addRule', 'addRules', 'fire', 'clearActive', 'getBanner', 'dismissBanner'],
-  events: ['nudgeTriggered', 'nudgeDismissed', 'nudgeBannerChanged'],
+  methods: ['dismiss', 'dismissPermanent', 'addRule', 'addRules', 'fire', 'clearActive', 'getBanner', 'dismissBanner', 'getCompletionNudge', 'completionNudgeAction', 'dismissCompletionNudge'],
+  events: ['nudgeTriggered', 'nudgeDismissed', 'nudgeBannerChanged', 'completionNudgeChanged'],
   icon: '',
   location: 'none',
   version: packageJson.version,
@@ -105,6 +126,8 @@ export interface NudgePluginState {
     decorations: Map<string, NudgeDecoration>
     /** Active anchored callout (type:'callout'), shown independently of the widget queue */
     callout: NudgeRule | null
+    /** AI completion explainer currently on screen */
+    completionPromo: { kind: CompletionNudgeKind; onFreePlan: boolean } | null
 }
 
 export interface NudgeDecoration {
@@ -145,6 +168,13 @@ export class NudgePlugin extends Plugin {
   // right after) a panel the user already has / just had in front of them.
   private _planManagerOpen = false
   private _planManagerOpenedAt = 0
+  // AI code completion nudge inputs: the copilot toggle and why remixAI
+  // refused the last completion (signed-out is read from the auth facts).
+  private _copilotOn = true
+  private _completionStatus: string | null = null
+  private _completionNudge: CompletionNudge | null = null
+  private _completionEdits = 0
+  private _typingPauseTimer: ReturnType<typeof setTimeout> | null = null
 
   // Type-safe tracker defaulting to NudgeEvent
   private trackMatomoEvent = <T extends MatomoEvent = NudgeEvent>(event: T) => {
@@ -160,7 +190,8 @@ export class NudgePlugin extends Plugin {
       queue: [],
       animateOut: false,
       decorations: new Map(),
-      callout: null
+      callout: null,
+      completionPromo: null
     }
   }
 
@@ -180,7 +211,9 @@ export class NudgePlugin extends Plugin {
 
     // Subscribe to nudge triggers from the engine
     this.engine_.onNudge((rule) => {
-      if (rule.id === PLANS_ON_LOAD_ID || rule.id === PLANS_ON_AI_USAGE_ID) {
+      if (rule.id.startsWith(COMPLETION_PROMO_PREFIX)) {
+        this._showCompletionPromo(rule)
+      } else if (rule.id === PLANS_ON_LOAD_ID || rule.id === PLANS_ON_AI_USAGE_ID) {
         this._autoOpenPlans(rule)
       } else if (rule.action.autoTrigger && rule.action.actionTarget) {
         // Announcement-style nudges that open their own rich UI instead of
@@ -292,6 +325,27 @@ export class NudgePlugin extends Plugin {
     this.on('remixAI', 'modelChanged', (modelId: string) => {
       this.engine_.fire('ai:model_changed')
     })
+
+    // Inline completion refused / working again (see remixAI.withCompletionGate)
+    this.on('remixAI', 'completionStatusChanged', (status: string | null) => {
+      this._completionStatus = status || null
+      this._syncCompletionNudge()
+    })
+    this.call('remixAI' as any, 'getCompletionStatus')
+      .then((status: string | null) => { this._completionStatus = status || null; this._syncCompletionNudge() })
+      .catch(() => { /* remixAI not active yet — the event above catches up */ })
+
+    // Switching AI copilot off is the user saying "no completions" — no nudging either.
+    this.on('settings', 'copilotChoiceUpdated', (isOn: boolean) => {
+      this._copilotOn = !!isOn
+      this._syncCompletionNudge()
+    })
+    this.call('settings', 'getCopilotSetting')
+      .then((isOn: boolean) => { this._copilotOn = isOn ?? true; this._syncCompletionNudge() })
+      .catch(() => { })
+
+    // Typing in a code file while completion is unavailable → explainer at the next pause
+    this.on('editor', 'contentChanged', (file: string) => this._onEditorTyping(file))
 
     // User sent a chat message
     this.on('remixAI', 'chatMessageSent', () => {
@@ -467,6 +521,7 @@ export class NudgePlugin extends Plugin {
 
       if (getConfigValue('auth.sign_in_button_mode') !== 'hidden') {
         this.engine_.fire('config:login_enabled')
+        this._syncCompletionNudge()
       }
 
       // Domain migration — only prompt on an origin that is actually being
@@ -621,6 +676,7 @@ export class NudgePlugin extends Plugin {
     if (isAuthenticated) {
       this.engine_.unfire('user:not_logged_in')
       this.engine_.fire('user:logged_in')
+      this._syncCompletionNudge()
       return
     }
 
@@ -630,6 +686,7 @@ export class NudgePlugin extends Plugin {
     this.engine_.unfire('user:can_see_plans')
     this._freePlanChatCount = 0
     this.engine_.fire('user:not_logged_in')
+    this._syncCompletionNudge()
   }
 
   private async _checkBetaMembership(opts: { isNewUser?: boolean; isFreshLogin?: boolean } = {}): Promise<void> {
@@ -1093,6 +1150,13 @@ export class NudgePlugin extends Plugin {
       priority: 16
     })
 
+    /* ─── AI code completion — explainer per blocked state (cooldown-paced) ─── */
+
+    // Fires at a pause in typing while completion is unavailable (signed out,
+    // out of credits, …). The persistent pill in the editor's bottom bar is
+    // driven separately by _syncCompletionNudge.
+    for (const kind of COMPLETION_NUDGE_KINDS) this.engine_.addRule(this._completionPromoRule(kind))
+
     /* ─── Unauthenticated AI nudges — show login prompt after AI engagement ─── */
 
     // User chatted but isn't logged in — nudge to sign up for better models
@@ -1369,9 +1433,188 @@ export class NudgePlugin extends Plugin {
       queue: [],
       animateOut: false,
       decorations: new Map(),
-      callout: null
+      callout: null,
+      completionPromo: null
     }
     this.renderComponent()
+  }
+
+  /* ─── AI code completion nudge ─── */
+
+  /** Pill state for the editor's bottom bar (null = nothing to show). */
+  getCompletionNudge(): CompletionNudge | null {
+    return this._completionNudge
+  }
+
+  /** Pill clicked — go straight to the fix (sign up, top up, …). */
+  async completionNudgeAction(): Promise<void> {
+    const kind = this._completionNudge?.kind
+    if (!kind) return
+    this.trackMatomoEvent({ category: 'nudge', action: 'ctaClicked', name: `completion-pill-${kind}`, isClick: true })
+    await this._runCompletionCta(kind, 'primary')
+  }
+
+  /** Pill ×: hide it for this browser session (the copilot toggle turns it off for good). */
+  dismissCompletionNudge(): void {
+    const kind = this._completionNudge?.kind
+    if (!kind) return
+    this.trackMatomoEvent({ category: 'nudge', action: 'dismissed', name: `completion-pill-${kind}`, isClick: true })
+    try {
+      const hidden: string[] = JSON.parse(sessionStorage.getItem(COMPLETION_PILL_HIDDEN_KEY) || '[]')
+      if (!hidden.includes(kind)) sessionStorage.setItem(COMPLETION_PILL_HIDDEN_KEY, JSON.stringify([...hidden, kind]))
+    } catch { }
+    this._syncCompletionNudge()
+  }
+
+  private _isCompletionPillHidden(kind: CompletionNudgeKind): boolean {
+    try {
+      return (JSON.parse(sessionStorage.getItem(COMPLETION_PILL_HIDDEN_KEY) || '[]') as string[]).includes(kind)
+    } catch {
+      return false
+    }
+  }
+
+  /** Which completion problem the user has right now, if any. */
+  private _computeCompletionKind(): CompletionNudgeKind | null {
+    if (!this._copilotOn) return null
+    // The editor never even asks for completions when signed out, so this one
+    // comes from the auth facts rather than from a refused request.
+    if (this.engine_.has('user:not_logged_in')) return this.engine_.has('config:login_enabled') ? 'signin' : null
+    if (!this.engine_.has('user:logged_in')) return null
+    switch (this._completionStatus) {
+    case 'insufficient-credits': return 'credits'
+    case 'email-unverified': return 'verify-email'
+    case 'feature-required': return 'upgrade'
+    default: return null
+    }
+  }
+
+  /** Recompute the completion nudge from its inputs and publish changes. */
+  private _syncCompletionNudge(): void {
+    const kind = this._computeCompletionKind()
+    // Engine facts follow the real state (a hidden pill doesn't make the problem go away)…
+    for (const k of COMPLETION_NUDGE_KINDS) {
+      const eventId = COMPLETION_BLOCKED_EVENT_PREFIX + k
+      if (k === kind && !this.engine_.has(eventId)) this.engine_.fire(eventId)
+      else if (k !== kind && this.engine_.has(eventId)) this.engine_.unfire(eventId)
+    }
+    // …the pill also respects the user's "hide for now".
+    const visibleKind = kind && !this._isCompletionPillHidden(kind) ? kind : null
+    if (visibleKind === (this._completionNudge?.kind ?? null)) return
+
+    this._completionNudge = visibleKind ? buildCompletionNudge(visibleKind) : null
+    this._completionEdits = 0
+    if (this._typingPauseTimer) clearTimeout(this._typingPauseTimer)
+    // Signed in / topped up / switched copilot off while the explainer was open
+    if (this.state.completionPromo && this.state.completionPromo.kind !== kind) this._closeCompletionPromo()
+    if (visibleKind) {
+      this.trackMatomoEvent({ category: 'nudge', action: 'triggered', name: `completion-pill-${visibleKind}`, isClick: false })
+    }
+    this.emit('completionNudgeChanged', this._completionNudge)
+  }
+
+  /**
+   * contentChanged is debounced by the editor (~500ms), so each call is one
+   * burst of typing. After a few of them, wait for a real pause before
+   * pulsing TYPING_PAUSED_EVENT — the explainer must never land mid-keystroke.
+   */
+  private _onEditorTyping(file: string): void {
+    if (!this._completionNudge || this.state.completionPromo) return
+    const ext = file?.split('.').pop()?.toLowerCase()
+    if (!ext || !COMPLETION_FILE_EXTENSIONS.includes(ext)) return
+    this._completionEdits++
+    if (this._typingPauseTimer) clearTimeout(this._typingPauseTimer)
+    if (this._completionEdits < COMPLETION_PROMO_MIN_EDITS) return
+    this._typingPauseTimer = setTimeout(() => {
+      this._typingPauseTimer = null
+      this.engine_.fire(TYPING_PAUSED_EVENT)
+      this.engine_.unfire(TYPING_PAUSED_EVENT)
+    }, COMPLETION_PROMO_PAUSE_MS)
+  }
+
+  private _completionPromoRule(kind: CompletionNudgeKind): NudgeRule {
+    return {
+      id: COMPLETION_PROMO_PREFIX + kind,
+      condition: all(COMPLETION_BLOCKED_EVENT_PREFIX + kind, TYPING_PAUSED_EVENT),
+      action: {
+        type: 'modal',
+        title: 'AI code completion',
+        message: `Explain AI code completion (${kind}) at a pause in typing.`
+      },
+      // Re-shown across sessions, paced by COMPLETION_PROMO_COOLDOWN_MS (see _showCompletionPromo)
+      showOnce: 'session',
+      priority: 25
+    }
+  }
+
+  private _getCompletionPromoLastShown(kind: CompletionNudgeKind): number {
+    try {
+      return Number(JSON.parse(localStorage.getItem(COMPLETION_PROMO_LAST_SHOWN_KEY) || '{}')[kind]) || 0
+    } catch {
+      return 0
+    }
+  }
+
+  private _markCompletionPromoShown(kind: CompletionNudgeKind): void {
+    try {
+      const shown = JSON.parse(localStorage.getItem(COMPLETION_PROMO_LAST_SHOWN_KEY) || '{}')
+      shown[kind] = Date.now()
+      localStorage.setItem(COMPLETION_PROMO_LAST_SHOWN_KEY, JSON.stringify(shown))
+    } catch { }
+  }
+
+  private _showCompletionPromo(rule: NudgeRule): void {
+    const kind = rule.id.slice(COMPLETION_PROMO_PREFIX.length) as CompletionNudgeKind
+    // Shown recently — skip it for the rest of this session (the pill stays).
+    if (Date.now() - this._getCompletionPromoLastShown(kind) < COMPLETION_PROMO_COOLDOWN_MS) return
+    const busy = this._planManagerOpen
+      || !!this.state.completionPromo
+      || this.state.activeNudge?.action.type === 'modal'
+      || this._isBlockingModalOpen()
+    if (busy || this._completionNudge?.kind !== kind) {
+      // Not a good moment (or the pill was hidden) — it hasn't really been
+      // seen, so re-arm it for a later pause. Deferred: the pause pulse is
+      // still fired while this callback runs and would re-trigger it at once.
+      setTimeout(() => {
+        this.engine_.resetShown(rule.id)
+        this.engine_.addRule(this._completionPromoRule(kind))
+      }, 0)
+      return
+    }
+    this.state = { ...this.state, completionPromo: { kind, onFreePlan: this.engine_.has('user:on_free_plan') } }
+    this._markCompletionPromoShown(kind)
+    this.renderComponent()
+  }
+
+  private _closeCompletionPromo(): void {
+    if (!this.state.completionPromo) return
+    this.state = { ...this.state, completionPromo: null }
+    this.renderComponent()
+  }
+
+  async handleCompletionPromoAction(which: 'primary' | 'secondary'): Promise<void> {
+    const promo = this.state.completionPromo
+    if (!promo) return
+    this.trackMatomoEvent({ category: 'nudge', action: 'ctaClicked', name: COMPLETION_PROMO_PREFIX + promo.kind, value: which, isClick: true })
+    this._closeCompletionPromo()
+    await this._runCompletionCta(promo.kind, which)
+  }
+
+  dismissCompletionPromo(): void {
+    const promo = this.state.completionPromo
+    if (!promo) return
+    this.trackMatomoEvent({ category: 'nudge', action: 'dismissed', name: COMPLETION_PROMO_PREFIX + promo.kind, isClick: true })
+    this._closeCompletionPromo()
+  }
+
+  private async _runCompletionCta(kind: CompletionNudgeKind, which: 'primary' | 'secondary'): Promise<void> {
+    const intent = completionCta(kind, which, this.engine_.has('user:on_free_plan'))
+    if (!intent) return
+    try {
+      await this.call('planManager' as any, 'open', intent)
+    } catch (e) {
+      this.warn('[NudgePlugin] Failed to open planManager for completion nudge:', e)
+    }
   }
 
   /* ─── CTA handler ─── */
@@ -1573,6 +1816,8 @@ export class NudgePlugin extends Plugin {
         onDecorationClick={(elementId) => this.removeDecoration(elementId)}
         onCalloutAction={(target) => this.handleCalloutAction(target)}
         onCalloutDismiss={() => this.dismissCallout()}
+        onCompletionPromoAction={(which) => this.handleCompletionPromoAction(which)}
+        onCompletionPromoDismiss={() => this.dismissCompletionPromo()}
       />
     )
   }
@@ -1597,9 +1842,11 @@ interface NudgeWidgetUIProps {
     onDecorationClick: (elementId: string) => void
     onCalloutAction: (target: string) => void
     onCalloutDismiss: () => void
+    onCompletionPromoAction: (which: 'primary' | 'secondary') => void
+    onCompletionPromoDismiss: () => void
 }
 
-function NudgeWidgetUI({ state, onAction, onDismiss, onDismissPermanent, onDecorationClick, onCalloutAction, onCalloutDismiss }: NudgeWidgetUIProps) {
+function NudgeWidgetUI({ state, onAction, onDismiss, onDismissPermanent, onDecorationClick, onCalloutAction, onCalloutDismiss, onCompletionPromoAction, onCompletionPromoDismiss }: NudgeWidgetUIProps) {
   const nudge = state.activeNudge
 
   return (
@@ -1682,6 +1929,16 @@ function NudgeWidgetUI({ state, onAction, onDismiss, onDismissPermanent, onDecor
       {/* Anchored callout (type:'callout') */}
       {state.callout && (
         <NudgeCallout rule={state.callout} onAction={onCalloutAction} onDismiss={onCalloutDismiss} />
+      )}
+
+      {/* AI code completion explainer */}
+      {state.completionPromo && (
+        <CompletionPromoModal
+          kind={state.completionPromo.kind}
+          onFreePlan={state.completionPromo.onFreePlan}
+          onAction={onCompletionPromoAction}
+          onClose={onCompletionPromoDismiss}
+        />
       )}
 
       {/* Decorations layer for hint-type nudges */}
