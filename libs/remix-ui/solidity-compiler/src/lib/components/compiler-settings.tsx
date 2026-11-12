@@ -130,13 +130,13 @@ export const CompilerSettings = (props: CompilerSettingsProps) => {
         <div className="sc-set-row">
           <label className="n" htmlFor="nightlies"><FormattedMessage id="solidity.showNightlyBuilds" /></label>
           <span data-id="compilerNightliesBuild">
-            <ToggleSwitch id="nightlies" size="sm" isOn={props.includeNightlies} onClick={() => props.onNightliesChange(!props.includeNightlies)} />
+            <ToggleSwitch id="nightlies" isOn={props.includeNightlies} onClick={() => props.onNightliesChange(!props.includeNightlies)} />
           </span>
         </div>
         {props.showOnlyDownloaded && (
           <div className="sc-set-row">
             <label className="n" htmlFor="downloadedcompilers"><FormattedMessage id="solidity.onlyDownloadedVersions" /></label>
-            <ToggleSwitch id="downloadedcompilers" size="sm" isOn={props.onlyDownloaded} onClick={() => props.onOnlyDownloadedChange(!props.onlyDownloaded)} />
+            <ToggleSwitch id="downloadedcompilers" isOn={props.onlyDownloaded} onClick={() => props.onOnlyDownloadedChange(!props.onlyDownloaded)} />
           </div>
         )}
       </div>

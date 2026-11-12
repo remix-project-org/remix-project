@@ -310,7 +310,7 @@ module.exports = {
       .openFile('contracts')
       .openFile('contracts/1_Storage.sol')
       .clickLaunchIcon('solidity')
-      .click('*[data-id="compilerMoreMenu"]')
+      .click('*[data-id="compilerCompileMore"]')
       .click({
         selector: '*[data-id="compilerContainerCompileAndRunBtn"]',
       })
@@ -323,7 +323,7 @@ module.exports = {
       .click({
         selector: '[data-id="listenNetworkCheckInput"]',
       }) // start to listen
-      .click('*[data-id="compilerMoreMenu"]')
+      .click('*[data-id="compilerCompileMore"]')
       .click({
         selector: '*[data-id="compilerContainerCompileAndRunBtn"]',
       })
@@ -344,7 +344,7 @@ module.exports = {
               .click({
                 selector: '*[data-id="terminalClearConsole"]',
               })
-              .click('*[data-id="compilerMoreMenu"]')
+              .click('*[data-id="compilerCompileMore"]')
               .click({
                 selector: '*[data-id="compilerContainerCompileAndRunBtn"]',
               })

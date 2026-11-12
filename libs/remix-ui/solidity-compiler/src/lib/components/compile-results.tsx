@@ -2,6 +2,7 @@ import React, { useContext } from 'react'
 import { FormattedMessage, useIntl } from 'react-intl'
 import { helper } from '@remix-project/remix-solidity'
 import { CopyToClipboard } from '@remix-ui/clipboard'
+import { CustomTooltip } from '@remix-ui/helper'
 import { gotoError, fixWithRemixAI } from '@remix-ui/renderer'
 import { ToggleSwitch } from '@remix-ui/toggle'
 import { TrackingContext } from '@remix-ide/tracking'
@@ -67,9 +68,11 @@ const CompileIssue = ({ api, issue }: { api: any, issue: CompileIssueData }) => 
         <CopyToClipboard tip={intl.formatMessage({ id: 'solidity.copyMessage' })} content={issue.formatted} direction="top">
           <button className="sc-icon-btn sc-copy-hover" aria-label={intl.formatMessage({ id: 'solidity.copyMessage' })}><i className="far fa-copy"></i></button>
         </CopyToClipboard>
-        <button className="sc-icon-btn" data-id="ask-remix-ai-button" title={fixLabel} aria-label={fixLabel} onClick={fix}>
-          <AiIcon size={12} />
-        </button>
+        <CustomTooltip placement="top" tooltipId="overlay-tooltip-fix-with-ai" tooltipText={fixLabel}>
+          <button className="sc-icon-btn" data-id="ask-remix-ai-button" aria-label={fixLabel} onClick={fix}>
+            <AiIcon size={12} />
+          </button>
+        </CustomTooltip>
       </span>
     </div>
   )

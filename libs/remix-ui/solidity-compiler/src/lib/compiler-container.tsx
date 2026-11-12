@@ -9,7 +9,6 @@ import { compilerReducer, compilerInitialState } from './reducers/compiler'
 import { listenToEvents } from './actions/compiler'
 import { getValidLanguage } from '@remix-project/remix-solidity'
 import { ToggleSwitch } from '@remix-ui/toggle'
-import copy from 'copy-to-clipboard'
 import { configFileContent } from './compilerConfiguration'
 import { appPlatformTypes, platformContext, onLineContext, useAuth } from '@remix-ui/app'
 import { TrackingContext } from '@remix-ide/tracking'
@@ -790,12 +789,6 @@ export const CompilerContainer = (props: CompilerContainerProps) => {
     setAiCardDismissed(true)
   }
 
-  const copyDevRunScriptTag = () => {
-    trackMatomoEvent({ category: 'compilerContainer', action: 'copyDevRunScriptTag', name: '', isClick: true })
-    copy('@custom:dev-run-script file_path')
-    tooltip(intl.formatMessage({ id: 'solidity.devRunScriptTagCopied' }))
-  }
-
   const toggleConfigurations = () => {
     // Track advanced configuration toggle
     trackMatomoEvent({ category: 'compilerContainer', action: 'advancedConfigToggle', name: !toggleExpander ? 'expanded' : 'collapsed', isClick: true })
@@ -821,9 +814,6 @@ export const CompilerContainer = (props: CompilerContainerProps) => {
       <CompilerHeader
         showMenu={!viaFramework}
         onAddCustomCompiler={promptCompiler}
-        onCompileAndRun={compileAndRun}
-        compileAndRunDisabled={disableCompileButton}
-        onCopyDevRunScriptTag={copyDevRunScriptTag}
         onShowLicense={showCompilerLicense}
       />
 
@@ -877,7 +867,7 @@ export const CompilerContainer = (props: CompilerContainerProps) => {
         </span>
       </div>
 
-      <CompileButton fileName={state.compiledFileName} disabled={disableCompileButton} iconRef={compileIcon} onCompile={compile} />
+      <CompileButton fileName={state.compiledFileName} disabled={disableCompileButton} iconRef={compileIcon} onCompile={compile} onCompileAndRun={compileAndRun} />
 
       {props.renderResults && props.renderResults({
         compiling,
