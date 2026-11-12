@@ -1,9 +1,9 @@
 import { checkStatus, linkProxy, verify } from 'explorer-verify/core'
 import type { ClientList, ExplorerClient, ProxyLinkClient } from 'explorer-verify/core'
-import { ExplorerVerifyError } from 'explorer-verify/errors'
+import { ExplorerVerifyError, hintFor } from 'explorer-verify/errors'
 import { formatHandle, isHandleString, parseHandle } from 'explorer-verify/handle'
 import type { BackendName } from 'explorer-verify/backends'
-import type { Hex, RouteOverride, VerifyInput, VerifyResult } from 'explorer-verify'
+import type { Hex, RouteOverride, StoredContract, VerifyInput, VerifyResult } from 'explorer-verify'
 import type { CompilerAbstract } from '@remix-project/remix-solidity'
 import type { SubmittedContract, VerificationResponse, VerificationStatus } from '../types'
 
@@ -67,12 +67,22 @@ export function toVerifyInput(submittedContract: SubmittedContract, compilerAbst
   return verifyInput
 }
 
-/** The text a receipt shows for an explorer-verify error: what went wrong and what to do. */
+/**
+ * The text a receipt shows for an explorer-verify error: what went wrong and what to do. The
+ * hint is the one for end users, which names no SDK function, option or field.
+ */
 export function errorMessage(error: unknown): string {
   if (error instanceof ExplorerVerifyError) {
-    return `${error.message} ${error.hint}`
+    return `${error.message} ${hintFor(error, 'user')}`
   }
   return error instanceof Error ? error.message : String(error)
+}
+
+/** Names the contract whose source the explorer holds for this address. */
+export function storedContractMessage(stored: StoredContract): string {
+  const parts = [stored.name, stored.compilerVersion].filter((part): part is string => !!part)
+  const which = parts.length > 0 ? ` (${parts.join(', ')})` : ''
+  return `The explorer already holds a partial match made from another contract's source${which}. It refused this source as already verified, so the explorer page shows the other source.`
 }
 
 function toResponse(result: VerifyResult, backend: BackendName, receiptId: string | null): VerificationResponse {
@@ -80,9 +90,15 @@ function toResponse(result: VerifyResult, backend: BackendName, receiptId: strin
     return { status: 'failed', receiptId, message: result.reason }
   }
   if (result.status === 'already-verified') {
-    // A partial match can hold other source with the same bytecode. explorer-verify 0.1.0 does
-    // not submit over it, so say so instead of reporting the contract as verified.
-    if (result.match === 'partial') {
+    // explorer-verify submitted this source because the explorer's match names another contract
+    // or compiler version, and the explorer refused it as already verified. The code at the
+    // address is verified, but the explorer shows the other contract's source, not this one.
+    if (result.storedContract) {
+      return { status: 'partially verified', receiptId, message: storedContractMessage(result.storedContract) }
+    }
+    // Routescan states no match grade, so explorer-verify reports every Routescan match as partial.
+    if (result.match === 'partial' && backend !== 'routescan') {
+      // A partial match of this source. explorer-verify does not submit over it.
       return { status: 'partially verified', receiptId, message: 'The explorer already holds a partial match for this address. It was not submitted again.' }
     }
     return { status: 'already verified', receiptId }

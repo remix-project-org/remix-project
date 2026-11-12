@@ -170,6 +170,32 @@ describe('SourcifyVerifier', () => {
     expect(calls.some(submitCall)).to.equal(false)
   })
 
+  it('submits over a match made from another contract, and names that contract when Sourcify refuses', async () => {
+    // Recorded on Sepolia: another project's source stored for a new contract within two minutes.
+    const foreign = { compilerVersion: '0.8.33+commit.64118f21', name: 'SimpleStorage', fullyQualifiedName: 'simplestorage2.sol:SimpleStorage' }
+    answer(lookup, { ...notVerified, match: 'match', creationMatch: 'match', runtimeMatch: 'match', compilation: foreign })
+    answer(submitCall, { customCode: 'already_verified', message: 'The contract is already verified.', errorId: 'e' }, 409)
+
+    const response = await verifier().verify(submittedContract(), compilerAbstract())
+
+    expect(calls.filter(submitCall)).to.have.length(1)
+    expect(response.status).to.equal('partially verified')
+    expect(response.receiptId).to.equal(null)
+    expect(response.message).to.contain("another contract's source (simplestorage2.sol:SimpleStorage, 0.8.33+commit.64118f21)")
+    expect(response.message).to.contain('refused this source')
+  })
+
+  it('keeps a partial match of this source as partially verified, without a submit', async () => {
+    const own = { compilerVersion: '0.8.26+commit.8a97fa7a', name: 'Storage', fullyQualifiedName: 'contracts/Storage.sol:Storage' }
+    answer(lookup, { ...notVerified, match: 'match', creationMatch: 'match', runtimeMatch: 'match', compilation: own })
+
+    const response = await verifier().verify(submittedContract(), compilerAbstract())
+
+    expect(response.status).to.equal('partially verified')
+    expect(response.message).to.contain('not submitted again')
+    expect(calls.some(submitCall)).to.equal(false)
+  })
+
   it('returns failed with the explorer reason when the bytecode does not match', async () => {
     answer(lookup, notVerified, 404)
     answer(submitCall, { verificationId: JOB_ID }, 202)
@@ -265,6 +291,47 @@ describe('EtherscanVerifier', () => {
     expect(response.message).to.contain('does NOT match')
   })
 
+  it('names the stored contract when Etherscan refuses the source as already verified', async () => {
+    const other = { status: '1', message: 'OK', result: [{ SourceCode: 'contract SimpleStorage {}', ContractName: 'SimpleStorage', CompilerVersion: 'v0.8.33+commit.64118f21' }]}
+    answer(action('getsourcecode'), other)
+    answer(action('verifysourcecode'), { status: '0', message: 'NOTOK', result: 'Contract source code already verified' })
+    answer(action('getsourcecode'), other)
+
+    const response = await verifier().verify(submittedContract({ abiEncodedConstructorArgs: '0x' }), compilerAbstract())
+
+    expect(calls.filter(action('verifysourcecode'))).to.have.length(1)
+    expect(response.status).to.equal('partially verified')
+    expect(response.message).to.contain("another contract's source (SimpleStorage, v0.8.33+commit.64118f21)")
+  })
+
+  it('returns already verified without a submit when Etherscan holds this source', async () => {
+    answer(action('getsourcecode'), { status: '1', message: 'OK', result: [{ SourceCode: 'contract Storage {}', ContractName: 'Storage', CompilerVersion: 'v0.8.26+commit.8a97fa7a' }]})
+
+    const response = await verifier().verify(submittedContract({ abiEncodedConstructorArgs: '0x' }), compilerAbstract())
+
+    expect(response.status).to.equal('already verified')
+    expect(response.message).to.equal(undefined)
+    expect(calls.some(action('verifysourcecode'))).to.equal(false)
+  })
+
+  it('throws a message for end users when Etherscan has not indexed the contract yet', async function () {
+    this.timeout(20000)
+    const notIndexed = { status: '0', message: 'NOTOK', result: `Unable to locate ContractCode at ${ADDRESS.toLowerCase()}` }
+    answer(action('getsourcecode'), { status: '1', message: 'OK', result: [{ SourceCode: '', ABI: 'Contract source code not verified' }]})
+    for (let i = 0; i < 10; i++) answer(action('verifysourcecode'), notIndexed)
+
+    let message = ''
+    try {
+      await verifier().verify(submittedContract({ abiEncodedConstructorArgs: '0x' }), compilerAbstract())
+    } catch (error) {
+      message = error.message
+    }
+    expect(message).to.contain('try again in a minute')
+    // The end-user hint names no SDK option, field or function.
+    expect(message).to.not.match(/indexWaitMs|details\.|verify\(\)|checkStatus/)
+    expect(message).to.not.contain(API_KEY)
+  })
+
   it('never puts the key in an error message', async () => {
     answer(action('getsourcecode'), { status: '0', message: 'NOTOK', result: `Invalid API Key (#err2)|${API_KEY}` })
 
@@ -322,5 +389,16 @@ describe('RoutescanVerifier', () => {
     expect(response.lookupUrl).to.equal(`https://testnet.routescan.io/address/${ADDRESS}/contract/${CHAIN_ID}/code`)
     expect(calls.every((call) => call.url.pathname === `/v2/network/testnet/evm/${CHAIN_ID}/etherscan/api`)).to.equal(true)
     expect(verifier.verifyProxy).to.equal(undefined)
+  })
+
+  it('shows a Routescan match of this source as already verified, since Routescan states no grade', async () => {
+    const apiUrl = `https://api.routescan.io/v2/network/testnet/evm/${CHAIN_ID}/etherscan`
+    const verifier = new RoutescanVerifier(apiUrl, 'https://testnet.routescan.io')
+    answer(action('getsourcecode'), { status: '1', message: 'OK', result: [{ SourceCode: 'contract Storage {}', ContractName: 'Storage', CompilerVersion: 'v0.8.26+commit.8a97fa7a' }]})
+
+    const response = await verifier.verify(submittedContract({ abiEncodedConstructorArgs: '0x' }), compilerAbstract())
+
+    expect(response.status).to.equal('already verified')
+    expect(calls.some(action('verifysourcecode'))).to.equal(false)
   })
 })
