@@ -1,9 +1,8 @@
 import React, { useState, useEffect, useContext } from 'react';
-import Select from 'react-select';
 import { gitActionsContext } from '../../state/context';
 import { repository, GitEvent, MatomoEvent } from '@remix-api';
 import { gitMatomoEventTypes } from '../../types';
-import { selectStyles, selectTheme } from '../../types/styles';
+import { Select, SelectOption } from '@remix-ui/helper';
 import { gitPluginContext } from '../gitui';
 import { TrackingContext } from '@remix-ide/tracking';
 
@@ -13,7 +12,7 @@ interface RepositorySelectProps {
 }
 
 const RepositorySelect = (props: RepositorySelectProps) => {
-  const [repoOtions, setRepoOptions] = useState<any>([]);
+  const [repoOtions, setRepoOptions] = useState<SelectOption[]>([]);
   const context = React.useContext(gitPluginContext)
   const actions = React.useContext(gitActionsContext)
   const { trackMatomoEvent: baseTrackEvent } = useContext(TrackingContext)
@@ -30,26 +29,25 @@ const RepositorySelect = (props: RepositorySelectProps) => {
     if (context.repositories && context.repositories.length > 0) {
       // map context.repositories to options
       const options = context.repositories && context.repositories.length > 0 && context.repositories.map(repo => {
-        return { value: repo.id, label: repo.full_name }
+        return { value: repo.id.toString(), label: repo.full_name, searchText: repo.full_name }
       })
 
       setRepoOptions(options)
       setShow(options.length > 0)
     } else {
-      setRepoOptions(null)
+      setRepoOptions([])
       setShow(false)
     }
     setLoading(false)
 
   }, [context.repositories])
 
-  const selectRepo = async (e: any) => {
-    if (!e || !e.value) {
+  const selectRepo = async (value: string) => {
+    if (!value) {
       props.select(null)
       setSelected(null)
       return
     }
-    const value = e && e.value
 
     const repo = context.repositories.find(repo => {
       return repo.id.toString() === value.toString()
@@ -90,12 +88,13 @@ const RepositorySelect = (props: RepositorySelectProps) => {
             options={repoOtions}
             className="mt-1"
             id="repository-select"
-            onChange={(e: any) => selectRepo(e)}
-            theme={selectTheme}
-            styles={selectStyles}
-            isClearable={true}
-            placeholder="Type to search for a repository..."
-            isLoading={loading}
+            value={selected ? selected.id.toString() : ''}
+            onChange={selectRepo}
+            itemDataId={(o) => `repository-select-${o.searchText}`}
+            placeholder={loading ? 'Loading repositories...' : 'Select a repository'}
+            disabled={loading}
+            searchable
+            searchPlaceholder="Type to search for a repository..."
           />
           { selected ? null : <label className="text-warning mt-2">Please select a repository</label> }
         </>: null

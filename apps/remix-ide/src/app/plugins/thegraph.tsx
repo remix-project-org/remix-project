@@ -1,4 +1,4 @@
-// The Graph Subgraph Plugin for Remix IDE
+// The Graph Subgraph Plugin for Remix Web3
 // A simple plugin to execute GraphQL queries from .subgraph files
 
 import { Plugin } from '@remixproject/engine'

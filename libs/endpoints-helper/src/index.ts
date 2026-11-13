@@ -1,5 +1,5 @@
 /**
- * Remix IDE Endpoint URLs
+ * Remix Web3 Endpoint URLs
  *
  * Resolution order:
  * 1. NX_ENDPOINTS_URL set → build all URLs as `${baseUrl}/${path}`

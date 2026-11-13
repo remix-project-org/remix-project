@@ -220,7 +220,7 @@ function registerLinuxProtocolHandler() {
   console.log('Executable path:', execPath);
 
   const desktopEntry = `[Desktop Entry]
-Name=Remix IDE
+Name=Remix Web3
 Exec=${execPath} %u
 Type=Application
 Terminal=false

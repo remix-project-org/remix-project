@@ -1,7 +1,7 @@
 {
   "name": "Solidity",
   "description": "Realtime compiler and runtime",
-  "update_url": "https://remix.ethereum.org",
+  "update_url": "https://app.remix.live",
   "version": "1.1",
   "manifest_version": 2,
   "background": {

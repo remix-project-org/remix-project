@@ -4,12 +4,14 @@ import { CompilerContainer } from './compiler-container' // eslint-disable-line
 import { ContractSelection } from './contract-selection' // eslint-disable-line
 import { Toaster } from '@remix-ui/toaster' // eslint-disable-line
 import { ModalDialog } from '@remix-ui/modal-dialog' // eslint-disable-line
-import { Renderer } from '@remix-ui/renderer' // eslint-disable-line
 import { baseURLBin, baseURLWasm, pathToURL } from '@remix-project/remix-solidity'
 import * as packageJson from '../../../../../package.json'
 import './css/style.css'
 import { iSolJsonBinData, iSolJsonBinDataBuild } from '@remix-project/remix-lib'
 import { appPlatformTypes, platformContext } from '@remix-ui/app'
+import { TrackingContext } from '@remix-ide/tracking'
+import { CompilerContainerEvent } from '@remix-api'
+import { CompileResults } from './components/compile-results'
 
 const oldConfigPath = 'compiler_config.json'
 const remixConfigPath = 'remix.config.json'
@@ -52,6 +54,22 @@ export const SolidityCompiler = (props: SolidityCompilerProps) => {
   const [badgeStatus, setBadgeStatus] = useState<Record<string, { key: string | number; title?: string; type?: string }>>({})
   const [contractsFile, setContractsFile] = useState<ContractsFile>({})
   const platform = useContext(platformContext)
+  const { trackMatomoEvent } = useContext(TrackingContext)
+  const [themeQuality, setThemeQuality] = useState<'dark' | 'light'>('dark')
+
+  useEffect(() => {
+    ;(api as any).call('theme', 'currentTheme').then((theme) => setThemeQuality(theme?.quality === 'light' ? 'light' : 'dark')).catch(() => { /* theme plugin not ready */ })
+  }, [])
+
+  api.onThemeChanged = (quality: string) => {
+    setThemeQuality(quality === 'light' ? 'light' : 'dark')
+  }
+
+  const handleHideWarningsChange = (checked: boolean) => {
+    trackMatomoEvent?.<CompilerContainerEvent>({ category: 'compilerContainer', action: 'hideWarnings', name: checked ? 'enabled' : 'disabled', isClick: false })
+    api.setAppParameter('hideWarnings', checked)
+    setHideWarnings(checked)
+  }
 
   useEffect(() => {
     ; (async () => {
@@ -144,7 +162,8 @@ export const SolidityCompiler = (props: SolidityCompilerProps) => {
       ? Object.keys(contractMap).map((key) => {
         return {
           name: key,
-          file: getFileName(contractMap[key].file)
+          file: getFileName(contractMap[key].file),
+          path: contractMap[key].file
         }
       })
       : []
@@ -274,6 +293,14 @@ export const SolidityCompiler = (props: SolidityCompilerProps) => {
     </div>
   )
 
+  const currentError = compileErrors && compileErrors[currentFile] && compileErrors[currentFile].error
+  useEffect(() => {
+    if (currentError && currentError.mode === 'panic') modal('Error', panicMessage(currentError.formattedMessage), 'Close', null, false)
+  }, [currentError])
+
+  // "soljson-v0.8.30+commit.73712a01.js" -> "0.8.30"; builtin is the bundled default version
+  const solcVersion = ((currentVersion === 'builtin' ? state.defaultVersion : currentVersion) || '').replace(/^soljson-v/, '').split('+')[0]
+
   useEffect(() => {
     if (!state.solJsonBinData && api.solJsonBinData){
       setSolJsonBinData(api.solJsonBinData)
@@ -282,7 +309,7 @@ export const SolidityCompiler = (props: SolidityCompilerProps) => {
 
   return (
     <>
-      <div id="compileTabView">
+      <div id="compileTabView" className={`sc sc-${themeQuality}`}>
         <CompilerContainer
           api={api}
           //@ts-ignore
@@ -301,6 +328,20 @@ export const SolidityCompiler = (props: SolidityCompilerProps) => {
           solJsonBinData={state.solJsonBinData}
           setCompileErrors={setCompileErrors}
           setBadgeStatus={setBadgeStatus}
+          renderResults={({ compiling, via, footer }) => (
+            <CompileResults
+              api={api}
+              result={compileErrors && compileErrors[currentFile]}
+              compiling={compiling}
+              fileName={getFileName(currentFile || '')}
+              version={currentVersion}
+              solcVersion={solcVersion}
+              via={via}
+              hideWarnings={hideWarnings}
+              onHideWarningsChange={handleHideWarningsChange}
+              footer={footer}
+            />
+          )}
         />
         {/* "compileErrors[currentFile]['contracts']" field will not be there in case of compilation errors */}
         {contractsFile && contractsFile[currentFile] && contractsFile[currentFile].contractsDetails
@@ -315,38 +356,6 @@ export const SolidityCompiler = (props: SolidityCompilerProps) => {
             compilerInput={contractsFile[currentFile].input}
             modal={modal}
           />
-        )}
-        {compileErrors && compileErrors[currentFile] && (
-          <div className="remixui_errorBlobs p-4" data-id="compiledErrors">
-            <>
-              <span data-id={`compilationFinishedWith_${currentVersion}`}></span>
-              {compileErrors[currentFile].error && (
-                <Renderer
-                  message={compileErrors[currentFile].error.formattedMessage || compileErrors[currentFile].error}
-                  plugin={api}
-                  context='solidity'
-                  opt={{
-                    type: compileErrors[currentFile].error.severity || 'error',
-                    errorType: compileErrors[currentFile].error.type
-                  }}
-                />
-              )}
-              {compileErrors[currentFile].error &&
-                compileErrors[currentFile].error.mode === 'panic' &&
-                modal('Error', panicMessage(compileErrors[currentFile].error.formattedMessage), 'Close', null, false)}
-              {compileErrors[currentFile].errors &&
-                compileErrors[currentFile].errors.length > 0 &&
-                compileErrors[currentFile].errors.map((err, index) => {
-                  if (hideWarnings) {
-                    if (err.severity !== 'warning') {
-                      return <Renderer context='solidity' key={index} message={err.formattedMessage} plugin={api} opt={{ type: err.severity, errorType: err.type }} />
-                    }
-                  } else {
-                    return <Renderer context='solidity' key={index} message={err.formattedMessage} plugin={api} opt={{ type: err.severity, errorType: err.type }} />
-                  }
-                })}
-            </>
-          </div>
         )}
       </div>
       <Toaster message={state.toasterMsg} />

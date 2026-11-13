@@ -20,7 +20,7 @@ export const fetchContractFromSourcify = async (plugin, network, contractAddress
       if (url.includes('ipfs')) {
         const stdUrl = `ipfs://${url.split('/')[2]}`
         const source = await plugin.call('contentImport', 'resolve', stdUrl)
-        file = file.replace('browser/', '') // should be fixed in the remix IDE end.
+        file = file.replace('browser/', '') // should be fixed in the Remix Web3 end.
         if (await plugin.call('contentImport', 'isExternalUrl', file)) {
           // nothing to do, the compiler callback will handle those
         } else {

@@ -134,8 +134,8 @@ module.exports = {
   'Deploy "Owner" using an ether.js script, listen to event and check event are logged in the terminal #group4': function (browser: NightwatchBrowser) {
     browser
       .clickLaunchIcon('solidity')
-      .click('.remixui_compilerConfigSection')
-      .setValue('#evmVersionSelector', 'london') // Set EVM version as fork version
+      .click('*[data-id="scConfigExpander"]')
+      .setEvmVersion('london') // Set EVM version as fork version
       .waitForElementVisible('*[data-id="topbar-settingsIcon"]')
       .click('*[data-id="topbar-settingsIcon"]')
       .clickLaunchIcon('udapp')
@@ -310,6 +310,7 @@ module.exports = {
       .openFile('contracts')
       .openFile('contracts/1_Storage.sol')
       .clickLaunchIcon('solidity')
+      .click('*[data-id="compilerCompileMore"]')
       .click({
         selector: '*[data-id="compilerContainerCompileAndRunBtn"]',
       })
@@ -322,6 +323,7 @@ module.exports = {
       .click({
         selector: '[data-id="listenNetworkCheckInput"]',
       }) // start to listen
+      .click('*[data-id="compilerCompileMore"]')
       .click({
         selector: '*[data-id="compilerContainerCompileAndRunBtn"]',
       })
@@ -342,6 +344,7 @@ module.exports = {
               .click({
                 selector: '*[data-id="terminalClearConsole"]',
               })
+              .click('*[data-id="compilerCompileMore"]')
               .click({
                 selector: '*[data-id="compilerContainerCompileAndRunBtn"]',
               })
@@ -386,10 +389,10 @@ module.exports = {
           (document.querySelector('*[data-id="vm-custom-forkModalDialogContainer-react"] input[data-id="CustomForkBlockNumber"]') as any).focus()
         }, [], () => { })
         .clearValue('*[data-id="CustomForkBlockNumber"]').setValue('*[data-id="CustomForkBlockNumber"]', 'latest')
-        .execute(() => {
-          (document.querySelector('*[data-id="vm-custom-forkModalDialogContainer-react"] input[data-id="CustomForkEvmType"]') as any).focus()
-        }, [], () => { })
-        .click('*[data-id="CustomForkEvmType"] [value="cancun"]')
+        .click('*[data-id="CustomForkEvmType"]')
+        .waitForElementVisible('*[data-id="CustomForkEvmType-cancun"]')
+        .click('*[data-id="CustomForkEvmType-cancun"]')
+        .waitForElementPresent('*[data-id="CustomForkEvmType"][data-value="cancun"]')
         .pause(5000)
         .modalFooterOKClick('vm-custom-fork')
         .selectAccount('0xdD870fA1b7C4700F2BD7f44238821C26f7392148')

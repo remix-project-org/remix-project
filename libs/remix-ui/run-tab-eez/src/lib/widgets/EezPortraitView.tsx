@@ -1,11 +1,10 @@
 import React, { useContext, useEffect, useState } from 'react'
-import { Dropdown } from 'react-bootstrap'
 import { EezAppContext } from '../contexts'
 import { resolveProxyAddresses, previewProxyCreation, createProxy, traceTransactionByHash, switchWalletToComposerRpc, stopTracePolling, resolveOriginAbi } from '../actions'
 import { EEZ_COMPOSER_RPC_URLS } from '../constants'
 import { FormattedMessage } from 'react-intl'
 import { CopyToClipboard } from '@remix-ui/clipboard'
-import { CustomMenu, CustomToggle, getTimeAgo } from '@remix-ui/helper'
+import { getTimeAgo, Select } from '@remix-ui/helper'
 import { EezTraceResult, shorten } from './EezTraceResult'
 
 function EezPortraitView() {
@@ -254,35 +253,15 @@ function EezPortraitView() {
             <label className="mb-0 d-block" style={{ color: 'var(--bs-tertiary)' }}>
               Origin network
             </label>
-            <Dropdown className="w-100">
-              <Dropdown.Toggle
-                as={CustomToggle}
-                className="w-100 d-inline-block border form-control"
-                style={{ backgroundColor: 'var(--bs-body-bg)', color: themeQuality === 'dark' ? 'white' : 'black', fontSize: '0.75rem', padding: '0.75rem' }}
-                data-id="eezCreatorOriginNetworkToggle"
-                icon="fas fa-caret-down"
-                useDefaultIcon={false}
-              >
-                {networks.find((n) => n.id === creator.originNetworkId)?.label || 'Select origin network...'}
-              </Dropdown.Toggle>
-              <Dropdown.Menu
-                as={CustomMenu}
-                className="w-100 custom-dropdown-items overflow-hidden"
-                style={{ backgroundColor: 'var(--custom-onsurface-layer-1)', '--theme-text-color': themeQuality === 'dark' ? 'white' : 'black', padding: '4px' } as React.CSSProperties}
-                data-id="eezCreatorOriginNetworkMenu"
-              >
-                {networks.map((n) => (
-                  <Dropdown.Item
-                    key={n.id}
-                    className="d-flex align-items-center contract-dropdown-item-hover px-2"
-                    onClick={() => dispatch({ type: 'SET_CREATOR_ORIGIN_NETWORK', payload: n.id })}
-                    style={{ color: themeQuality === 'dark' ? 'white' : 'black', fontSize: '0.75rem' }}
-                  >
-                    {n.label}
-                  </Dropdown.Item>
-                ))}
-              </Dropdown.Menu>
-            </Dropdown>
+            <Select
+              id="eezCreatorOriginNetwork"
+              dataId="eezCreatorOriginNetworkToggle"
+              menuDataId="eezCreatorOriginNetworkMenu"
+              value={creator.originNetworkId}
+              options={networks.map((n) => ({ value: n.id, label: n.label }))}
+              onChange={(id) => dispatch({ type: 'SET_CREATOR_ORIGIN_NETWORK', payload: id })}
+              placeholder="Select origin network..."
+            />
           </div>
           <div className="d-flex align-items-center mb-2">
             <label className="mb-0 me-2" style={{ color: 'var(--bs-tertiary)' }}>

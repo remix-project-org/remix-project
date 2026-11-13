@@ -2,7 +2,7 @@ import * as pathModule from 'path'
 /**
  * returns the absolute path of the given @arg path
  *
- * @param {String} path - relative path (Unix style which is the one used by Remix IDE)
+ * @param {String} path - relative path (Unix style which is the one used by Remix Web3)
  * @param {String} sharedFolder - absolute shared path. platform dependent representation.
  * @return {String} platform dependent absolute path (/home/user1/.../... for unix, c:\user\...\... for windows)
  */

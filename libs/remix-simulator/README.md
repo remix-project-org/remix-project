@@ -5,7 +5,7 @@
 [![GitHub](https://img.shields.io/github/license/mashape/apistatus.svg)](https://github.com/remix-project-org/remix-project/tree/master/libs/remix-simulator)
 [![contributions welcome](https://img.shields.io/badge/contributions-welcome-brightgreen.svg?style=flat)](https://github.com/remix-project-org/remix-project/issues)
 
-`@remix-project/remix-simulator` is a web3 wrapper for different kinds of providers. It is used in `remix-tests` library and in Remix IDE codebase.
+`@remix-project/remix-simulator` is a web3 wrapper for different kinds of providers. It is used in `remix-tests` library and in Remix Web3 codebase.
 
 ### Installation
 `@remix-project/remix-simulator` is an NPM package and can be installed using NPM as:

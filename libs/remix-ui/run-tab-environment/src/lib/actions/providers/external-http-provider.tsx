@@ -32,7 +32,7 @@ export class ExternalHttpProvider extends AbstractProvider {
               )
             }}
           />
-          <div className="border p-1 mt-2 mb-3">geth --http --http.corsdomain https://remix.ethereum.org</div>
+          <div className="border p-1 mt-2 mb-3">geth --http --http.corsdomain https://app.remix.live</div>
           <FormattedMessage
             id="udapp.externalHttpProviderText2"
             values={{

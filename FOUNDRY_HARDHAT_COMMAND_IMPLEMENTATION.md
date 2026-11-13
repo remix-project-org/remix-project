@@ -268,9 +268,9 @@ Example:
 6. **Security:** Command validation prevents arbitrary code execution
 7. **Observability:** All output is logged to Remix terminal for visibility
 
-## Integration with Remix IDE
+## Integration with Remix Web3
 
-The implementation seamlessly integrates with Remix IDE:
+The implementation seamlessly integrates with Remix Web3:
 - Terminal output shows command execution in real-time
 - File watchers sync compilation artifacts automatically
 - Working directory context maintained across commands

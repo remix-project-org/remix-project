@@ -2,7 +2,7 @@
 
 ## Overview
 
-The walkthrough system provides guided tours within Remix IDE. Walkthroughs are managed by admins, targeted to users via **audience rules** (same system as notifications & feedback), and tracked per-user with completion status so the frontend can distinguish seen vs unseen.
+The walkthrough system provides guided tours within Remix Web3. Walkthroughs are managed by admins, targeted to users via **audience rules** (same system as notifications & feedback), and tracked per-user with completion status so the frontend can distinguish seen vs unseen.
 
 All walkthrough endpoints live on the **notification** service (port 3013).
 
@@ -140,7 +140,7 @@ App startup / user login
       "id": 1,
       "slug": "remix-intro",
       "name": "Getting Started with Remix",
-      "description": "A quick tour of the Remix IDE interface.",
+      "description": "A quick tour of the Remix Web3 interface.",
       "source_plugin": "walkthrough",
       "priority": 10,
       "completed": false,

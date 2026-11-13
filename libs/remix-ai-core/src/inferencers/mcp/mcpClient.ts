@@ -129,7 +129,7 @@ export class MCPClient {
           sampling: {}
         },
         clientInfo: {
-          name: 'Remix IDE',
+          name: 'Remix Web3',
           version: '1.0.0'
         }
       }
@@ -219,7 +219,7 @@ export class MCPClient {
                 sampling: {}
               },
               clientInfo: {
-                name: 'Remix IDE',
+                name: 'Remix Web3',
                 version: '1.0.0'
               }
             }
@@ -341,7 +341,7 @@ export class MCPClient {
             sampling: {}
           },
           clientInfo: {
-            name: 'Remix IDE',
+            name: 'Remix Web3',
             version: '1.0.0'
           }
         }

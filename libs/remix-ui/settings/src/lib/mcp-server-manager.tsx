@@ -260,7 +260,7 @@ export const IMCPServerManager: React.FC<IMCPServerManagerProps> = ({ plugin }) 
                     <div className="small text-muted">
                       <div className="text-break">Transport: {server.transport === 'internal' ? 'Internal (Built-in)' : server.transport}</div>
                       {server.transport === 'internal' ? (
-                        <div className="text-break">Type: Built-in Remix IDE server</div>
+                        <div className="text-break">Type: Built-in Remix Web3 server</div>
                       ) : server.transport === 'stdio' ? (
                         <div className="text-break">Command: {server.command?.join(' ')}</div>
                       ) : (
@@ -316,7 +316,7 @@ export const IMCPServerManager: React.FC<IMCPServerManagerProps> = ({ plugin }) 
       <div className="mt-3 small text-muted">
         <p><strong>Transport Types:</strong></p>
         <ul>
-          <li><strong>Internal (Built-in):</strong> Built-in Remix IDE MCP servers</li>
+          <li><strong>Internal (Built-in):</strong> Built-in Remix Web3 MCP servers</li>
           <li><strong>Standard I/O:</strong> Run MCP server as subprocess</li>
           <li><strong>Server-Sent Events:</strong> Connect via HTTP SSE (browser-compatible)</li>
           <li><strong>WebSocket:</strong> Connect via WebSocket protocol (browser-compatible)</li>
