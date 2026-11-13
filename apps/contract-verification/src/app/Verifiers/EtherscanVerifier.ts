@@ -1,17 +1,13 @@
 import { CompilerAbstract } from '@remix-project/remix-solidity'
 import { AbstractVerifier } from './AbstractVerifier'
-import type { LookupResponse, SourceFile, SubmittedContract, VerificationResponse, VerificationStatus } from '../types'
+import type { LookupResponse, SourceFile, SubmittedContract, VerificationResponse } from '../types'
+import { etherscanV2, etherscanV2ProxyLink } from 'explorer-verify/clients/etherscan-v2'
+import { type ExplorerVerifyRoute, joinApiUrl, link, poll, submit, toVerifyInput } from './explorerVerify'
 
 interface EtherscanRpcResponse {
   status: '0' | '1'
   message: string
   result: string
-}
-
-interface EtherscanCheckStatusResponse {
-  status: '0' | '1'
-  message: string
-  result: 'Pending in queue' | 'Pass - Verified' | 'Fail - Unable to verify' | 'Already Verified' | 'Unknown UID'
 }
 
 interface EtherscanSource {
@@ -43,183 +39,28 @@ export class EtherscanVerifier extends AbstractVerifier {
     super(apiUrl, explorerUrl)
   }
 
+  /** The explorer-verify route for this verifier's settings. */
+  protected explorerVerifyRoute(): ExplorerVerifyRoute {
+    // The key goes only to this API URL, as before. explorer-verify removes it from errors and logs.
+    return {
+      backend: 'etherscan-v2',
+      clients: [etherscanV2()],
+      route: { backend: 'etherscan-v2', apiUrl: joinApiUrl(this.apiUrl, '/api'), apiKey: this.apiKey || undefined },
+    }
+  }
+
   async verify(submittedContract: SubmittedContract, compilerAbstract: CompilerAbstract): Promise<VerificationResponse> {
-    // TODO: Handle version Vyper contracts. This relies on Solidity metadata.
-    const metadata = JSON.parse(compilerAbstract.data.contracts[submittedContract.filePath][submittedContract.contractName].metadata)
-
-    const sourceCode = typeof compilerAbstract.input === 'string'
-      ? compilerAbstract.input
-      : JSON.stringify(compilerAbstract.input)
-
-    const formData = new FormData()
-    formData.append('codeformat', 'solidity-standard-json-input')
-    formData.append('sourceCode', sourceCode)
-    formData.append('contractaddress', submittedContract.address)
-    formData.append('contractname', submittedContract.filePath + ':' + submittedContract.contractName)
-    formData.append('compilerversion', `v${metadata.compiler.version}`)
-    formData.append('constructorArguements', submittedContract.abiEncodedConstructorArgs?.replace('0x', '') ?? '')
-
-    const url = new URL(this.apiUrl + '/api')
-    url.searchParams.append('chainid', submittedContract.chainId)
-    url.searchParams.append('module', 'contract')
-    url.searchParams.append('action', 'verifysourcecode')
-    if (this.apiKey) {
-      url.searchParams.append('apikey', this.apiKey)
-    }
-
-    const response = await fetch(url.href, {
-      method: 'POST',
-      body: formData,
-    })
-
-    if (!response.ok) {
-      const responseText = await response.text()
-      console.error('Error on Etherscan API verification at ' + this.apiUrl + '\nStatus: ' + response.status + '\nResponse: ' + responseText)
-      throw new Error(responseText)
-    }
-
-    const verificationResponse: EtherscanRpcResponse = await response.json()
-    const lookupUrl = this.getContractCodeUrl(submittedContract.address, submittedContract.chainId)
-
-    if (verificationResponse.result?.includes('already verified')) {
-      return { status: 'already verified', receiptId: null, lookupUrl }
-    }
-
-    if (verificationResponse.status !== '1' || verificationResponse.message !== 'OK') {
-      console.error('Error on Etherscan API verification at ' + this.apiUrl + '\nStatus: ' + verificationResponse.status + '\nMessage: ' + verificationResponse.message + '\nResult: ' + verificationResponse.result)
-      throw new Error(verificationResponse.result)
-    }
-
-    return { status: 'pending', receiptId: verificationResponse.result, lookupUrl }
+    const { jobId, ...response } = await submit(this.explorerVerifyRoute(), toVerifyInput(submittedContract, compilerAbstract))
+    return { ...response, lookupUrl: this.getContractCodeUrl(submittedContract.address, submittedContract.chainId) }
   }
 
   async verifyProxy(submittedContract: SubmittedContract): Promise<VerificationResponse> {
-    if (!submittedContract.proxyAddress) {
-      throw new Error('SubmittedContract does not have a proxyAddress')
-    }
-
-    const formData = new FormData()
-    formData.append('address', submittedContract.proxyAddress)
-    formData.append('expectedimplementation', submittedContract.address)
-
-    const url = new URL(this.apiUrl + '/api')
-    url.searchParams.append('chainid', submittedContract.chainId)
-    url.searchParams.append('module', 'contract')
-    url.searchParams.append('action', 'verifyproxycontract')
-    if (this.apiKey) {
-      url.searchParams.append('apikey', this.apiKey)
-    }
-
-    const response = await fetch(url.href, {
-      method: 'POST',
-      body: formData,
-    })
-
-    if (!response.ok) {
-      const responseText = await response.text()
-      console.error('Error on Etherscan API proxy verification at ' + this.apiUrl + '\nStatus: ' + response.status + '\nResponse: ' + responseText)
-      throw new Error(responseText)
-    }
-
-    const verificationResponse: EtherscanRpcResponse = await response.json()
-
-    if (verificationResponse.message === 'Smart-contract not found or is not verified') {
-      return { status: 'failed', receiptId: null, message: verificationResponse.message }
-    }
-
-    if (verificationResponse.status !== '1' || verificationResponse.message !== 'OK') {
-      console.error('Error on Etherscan API proxy verification at ' + this.apiUrl + '\nStatus: ' + verificationResponse.status + '\nMessage: ' + verificationResponse.message + '\nResult: ' + verificationResponse.result)
-      throw new Error(verificationResponse.result)
-    }
-
-    return { status: 'pending', receiptId: verificationResponse.result }
+    const { route, fetch } = this.explorerVerifyRoute()
+    return link({ backend: 'etherscan-v2', clients: [etherscanV2ProxyLink()], route, fetch }, submittedContract)
   }
 
   async checkVerificationStatus(receiptId: string, chainId: string): Promise<VerificationResponse> {
-    const url = new URL(this.apiUrl + '/api')
-    url.searchParams.append('chainid', chainId)
-    url.searchParams.append('module', 'contract')
-    url.searchParams.append('action', 'checkverifystatus')
-    url.searchParams.append('guid', receiptId)
-    if (this.apiKey) {
-      url.searchParams.append('apikey', this.apiKey)
-    }
-
-    const response = await fetch(url.href, { method: 'GET' })
-
-    if (!response.ok) {
-      const responseText = await response.text()
-      console.error('Error on API check verification status at ' + this.apiUrl + '\nStatus: ' + response.status + '\nResponse: ' + responseText)
-      throw new Error(responseText)
-    }
-
-    const checkStatusResponse: EtherscanCheckStatusResponse = await response.json()
-
-    if (checkStatusResponse.result.startsWith('Fail - Unable to verify') || (checkStatusResponse.result as string) === 'Error: contract does not exist') {
-      return { status: 'failed', receiptId, message: checkStatusResponse.result }
-    }
-    if (checkStatusResponse.result === 'Pending in queue') {
-      return { status: 'pending', receiptId }
-    }
-    if (checkStatusResponse.result === 'Pass - Verified') {
-      return { status: 'verified', receiptId }
-    }
-    if (checkStatusResponse.result === 'Already Verified') {
-      return { status: 'already verified', receiptId }
-    }
-    if (checkStatusResponse.result === 'Unknown UID') {
-      console.error('Error on API check verification status at ' + this.apiUrl + '\nStatus: ' + checkStatusResponse.status + '\nMessage: ' + checkStatusResponse.message + '\nResult: ' + checkStatusResponse.result)
-      return { status: 'failed', receiptId, message: checkStatusResponse.result }
-    }
-
-    if (checkStatusResponse.status !== '1' || !checkStatusResponse.message.startsWith('OK')) {
-      console.error('Error on API check verification status at ' + this.apiUrl + '\nStatus: ' + checkStatusResponse.status + '\nMessage: ' + checkStatusResponse.message + '\nResult: ' + checkStatusResponse.result)
-      throw new Error(checkStatusResponse.result)
-    }
-
-    return { status: 'unknown', receiptId }
-  }
-
-  async checkProxyVerificationStatus(receiptId: string, chainId: string): Promise<VerificationResponse> {
-    const url = new URL(this.apiUrl + '/api')
-    url.searchParams.append('chainid', chainId)
-    url.searchParams.append('module', 'contract')
-    url.searchParams.append('action', 'checkproxyverification')
-    url.searchParams.append('guid', receiptId)
-    if (this.apiKey) {
-      url.searchParams.append('apikey', this.apiKey)
-    }
-
-    const response = await fetch(url.href, { method: 'GET' })
-
-    if (!response.ok) {
-      const responseText = await response.text()
-      console.error('Error on Etherscan API check verification status at ' + this.apiUrl + '\nStatus: ' + response.status + '\nResponse: ' + responseText)
-      throw new Error(responseText)
-    }
-
-    const checkStatusResponse: EtherscanRpcResponse = await response.json()
-
-    if (checkStatusResponse.result === 'A corresponding implementation contract was unfortunately not detected for the proxy address.' || checkStatusResponse.result === 'The provided expected results are different than the retrieved implementation address!' || checkStatusResponse.result === 'This contract does not look like it contains any delegatecall opcode sequence.') {
-      return { status: 'failed', receiptId, message: checkStatusResponse.result }
-    }
-    if (checkStatusResponse.result === 'Verification in progress') {
-      return { status: 'pending', receiptId }
-    }
-    if (checkStatusResponse.result.startsWith("The proxy's") && checkStatusResponse.result.endsWith('and is successfully updated.')) {
-      return { status: 'verified', receiptId }
-    }
-    if (checkStatusResponse.result === 'Unknown UID') {
-      console.error('Error on Etherscan API check proxy verification status at ' + this.apiUrl + '\nStatus: ' + checkStatusResponse.status + '\nMessage: ' + checkStatusResponse.message + '\nResult: ' + checkStatusResponse.result)
-      return { status: 'failed', receiptId, message: checkStatusResponse.result }
-    }
-
-    if (checkStatusResponse.status !== '1' || !checkStatusResponse.message.startsWith('OK')) {
-      console.error('Error on Etherscan API check proxy verification status at ' + this.apiUrl + '\nStatus: ' + checkStatusResponse.status + '\nMessage: ' + checkStatusResponse.message + '\nResult: ' + checkStatusResponse.result)
-      throw new Error(checkStatusResponse.result)
-    }
-
-    return { status: 'unknown', receiptId }
+    return poll(this.explorerVerifyRoute(), receiptId)
   }
 
   async lookup(contractAddress: string, chainId: string): Promise<LookupResponse> {

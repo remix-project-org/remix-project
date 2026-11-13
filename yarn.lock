@@ -18988,6 +18988,11 @@ expect@^28.1.3:
     jest-message-util "^28.1.3"
     jest-util "^28.1.3"
 
+explorer-verify@0.3.0:
+  version "0.3.0"
+  resolved "https://registry.yarnpkg.com/explorer-verify/-/explorer-verify-0.3.0.tgz#e3522b8a2c2fa605b8ef860868ca6d62ef0912de"
+  integrity sha512-15nDvO1AWRmDTGc1hFBC8WvwGesbypLGCOjloTNicaRLqydGIcPqJklw9Nj1IU12h3siRuznWJONiwaoGTEk6w==
+
 exports-loader@^1.1.0:
   version "1.1.1"
   resolved "https://registry.yarnpkg.com/exports-loader/-/exports-loader-1.1.1.tgz#88c9a6877ee6a5519d7c41a016bdd99148421e69"

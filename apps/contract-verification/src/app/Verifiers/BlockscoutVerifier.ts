@@ -1,5 +1,7 @@
-import { SourceFile } from '../types'
+import { blockscout, blockscoutProxyLink } from 'explorer-verify/clients/blockscout'
 import { EtherscanVerifier } from './EtherscanVerifier'
+import { type ExplorerVerifyRoute, joinApiUrl, link } from './explorerVerify'
+import type { SourceFile, SubmittedContract, VerificationResponse } from '../types'
 
 // Etherscan and Blockscout return different objects from the getsourcecode method
 interface BlockscoutSource {
@@ -24,6 +26,15 @@ export class BlockscoutVerifier extends EtherscanVerifier {
   constructor(apiUrl: string) {
     // apiUrl and explorerUrl are the same for Blockscout
     super(apiUrl, apiUrl, undefined)
+  }
+
+  protected explorerVerifyRoute(): ExplorerVerifyRoute {
+    return { backend: 'blockscout', clients: [blockscout()], route: { backend: 'blockscout', apiUrl: joinApiUrl(this.apiUrl, '/api') } }
+  }
+
+  async verifyProxy(submittedContract: SubmittedContract): Promise<VerificationResponse> {
+    const { route, fetch } = this.explorerVerifyRoute()
+    return link({ backend: 'blockscout', clients: [blockscoutProxyLink()], route, fetch }, submittedContract)
   }
 
   getContractCodeUrl(address: string, chainId: string): string {
