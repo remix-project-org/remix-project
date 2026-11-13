@@ -8851,15 +8851,6 @@
     uncontrollable "^8.0.4"
     warning "^4.0.3"
 
-"@ricarso/react-image-magnifiers@^1.9.0":
-  version "1.9.0"
-  resolved "https://registry.yarnpkg.com/@ricarso/react-image-magnifiers/-/react-image-magnifiers-1.9.0.tgz#c743620a05acc6c288797dac93e91f229ada9cb0"
-  integrity sha512-2s+xbcRQMcTu5d5WRNCjveeOoiSUl8Qc6rGgZ2P5HTlyHzBsI/uCHQD3UWg0i3o2CaEV/veAHE/kMYyu216pzQ==
-  dependencies:
-    prop-types "^15.7.2"
-    react-input-position "^1.3.1"
-    typescript "^4.8.4"
-
 "@rollup/plugin-babel@^5.3.0":
   version "5.3.1"
   resolved "https://registry.yarnpkg.com/@rollup/plugin-babel/-/plugin-babel-5.3.1.tgz#04bc0608f4aa4b2e4b1aebf284344d0f68fda283"
@@ -10978,13 +10969,6 @@
   dependencies:
     "@types/react" "*"
 
-"@types/react-image-magnifiers@^1.3.2":
-  version "1.3.2"
-  resolved "https://registry.yarnpkg.com/@types/react-image-magnifiers/-/react-image-magnifiers-1.3.2.tgz#7c8f08105ee72b7a306d0d068916a9d53a49e3f9"
-  integrity sha512-hrs+OqwRNEh0gsQgXDvFmZ2xMimXZHSMtprkhxavwmep6iL2OwTPtLugzStj+7MVsfTaT1t8TlHE1jBq4ay9dQ==
-  dependencies:
-    "@types/react" "*"
-
 "@types/react-redux@^7.1.20":
   version "7.1.20"
   resolved "https://registry.yarnpkg.com/@types/react-redux/-/react-redux-7.1.20.tgz#42f0e61ababb621e12c66c96dda94c58423bd7df"
@@ -11413,6 +11397,11 @@
   integrity sha512-vizrI18v8Lcb1PmNNUBz7yxPxxXoOeuaVEjTG9MjvDrphjiSxFZrRJ5tIghk+qdLFRCXI5HBCshgobftbmrC5g==
   dependencies:
     resolve "^1.10.0"
+
+"@viz-js/viz@3.25.0":
+  version "3.25.0"
+  resolved "https://registry.yarnpkg.com/@viz-js/viz/-/viz-3.25.0.tgz#97ac68a073e469fc04e3619c37c5197134cdd9a1"
+  integrity sha512-dM7zAYMdf7mcRz5Kdb+YJb6+qv5Rjk0rPZ18gROdpMrP/3S7RFOp8uxybeiz5RypHrE1zo1vccA8Twh4mIcLZw==
 
 "@vscode/codicons@^0.0.43":
   version "0.0.43"
@@ -30192,13 +30181,6 @@ react-icons@^5.5.0:
   resolved "https://registry.yarnpkg.com/react-icons/-/react-icons-5.5.0.tgz#8aa25d3543ff84231685d3331164c00299cdfaf2"
   integrity sha512-MEFcXdkP3dLo8uumGI5xN3lDFNsRtrjbOEKDLD7yv76v4wpnEq2Lt2qeHaQOr34I/wPN3s3+N08WkQ+CW37Xiw==
 
-react-input-position@^1.3.1:
-  version "1.3.2"
-  resolved "https://registry.yarnpkg.com/react-input-position/-/react-input-position-1.3.2.tgz#4e1f3b671eb41c0bd9f232846b94328263a7b65b"
-  integrity sha512-0RsvWZ+pBpFki1N4CF7dWWKgQpejQuf9qjrBVdXRE315kk6HBEVk1f8rsod6Rpo88vxPwj5FcBnn7ZlTNq+JRA==
-  dependencies:
-    prop-types "^15.7.2"
-
 react-intl@^6.0.4:
   version "6.0.4"
   resolved "https://registry.yarnpkg.com/react-intl/-/react-intl-6.0.4.tgz#635d7639aa7b70e837c75796535cf1d534016acf"
@@ -34484,11 +34466,6 @@ typescript-tuple@^2.2.1:
   integrity sha512-Zcr0lbt8z5ZdEzERHAMAniTiIKerFCMgd7yjq1fPnDJ43et/k9twIFQMUYff9k5oXcsQ0WpvFcgzK2ZKASoW6Q==
   dependencies:
     typescript-compare "^0.0.2"
-
-typescript@^4.8.4:
-  version "4.8.4"
-  resolved "https://registry.yarnpkg.com/typescript/-/typescript-4.8.4.tgz#c464abca159669597be5f96b8943500b238e60e6"
-  integrity sha512-QCh+85mCy+h0IGff8r5XWzOVSbBO+KfeYrMQh7NJ58QujwcE22u+NUSmUxqF+un70P9GXKxa2HCNiTTMJknyjQ==
 
 typescript@^5.5.4:
   version "5.5.4"
