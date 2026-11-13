@@ -6,5 +6,6 @@
   "solUmlGen.text1": "To view your contract as a UML Diagram",
   "solUmlGen.text2": "Right-click on your contract file",
   "solUmlGen.clickOn": "Click on",
-  "solUmlGen.generateUML": "Generate UML"
+  "solUmlGen.generateUML": "Generate UML",
+  "solUmlGen.renderError": "The UML diagram for {fileName} could not be drawn. See the browser console for details."
 }
