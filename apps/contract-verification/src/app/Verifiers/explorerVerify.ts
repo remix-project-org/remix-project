@@ -3,7 +3,7 @@ import type { ClientList, ExplorerClient, ProxyLinkClient } from 'explorer-verif
 import { ExplorerVerifyError, hintFor } from 'explorer-verify/errors'
 import { formatHandle, isHandleString, parseHandle } from 'explorer-verify/handle'
 import type { BackendName } from 'explorer-verify/backends'
-import type { Hex, RouteOverride, StoredContract, VerifyInput, VerifyResult } from 'explorer-verify'
+import type { FailureReasonCode, Hex, RouteOverride, StoredContract, VerifyInput, VerifyResult } from 'explorer-verify'
 import type { CompilerAbstract } from '@remix-project/remix-solidity'
 import type { SubmittedContract, VerificationResponse, VerificationStatus } from '../types'
 
@@ -85,9 +85,28 @@ export function storedContractMessage(stored: StoredContract): string {
   return `The explorer already holds a partial match made from another contract's source${which}. It refused this source as already verified, so the explorer page shows the other source.`
 }
 
+// What a failed receipt adds to the explorer's text, by the reason explorer-verify reads from the
+// explorer's answer. A reason the answer does not name adds nothing.
+const FAILURE_EXPLANATIONS: Partial<Record<FailureReasonCode, string>> = {
+  'bytecode-mismatch': 'The compiled bytecode differs from the deployed bytecode. Check that the source, compiler version and compiler settings, such as the optimizer and EVM version, are the ones used for the deployment.',
+  'missing-source': 'The explorer could not find a source file the contract needs. Compile the contract again so the compilation holds every imported file, then verify.',
+  'compiler': 'The compiler rejected the source, or the explorer does not support this compiler version. Check the compiler version and settings used for the deployment.',
+  'constructor-args': 'The constructor arguments do not match the deployment. Enter the values the contract was deployed with.',
+  'libraries': 'A linked library is missing or does not match the deployment. Use the library addresses the contract was deployed with.',
+}
+
+/** The text a failed receipt shows: the explorer's reason, then what it means for the user. */
+export function failureMessage(reason: string, reasonCode: FailureReasonCode): string {
+  const explanation = FAILURE_EXPLANATIONS[reasonCode]
+  if (!explanation) {
+    return reason
+  }
+  return /[.!?]$/.test(reason.trim()) ? `${reason.trim()} ${explanation}` : `${reason.trim()}. ${explanation}`
+}
+
 function toResponse(result: VerifyResult, backend: BackendName, receiptId: string | null): VerificationResponse {
   if (result.status === 'failed') {
-    return { status: 'failed', receiptId, message: result.reason }
+    return { status: 'failed', receiptId, message: failureMessage(result.reason, result.reasonCode) }
   }
   if (result.status === 'already-verified') {
     // explorer-verify submitted this source because the explorer's match names another contract

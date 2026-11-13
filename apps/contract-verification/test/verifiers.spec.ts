@@ -1,7 +1,7 @@
 /// <reference types="mocha" />
 import { expect } from 'chai'
 import { BlockscoutVerifier, EtherscanVerifier, RoutescanVerifier, SourcifyVerifier } from '../src/app/Verifiers'
-import { toVerifyInput } from '../src/app/Verifiers/explorerVerify'
+import { failureMessage, toVerifyInput } from '../src/app/Verifiers/explorerVerify'
 import type { SubmittedContract } from '../src/app/types'
 
 // The verifiers send every request through explorer-verify, which uses globalThis.fetch.
@@ -124,6 +124,18 @@ describe('toVerifyInput', () => {
   })
 })
 
+describe('failureMessage', () => {
+  it('adds what the reason code means for the user', () => {
+    expect(failureMessage('compiler_error: invalid version.', 'compiler')).to.contain('does not support this compiler version')
+    expect(failureMessage('A library was required', 'libraries')).to.equal('A library was required. A linked library is missing or does not match the deployment. Use the library addresses the contract was deployed with.')
+  })
+
+  it('keeps the explorer text alone when the answer names no reason', () => {
+    expect(failureMessage('Fail - Unable to verify', 'unknown')).to.equal('Fail - Unable to verify')
+    expect(failureMessage('no deployable contract', 'contract-name')).to.equal('no deployable contract')
+  })
+})
+
 describe('SourcifyVerifier', () => {
   const verifier = () => new SourcifyVerifier('https://sourcify.dev/server', 'https://repo.sourcify.dev', 'https://verify.sourcify.dev/jobs')
   const lookup = (call: Call) => call.method === 'GET' && call.url.pathname.startsWith('/server/v2/contract/')
@@ -210,6 +222,24 @@ describe('SourcifyVerifier', () => {
 
     expect(response.status).to.equal('failed')
     expect(response.message).to.contain("don't match")
+    expect(response.message).to.contain('compiled bytecode differs from the deployed bytecode')
+  })
+
+  it('explains a missing source file in a failed receipt', async () => {
+    answer(lookup, notVerified, 404)
+    answer(submitCall, { verificationId: JOB_ID }, 202)
+    answer(job, {
+      isJobCompleted: true,
+      verificationId: JOB_ID,
+      contract: notVerified,
+      error: { customCode: 'compiler_error', message: 'Source "contracts/Lib.sol" not found: File not found.', errorId: 'e' },
+    })
+
+    const response = await verifier().verify(submittedContract(), compilerAbstract())
+
+    expect(response.status).to.equal('failed')
+    expect(response.message).to.contain('Source "contracts/Lib.sol" not found')
+    expect(response.message).to.contain('Compile the contract again')
   })
 
   it('returns pending with a handle when the job outlasts the submit budget, then polls it', async function () {
@@ -289,6 +319,19 @@ describe('EtherscanVerifier', () => {
 
     expect(response.status).to.equal('failed')
     expect(response.message).to.contain('does NOT match')
+    expect(response.message).to.contain('compiled bytecode differs from the deployed bytecode')
+  })
+
+  it('explains wrong constructor arguments in a failed receipt', async () => {
+    answer(action('getsourcecode'), { status: '1', message: 'OK', result: [{ SourceCode: '', ABI: 'Contract source code not verified' }]})
+    answer(action('verifysourcecode'), { status: '1', message: 'OK', result: GUID })
+    answer(action('checkverifystatus'), { status: '0', message: 'NOTOK', result: 'Fail - Unable to verify. Please check if the correct constructor argument was entered' })
+    answer(action('getsourcecode'), { status: '1', message: 'OK', result: [{ SourceCode: '', ABI: 'Contract source code not verified' }]})
+
+    const response = await verifier().verify(submittedContract({ abiEncodedConstructorArgs: '00'.repeat(32) }), compilerAbstract())
+
+    expect(response.status).to.equal('failed')
+    expect(response.message).to.equal('Fail - Unable to verify. Please check if the correct constructor argument was entered. The constructor arguments do not match the deployment. Enter the values the contract was deployed with.')
   })
 
   it('names the stored contract when Etherscan refuses the source as already verified', async () => {
