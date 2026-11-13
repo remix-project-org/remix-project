@@ -6,7 +6,7 @@ import { AppContext } from '../../contexts';
 import { readDappFiles } from '../EditHtmlTemplate';
 import { InBrowserVite } from '../../InBrowserVite';
 import { generateWalletSelectionScript } from '../../utils/wallet-selection-script';
-import { validateEnsName } from '../../utils/ens-utils';
+import { getEnsRegistrationDomain, validateEnsName } from '../../utils/ens-utils';
 import { buildGraphRuntimeConfigScript, hasTheGraphGatewaySources } from '../../utils/graph-runtime-config';
 import { buildQuickDappRuntimeConfigScript } from '../../utils/quick-dapp-runtime-config';
 import { buildZkRuntimeConfigScript, hasZkCircuit } from '../../utils/zkverify-runtime-config';
@@ -19,7 +19,7 @@ import {
 } from '@remix-ui/helper';
 // remixClient removed - using plugin from context instead
 import { trackMatomoEvent } from '@remix-api';
-import { endpointUrls, ensDappParentName, ensWebsiteUrl } from '@remix-endpoints-helper';
+import { endpointUrls, ensWebsiteUrl } from '@remix-endpoints-helper';
 import EnsRegistrationModal from './EnsRegistrationModal';
 
 const REMIX_ENDPOINT_IPFS = endpointUrls.quickdappIpfs;
@@ -55,6 +55,8 @@ const BaseAppWizard: React.FC<BaseAppWizardProps> = ({ isConfigSaveInFlight, isD
     appIdMeta: '',
     history: []
   });
+  const registrationDomain = getEnsRegistrationDomain(savedWizardState.ensName, activeDapp?.deployment?.ensDomain);
+  const registrationParent = registrationDomain.split('.').slice(1).join('.');
 
   const [viewStep, setViewStep] = useState<number>(1);
   const [baseFlowLoading, setBaseFlowLoading] = useState(false);
@@ -323,7 +325,7 @@ const BaseAppWizard: React.FC<BaseAppWizardProps> = ({ isConfigSaveInFlight, isD
         .replace(/>/g, '&gt;');
 
       const ensUrlForOG = savedWizardState.ensName
-        ? ensWebsiteUrl(`${savedWizardState.ensName}.${ensDappParentName}`)
+        ? ensWebsiteUrl(registrationDomain)
         : '';
 
       // Step 1: Capture screenshot & upload to IPFS to get a stable URL
@@ -554,10 +556,9 @@ const BaseAppWizard: React.FC<BaseAppWizardProps> = ({ isConfigSaveInFlight, isD
 
       if (!dappManager) throw new Error('DApp manager is unavailable.');
 
-      const fullDomain = `${savedWizardState.ensName}.${ensDappParentName}`;
       const updatedConfig = await dappManager.updateDappConfig(activeDapp.slug, {
         deployment: {
-          ensDomain: fullDomain
+          ensDomain: result.domain
         },
         config: {
           baseAppConfig: nextWizardState
@@ -578,7 +579,7 @@ const BaseAppWizard: React.FC<BaseAppWizardProps> = ({ isConfigSaveInFlight, isD
       } else if (mode === 'update') {
         setSuccessModalContent({
           title: 'Update Published!',
-          body: `New code deployed to IPFS and ENS record updated.\nChanges should appear shortly at: ${ensWebsiteUrl(fullDomain) || `https://ipfs.io/ipfs/${newCid}`}`
+          body: `New code deployed to IPFS and ENS record updated.\nChanges should appear shortly at: ${ensWebsiteUrl(result.domain) || `https://ipfs.io/ipfs/${newCid}`}`
         });
         setShowSuccessModal(true);
       }
@@ -627,7 +628,7 @@ const BaseAppWizard: React.FC<BaseAppWizardProps> = ({ isConfigSaveInFlight, isD
     setShowResetWarning(false);
   };
 
-  const ensUrl = ensWebsiteUrl(`${savedWizardState.ensName}.${ensDappParentName}`);
+  const ensUrl = ensWebsiteUrl(registrationDomain);
   const latestCid = savedWizardState.history[0]?.cid || activeDapp?.deployment?.ipfsCid;
   const ipfsUrl = latestCid ? `https://ipfs.io/ipfs/${latestCid}` : '';
 
@@ -690,7 +691,7 @@ const BaseAppWizard: React.FC<BaseAppWizardProps> = ({ isConfigSaveInFlight, isD
             </Card.Header>
             <Card.Body>
               <div className="text-center py-3 bg-light rounded mb-4 border">
-                <h5 className="fw-bold mb-1 text-dark">{savedWizardState.ensName}.{ensDappParentName}</h5>
+                <h5 className="fw-bold mb-1 text-dark">{registrationDomain}</h5>
                 <a href={ensUrl || ipfsUrl || undefined} target="_blank" rel="noreferrer" className="small text-decoration-none fw-bold">
                 Open Live App <i className="fas fa-external-link-alt ms-1"></i>
                 </a>
@@ -842,7 +843,7 @@ const BaseAppWizard: React.FC<BaseAppWizardProps> = ({ isConfigSaveInFlight, isD
                   <div className="fade-in" data-id="wizard-step-2-deploy">
                     <h6 className="fw-bold mb-2">Step 2: Deployment & ENS</h6>
                     <Alert variant="info" className="small p-2 mb-3">
-                    Deploy your app to IPFS and register an ENS subdomain (.{ensDappParentName}).
+                    Deploy your app to IPFS and register an ENS subdomain (.{registrationParent}).
                     </Alert>
                     {hasGraphGateway && (
                       <Alert variant="info" className="small p-2 mb-3">
@@ -860,7 +861,7 @@ const BaseAppWizard: React.FC<BaseAppWizardProps> = ({ isConfigSaveInFlight, isD
                           onChange={e => handleInputChange('ensName', e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ''))}
                           disabled={savedWizardState.currentStep >= 4}
                         />
-                        <InputGroup.Text>.{ensDappParentName}</InputGroup.Text>
+                        <InputGroup.Text>.{registrationParent}</InputGroup.Text>
                         {savedWizardState.currentStep >= 4 && (
                           <Button
                             variant="warning"
@@ -962,7 +963,7 @@ const BaseAppWizard: React.FC<BaseAppWizardProps> = ({ isConfigSaveInFlight, isD
           setPendingEnsData(null);
           clearBasePublishLock();
         }}
-        ensName={savedWizardState.ensName}
+        domain={registrationDomain}
         contentHash={pendingEnsData?.cid || ''}
         plugin={plugin}
         onRegistrationStateChange={(isRegistering) => {

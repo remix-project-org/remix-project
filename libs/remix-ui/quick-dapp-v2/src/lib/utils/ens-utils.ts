@@ -1,3 +1,12 @@
+import { ensDappParentName } from '@remix-endpoints-helper';
+
+export function getEnsRegistrationDomain(label: string, existingDomain?: string): string {
+  const name = label.toLowerCase();
+  return existingDomain && existingDomain.split('.')[0].toLowerCase() === name
+    ? existingDomain
+    : `${name}.${ensDappParentName}`;
+}
+
 /**
  * Shared ENS name validation logic.
  * Used by DeployPanel and BaseAppWizard to enforce consistent rules.

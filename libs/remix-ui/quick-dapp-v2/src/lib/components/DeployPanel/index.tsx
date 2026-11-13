@@ -9,7 +9,7 @@ import { AppContext } from '../../contexts';
 import { readDappFiles } from '../EditHtmlTemplate';
 import { InBrowserVite } from '../../InBrowserVite';
 import { generateWalletSelectionScript } from '../../utils/wallet-selection-script';
-import { validateEnsName } from '../../utils/ens-utils';
+import { getEnsRegistrationDomain, validateEnsName } from '../../utils/ens-utils';
 import { buildGraphRuntimeConfigScript, hasTheGraphGatewaySources } from '../../utils/graph-runtime-config';
 import { buildQuickDappRuntimeConfigScript } from '../../utils/quick-dapp-runtime-config';
 import { buildZkRuntimeConfigScript, hasZkCircuit, getZkDappSummary } from '../../utils/zkverify-runtime-config';
@@ -23,7 +23,7 @@ import {
 } from '@remix-ui/helper';
 // remixClient removed - using plugin from context instead
 import { trackMatomoEvent } from '@remix-api';
-import { endpointUrls, ensDappParentName, ensWebsiteUrl, ensSepolia, ensTransactionUrl } from '@remix-endpoints-helper';
+import { endpointUrls, ensWebsiteUrl, ensSepolia, ensTransactionUrl } from '@remix-endpoints-helper';
 
 import BaseAppWizard from './BaseAppWizard';
 import EnsRegistrationModal from './EnsRegistrationModal';
@@ -149,6 +149,11 @@ function DeployPanel({ isDeleteInFlight, publishRequestId = 0 }: DeployPanelProp
       domain: deployment?.ensDomain || ''
     });
   }, [activeDapp?.slug, activeDapp?.deployment]);
+
+  useEffect(() => {
+    setEnsName(activeDapp?.deployment?.ensDomain?.split('.')[0] || '');
+    setEnsNameError('');
+  }, [activeDapp?.slug, activeDapp?.deployment?.ensDomain]);
 
   useEffect(() => {
     let cancelled = false;
@@ -827,9 +832,10 @@ function DeployPanel({ isDeleteInFlight, publishRequestId = 0 }: DeployPanelProp
 
   const displayCid = deployResult.cid || activeDapp?.deployment?.ipfsCid;
   const displayGateway = deployResult.gatewayUrl || activeDapp?.deployment?.gatewayUrl;
-  const displayEnsSuccess = ensResult.success || (activeDapp?.deployment?.ensDomain ? `Linked: ${activeDapp.deployment.ensDomain}` : '');
-  const ensButtonText = displayEnsSuccess ? 'Update Content Hash' : 'Register Subdomain';
   const currentEnsDomain = ensResult.domain || activeDapp?.deployment?.ensDomain;
+  const registrationDomain = getEnsRegistrationDomain(ensName, currentEnsDomain);
+  const registrationParent = registrationDomain.split('.').slice(1).join('.');
+  const ensButtonText = registrationDomain === currentEnsDomain ? 'Update Content Hash' : 'Register Subdomain';
 
   if (activeDapp?.config?.isBaseMiniApp) {
     return (
@@ -929,7 +935,7 @@ function DeployPanel({ isDeleteInFlight, publishRequestId = 0 }: DeployPanelProp
           </Card.Header>
           <Collapse in={isEnsOpen}>
             <Card.Body>
-              <Alert variant="info">Register a <strong>.{ensDappParentName}</strong> name for this DApp.</Alert>
+              <Alert variant="info">Register or update a <strong>.{registrationParent}</strong> name for this DApp.</Alert>
               <Form.Group className="mb-2">
                 <div className="input-group qd-ens-input-group">
                   <Form.Control type="text" placeholder="myapp" value={ensName} onChange={(e) => {
@@ -938,7 +944,7 @@ function DeployPanel({ isDeleteInFlight, publishRequestId = 0 }: DeployPanelProp
                     setEnsResult({ ...ensResult, success: '' });
                     setEnsNameError(validateEnsName(val));
                   }} />
-                  <span className="input-group-text qd-ens-suffix">.{ensDappParentName}</span>
+                  <span className="input-group-text qd-ens-suffix">.{registrationParent}</span>
                 </div>
                 {ensNameError && <small className="text-danger mt-1 d-block">{ensNameError}</small>}
               </Form.Group>
@@ -997,7 +1003,7 @@ function DeployPanel({ isDeleteInFlight, publishRequestId = 0 }: DeployPanelProp
                   setShowEnsModal(false);
                   clearEnsPublishLock();
                 }}
-                ensName={ensName}
+                domain={registrationDomain}
                 contentHash={deployResult.cid || activeDapp?.deployment?.ipfsCid || ''}
                 plugin={plugin}
                 onRegistrationStateChange={(isRegistering) => {
