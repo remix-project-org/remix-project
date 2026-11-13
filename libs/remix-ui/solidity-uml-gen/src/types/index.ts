@@ -14,7 +14,7 @@ export interface ISolidityUmlGen extends ViewPlugin {
     loading: boolean
     themeCollection: ThemeSummary[]
     activeTheme: ThemeSummary
-    showUmlDiagram(path: string, svgPayload: string): void
+    renderError: boolean
     updateComponent(state: any): JSX.Element
     setDispatch(dispatch: React.Dispatch<any>): void
     generateCustomAction(action: customAction): Promise<void>
