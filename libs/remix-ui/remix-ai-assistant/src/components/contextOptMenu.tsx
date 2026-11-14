@@ -175,7 +175,7 @@ export default function GroupListMenu(props: GroupListMenuProps) {
               </div>
               {item.bodyText && (
                 <div className="d-flex justify-content-between">
-                  <span className="form-check-label me-2 text-wrap">{item.bodyText}</span>
+                  <span className="form-check-label me-2 text-wrap" title={item.bodyText}>{item.bodyText}</span>
                   {props.choice === item.stateValue && !item.isLocked && <span className={item.icon}></span>}
                 </div>
               )}

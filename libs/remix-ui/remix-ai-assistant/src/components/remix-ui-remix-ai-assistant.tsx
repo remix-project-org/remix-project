@@ -5,7 +5,7 @@ import { createPortal } from 'react-dom'
 import '../css/remix-ai-assistant.css'
 
 import { ChatCommandParser, GenerationParams, ChatHistory, HandleStreamResponse, AIModel, ANONYMOUS_FALLBACK_MODELS, remixAILogger, modelKey, parseModelKey, findModel, applyByokKeyPolicy, BYOK_API_KEY_SETTINGS, modelTransportProvider, onApiKeysChange, isAutoModelId, isCheapModel, modelSupportsVision, describeCaptureError, type ChatAttachment, type ModelTransport } from '@remix/remix-ai-core'
-import { ToolApprovalRequest, ApiKeyErrorEvent, SCREEN_CAPTURE_SETTING, type ApprovalScope, AIFileChange, AIFileChangeRecord } from '@remix/remix-ai-core'
+import { ToolApprovalRequest, ApiKeyErrorEvent, SCREEN_CAPTURE_SETTING, type ApprovalScope, AIFileChange, AIFileChangeRecord, type ToolStep } from '@remix/remix-ai-core'
 import { ScreenCaptureConsentCard } from './ScreenCaptureConsentCard'
 import { isFrontierModelId, isHighCostModelId } from '@remix/remix-ai-core/model-tiers'
 import { HandleOpenAICompatibleResponse, HandleOllamaResponse } from '@remix/remix-ai-core'
@@ -17,18 +17,20 @@ import { MatomoEvent, AIEvent, Features, PublicPlan, ChatPromptMetadata } from '
 //@ts-ignore
 import { TrackingContext } from '@remix-ide/tracking'
 import { ChatHistoryComponent } from './chat'
-import { ActivityType, ChatMessage, ConversationMetadata } from '../lib/types'
+import { ActivityType, ChatMessage, ConversationMetadata, assistantAvatar, assitantAvatarLight } from '../lib/types'
 import { useOnClickOutside } from './onClickOutsideHook'
 import { RemixAIAssistant } from 'apps/remix-ide/src/app/plugins/remix-ai-assistant'
 import ChatHistoryHeading from './chatHistoryHeading'
 import { ChatHistorySidebar } from './chatHistorySidebar'
-import AiChatPromptAreaForHistory from './aiChatPromptAreaForHistory'
+import { AIPanelBackButton } from './aiPanel'
 import AiChatPromptArea from './aiChatPromptArea'
 import { CooldownBanner } from './cooldownBanner'
 import { ChatNoticeStrip, type ChatNoticeDisplay, type ChatNoticeActionDisplay } from './chatNoticeStrip'
 import { useModelAccess } from '../hooks/useModelAccess'
 import { useAttachments, captureIdeScreenshot } from '../hooks/useAttachments'
-import { ToolApprovalModal } from './ToolApprovalModal'
+import { ToolApprovalModal, describeApproval } from './ToolApprovalModal'
+
+const USED_COMMANDS_PARAM = 'remixai/used-commands'
 import { AIChangesPanel, AIChangesSelection, changeKey, foldFileChanges, isReviewableApproval } from './aiChangesPanel'
 
 // ─── Generative UI payload validation ────────────────────────────────────────
@@ -182,7 +184,6 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
   // sensible value before a selection resolves from /permissions.
   const [assistantChoice, setAssistantChoice] = useState<ModelTransport>('openrouter')
   const [showArchivedConversations, setShowArchivedConversations] = useState(false)
-  const [showOllamaModelSelector, setShowOllamaModelSelector] = useState(false)
   const [selectedOllamaModel, setSelectedOllamaModel] = useState<string | null>(null)
   const [selectedModelId, setSelectedModelId] = useState<string>('')
   // MCP Enhancement is gated by the `mcp:basicExternal` feature flag.
@@ -234,6 +235,9 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
   const approvalQueueRef = useRef<ToolApprovalRequest[]>([])
   // Tracks which approval requests are currently being reviewed in the editor via showCustomDiff
   const [reviewingApprovals, setReviewingApprovals] = useState<Set<string>>(new Set())
+  // The approval shown in the dock when several are pending; back to the first whenever the list changes
+  const [approvalIndex, setApprovalIndex] = useState(0)
+  useEffect(() => setApprovalIndex(0), [pendingApprovals])
   const pendingDiffApprovalRef = useRef<{ requestId: string; filePath: string } | null>(null)
 
   // File changes of the answer being written, in order (for the chat and the
@@ -273,10 +277,8 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
   // features here. Anonymous users see ANONYMOUS_FALLBACK_MODELS until
   // assistantState reports otherwise.
   const [availableModels, setAvailableModels] = useState<AIModel[]>(ANONYMOUS_FALLBACK_MODELS)
-  const [modelOpt, setModelOpt] = useState<{ top?: number, bottom?: number, left: number, maxHeight: number }>({ top: 0, left: 0, maxHeight: 0 })
-  const [ollamaModelOpt, setOllamaModelOpt] = useState({ top: 0, left: 0 })
+  const [modelOpt, setModelOpt] = useState<{ top?: number, bottom?: number, right: number, width: number, maxHeight: number }>({ top: 0, right: 0, width: 320, maxHeight: 0 })
   const menuRef = useRef<any>()
-  const ollamaMenuRef = useRef<any>()
   const [ollamaModels, setOllamaModels] = useState<{ name: string; supported: boolean }[]>([])
   const [selectedModel, setSelectedModel] = useState<AIModel | null>(null)
   const [dismissedHighCostModelIds, setDismissedHighCostModelIds] = useState<Set<string>>(new Set())
@@ -303,6 +305,10 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
   // Mirrors `selectedModel` for callbacks that must not capture a stale value
   // (the API-key change subscription lives outside the render closure).
   const selectedModelRef = useRef<AIModel | null>(null)
+  // Commands the user has run at least once: their tips stop showing.
+  const [usedCommands, setUsedCommands] = useState<string[]>([])
+  // Conversation where the user closed the tip line (×); tips stay hidden there.
+  const [tipDismissedFor, setTipDismissedFor] = useState<string | null | undefined>(undefined)
   // Mirror of the stored BYOK keys, so the picker can mark which rows run on
   // the user's key and which are waiting for one.
   const [byokKeyPresence, setByokKeyPresence] = useState<Record<string, boolean>>({})
@@ -311,10 +317,11 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
   const [themeTracker, setThemeTracker] = useState<{ name: string } | null>(() => ({ name: getSystemThemeFallback() }))
   const historyRef = useRef<HTMLDivElement | null>(null)
   const modelBtnRef = useRef(null)
-  const modelSelectorBtnRef = useRef(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const aiChatRef = useRef<HTMLDivElement>(null)
   const userHasScrolledRef = useRef(false)
+  // The list is far enough from its end to offer the "Latest" button
+  const [showJumpToLatest, setShowJumpToLatest] = useState(false)
   const lastMessageCountRef = useRef(0)
   const abortControllerRef = useRef<AbortController | null>(null)
   // Tracks whether the current request has been stopped. Event handlers check this
@@ -373,7 +380,6 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
   }, [dismissChatNotice, props.plugin])
 
   useOnClickOutside([modelBtnRef, menuRef], () => setShowModelSelector(false))
-  useOnClickOutside([modelSelectorBtnRef], () => setShowOllamaModelSelector(false))
 
   const chatCmdParser = new ChatCommandParser(props.plugin)
 
@@ -421,6 +427,25 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
       setMessages(props.initialMessages)
     }
   }, [props.initialMessages])
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const stored = await props.plugin.call('config' as any, 'getAppParameter', USED_COMMANDS_PARAM)
+        const parsed = stored ? JSON.parse(stored) : []
+        if (Array.isArray(parsed)) setUsedCommands(parsed)
+      } catch { /* nothing stored yet */ }
+    })()
+  }, [props.plugin])
+
+  const handleCommandUsed = useCallback((command: string) => {
+    setUsedCommands(prev => {
+      if (prev.includes(command)) return prev
+      const next = [...prev, command]
+      props.plugin.call('config' as any, 'setAppParameter', USED_COMMANDS_PARAM, JSON.stringify(next)).catch(() => {})
+      return next
+    })
+  }, [props.plugin])
 
   // When switching conversations, clean up any in-flight streaming / pending approvals.
   const prevConversationIdRef = useRef(props.currentConversationId)
@@ -497,7 +522,7 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
   const handleOllamaModelSelection = useCallback(async (modelName: string) => {
     const previousModel = selectedOllamaModel
     setSelectedOllamaModel(modelName)
-    setShowOllamaModelSelector(false)
+    setShowModelSelector(false)
     trackMatomoEvent({ category: 'ai', action: 'remixAI', name: 'ollama_model_selected', value: `${modelName}|from:${previousModel || 'none'}`, isClick: true })
     try {
       await props.plugin.call('remixAI', 'setOllamaModel', modelName)
@@ -928,6 +953,22 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
 
       remixAILogger.log('[RemixAI Assistant] Tool call event:', data)
 
+      // A tool can run before the answer has any text (e.g. compiling first):
+      // its bubble starts here, so the chat shows what the agent is doing.
+      if (!streamingAssistantIdRef.current && data.status === 'start') {
+        const newId = crypto.randomUUID()
+        streamingAssistantIdRef.current = newId
+        setMessages(prev => [
+          ...prev,
+          {
+            id: newId,
+            role: 'assistant',
+            content: '',
+            timestamp: Date.now(),
+            sentiment: 'none'
+          }
+        ])
+      }
       const assistantId = streamingAssistantIdRef.current
       if (!assistantId) return
 
@@ -942,7 +983,8 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
             isExecutingTools: true,
             executingToolName: data.toolName,
             executingToolArgs: data.toolInput,
-            executingToolUIString: data.toolUIString
+            executingToolUIString: data.toolUIString,
+            toolSteps: [...(m.toolSteps ?? []), { label: data.toolUIString || data.toolName, status: 'running' }]
           } : m))
         )
       } else {
@@ -951,6 +993,17 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
           clearToolTimeoutRef.current = null
         }
         const targetId = assistantId
+        // The step this end closes: the oldest one of that tool still running
+        setMessages(prev =>
+          prev.map(m => {
+            if (m.id !== targetId || !m.toolSteps) return m
+            const label = data.toolUIString || data.toolName
+            let index = m.toolSteps.findIndex(step => step.status === 'running' && step.label === label)
+            if (index === -1) index = m.toolSteps.findIndex(step => step.status === 'running')
+            if (index === -1) return m
+            return { ...m, toolSteps: m.toolSteps.map((step, i) => (i === index ? { ...step, status: 'done' } : step)) }
+          })
+        )
         clearToolTimeoutRef.current = setTimeout(() => {
           setMessages(prev =>
             prev.map(m => (m.id === targetId ? {
@@ -1189,7 +1242,7 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
             m.id === streamingAssistantIdRef.current
               ? {
                 ...m,
-                content: m.content + `\n\n**Error:** ${data.message}`,
+                error: data.message,
                 isExecutingTools: false,
                 executingToolName: undefined,
                 executingToolArgs: undefined,
@@ -1580,6 +1633,7 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
       node.scrollTop = node.scrollHeight
       userHasScrolledRef.current = false
     }
+    setShowJumpToLatest(node.scrollHeight - node.scrollTop - node.clientHeight > 30)
 
     lastMessageCountRef.current = messages.length
   }, [messages, isStreaming])
@@ -1618,6 +1672,22 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
     })
     pendingDiffApprovalRef.current = null
     setPendingApprovals(prev => prev.filter(approval => approval.requestId !== requestId))
+  }, [])
+
+  // Deploys, transactions and other tools leave a line in the answer once
+  // decided. File edits don't need one: their change lines already say it.
+  const recordApprovalDecisions = useCallback((approvals: ToolApprovalRequest[], approved: boolean) => {
+    const decided = approvals.filter(a => a.category !== 'screen_capture' && (!a.filePath || a.category === 'deployment' || a.category === 'transaction'))
+    if (decided.length === 0) return
+    const steps: ToolStep[] = decided.map(a => {
+      const { verb, subject } = describeApproval(a)
+      return { label: `${approved ? 'Accepted' : 'Rejected'}: ${verb} ${subject}`, status: approved ? 'done' : 'failed', kind: 'decision' }
+    })
+    setMessages(prev => {
+      const targetId = streamingAssistantIdRef.current || [...prev].reverse().find(m => m.role === 'assistant')?.id
+      if (!targetId) return prev
+      return prev.map(m => m.id === targetId ? { ...m, toolSteps: [...(m.toolSteps ?? []), ...steps]} : m)
+    })
   }, [])
 
   /**
@@ -1745,8 +1815,9 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
     } catch (err) {
       remixAILogger.error('[Assistant UI] respondToToolApproval threw', approval.requestId, err)
     }
+    recordApprovalDecisions([approval], true)
     removeApproval(approval.requestId)
-  }, [props.plugin, removeApproval, reviewingApprovals])
+  }, [props.plugin, removeApproval, reviewingApprovals, recordApprovalDecisions])
 
   const handleRejectToolAction = useCallback(async (approval: ToolApprovalRequest) => {
     if (!approval) return
@@ -1767,8 +1838,9 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
       requestId: approval.requestId,
       approved: false
     })
+    recordApprovalDecisions([approval], false)
     removeApproval(approval.requestId)
-  }, [props.plugin, removeApproval, reviewingApprovals])
+  }, [props.plugin, removeApproval, reviewingApprovals, recordApprovalDecisions])
 
   /**
    * Answers a screen-capture consent prompt. The scope travels with the
@@ -2011,9 +2083,10 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
         approved: true
       })
     }
+    recordApprovalDecisions(approvals, true)
     setPendingApprovals(prev => prev.filter(a => a.category === 'screen_capture'))
     setReviewingApprovals(new Set())
-  }, [pendingApprovals, props.plugin, reviewingApprovals])
+  }, [pendingApprovals, props.plugin, reviewingApprovals, recordApprovalDecisions])
 
   // Handle rejecting all pending approvals at once
   const handleRejectAll = useCallback(async () => {
@@ -2038,9 +2111,10 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
         approved: false
       })
     }
+    recordApprovalDecisions(approvals, false)
     setPendingApprovals(prev => prev.filter(a => a.category === 'screen_capture'))
     setReviewingApprovals(new Set())
-  }, [pendingApprovals, props.plugin, reviewingApprovals])
+  }, [pendingApprovals, props.plugin, reviewingApprovals, recordApprovalDecisions])
 
   // ── DApp Update Review Handlers ──
 
@@ -2249,7 +2323,7 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
       const cleanedMessages = prev
         .map(m => m.id === stoppedAssistantId && stoppedFileChanges ? { ...m, fileChanges: stoppedFileChanges } : m)
         .filter(m => {
-          if (m.role !== 'assistant') return true
+          if (m.role !== 'assistant' || m.stopped) return true
           const content = m.content.trim()
           return content !== '' && !content.startsWith('***')
         })
@@ -2273,12 +2347,17 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
           currentTodoIndex: undefined
         }))
 
+      // The stopped answer says so under itself; with nothing written yet, an empty answer carries the line
+      if (stoppedAssistantId && cleanedMessages.some(m => m.id === stoppedAssistantId)) {
+        return cleanedMessages.map(m => m.id === stoppedAssistantId ? { ...m, stopped: true } : m)
+      }
       return [
         ...cleanedMessages,
         {
           id: crypto.randomUUID(),
           role: 'assistant',
-          content: '**Request stopped by user!**',
+          content: '',
+          stopped: true,
           timestamp: Date.now(),
           sentiment: 'none'
         }
@@ -2801,7 +2880,7 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
     setShowModelSelector(prev => !prev)
   }, [])
 
-  const handleModelSelection = useCallback(async (selectionKey: string) => {
+  const handleModelSelection = useCallback(async (selectionKey: string, options?: { keepMenuOpen?: boolean }) => {
     setChatNotice(null)
     const { id: modelId, provider: selectedProvider } = parseModelKey(selectionKey)
     const model = findModel(availableModels, modelId, selectedProvider)
@@ -2885,7 +2964,8 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
       }
     }
 
-    setShowModelSelector(false)
+    // The low-cost switch picks a model too, but lives in the menu: keep it open.
+    if (!options?.keepMenuOpen) setShowModelSelector(false)
   }, [props.plugin, modelAccess, pushSystemNotice])
 
   const hasCheapModels = useMemo(
@@ -2909,17 +2989,17 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
       const target = availableModels
         .filter(m => m.available && m.provider !== 'ollama' && isCheapModel(m))
         .sort((a, b) => a.sortOrder - b.sortOrder)[0]
-      if (target) void handleModelSelection(modelKey(target))
+      if (target) void handleModelSelection(modelKey(target), { keepMenuOpen: true })
     } else {
       // Switch back to the auto model, or fall back to the backend default
       const autoModel = availableModels.find(m => isAutoModelId(m.id) && m.available !== false)
       if (autoModel) {
-        void handleModelSelection(modelKey(autoModel))
+        void handleModelSelection(modelKey(autoModel), { keepMenuOpen: true })
       } else {
         void (async () => {
           try {
             const def: AIModel | null = await props.plugin.call('assistantState' as any, 'getDefaultModel')
-            if (def && def.available !== false) void handleModelSelection(modelKey(def))
+            if (def && def.available !== false) void handleModelSelection(modelKey(def), { keepMenuOpen: true })
           } catch { /* ignore */ }
         })()
       }
@@ -3223,11 +3303,19 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
       } else if (distanceFromBottom < 30) {
         userHasScrolledRef.current = false
       }
+      setShowJumpToLatest(distanceFromBottom > 30)
       lastScrollTop = node.scrollTop
     }
 
     document.addEventListener('scroll', handleScroll, true)
     return () => document.removeEventListener('scroll', handleScroll, true)
+  }, [])
+
+  const jumpToLatest = useCallback(() => {
+    const node = historyRef.current
+    if (!node) return
+    userHasScrolledRef.current = false
+    node.scrollTo({ top: node.scrollHeight, behavior: 'smooth' })
   }, [])
 
   const maximizePanel = async () => {
@@ -3240,9 +3328,11 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
     const container = aiChatRef.current
     if (!modelBtn || !menu || !container) return
 
-    const btnRect = modelBtn.getBoundingClientRect()
+    // Opens above or below the whole input box, not just the button inside it.
+    const box = modelBtn.closest('[data-id="remix-ai-prompt-area"]') || modelBtn
+    const boxRect = box.getBoundingClientRect()
+    const btnRect = { top: boxRect.top, bottom: boxRect.bottom }
     const containerRect = container.getBoundingClientRect()
-    const menuWidth = menu.offsetWidth // replace hardcoded 180
     const GAP = 8
 
     // Room available on each side of the button, bounded by the chat container.
@@ -3253,16 +3343,17 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
     const openAbove = spaceAbove >= spaceBelow
     const maxHeight = Math.max(160, openAbove ? spaceAbove : spaceBelow)
 
-    // Right-align with the button, then clamp to the side panel.
-    let left = btnRect.right - menuWidth
-    if (left < containerRect.left) left = containerRect.left
-    if (left + menuWidth > containerRect.right) left = containerRect.right - menuWidth
+    // A fixed width anchored to the input box's right edge (not the panel's:
+    // in AI mode the panel is full-width while the box is centred), so a
+    // provider with longer descriptions wraps instead of widening the menu.
+    const right = window.innerWidth - boxRect.right
+    const width = Math.min(320, boxRect.width)
 
     // Anchor by the edge nearest the button, NOT by measured menu height. When
     if (openAbove) {
-      setModelOpt({ bottom: window.innerHeight - (btnRect.top - GAP), left, maxHeight })
+      setModelOpt({ bottom: window.innerHeight - (btnRect.top - GAP), right, width, maxHeight })
     } else {
-      setModelOpt({ top: btnRect.bottom + GAP, left, maxHeight })
+      setModelOpt({ top: btnRect.bottom + GAP, right, width, maxHeight })
     }
   }, [])
   useEffect(() => {
@@ -3292,56 +3383,6 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
     }
   }, [showModelSelector, recalcModelOpt])
 
-  const recalcOllamaModelOpt = useCallback(() => {
-    const ollamaBtn: any = modelSelectorBtnRef.current
-    const menu = ollamaMenuRef.current
-    const container = aiChatRef.current
-    if (!ollamaBtn || !menu || !container) return
-
-    const btnRect = ollamaBtn.getBoundingClientRect()
-    const containerRect = container.getBoundingClientRect()
-    const menuWidth = menu.offsetWidth
-    const menuHeight = menu.offsetHeight
-    const GAP = 8
-
-    // Prefer above the button; if no room, drop below it
-    let top = btnRect.top - menuHeight - GAP
-    if (top < containerRect.top) top = btnRect.bottom + GAP
-
-    // Right-align with the button, then clamp to side panel
-    let left = btnRect.right - menuWidth
-    if (left < containerRect.left) left = containerRect.left
-    if (left + menuWidth > containerRect.right) left = containerRect.right - menuWidth
-
-    setOllamaModelOpt({ top, left })
-  }, [])
-
-  useEffect(() => {
-    if (showOllamaModelSelector) {
-      requestAnimationFrame(recalcOllamaModelOpt)
-    }
-  }, [showOllamaModelSelector, recalcOllamaModelOpt])
-
-  useEffect(() => {
-    if (!showOllamaModelSelector) return
-
-    let frame: number | null = null
-    const onResize = () => {
-      if (frame) cancelAnimationFrame(frame)
-      frame = requestAnimationFrame(recalcOllamaModelOpt)
-    }
-
-    window.addEventListener('resize', onResize)
-    const ro = new ResizeObserver(onResize)
-    if (aiChatRef.current) ro.observe(aiChatRef.current)
-
-    return () => {
-      window.removeEventListener('resize', onResize)
-      ro.disconnect()
-      if (frame) cancelAnimationFrame(frame)
-    }
-  }, [showOllamaModelSelector, recalcOllamaModelOpt])
-
   // Minimum dwell for the thinking indicator. Each raise pushes the deadline
   // out, so rapid true/false bursts between tool calls read as one indicator
   // instead of a strobe; it clears only once the model has stopped AND the
@@ -3358,29 +3399,80 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
     return () => clearTimeout(timer)
   }, [isThinking, thinkingVisible])
 
-  // Sits directly above the auto-accept banner in every layout, so the user
-  // always finds it in the same place instead of chasing it down the transcript.
-  const thinkingBannerEl = thinkingVisible && (
-    <div className="ai-thinking-banner" data-id="remix-ai-thinking">
-      <i className="fa fa-spinner fa-spin ai-thinking-banner__icon" aria-hidden="true"></i>
-      <span className="ai-thinking-banner__text">Thinking</span>
-    </div>
-  )
-
   const autoAcceptBannerEl = hitlAutoAccept && pendingApprovals.length === 0 && (
     <div
       className="hitl-auto-accept-banner"
       data-id="hitl-auto-accept-banner"
     >
-      <span className="hitl-auto-accept-banner__text">Auto-accepting all tool changes</span>
+      <span className="hitl-auto-accept-banner__text">
+        <i className="fas fa-bolt"></i>Auto-accept on
+      </span>
+      <span aria-hidden="true">·</span>
       <button
+        type="button"
         onClick={toggleHitlAutoAccept}
         className="hitl-auto-accept-banner__btn"
         data-id="hitl-auto-accept-disable"
       >
-        Disable
+        Turn off
       </button>
     </div>
+  )
+
+  // Pending approvals: one card docked between the chat and the input, never
+  // inside the scroll area. Several pending: "1 of 3" and the bulk actions.
+  const renderApprovalDock = (onReview: (approval: ToolApprovalRequest) => void) => {
+    if (pendingApprovals.length === 0) return null
+    const count = pendingApprovals.length
+    const index = Math.min(approvalIndex, count - 1)
+    const approval = pendingApprovals[index]
+    const nav = count > 1 && (
+      <div className="ai-approval-nav">
+        <button type="button" className="ai-approval-icon-btn" aria-label="Previous change" onClick={() => setApprovalIndex((index + count - 1) % count)}>
+          <i className="fas fa-chevron-left"></i>
+        </button>
+        <span>{index + 1} of {count}</span>
+        <button type="button" className="ai-approval-icon-btn" aria-label="Next change" onClick={() => setApprovalIndex((index + 1) % count)}>
+          <i className="fas fa-chevron-right"></i>
+        </button>
+        <span className="flex-grow-1"></span>
+        <button type="button" className="ai-approval-link" onClick={handleRejectAll} data-id="reject-all-changes">Reject all</button>
+        <button type="button" className="ai-approval-link ai-approval-link-ai" onClick={handleApproveAll} data-id="approve-all-changes">Accept all</button>
+      </div>
+    )
+    return (
+      <div className="ai-approval-dock" data-id="ai-approval-dock">
+        {approval.category === 'screen_capture' ? (
+          <>
+            {nav}
+            <ScreenCaptureConsentCard
+              key={approval.requestId}
+              request={approval}
+              modelName={selectedModel?.displayName}
+              onDecide={(scope) => handleScreenCaptureDecision(approval, scope)}
+            />
+          </>
+        ) : (
+          <ToolApprovalModal
+            key={approval.requestId}
+            request={approval}
+            nav={nav}
+            onApprove={(options) => handleApproveToolAction(approval, options)}
+            onReject={() => handleRejectToolAction(approval)}
+            onReviewChanges={() => onReview(approval)}
+            isReviewing={reviewingApprovals.has(approval.requestId)}
+          />
+        )}
+      </div>
+    )
+  }
+
+  const jumpToLatestEl = showJumpToLatest && messages.length > 0 && (
+    <button type="button" className="ai-jump-latest" onClick={jumpToLatest} title="Jump to the latest message" data-id="ai-jump-to-latest">
+      <i className="fas fa-arrow-down"></i>
+      <span>Latest</span>
+      {isStreaming && <span className="ai-jump-latest-dot"></span>}
+    </button>
   )
 
   const highCostModelBannerEl = isHighCostModelId(selectedModel?.id) && !dismissedHighCostModelIds.has(selectedModel?.id ?? '') && (
@@ -3464,158 +3556,90 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
                 data-id="remix-ai-run-model"
                 title={`Auto selected ${runModel} for this answer`}
               >
-                <i className="fa-solid fa-wand-magic-sparkles rai-run-model__icon"></i>
-                <span className="rai-run-model__text">Using {runModelLabel}</span>
+                <img
+                  src={themeTracker?.name.toLowerCase() === 'dark' ? assistantAvatar : assitantAvatarLight}
+                  alt=""
+                  className="rai-run-model__icon"
+                />
+                <span className="rai-run-model__text">Using <span className="rai-run-model__name">{runModelLabel}</span></span>
               </div>
             </div>
           )}
         </>
       )
       const promptEl = (
-        messages.length > 0 ? (
-          <AiChatPromptAreaForHistory
-            themeTracker={themeTracker}
-            showHistorySidebar={props.showHistorySidebar || false}
-            isMaximized={props.isMaximized}
-            modelOpt={modelOpt}
-            menuRef={menuRef}
-            assistantChoice={assistantChoice}
-            setAssistantChoice={setAssistantChoice}
-            mcpEnabled={mcpEnabled}
-            mcpEnhanced={mcpEnhanced}
-            setMcpEnhanced={setMcpEnhanced}
-            availableModels={availableModels}
-            selectedModel={selectedModel}
-            handleModelSelection={handleModelSelection}
-            onLockedModelClick={handleLockedModelClick}
-            upgradePillState={pillStates.upgrade}
-            buyCreditsPillState={pillStates.buyCredits}
-            onBuyCreditsClick={handleBuyCreditsClick}
-            input={input}
-            setInput={setInput}
-            isStreaming={isStreaming}
-            handleSend={handleSend}
-            stopRequest={stopRequest}
-            handleSetModel={handleSetModel}
-            handleGenerateWorkspace={handleGenerateWorkspace}
-            dispatchActivity={dispatchActivity as any}
-            modelBtnRef={modelBtnRef}
-            modelSelectorBtnRef={modelSelectorBtnRef}
-            textareaRef={textareaRef}
-            maximizePanel={maximizePanel}
-            setShowOllamaModelSelector={setShowOllamaModelSelector}
-            showOllamaModelSelector={showOllamaModelSelector}
-            showModelSelector={showModelSelector}
-            setShowModelSelector={setShowModelSelector}
-            selectedModelId={selectedModelId}
-            handleOllamaModelSelection={handleOllamaModelSelection}
-            selectedOllamaModel={selectedOllamaModel}
-            ollamaModels={ollamaModels}
-            ollamaModelOpt={ollamaModelOpt}
-            ollamaMenuRef={ollamaMenuRef}
-            messages={messages}
-            handleLoadSkills={handleLoadSkills}
-            handleOpenSettings={handleOpenSettings}
-            handleLoadAuditChecklist={handleLoadAuditChecklist}
-            handleGasOptimisationAudit={handleGasOptimisationAudit}
-            usingOwnApiKey={usingOwnApiKey}
-            byokKeyPresence={byokKeyPresence}
-            onAddApiKeyClick={handleOpenApiKeySettings}
-            aiRoute={aiRouteStatus.route}
-            aiRouteReady={aiRouteStatus.ready}
-            modelDegradedDetail={selectedModelDegradedDetail}
-            isAuthenticated={isAuthenticated}
-            onSignIn={handleSignIn}
-            hasAuditorPermission={hasAuditorPermission}
-            hasSkillsPermission={hasSkillsPermission}
-            onUpgradeRequired={handleFeatureUpgradeRequired}
-            getRequiredPlanName={getRequiredPlanName}
-            cheapModelsOnly={cheapModelsOnly}
-            hasCheapModels={hasCheapModels}
-            onToggleCheapModels={handleToggleCheapModels}
-            attachments={attachmentState.attachments}
-            attachmentErrors={attachmentState.errors}
-            onAddFiles={attachmentState.addFiles}
-            onRemoveAttachment={attachmentState.remove}
-            onDismissAttachmentErrors={attachmentState.dismissErrors}
-            onCaptureScreenshot={handleCaptureScreenshot}
-            supportsVision={modelSupportsVision(selectedModel || undefined)}
-          />
-        ) : (
-          <AiChatPromptArea
-            themeTracker={themeTracker}
-            showHistorySidebar={props.showHistorySidebar || false}
-            isMaximized={props.isMaximized}
-            modelOpt={modelOpt}
-            menuRef={menuRef}
-            assistantChoice={assistantChoice}
-            setAssistantChoice={setAssistantChoice}
-            mcpEnabled={mcpEnabled}
-            mcpEnhanced={mcpEnhanced}
-            setMcpEnhanced={setMcpEnhanced}
-            availableModels={availableModels}
-            selectedModel={selectedModel}
-            handleModelSelection={handleModelSelection}
-            onLockedModelClick={handleLockedModelClick}
-            upgradePillState={pillStates.upgrade}
-            buyCreditsPillState={pillStates.buyCredits}
-            onBuyCreditsClick={handleBuyCreditsClick}
-            input={input}
-            setInput={setInput}
-            isStreaming={isStreaming}
-            handleSend={handleSend}
-            stopRequest={stopRequest}
-            handleSetModel={handleSetModel}
-            handleGenerateWorkspace={handleGenerateWorkspace}
-            dispatchActivity={dispatchActivity as any}
-            modelBtnRef={modelBtnRef}
-            modelSelectorBtnRef={modelSelectorBtnRef}
-            textareaRef={textareaRef}
-            maximizePanel={maximizePanel}
-            setShowOllamaModelSelector={setShowOllamaModelSelector}
-            showOllamaModelSelector={showOllamaModelSelector}
-            showModelSelector={showModelSelector}
-            setShowModelSelector={setShowModelSelector}
-            selectedModelId={selectedModelId}
-            handleOllamaModelSelection={handleOllamaModelSelection}
-            selectedOllamaModel={selectedOllamaModel}
-            ollamaModels={ollamaModels}
-            ollamaModelOpt={ollamaModelOpt}
-            ollamaMenuRef={ollamaMenuRef}
-            messages={messages}
-            handleLoadSkills={handleLoadSkills}
-            handleOpenSettings={handleOpenSettings}
-            handleLoadAuditChecklist={handleLoadAuditChecklist}
-            handleGasOptimisationAudit={handleGasOptimisationAudit}
-            usingOwnApiKey={usingOwnApiKey}
-            byokKeyPresence={byokKeyPresence}
-            onAddApiKeyClick={handleOpenApiKeySettings}
-            aiRoute={aiRouteStatus.route}
-            aiRouteReady={aiRouteStatus.ready}
-            modelDegradedDetail={selectedModelDegradedDetail}
-            isAuthenticated={isAuthenticated}
-            onSignIn={handleSignIn}
-            hasAuditorPermission={hasAuditorPermission}
-            hasSkillsPermission={hasSkillsPermission}
-            onUpgradeRequired={handleFeatureUpgradeRequired}
-            getRequiredPlanName={getRequiredPlanName}
-            cheapModelsOnly={cheapModelsOnly}
-            hasCheapModels={hasCheapModels}
-            onToggleCheapModels={handleToggleCheapModels}
-            attachments={attachmentState.attachments}
-            attachmentErrors={attachmentState.errors}
-            onAddFiles={attachmentState.addFiles}
-            onRemoveAttachment={attachmentState.remove}
-            onDismissAttachmentErrors={attachmentState.dismissErrors}
-            onCaptureScreenshot={handleCaptureScreenshot}
-            supportsVision={modelSupportsVision(selectedModel || undefined)}
-          />
-        )
+        <AiChatPromptArea
+          themeTracker={themeTracker}
+          showHistorySidebar={props.showHistorySidebar || false}
+          isMaximized={props.isMaximized}
+          modelOpt={modelOpt}
+          menuRef={menuRef}
+          assistantChoice={assistantChoice}
+          setAssistantChoice={setAssistantChoice}
+          mcpEnabled={mcpEnabled}
+          mcpEnhanced={mcpEnhanced}
+          setMcpEnhanced={setMcpEnhanced}
+          availableModels={availableModels}
+          selectedModel={selectedModel}
+          handleModelSelection={handleModelSelection}
+          onLockedModelClick={handleLockedModelClick}
+          upgradePillState={pillStates.upgrade}
+          buyCreditsPillState={pillStates.buyCredits}
+          onBuyCreditsClick={handleBuyCreditsClick}
+          input={input}
+          setInput={setInput}
+          isStreaming={isStreaming}
+          handleSend={handleSend}
+          stopRequest={stopRequest}
+          handleSetModel={handleSetModel}
+          handleGenerateWorkspace={handleGenerateWorkspace}
+          dispatchActivity={dispatchActivity as any}
+          modelBtnRef={modelBtnRef}
+          textareaRef={textareaRef}
+          maximizePanel={maximizePanel}
+          showModelSelector={showModelSelector}
+          setShowModelSelector={setShowModelSelector}
+          selectedModelId={selectedModelId}
+          handleOllamaModelSelection={handleOllamaModelSelection}
+          selectedOllamaModel={selectedOllamaModel}
+          ollamaModels={ollamaModels}
+          messages={messages}
+          handleLoadSkills={handleLoadSkills}
+          handleOpenSettings={handleOpenSettings}
+          handleLoadAuditChecklist={handleLoadAuditChecklist}
+          handleGasOptimisationAudit={handleGasOptimisationAudit}
+          usingOwnApiKey={usingOwnApiKey}
+          byokKeyPresence={byokKeyPresence}
+          onAddApiKeyClick={handleOpenApiKeySettings}
+          aiRoute={aiRouteStatus.route}
+          aiRouteReady={aiRouteStatus.ready}
+          modelDegradedDetail={selectedModelDegradedDetail}
+          isAuthenticated={isAuthenticated}
+          onSignIn={handleSignIn}
+          hasAuditorPermission={hasAuditorPermission}
+          hasSkillsPermission={hasSkillsPermission}
+          onUpgradeRequired={handleFeatureUpgradeRequired}
+          getRequiredPlanName={getRequiredPlanName}
+          cheapModelsOnly={cheapModelsOnly}
+          hasCheapModels={hasCheapModels}
+          onToggleCheapModels={handleToggleCheapModels}
+          attachments={attachmentState.attachments}
+          attachmentErrors={attachmentState.errors}
+          onAddFiles={attachmentState.addFiles}
+          onRemoveAttachment={attachmentState.remove}
+          onDismissAttachmentErrors={attachmentState.dismissErrors}
+          onCaptureScreenshot={handleCaptureScreenshot}
+          supportsVision={modelSupportsVision(selectedModel || undefined)}
+          usedCommands={usedCommands}
+          onCommandUsed={handleCommandUsed}
+          tipDismissed={tipDismissedFor === (props.currentConversationId ?? null)}
+          onDismissTip={() => setTipDismissedFor(props.currentConversationId ?? null)}
+        />
       )
       const dockedHistoryOpen = !props.isMaximized && !!props.showHistorySidebar && !!props.conversations
       const chatBody = (
         <div
-          className={`d-flex flex-row w-100 h-100 ${props.isMaximized ? 'ai-mode' : ''}`}
+          className={`ai-root d-flex flex-row w-100 h-100 ${props.isMaximized ? 'ai-mode' : ''}`}
           ref={aiChatRef}
           style={{ overflow: 'hidden' }}
           data-theme={themeTracker && themeTracker?.name.toLowerCase()}
@@ -3649,7 +3673,7 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
                     onToggleChanges={toggleChangesPanel}
                     changesCount={reviewableApprovals.length + changedFiles.length}
                   />
-                  <section id="remix-ai-chat-history" className="d-flex flex-column p-2" style={{ flex: 1, overflow: 'auto', minHeight: 0 }} ref={chatHistoryRef}>
+                  <section id="remix-ai-chat-history" className="d-flex flex-column py-2 ai-chat-history" style={{ flex: 1, overflow: 'auto', minHeight: 0 }} ref={chatHistoryRef}>
                     <div data-id="remix-ai-assistant-ready"></div>
                     {/* hidden hook for E2E tests: data-streaming="true|false" */}
                     <div
@@ -3660,6 +3684,7 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
                     <ChatHistoryComponent
                       messages={messages}
                       isStreaming={isStreaming}
+                      showThinking={thinkingVisible}
                       sendPrompt={sendPrompt}
                       recordFeedback={recordFeedback}
                       historyRef={historyRef}
@@ -3674,51 +3699,11 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
                       fileChangesByMessage={fileChangesByMessage}
                       onOpenFileChange={openFileChange}
                       onUiComponentAnswered={handleUiComponentAnswered}
+                      pendingApprovalCount={pendingApprovals.length}
                     />
-                    {pendingApprovals.length > 1 && (
-                      <div className="hitl-pending-summary">
-                        <div className="d-flex justify-content-between align-items-center">
-                          <span className="fw-bold">Multiple Changes Pending ({pendingApprovals.length})</span>
-                          <div className="d-flex gap-2">
-                            <button
-                              className="btn btn-success btn-sm"
-                              onClick={handleApproveAll}
-                              data-id="approve-all-changes"
-                            >
-                          Accept All
-                            </button>
-                            <button
-                              className="btn btn-danger btn-sm"
-                              onClick={handleRejectAll}
-                              data-id="reject-all-changes"
-                            >
-                          Reject All
-                            </button>
-                          </div>
-                        </div>
-                      </div>
-                    )}
-                    {pendingApprovals.map((approval) => (
-                      <div key={approval.requestId} style={{ padding: '0 12px', marginBottom: '8px' }}>
-                        {approval.category === 'screen_capture' ? (
-                          <ScreenCaptureConsentCard
-                            request={approval}
-                            modelName={selectedModel?.displayName}
-                            onDecide={(scope) => handleScreenCaptureDecision(approval, scope)}
-                          />
-                        ) : (
-                          <ToolApprovalModal
-                            request={approval}
-                            onApprove={(options) => handleApproveToolAction(approval, options)}
-                            onReject={() => handleRejectToolAction(approval)}
-                            onReviewChanges={() => openChangesPanel({ kind: 'pending', requestId: approval.requestId })}
-                            isReviewing={reviewingApprovals.has(approval.requestId)}
-                          />
-                        )}
-                      </div>
-                    ))}
+                    {jumpToLatestEl}
                   </section>
-                  {thinkingBannerEl}
+                  {renderApprovalDock((approval) => openChangesPanel({ kind: 'pending', requestId: approval.requestId }))}
                   {autoAcceptBannerEl}
                   {highCostModelBannerEl}
                 </div>
@@ -3726,16 +3711,7 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
               /* Non-Maximized Mode: Toggle between the changes list, history view and chat view */
                 showChangesPanel && props.isMaximized === false ? (
                   <div className="d-flex flex-column flex-grow-1 ai-history-view-bg nonMaximizedMode" style={{ overflow: 'hidden', minHeight: 0 }} data-theme={themeTracker && themeTracker?.name.toLowerCase()}>
-                    <div className="p-2 border-bottom">
-                      <button
-                        className={`btn btn-sm ${themeTracker?.name.toLowerCase() === 'dark' ? 'btn-dark' : 'btn-light text-light-emphasis'}`}
-                        onClick={closeChangesPanel}
-                        data-id="ai-changes-back-to-chat-btn"
-                      >
-                        <i className="fas fa-chevron-left me-3"></i>
-                        <span>Back to chat</span>
-                      </button>
-                    </div>
+                    <AIPanelBackButton onClick={closeChangesPanel} dataId="ai-changes-back-to-chat-btn" />
                     <div className="flex-grow-1 d-flex" style={{ overflow: 'hidden', minHeight: 0 }}>
                       <AIChangesPanel
                         docked
@@ -3752,34 +3728,23 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
                         theme={themeTracker?.name}
                       />
                     </div>
-                    {thinkingBannerEl}
                     {autoAcceptBannerEl}
                     {highCostModelBannerEl}
                   </div>
                 ) : props.showHistorySidebar && props.isMaximized === false && props.conversations ? (
                   <div className="d-flex flex-column flex-grow-1 ai-history-view-bg nonMaximizedMode" style={{ overflow: 'hidden', minHeight: 0 }} data-theme={themeTracker && themeTracker?.name.toLowerCase()}>
-                    {/* Back button header */}
-                    <div
-                      className="p-2 border-bottom"
-                    >
-                      <button
-                        className={`btn btn-sm ${themeTracker?.name.toLowerCase() === 'dark' ? 'btn-dark' : 'btn-light text-light-emphasis'}`}
-                        onClick={props.onToggleHistorySidebar || (() => {})}
-                        data-id="chat-history-back-btn"
-                      >
-                        <i className="fas fa-chevron-left me-3"></i>
-                        <span>Back to chat</span>
-                      </button>
-                    </div>
+                    {/* The archived list has its own back row, to the chat history */}
+                    {!showArchivedConversations && <AIPanelBackButton onClick={props.onToggleHistorySidebar || (() => {})} dataId="chat-history-back-btn" />}
                     {/* Chat history content */}
                     <div className="flex-grow-1" style={{ overflow: 'hidden', minHeight: 0 }}>
                       <ChatHistorySidebar
                         conversations={props.conversations}
                         currentConversationId={props.currentConversationId || null}
                         showArchived={showArchivedConversations}
-                        onNewConversation={props.onNewConversation || (() => {})}
                         onLoadConversation={async (id) => {
                           await props.onLoadConversation?.(id)
+                          // Opening an archived conversation unarchives it: show the chat history next time
+                          setShowArchivedConversations(false)
                           // Close sidebar after loading conversation in non-maximized mode
                           await props.onToggleHistorySidebar?.()
                         }}
@@ -3794,7 +3759,6 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
                         theme={themeTracker?.name}
                       />
                     </div>
-                    {thinkingBannerEl}
                     {autoAcceptBannerEl}
                     {highCostModelBannerEl}
                   </div>
@@ -3815,7 +3779,7 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
                       onToggleChanges={toggleChangesPanel}
                       changesCount={reviewableApprovals.length + changedFiles.length}
                     />
-                    <section id="remix-ai-chat-history" className="d-flex flex-column p-2" style={{ flex: 1, overflow: 'auto', minHeight: 0 }} ref={chatHistoryRef}>
+                    <section id="remix-ai-chat-history" className="d-flex flex-column py-2 ai-chat-history" style={{ flex: 1, overflow: 'auto', minHeight: 0 }} ref={chatHistoryRef}>
                       <div data-id="remix-ai-assistant-ready"></div>
                       {/* hidden hook for E2E tests: data-streaming="true|false" */}
                       <div
@@ -3826,6 +3790,7 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
                       <ChatHistoryComponent
                         messages={messages}
                         isStreaming={isStreaming}
+                        showThinking={thinkingVisible}
                         sendPrompt={sendPrompt}
                         recordFeedback={recordFeedback}
                         historyRef={historyRef}
@@ -3840,51 +3805,11 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
                         fileChangesByMessage={fileChangesByMessage}
                         onOpenFileChange={openFileChange}
                         onUiComponentAnswered={handleUiComponentAnswered}
+                        pendingApprovalCount={pendingApprovals.length}
                       />
-                      {pendingApprovals.length > 1 && (
-                        <div className="hitl-pending-summary">
-                          <div className="d-flex justify-content-between align-items-center">
-                            <span className="fw-bold">Multiple Changes Pending ({pendingApprovals.length})</span>
-                            <div className="d-flex gap-2">
-                              <button
-                                className="btn btn-success btn-sm"
-                                onClick={handleApproveAll}
-                                data-id="approve-all-changes"
-                              >
-                              Accept All
-                              </button>
-                              <button
-                                className="btn btn-danger btn-sm"
-                                onClick={handleRejectAll}
-                                data-id="reject-all-changes"
-                              >
-                              Reject All
-                              </button>
-                            </div>
-                          </div>
-                        </div>
-                      )}
-                      {pendingApprovals.map((approval) => (
-                        <div key={approval.requestId} style={{ padding: '0 12px', marginBottom: '8px' }}>
-                          {approval.category === 'screen_capture' ? (
-                            <ScreenCaptureConsentCard
-                              request={approval}
-                              modelName={selectedModel?.displayName}
-                              onDecide={(scope) => handleScreenCaptureDecision(approval, scope)}
-                            />
-                          ) : (
-                            <ToolApprovalModal
-                              request={approval}
-                              onApprove={(options) => handleApproveToolAction(approval, options)}
-                              onReject={() => handleRejectToolAction(approval)}
-                              onReviewChanges={() => handleReviewChanges(approval)}
-                              isReviewing={reviewingApprovals.has(approval.requestId)}
-                            />
-                          )}
-                        </div>
-                      ))}
+                      {jumpToLatestEl}
                     </section>
-                    {thinkingBannerEl}
+                    {renderApprovalDock(handleReviewChanges)}
                     {autoAcceptBannerEl}
                     {highCostModelBannerEl}
                   </div>
@@ -3903,8 +3828,10 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
               conversations={props.conversations}
               currentConversationId={props.currentConversationId || null}
               showArchived={showArchivedConversations}
-              onNewConversation={props.onNewConversation || (() => {})}
-              onLoadConversation={props.onLoadConversation || (async (id: string) => {})}
+              onLoadConversation={async (id) => {
+                await props.onLoadConversation?.(id)
+                setShowArchivedConversations(false)
+              }}
               onArchiveConversation={props.onArchiveConversation || (async (id: string) => {})}
               onDeleteConversation={props.onDeleteConversation || (async (id: string) => {})}
               onDeleteAllConversations={props.onDeleteAllConversations}

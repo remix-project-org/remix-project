@@ -41,8 +41,7 @@ export default function ChatHistoryHeading({
     : null
 
   return (
-    <section className={`d-flex flex-row justify-content-between align-items-center px-2 ${isAiChatMaximized ? 'py-2 ai-mode-heading' : 'py-1 border-top'} border-0 border-bottom border-[#3F4455]`} data-theme={theme?.toLowerCase()}
-      style={{ backgroundColor: theme && theme.toLowerCase() === 'dark' ? '#222336' : '#eff1f5' }}>
+    <section className={`ai-chat-heading-bg d-flex flex-row justify-content-between align-items-center px-2 ${isAiChatMaximized ? 'py-2 ai-mode-heading' : 'py-1 border-top'} border-0 border-bottom border-[#3F4455]`} data-theme={theme?.toLowerCase()}>
       <div className="flex-grow-1 overflow-hidden me-2">
         {truncatedTitle ? (
           <span
@@ -55,8 +54,9 @@ export default function ChatHistoryHeading({
           </span>
         ) : (
           <CustomTooltip tooltipText={'Start a new chat'}>
+            {/* py-0: as tall as the conversation title, so the header keeps its height */}
             <button
-              className="btn btn-sm btn-link text-decoration-none"
+              className="btn btn-sm btn-link text-decoration-none py-0"
               onClick={onNewChat}
               data-id="new-chat-btn new-conversation-btn"
             >

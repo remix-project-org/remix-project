@@ -218,10 +218,9 @@
       "elements": [
         { "label": "Prompt input", "dataId": "remix-ai-prompt-input" },
         { "label": "Send", "dataId": "remix-ai-composer-send-btn" },
-        { "label": "Model selector", "dataId": "ai-model-selector-btn", "children": ["ai-model-search", "ai-model-auto", "ai-model-selector-api-key-btn"] },
-        { "label": "Attach a file", "dataId": "remix-ai-attach-btn" },
-        { "label": "Capture a screenshot of the IDE", "dataId": "remix-ai-screenshot-btn" },
-        { "label": "Route status badge", "dataId": "ai-route-status", "description": "agent | tools | chat — which backend answers." }
+        { "label": "Model selector", "dataId": "ai-model-selector-btn", "children": ["ai-model-search", "ai-model-auto", "ai-model-selector-api-key-btn", "ai-cheap-models-toggleSwitch"] },
+        { "label": "Attach, prompts and commands menu (+)", "dataId": "remix-ai-composer-plus", "children": ["remix-ai-attach-btn", "remix-ai-screenshot-btn"] },
+        { "label": "Route status dot (on the model selector)", "dataId": "ai-route-status", "description": "agent | tools | chat — which backend answers." }
       ]
     },
     {

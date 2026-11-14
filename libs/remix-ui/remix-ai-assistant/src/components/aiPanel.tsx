@@ -22,7 +22,7 @@ interface AIPanelHeaderProps {
 }
 
 export const AIPanelHeader = (props: AIPanelHeaderProps) => (
-  <div className="chat-history-sidebar-header border-0 px-3 pt-3 pb-2" style={{ backgroundColor: (props.theme || '').toLowerCase() === 'dark' ? '#222336' : '#eff1f5' }}>
+  <div className="chat-history-sidebar-header border-0 px-3 pt-3 pb-2" data-theme={(props.theme || '').toLowerCase()}>
     <div className={`d-flex justify-content-between align-items-center ${props.children ? 'mb-2' : ''}`}>
       <h6 className="mb-0 fw-semibold sidebar-title text-truncate" data-id={props.titleDataId}>
         {props.title} <span className="ms-1 fw-normal text-muted">{props.count}</span>
@@ -105,5 +105,15 @@ export const AIPanelEmpty = (props: { icon: string, message: string, hint?: stri
     <i className={`${props.icon} ai-panel-empty-icon d-block mb-2`}></i>
     <div>{props.message}</div>
     {props.hint && <div className="ai-panel-empty-hint mt-1">{props.hint}</div>}
+  </div>
+)
+
+/** "Back to chat" row above a panel shown in place of the chat */
+export const AIPanelBackButton = (props: { onClick: () => void, dataId: string }) => (
+  <div className="ai-panel-back-row">
+    <button type="button" className="ai-panel-back-btn" onClick={props.onClick} data-id={props.dataId}>
+      <i className="fas fa-chevron-left"></i>
+      <span>Back to chat</span>
+    </button>
   </div>
 )

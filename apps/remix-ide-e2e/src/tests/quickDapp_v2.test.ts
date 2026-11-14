@@ -80,7 +80,7 @@ async function getQuickDappFlowState (browser: NightwatchBrowser): Promise<Quick
       hasCard: !!document.querySelector('div.card[data-id^="dapp-card-"]'),
       hasProcessingOverlay: !!document.querySelector('.qd-progress-overlay--card, [data-id="ai-updating-overlay"]'),
       statusText: textOfAll('[data-id^="dapp-status-"]').toLowerCase(),
-      approvalCount: document.querySelectorAll('.tool-approval-card').length,
+      approvalCount: document.querySelectorAll('[data-id="tool-approval-card"]').length,
       hasApproveAll: !!document.querySelector('[data-id="approve-all-changes"]'),
       hasAutoAcceptBanner: !!document.querySelector('[data-id="hitl-auto-accept-banner"]')
     }
@@ -95,7 +95,7 @@ async function approvePendingHitl (browser: NightwatchBrowser, enableAutoAccept:
       return 'all'
     }
 
-    const card = document.querySelector('.tool-approval-card') as HTMLElement | null
+    const card = document.querySelector('[data-id="tool-approval-card"]') as HTMLElement | null
     if (!card) return 'none'
 
     const checkbox = card.querySelector('[data-id="hitl-auto-accept-checkbox"]') as HTMLInputElement | null
