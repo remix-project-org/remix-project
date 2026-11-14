@@ -177,6 +177,8 @@ export class PlanManagerPlugin extends ViewPlugin {
   private experimentsReady = false
   /** Experiments whose decision point this visitor reached this session: key → variant. */
   private exposedExperiments: Record<string, string> = {}
+  /** Identity the current page load's visit was reported for ('anon' | 'user:<id>'). */
+  private visitReportedFor: string | null = null
   /** Feature keys per feature group (public plans), for the focused feature-gate offer. */
   private groupFeatures: Map<string, Set<string>> | null = null
   private groupFeaturesLoading = false
@@ -409,6 +411,7 @@ export class PlanManagerPlugin extends ViewPlugin {
       // Attach the JWT to checkout telemetry so the admin viewer can attribute
       // failures to a user (the sink is optionalAuth — works without it too).
       setCheckoutTelemetryToken(s.isAuthenticated ? (s.token ?? null) : null)
+      this.reportVisit(authed, userId)
       this.store.send({
         type: 'AUTH_CHANGED',
         isAuthenticated: !!s.isAuthenticated,
@@ -468,6 +471,7 @@ export class PlanManagerPlugin extends ViewPlugin {
           .catch(() => {})
       } else {
         this.store.send({ type: 'AUTH_CHANGED', isAuthenticated: false })
+        this.reportVisit(false, null)
       }
     } catch (err) {
       planManagerLogger.warn('[PlanManager] auth bridge failed', err)
@@ -783,6 +787,21 @@ export class PlanManagerPlugin extends ViewPlugin {
       if (features.has(feature)) return plan
     }
     return null
+  }
+
+  /**
+   * The IDE loaded (or the user signed in): one visit per browser per day on
+   * the server, which gives experiments their "came back" signals. A
+   * signed-in visit also links this browser's earlier anonymous exposures to
+   * the account. Once per page load per identity; never from test runners.
+   */
+  private reportVisit(authed: boolean, userId: number | null): void {
+    // The server identifies the account from the token; the id only dedupes.
+    const identity = authed ? `user:${userId ?? '?'}` : 'anon'
+    if (this.visitReportedFor === identity || isAutomatedBrowser()) return
+    this.visitReportedFor = identity
+    if (!this.subjectId) this.subjectId = getSubjectId()
+    postBillingBeacon('/visit', { subjectId: this.subjectId })
   }
 
   /** Panel just opened: report a product view once we know who's looking. */
