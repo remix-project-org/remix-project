@@ -147,6 +147,14 @@ export class Blockchain extends Plugin {
   }
 
   setupEvents() {
+    this.on('filePanel', 'setWorkspace', () => {
+      // Initial startup is handled by workspaceInitializationCompleted below.
+      // A later workspace switch must load that workspace's local VM state.
+      if (this.isWorkspaceLoaded && this.executionContext.isVM()) {
+        this.executionContext.event.trigger('contextChanged', [this.getProvider()])
+      }
+    })
+
     this.on('filePanel', 'workspaceInitializationCompleted', async () => {
       this.isWorkspaceLoaded = true
       const context = this.getProvider()
