@@ -110,7 +110,7 @@
     "@connectrpc/connect-node": "^2.1.1",
     "@connectrpc/connect-web": "^2.1.1",
     "@edgeandnode/amp": "^0.0.51",
-    "@effect/platform": "^0.93.6",
+    "@effect/platform": "^0.97.1",
     "@effect/platform-node": "^0.103.0",
     "@effect/printer": "^0.47.0",
     "@effect/printer-ansi": "^0.47.0",
