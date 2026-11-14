@@ -235,7 +235,7 @@ export interface OpenIntent {
   /** Feature key (e.g. 'ai:Anthropic') that triggered a 'feature-required' gate. */
   requiredFeature?: string
   /** Section to focus when the panel transitions to ready. */
-  initialSection?: 'plans' | 'topup' | 'usage'
+  initialSection?: 'credits' | 'plans' | 'topup' | 'usage'
   /** 'free-signup' only: the login created a brand-new account. */
   isNewUser?: boolean
 }

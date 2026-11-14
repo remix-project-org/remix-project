@@ -5187,3 +5187,102 @@ a.pm-alert__btn {
   padding-left: 0;
   padding-right: 0;
 }
+
+/* ─── Focused feature-gate offer (feature_gate_offer experiment) ─── */
+.pm-feature-offer {
+  max-width: 460px;
+  margin: 8px auto;
+  padding: 24px 28px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  border-radius: var(--bs-border-radius-lg);
+  border: 0.5px solid var(--bs-border-color);
+  background: var(--custom-onsurface-layer-2);
+  text-align: center;
+}
+.pm-feature-offer__eyebrow {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--custom-primary);
+}
+.pm-feature-offer__eyebrow i { margin-right: 6px; }
+.pm-feature-offer__title {
+  margin: 0;
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--bs-heading-color);
+}
+.pm-feature-offer__sub {
+  margin: 0;
+  font-size: 13px;
+  color: var(--bs-secondary-color);
+}
+.pm-feature-offer__price {
+  display: flex;
+  align-items: baseline;
+  justify-content: center;
+  gap: 8px;
+}
+.pm-feature-offer__price-was {
+  font-size: 13px;
+  color: var(--bs-secondary-color);
+  text-decoration: line-through;
+}
+.pm-feature-offer__price-num {
+  font-size: 32px;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  color: var(--bs-heading-color);
+}
+.pm-feature-offer__price-per {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--bs-secondary-color);
+}
+.pm-feature-offer__list {
+  margin: 0 auto;
+  padding: 0;
+  list-style: none;
+  text-align: left;
+  font-size: 13px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.pm-feature-offer__list i {
+  margin-right: 8px;
+  color: var(--bs-success);
+}
+.pm-feature-offer__cta {
+  width: 100%;
+  padding: 11px 20px;
+  border: none;
+  border-radius: var(--bs-border-radius);
+  background: var(--custom-primary);
+  color: var(--bs-body-bg);
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: opacity 120ms ease, transform 120ms ease;
+}
+.pm-feature-offer__cta:hover:not(:disabled) { opacity: 0.92; transform: translateY(-1px); }
+.pm-feature-offer__cta:disabled { opacity: 0.6; cursor: default; }
+.pm-feature-offer__fine {
+  margin: 0;
+  font-size: 11px;
+  color: var(--bs-secondary-color);
+}
+.pm-feature-offer__all {
+  align-self: center;
+  border: none;
+  background: none;
+  font-size: 13px;
+  color: var(--custom-primary);
+  cursor: pointer;
+}
+.pm-feature-offer__all i { margin-left: 4px; font-size: 11px; }

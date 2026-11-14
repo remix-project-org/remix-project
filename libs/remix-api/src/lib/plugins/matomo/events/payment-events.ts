@@ -44,6 +44,8 @@ export interface CheckoutEvent extends MatomoEventBase {
     | 'confirmed_async'   // payment confirmed by webhook before Paddle.js emitted completed (value = method)
     | 'confirmed_after_close' // payment completed after the checkout was closed mid-payment (value = method)
     | 'leave_prompt' // asked before leaving a checkout with a payment in flight (value = stay|leave)
+    | 'experiment' // reached an A/B/C experiment's decision point (name = experiment key, value = variant)
+    | 'feature_offer' // focused feature-gate offer interaction (name = subscribe|all_plans, value = feature key)
     | 'awaiting_approval' // payment stuck waiting on the user ~45s after initiation (value = method)
     | 'decline_reason'    // payment declined; value = Paddle error_code
     | 'region_blocked'    // Paddle refused to price for the visitor's location (value = country)

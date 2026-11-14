@@ -21,7 +21,7 @@ const profile = {
   maintainedBy: 'Remix',
   permission: true,
   events: ['toolApprovalResponse', 'stopRequested', 'aiModeChanged', 'chatEngaged'],
-  methods: ['chatPipe', 'handleExternalMessage', 'getProfile', 'deleteConversation','loadConversations', 'newConversation', 'archiveConversation', 'respondToToolApproval', 'stopRequest', 'submitChatInput', 'refineQueuedConversationTitle', 'maximizePanel', 'restorePanel', 'isAIModeActive', 'focusChatInput']
+  methods: ['chatPipe', 'handleExternalMessage', 'getProfile', 'deleteConversation','loadConversations', 'newConversation', 'archiveConversation', 'respondToToolApproval', 'stopRequest', 'submitChatInput', 'refineQueuedConversationTitle', 'maximizePanel', 'restorePanel', 'isAIModeActive', 'focusChatInput', 'isFirstLoad']
 }
 
 /**
@@ -55,6 +55,8 @@ export class RemixAIAssistant extends ViewPlugin {
   conversations: ConversationMetadata[] = []
   showHistorySidebar: boolean = false
   isMaximized: boolean = false
+  /** Set on activation: this page load is the browser's first visit. */
+  firstLoad = false
   aiModePanelState: { leftHidden: boolean, terminalHidden: boolean } | null = null
   private _initializing: boolean = true
   private _initStarted: boolean = false
@@ -77,7 +79,8 @@ export class RemixAIAssistant extends ViewPlugin {
   }
 
   async onActivation() {
-    if (!localStorage.getItem('remixaiassistant_firstload_flag')) {
+    this.firstLoad = !localStorage.getItem('remixaiassistant_firstload_flag')
+    if (this.firstLoad) {
       this.call('sidePanel', 'pinView', this.profile)
       await this.call('layout', 'maximiseSidePanel')
     }
@@ -478,6 +481,11 @@ export class RemixAIAssistant extends ViewPlugin {
 
   isAIModeActive() {
     return this.isMaximized
+  }
+
+  /** This page load is the browser's first visit to the IDE. */
+  isFirstLoad() {
+    return this.firstLoad
   }
 
   /** Called by the chat UI when the user reaches for the docked chat (focuses
