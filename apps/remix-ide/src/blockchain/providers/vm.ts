@@ -78,7 +78,7 @@ export class VMProvider {
             this.executionContext.setWeb3(this.executionContext.getProvider(), this.web3)
             resolve({})
           } else {
-            reject(new Error(msg.data.error))
+            reject(new Error(msg.data.error.message || msg.data.error))
           }
         } else if (msg.data.cmd === 'newAccountResult') {
           if (this.newAccountCallback[msg.data.stamp]) {
@@ -103,7 +103,7 @@ export class VMProvider {
             blocks: blockchainState.blocks
           })
         } catch (e) {
-          console.error(e)
+          reject(e)
         }
       } else {
         this.worker.postMessage({
