@@ -42,7 +42,7 @@ export class HardhatClient extends PluginClient {
     if (fs.existsSync(this.buildPath)) {
       this.listenOnHardhatCompilation()
     } else {
-      console.log('If you are using Hardhat, run `npx hardhat compile` or run the compilation with `Enable Hardhat Compilation` checked from the Remix IDE.')
+      console.log('If you are using Hardhat, run `npx hardhat compile` or run the compilation with `Enable Hardhat Compilation` checked from the Remix Web3.')
       this.listenOnHardHatFolder()
     }
   }

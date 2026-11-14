@@ -33,13 +33,13 @@ const profile = {
     'clearCaches', 'cancelRequest',
     'getAllowedModels', 'setModelAccess',
     'isUsingOwnApiKey', 'getApiKeyStatus', 'fallbackToProxy',
-    'getRouteStatus', 'audit_category_match'
+    'getRouteStatus', 'audit_category_match', 'getCompletionStatus'
   ],
   events: [
     'modelChanged',
     'chatMessageSent', 'chatPipeRequested',
     'codeExplainRequested', 'errorExplainRequested', 'vulnerabilityCheckRequested',
-    'codeCompletionUsed', 'workspaceGenerated',
+    'codeCompletionUsed', 'completionStatusChanged', 'workspaceGenerated',
     'mcpEnabled', 'mcpDisabled', 'mcpServersLoaded',
     'apiKeyModeChanged', 'onApiKeyError',
     'routeStatusChanged',
@@ -55,13 +55,19 @@ const profile = {
     'requestCancelled'
   ],
   icon: 'assets/img/remix-logo-blue.png',
-  description: 'RemixAI provides AI services to Remix IDE.',
+  description: 'RemixAI provides AI services to Remix Web3.',
   kind: '',
   location: 'none',
   documentation: 'https://remix-ide.readthedocs.io/en/latest/ai.html',
   version: packageJson.version,
   maintainedBy: 'Remix'
 }
+
+/** Why inline completion is not running right now; null means it is. */
+export type CompletionBlockReason = 'auth-required' | 'insufficient-credits' | 'email-unverified' | 'feature-required'
+
+/** After a credits/plan refusal, stop hitting /ai/completion on every keystroke and only probe again after this. */
+const COMPLETION_BLOCK_RETRY_MS = 5 * 60_000
 
 // add Plugin<any, CustomRemixApi>
 export class RemixAIPlugin extends Plugin {
@@ -105,6 +111,8 @@ export class RemixAIPlugin extends Plugin {
   }
   deepAgentEnabled: boolean = false
   private pendingDeepAgentThreadId: string | null = null
+  private completionBlock: CompletionBlockReason | null = null
+  private completionBlockedUntil = 0
 
   // Extracted helper modules
   private eventBridge: DeepAgentEventBridge
@@ -422,6 +430,14 @@ export class RemixAIPlugin extends Plugin {
     this.on('assistantState' as any, 'stateChanged', (snap: any) => {
       void applyDefaultFromState()
       void syncMcpServersFromReadyPermissions(snap)
+      if (this.completionBlock === 'email-unverified' && snap?.gateReason !== 'email-unverified') this.setCompletionBlock(null)
+    })
+
+    // A top-up (or monthly refill) lifts the completion credit block right away
+    // instead of waiting for the retry window.
+    this.on('auth' as any, 'creditsUpdated', (credits: any) => {
+      const balance = typeof credits?.balance === 'number' ? credits.balance : 0
+      if (this.completionBlock === 'insufficient-credits' && balance > 0) this.setCompletionBlock(null)
     })
 
     // Listen for tool-approval responses forwarded by the assistant UI as engine events.
@@ -487,6 +503,8 @@ export class RemixAIPlugin extends Plugin {
 
     // Listen to auth state changes to refresh MCP servers based on user permissions
     this.on('auth', 'authStateChanged', async (authState: any) => {
+      // New account / new entitlements — re-evaluate completion from scratch.
+      this.setCompletionBlock(null)
       await this.refreshMCPServersOnAuthChange(authState);
     });
 
@@ -645,18 +663,9 @@ export class RemixAIPlugin extends Plugin {
       try { await this.call('assistantState' as any, 'reportRequestSucceeded') } catch { /* noop */ }
       return result
     } catch (e: any) {
-      const status = e?.response?.status ?? e?.status ?? 0
-      const responseBody = e?.response?.data ?? e?.data
-      // Only run parseAIErrorEnvelope on an actual response body. If we
-      // don't have one (e.g. plain Error from langchain with the body
-      // stringified into .message as "403 {json}"), aiErrorFromException
-      // is the right tool — it knows how to peel that wrapper apart.
-      const aiError = responseBody && typeof responseBody === 'object'
-        ? parseAIErrorEnvelope(responseBody, status)
-        : aiErrorFromException(e)
+      const aiError = this.toAIError(e)
       try { await this.call('assistantState' as any, 'reportError', aiError) } catch { /* noop */ }
-      // Inline completion fires per keystroke — never pop the panel from it.
-      if (feature !== Features.AI_COMPLETION) void this.openTopUpOnCreditError(aiError)
+      void this.openTopUpOnCreditError(aiError)
       // Stamp the parsed envelope on the thrown error so the UI catch
       // block (and any other consumer) doesn't need to re-parse the raw
       // response. Critical for inferencer paths that throw plain Errors
@@ -673,6 +682,78 @@ export class RemixAIPlugin extends Plugin {
           else if (!(e as any).response.data.error) (e as any).response.data.error = aiError
         }
       } catch { /* defensive — never let stamping crash error propagation */ }
+      throw e
+    }
+  }
+
+  private toAIError(e: any): AIError {
+    const status = e?.response?.status ?? e?.status ?? 0
+    const responseBody = e?.response?.data ?? e?.data
+    // Only run parseAIErrorEnvelope on an actual response body. If we
+    // don't have one (e.g. plain Error from langchain with the body
+    // stringified into .message as "403 {json}"), aiErrorFromException
+    // is the right tool — it knows how to peel that wrapper apart.
+    return responseBody && typeof responseBody === 'object'
+      ? parseAIErrorEnvelope(responseBody, status)
+      : aiErrorFromException(e)
+  }
+
+  /** Why inline completion is currently refused (null = available). */
+  getCompletionStatus(): CompletionBlockReason | null {
+    return this.completionBlock
+  }
+
+  private setCompletionBlock(reason: CompletionBlockReason | null): void {
+    this.completionBlockedUntil = reason ? Date.now() + COMPLETION_BLOCK_RETRY_MS : 0
+    if (this.completionBlock === reason) return
+    this.completionBlock = reason
+    this.emit('completionStatusChanged', reason)
+  }
+
+  /**
+   * Gate for inline completion. Unlike withAssistantGate it runs on
+   * keystrokes, so it never opens the plan manager and never raises a chat
+   * notice. Refusals the user can fix (signed out, out of credits, unverified
+   * email, plan) are published as `completionStatusChanged` for the nudge
+   * plugin to surface, and repeats are answered locally (null) instead of
+   * re-hitting /ai/completion on every keystroke.
+   */
+  private async withCompletionGate<T>(run: () => Promise<T>): Promise<T | null> {
+    // Local models: no account, credits or plan involved.
+    if (this.remoteInferencer instanceof OllamaInferencer) return run()
+    if (this.completionBlock && this.completionBlock !== 'auth-required' && Date.now() < this.completionBlockedUntil) return null
+    let snap: any = null
+    try { snap = await this.call('assistantState' as any, 'getSnapshot') } catch { /* assistantState not active */ }
+    if (snap && !snap.isAuthenticated) {
+      this.setCompletionBlock('auth-required')
+      return null
+    }
+    if (snap?.gateReason === 'email-unverified') {
+      this.setCompletionBlock('email-unverified')
+      return null
+    }
+    try { await this.call('assistantState' as any, 'reportRequestStarted') } catch { /* noop */ }
+    try {
+      const result = await run()
+      try { await this.call('assistantState' as any, 'reportRequestSucceeded') } catch { /* noop */ }
+      this.setCompletionBlock(null)
+      return result
+    } catch (e: any) {
+      const aiError = this.toAIError(e)
+      const reason: CompletionBlockReason | null = isInsufficientCreditsError(aiError)
+        ? 'insufficient-credits'
+        : aiError.code === 'FEATURE_DENIED'
+          ? 'feature-required'
+          : aiError.code === 'EMAIL_NOT_VERIFIED' ? 'email-unverified' : null
+      if (reason) {
+        // Deliberately not reported to assistantState: that would raise a chat
+        // notice (or, for FEATURE_DENIED, gate the chat on 'ai:completion')
+        // from a keystroke. The completion nudge owns this state.
+        this.setCompletionBlock(reason)
+        return null
+      }
+      // Rate limits / server errors keep feeding the shared cooldown state.
+      try { await this.call('assistantState' as any, 'reportError', aiError) } catch { /* noop */ }
       throw e
     }
   }
@@ -780,7 +861,7 @@ export class RemixAIPlugin extends Plugin {
 
   async code_completion(prompt: string, promptAfter: string, params:IParams=CompletionParams): Promise<any> {
     this.emit('codeCompletionUsed')
-    return this.withAssistantGate(Features.AI_COMPLETION, async () => {
+    return this.withCompletionGate(async () => {
       if (this.completionAgent.indexer == null || this.completionAgent.indexer == undefined) await this.completionAgent.indexWorkspace()
       // Deliberately no routing here: inline completion does not go through
       // OpenRouter. It hits the `/ai/completion` proxy, which pins Codestral
@@ -961,7 +1042,7 @@ export class RemixAIPlugin extends Plugin {
   }
 
   /**
-   * Generates a new remix IDE workspace based on the provided user prompt, optionally using Retrieval-Augmented Generation (RAG) context.
+   * Generates a new Remix Web3 workspace based on the provided user prompt, optionally using Retrieval-Augmented Generation (RAG) context.
    * - If `useRag` is `true`, the function fetches additional context from a RAG API and prepends it to the user prompt.
    */
   async generate(prompt: string, params: IParams=AssistantParams, newThreadID:string="", useRag:boolean=false, statusCallback?: (status: string) => Promise<void>): Promise<any> {
@@ -1059,7 +1140,7 @@ export class RemixAIPlugin extends Plugin {
   }
 
   async code_insertion(msg_pfx: string, msg_sfx: string, params:IParams=CompletionParams): Promise<any> {
-    return this.withAssistantGate(Features.AI_COMPLETION, async () => {
+    return this.withCompletionGate(async () => {
       if (this.completionAgent.indexer == null || this.completionAgent.indexer == undefined) await this.completionAgent.indexWorkspace()
 
       // See code_completion(): the `/ai/completion` proxy owns its own routing.

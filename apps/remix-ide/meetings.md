@@ -4,7 +4,7 @@
 
 #### doc update for release
 
-For each remix IDE PR, check whether the documentation needs to be updated.
+For each Remix Web3 PR, check whether the documentation needs to be updated.
 If so, either 
     - update the doc with and link to the PR
     - create an issue with the label "documentation"
@@ -15,7 +15,7 @@ Before releasing (better a few days before), we take time to address documentati
 
 We setup a monthly call where we read through the documentation and check what should be added / updated / improved
 
-#### move to remix IDE
+#### move to Remix Web3
 
 we move the documentation to the remix-ide repository
 

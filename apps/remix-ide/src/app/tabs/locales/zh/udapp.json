@@ -126,7 +126,7 @@
   "udapp.customVmForkProviderText": "请提供有关 custom fork 的信息。如果未提供节点 URL，VM 将以空状态启动。",
   "udapp.nodeUrl": "节点 URL",
   "udapp.blockNumber": "块号 (默认 \"latest\")",
-  "udapp.externalHttpProviderText1": "注意: 要用 Geth & https://remix.ethereum.org, 配置使它允许来自 Remix 的请求:(看 <a>Geth rpc 服务的文档</a>)",
+  "udapp.externalHttpProviderText1": "注意: 要用 Geth & https://app.remix.live, 配置使它允许来自 Remix 的请求:(看 <a>Geth rpc 服务的文档</a>)",
   "udapp.externalHttpProviderText2": "要运行 Remix & 一个本地的 Geth 测试节点, 使用这个命令: (看 <a>Geth 开发模式文档</a>)",
   "udapp.externalHttpProviderText3": "<b>警告:</b> --http.corsdomain 使用通配符很不安全: <b>--http.corsdomain *</b>",
   "udapp.externalHttpProviderText4": "更多信息: <a>Remix External HTTP Provider 文档</a>",

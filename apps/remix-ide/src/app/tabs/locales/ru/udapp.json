@@ -127,7 +127,7 @@
   "udapp.customVmForkProviderText": "Пожалуйста, предоставьте информацию о пользовательском форке. Если URL-адрес узла не указан, Виртуальная Машина запустится с пустого состояния.",
   "udapp.nodeUrl": "URL узла",
   "udapp.blockNumber": "Номер блока (или \"последний\")",
-  "udapp.externalHttpProviderText1": "Примечание: Для использования Geth и https://remix.ethereum.org, настройте его так, чтобы он разрешал запросы от Remix:(см. <a>Geth Docs на сервере rpc</a>)",
+  "udapp.externalHttpProviderText1": "Примечание: Для использования Geth и https://app.remix.live, настройте его так, чтобы он разрешал запросы от Remix:(см. <a>Geth Docs на сервере rpc</a>)",
   "udapp.externalHttpProviderText2": "Для запуска Remix и локального тестового узла Geth используйте эту команду: (см. <a>Geth Docs в режиме Dev mode </a>)",
   "udapp.externalHttpProviderText3": "<b>ВНИМАНИЕ:</b> Не безопасно использование флага --http.corsdomain с подстановочным символом: <b>--http.corsdomain *</b>",
   "udapp.externalHttpProviderText4": "Для дополнительной информации: <a>Remix Docs на внешнем HTTP провайдере</a>",

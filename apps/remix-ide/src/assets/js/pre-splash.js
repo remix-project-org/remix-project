@@ -40,7 +40,7 @@
       }
     } else {
       // Web: match Preload case for consistency
-      if (title) title.textContent = 'REMIX IDE';
+      if (title) title.textContent = 'Remix Web3';
     }
   } catch (e) {
     // Last-resort fallback theme

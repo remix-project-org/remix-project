@@ -4,7 +4,7 @@
 
 ## Project Identity
 
-**Remix Project** is a comprehensive smart contract development toolset for Ethereum, including Remix IDE (web and desktop), plugins, and libraries for Solidity development, testing, debugging, and deployment.
+**Remix Project** is a comprehensive smart contract development toolset for Ethereum, including Remix Web3 (web and desktop), plugins, and libraries for Solidity development, testing, debugging, and deployment.
 
 - **Repository**: https://github.com/remix-project-org/remix-project
 - **Architecture**: Nx monorepo with Yarn workspaces
@@ -223,6 +223,19 @@ nx generate @nrwl/node:library <name>
    - See `apps/remix-ide-e2e/README.md` for 14 test groups covering different scenarios
 
 6. **Plugin engine**: Uses custom plugin engine from `@remixproject/engine` package
+
+7. **Testing in the VS Code integrated browser (agent browser / Playwright tools)**: that browser is Electron, and its user agent contains `Electron/x.y.z`. The `is-electron` check then boots Remix as **Remix Desktop**, and the web IDE doesn't load correctly. Before testing `http://127.0.0.1:8080`, strip that token with an init script and reload:
+   ```js
+   await page.addInitScript(() => {
+     const ua = navigator.userAgent.replace(/\s*Electron\/\S+/, '')
+     Object.defineProperty(Navigator.prototype, 'userAgent', { get: () => ua, configurable: true })
+   })
+   await page.reload()
+   await page.waitForSelector('[data-id="remixIDE"]:not(.d-none)', { timeout: 90000 })
+   ```
+   The init script applies to every later navigation of that page; a newly opened page needs it again. Check with `navigator.userAgent` (no `Electron/`) and a visible `.top-bar`. `runPlaywrightCode` runs plain JS, so don't use TypeScript syntax such as `as any`.
+
+8. **Signing in as a test user in the browser**: load the IDE with `#e2e_pool_key=<key>` in the URL (optionally `&e2e_feature_groups=<group>[,<group>]`, e.g. `beta`, `ai-pro`, `e2e-unlimited-quota`; leave it out for a plain free-tier account). The login modal then shows an **E2E Test Pool** button (`data-id="loginModalE2EPoolButton"`), which checks out an exclusive pooled account without OAuth (`auth.login('test')`). The key is a secret: ask the user for it, or read `E2E_POOL_KEY` / `E2E_POOL_API_KEY` from the environment, and **never commit it** to the repo or docs. Call `auth.poolRelease()` when you're done so the account goes back to the pool (see `apps/remix-ide-e2e/src/helpers/e2ePool.ts`).
 
 ## Project-Specific Knowledge
 

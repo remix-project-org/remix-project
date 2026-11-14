@@ -1,7 +1,7 @@
 import { WalkthroughDefinition } from '@remix-api'
 
 /**
- * Built-in walkthrough definitions for Remix IDE.
+ * Built-in walkthrough definitions for Remix Web3.
  * These are registered automatically when the walkthrough plugin activates.
  * Additional walkthroughs can be registered by any plugin via the API.
  */
@@ -10,12 +10,12 @@ export const builtinWalkthroughs: WalkthroughDefinition[] = [
   {
     id: 'remix-intro-basics',
     name: 'Getting Started with Remix',
-    description: 'A quick tour of the Remix IDE interface and basic features.',
+    description: 'A quick tour of the Remix Web3 interface and basic features.',
     sourcePlugin: 'walkthrough',
     steps: [
       {
         targetSelector: '[data-id="verticalIconsHomeIcon"]',
-        title: 'Welcome to Remix IDE',
+        title: 'Welcome to Remix Web3',
         content: 'This is your home button. Click it anytime to return to the landing page with quick links and resources.',
         placement: 'right',
       },
@@ -172,7 +172,7 @@ export const builtinWalkthroughs: WalkthroughDefinition[] = [
   {
     id: 'remix-beta-tour',
     name: 'Remix Beta Program Tour',
-    description: 'A quick tour of the beta features and key UI elements in Remix IDE.',
+    description: 'A quick tour of the beta features and key UI elements in Remix Web3.',
     sourcePlugin: 'walkthrough',
     steps: [
       {

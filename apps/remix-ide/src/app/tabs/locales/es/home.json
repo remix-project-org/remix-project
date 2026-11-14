@@ -1,6 +1,6 @@
 {
   "home.scamAlert": "Alerta de Estafa",
-  "home.scamAlertText": "El único URL que utiliza Remix es remix.ethereum.org",
+  "home.scamAlertText": "El único URL que utiliza Remix es remix.ethereum.org y app.remix.live",
   "home.scamAlertText2": "Cuidado con los videos de Internet promoviendo \"bots adelantados de liquidez\"",
   "home.scamAlertText3": "Consejos de seguridad adicionales",
   "home.learnMore": "Aprender más",
@@ -8,7 +8,7 @@
   "home.featured": "Destacado",
   "home.jumpIntoWeb3": "JUMP INTO WEB3",
   "home.jumpIntoWeb3More": "More",
-  "home.jumpIntoWeb3Text": "Remix IDE is part of the Remix Project, a rich toolset that can be used for the entire journey of contract development by users of any knowledge level. Learn more on the Remix Project website.",
+  "home.jumpIntoWeb3Text": "Remix Web3 is part of the Remix Project, a rich toolset that can be used for the entire journey of contract development by users of any knowledge level. Learn more on the Remix Project website.",
   "home.remixYouTube": "MIRA PARA APRENDER",
   "home.remixYouTubeText1": "Vídeo de consejos del equipo de Remix",
   "home.remixYouTubeMore": "Mirar",

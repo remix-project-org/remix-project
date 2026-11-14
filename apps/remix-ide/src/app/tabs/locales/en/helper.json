@@ -1,6 +1,6 @@
 {
   "helper.askRemixAI": "Ask RemixAI",
-  "helper.web3ProviderNote": "Note: To use Geth & https://remix.ethereum.org, configure it to allow requests from Remix:(see <a>Geth Docs on rpc server</a>)",
+  "helper.web3ProviderNote": "Note: To use Geth & https://app.remix.live, configure it to allow requests from Remix:(see <a>Geth Docs on rpc server</a>)",
   "helper.web3ProviderLocalNote": "To run Remix & a local Geth test node, use this command: (see <a>Geth Docs on Dev mode</a>)",
   "helper.web3ProviderWarningLabel": "WARNING:",
   "helper.web3ProviderWarning": "It is not safe to use the --http.corsdomain flag with a wildcard: <b>--http.corsdomain *</b>",

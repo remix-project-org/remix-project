@@ -1,5 +1,5 @@
 /**
- * Types for the Remix IDE lifecycle state machine and event guard system.
+ * Types for the Remix Web3 lifecycle state machine and event guard system.
  */
 
 // ─── Lifecycle Events ────────────────────────────────────────────────
