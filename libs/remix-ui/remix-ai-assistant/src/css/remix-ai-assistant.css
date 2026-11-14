@@ -591,9 +591,8 @@
   border-bottom: 1px solid var(--bs-border-color);
 }
 
-.remix-ai-model-selector .rai-cheap-switch .form-check-input {
-  margin: 0;
-  float: none;
+.remix-ai-model-selector .rai-cheap-switch .remix-switch {
+  gap: 8px;
 }
 
 /* --------------------------------------------------------

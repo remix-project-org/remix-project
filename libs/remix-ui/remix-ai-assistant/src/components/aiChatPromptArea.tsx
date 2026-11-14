@@ -1,5 +1,6 @@
 import React, { Dispatch } from 'react'
 import { CustomTooltip } from '@remix-ui/helper'
+import { ToggleSwitch } from '@remix-ui/toggle'
 import GroupListMenu from './contextOptMenu'
 import ModelSelectorMenu from './modelSelectorMenu'
 import { PromptArea } from './prompt'
@@ -168,20 +169,16 @@ export default function AiChatPromptArea(props: AiChatPromptAreaProps) {
                   : 'The cheapest tier across all providers, to make your credits last longer.'
               }
             >
-              <div className="form-check form-switch rai-cheap-switch flex-shrink-0">
-                <input
-                  className="form-check-input"
-                  type="checkbox"
-                  role="switch"
+              <div className="rai-cheap-switch flex-shrink-0">
+                <ToggleSwitch
                   id="ai-cheap-models-toggle"
-                  data-id="ai-cheap-models-toggle"
-                  data-active={props.cheapModelsOnly ? 'true' : 'false'}
-                  data-available={props.hasCheapModels ? 'true' : 'false'}
-                  checked={!!props.cheapModelsOnly}
+                  size="sm"
+                  tone="ai"
+                  label="Low-cost models only"
+                  isOn={!!props.cheapModelsOnly}
                   disabled={!props.hasCheapModels}
-                  onChange={() => props.onToggleCheapModels?.()}
+                  onClick={() => props.onToggleCheapModels?.()}
                 />
-                <label className="form-check-label" htmlFor="ai-cheap-models-toggle">Low-cost models only</label>
               </div>
             </CustomTooltip>
           </ModelSelectorMenu>
