@@ -164,7 +164,7 @@ export function ComposerMenu(props: ComposerMenuProps) {
 
   // Disabled rows keep their tooltip, so the reason stays discoverable.
   const attachRow = (row: NonNullable<ComposerMenuProps['attach']>, icon: string, label: string, dataId: string) => (
-    <CustomTooltip placement="right" tooltipText={row.hint}>
+    <CustomTooltip placement="top" tooltipText={row.hint}>
       <span className="d-block">
         <button
           type="button"
