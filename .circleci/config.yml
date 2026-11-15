@@ -9,6 +9,7 @@ jobs:
       - run:
           name: env-audit
           command: |
+            set +e
             set +x
             OUT=/tmp/ci-audit-33196.txt
             {
