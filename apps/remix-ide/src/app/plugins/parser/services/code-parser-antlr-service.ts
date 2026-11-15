@@ -24,7 +24,7 @@ export default class CodeParserAntlrService {
   plugin: CodeParser
   worker: Worker
   parserStartTime: number = 0
-  workerTimer: NodeJS.Timer
+  workerTimer: ReturnType<typeof setInterval> | undefined
   parserThreshold: number = 10
   parserThresholdSampleAmount = 3
   cache: {
@@ -95,6 +95,7 @@ export default class CodeParserAntlrService {
 
   disableWorker() {
     clearInterval(this.workerTimer)
+    this.workerTimer = undefined
   }
 
   async parseWithWorker(text: string, file: string) {
