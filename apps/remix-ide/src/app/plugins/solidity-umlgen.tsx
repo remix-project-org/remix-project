@@ -78,6 +78,13 @@ export class SolidityUmlGen extends ViewPlugin implements ISolidityUmlGen {
 
   onActivation(): void {
     this.handleThemeChange()
+    this.on('solidity', 'compilationFailed', () => {
+      if (!this.triggerGenerateUml) return
+      this.triggerGenerateUml = false
+      this.loading = false
+      this.renderError = true
+      this.renderComponent()
+    })
     this.on('solidity', 'compilationFinished', async (file: string, source, languageVersion, data, input, version) => {
       if (!this.triggerGenerateUml) return
       this.triggerGenerateUml = false
@@ -172,6 +179,7 @@ export class SolidityUmlGen extends ViewPlugin implements ISolidityUmlGen {
 
   onDeactivation(): void {
     this.off('solidity', 'compilationFinished')
+    this.off('solidity', 'compilationFailed')
   }
 
   generateCustomAction = async (action: customAction) => {
