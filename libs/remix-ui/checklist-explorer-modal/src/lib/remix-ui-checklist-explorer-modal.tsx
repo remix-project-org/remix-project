@@ -543,6 +543,7 @@ export function RemixUiChecklistExplorerModal(props: RemixUiChecklistExplorerMod
   const handleAuditModelPick = async (model: any | null) => {
     if (switchingModel) return
     setSwitchingModel(true)
+    setError(null)
     if (model) {
       try {
         await plugin.call('remixAI', 'setModel', model.id, model.provider)
@@ -551,11 +552,13 @@ export function RemixUiChecklistExplorerModal(props: RemixUiChecklistExplorerMod
           value: `${model.provider}::${model.id}`, isClick: true
         })
       } catch (e) {
-        // A failed switch must not swallow the audit — carry on with Auto.
         trackMatomoEvent(plugin, {
           category: 'ai', action: 'remixAI', name: 'audit_model_switch_failed',
           value: `${model.provider}::${model.id}`, isClick: false
         })
+        setError(`Could not switch to ${model.displayName || model.id}: ${e instanceof Error ? e.message : 'unknown error'}. The audit was not started — pick a model again.`)
+        setSwitchingModel(false)
+        return
       }
     } else {
       trackMatomoEvent(plugin, {
@@ -1324,6 +1327,12 @@ export function RemixUiChecklistExplorerModal(props: RemixUiChecklistExplorerMod
                       Keep Auto
                     </button>
                   </div>
+                  {error && (
+                    <div className="alert alert-danger small mt-3 mb-0" role="alert" data-id="audit-model-switch-error">
+                      <i className="fa-solid fa-exclamation-triangle me-2"></i>
+                      {error}
+                    </div>
+                  )}
                   {switchingModel && (
                     <div className="text-muted small mt-3">
                       <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>

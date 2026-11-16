@@ -103,6 +103,20 @@ export function isHighCostModelId(id: string | undefined | null): boolean {
 }
 
 /**
+ * Did a model other than the selected one serve the request?
+ */
+export function isSubstituteModel(selectedId: string | undefined | null, servedId: string | undefined | null): boolean {
+  if (!selectedId || !servedId) return false
+  const slug = (id: string) => (id.toLowerCase().split('/').pop() || '').split(':')[0]
+  const selected = slug(selectedId)
+  const served = slug(servedId)
+  if (!selected || !served || selected === served) return false
+  if (served.startsWith(`${selected}-`) || served.startsWith(`${selected}.`)) return false
+  const family = selected.endsWith('-latest') ? selected.slice(0, -'-latest'.length) : null
+  return !(family && new RegExp(`^${family.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}-\\d`).test(served))
+}
+
+/**
  * Fisher-Yates with an injectable source of randomness.
  */
 function shuffled<T>(items: T[], random: () => number): T[] {

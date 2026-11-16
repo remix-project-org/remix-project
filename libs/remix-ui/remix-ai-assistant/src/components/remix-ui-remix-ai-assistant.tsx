@@ -7,7 +7,7 @@ import '../css/remix-ai-assistant.css'
 import { ChatCommandParser, GenerationParams, ChatHistory, HandleStreamResponse, AIModel, ANONYMOUS_FALLBACK_MODELS, remixAILogger, modelKey, parseModelKey, findModel, applyByokKeyPolicy, BYOK_API_KEY_SETTINGS, modelTransportProvider, onApiKeysChange, isAutoModelId, isCheapModel, modelSupportsVision, describeCaptureError, type ChatAttachment, type ModelTransport } from '@remix/remix-ai-core'
 import { ToolApprovalRequest, ApiKeyErrorEvent, SCREEN_CAPTURE_SETTING, type ApprovalScope, AIFileChange, AIFileChangeRecord, type ToolStep } from '@remix/remix-ai-core'
 import { ScreenCaptureConsentCard } from './ScreenCaptureConsentCard'
-import { isFrontierModelId } from '@remix/remix-ai-core/model-tiers'
+import { isFrontierModelId, isHighCostModelId, isSubstituteModel } from '@remix/remix-ai-core/model-tiers'
 import { HandleOpenAICompatibleResponse, HandleOllamaResponse } from '@remix/remix-ai-core'
 //@ts-ignore
 import '../css/color.css'
@@ -136,6 +136,9 @@ const OLLAMA_NOT_AVAILABLE_MESSAGE = [
 const THINKING_MIN_VISIBLE_MS = 2000
 // Stable empty set so the memoized changes panel does not re-render for nothing
 const NO_STALE_KEYS = new Set<string>()
+
+/** Chat notices raised by this component rather than read from assistantState. */
+const LOCAL_CHAT_NOTICE_CODES = new Set(['MODEL_SUBSTITUTED', 'AUDIT_MODEL_HINT'])
 // Characters of answer text kept to place a file change in the answer
 const CHANGE_ANCHOR_LENGTH = 40
 // Names an editor diff side after its content: the editor reuses a model with the same name without updating it
@@ -1126,7 +1129,26 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
 
     const handleModelUsed = (data: { model: string; threadId?: string }) => {
       if (isStoppedRef.current) return
-      if (!isAutoModelId(selectedModelRef.current?.id)) return
+      const selected = selectedModelRef.current
+      if (!isAutoModelId(selected?.id)) {
+        // A concrete pick that OpenRouter served with a fallback model. The
+        // user is billed for the model that answered, so they must see it.
+        const served = data?.model
+        if (!selected || modelTransportProvider(selected) !== 'openrouter' || !isSubstituteModel(selected.id, served)) return
+        setRunModel(served)
+        runModelRef.current = served
+        const premium = isHighCostModelId(served)
+        setChatNotice({
+          severity: premium ? 'warning' : 'info',
+          code: 'MODEL_SUBSTITUTED',
+          title: `${selected.displayName} was unavailable`,
+          message: premium
+            ? `This answer was served by ${served}, a premium model that consumes more credits. Stop the request if you do not want to continue on it.`
+            : `This answer was served by ${served} instead.`,
+          actionable: false
+        })
+        return
+      }
       setRunModel(data?.model || null)
       // Track it on the ref from the event, not the render, so a QuickDapp run
       // that started first sees the model immediately.
@@ -1327,7 +1349,10 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
     const refreshChatNotice = async () => {
       try {
         const notice = await props.plugin.call('assistantState' as any, 'getChatNotice')
-        setChatNotice(notice ?? null)
+        // Notices raised here in the chat (not by assistantState) survive a
+        // refresh that has nothing to say — a credits update after every
+        // answer used to wipe the "served by another model" warning at once.
+        setChatNotice(prev => notice ?? (prev && LOCAL_CHAT_NOTICE_CODES.has(prev.code) ? prev : null))
       } catch { /* assistantState not active — ignore */ }
     }
     // Refresh the model catalogue from the assistantState plugin. Same
@@ -3536,7 +3561,7 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
               <div
                 className="rai-run-model"
                 data-id="remix-ai-run-model"
-                title={`Auto selected ${runModel} for this answer`}
+                title={isAutoModelId(selectedModel?.id) ? `Auto selected ${runModel} for this answer` : `${selectedModel?.displayName} was unavailable — ${runModel} answered instead`}
               >
                 <img
                   src={themeTracker?.name.toLowerCase() === 'dark' ? assistantAvatar : assitantAvatarLight}
