@@ -281,7 +281,7 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
   const menuRef = useRef<any>()
   const [ollamaModels, setOllamaModels] = useState<{ name: string; supported: boolean }[]>([])
   const [selectedModel, setSelectedModel] = useState<AIModel | null>(null)
-const selectedModelDegradedDetail = selectedModel
+  const selectedModelDegradedDetail = selectedModel
     ? Object.values(degradedModels).find(entry => entry.modelId === selectedModel.id)?.detail
     : undefined
   // Set when a starter credit pack is confirmed; cleared once the switch to a
@@ -3710,7 +3710,7 @@ const selectedModelDegradedDetail = selectedModel
                       />
                     </div>
                     {autoAcceptBannerEl}
-                    </div>
+                  </div>
                 ) : props.showHistorySidebar && props.isMaximized === false && props.conversations ? (
                   <div className="d-flex flex-column flex-grow-1 ai-history-view-bg nonMaximizedMode" style={{ overflow: 'hidden', minHeight: 0 }} data-theme={themeTracker && themeTracker?.name.toLowerCase()}>
                     {/* The archived list has its own back row, to the chat history */}
@@ -3740,7 +3740,7 @@ const selectedModelDegradedDetail = selectedModel
                       />
                     </div>
                     {autoAcceptBannerEl}
-                    </div>
+                  </div>
                 ) : (
                   /* Show chat area when sidebar is closed */
                   <div className={`d-flex flex-column flex-grow-1 sideBarIsClosed ${messages.length === 0 ? '' : 'ai-chat-area-flat'}`} style={{ overflow: 'hidden', minHeight: 0 }} data-theme={themeTracker && themeTracker?.name.toLowerCase()}>
@@ -3790,7 +3790,7 @@ const selectedModelDegradedDetail = selectedModel
                     </section>
                     {renderApprovalDock(handleReviewChanges)}
                     {autoAcceptBannerEl}
-                    </div>
+                  </div>
                 )
               )}
             </div>
