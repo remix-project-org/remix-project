@@ -67,7 +67,10 @@ export const PublishToStorage = (props: RemixUiPublishToStorageProps) => {
                 <br></br>
                 <FormattedMessage id="publishToStorage.title4.message9" />
               </div>,
-              async () => await ipfs(contract, api)
+              () => {
+                handleHideModal()
+                ipfs(contract, api)
+              }
             )
           } else {
             await ipfs(contract, api)
