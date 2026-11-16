@@ -1,6 +1,7 @@
 import { ModelSelection } from '../../../types/deepagent'
 import { AIModel, isAutoModelId, modelTransportProvider } from '../../../types/models'
 import { getModelCatalog } from '../modelParams'
+import { isHighCostModelId } from '../../../helpers/modelTiers'
 
 export const OPENROUTER_BACKSTOP_MODELS = [
   '~z-ai/glm-latest',
@@ -73,6 +74,7 @@ function isRoutableFallback(candidate: AIModel, targetId: string): boolean {
   // are falling back *from*, so they buy nothing.
   if (candidate.available === false) return false
   if (candidate.requireAPIKey) return false
+  if (isHighCostModelId(candidate.id)) return false
   return true
 }
 
