@@ -1468,7 +1468,9 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
           isClick: false
         })
       }
-      if (hitlAutoAcceptRef.current && request.category !== 'screen_capture') {
+      // Nor a deletion: auto-accept was switched on to stop confirming edits,
+      // not to let the agent wipe folders unseen.
+      if (hitlAutoAcceptRef.current && request.category !== 'screen_capture' && request.category !== 'file_delete') {
         try {
           ;(props.plugin as any).respondToToolApproval({
             requestId: request.requestId,

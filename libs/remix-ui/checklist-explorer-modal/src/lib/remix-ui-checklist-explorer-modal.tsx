@@ -6,6 +6,8 @@ import {
   categoryFileToken,
   deriveContractName,
   computeLoadedCategories,
+  latestRunFolder,
+  unfinishedRunProgress,
   AuditMatch,
   AuditMatchResult
 } from '@remix/remix-ai-core/audit-taxonomy'
@@ -84,7 +86,13 @@ export function RemixUiChecklistExplorerModal(props: RemixUiChecklistExplorerMod
    * dispatches into the current closure.
    */
   const [modelChoices, setModelChoices] = useState<any[]>([])
-  const [pendingAudit, setPendingAudit] = useState<'new' | 'existing' | null>(null)
+  const [pendingAudit, setPendingAudit] = useState<'new' | 'existing' | 'resume' | null>(null)
+  /**
+   * The contract's latest audit run, when it stopped before writing summary.md.
+   * Offered as "Resume" so a restart continues where it stopped instead of
+   * redoing (and re-paying for) every checklist already reported.
+   */
+  const [unfinishedRun, setUnfinishedRun] = useState<{ run: string; reportsDone: number } | null>(null)
   const [switchingModel, setSwitchingModel] = useState<boolean>(false)
   const [saving, setSaving] = useState<boolean>(false)
   // AI match. `aiMatchedPaths` is a provenance overlay on selectedCategories,
@@ -389,6 +397,20 @@ export function RemixUiChecklistExplorerModal(props: RemixUiChecklistExplorerMod
     return () => { cancelled = true }
   }, [isOpen, checklistData, contractDir])
 
+  useEffect(() => {
+    setUnfinishedRun(null)
+    if (!isOpen || !isAuditMode || !contractName) return
+    let cancelled = false
+    const reportsDir = `audit_reports/${contractName}`
+    ;(async () => {
+      const run = latestRunFolder(await fetchExistingChecklistFiles(reportsDir))
+      if (!run) return
+      const progress = unfinishedRunProgress(await fetchExistingChecklistFiles(`${reportsDir}/${run}`))
+      if (!cancelled && progress) setUnfinishedRun({ run, reportsDone: progress.reportsDone })
+    })()
+    return () => { cancelled = true }
+  }, [isOpen, isAuditMode, contractName])
+
   const toggleCategory = (categoryPath: string) => {
     setSelectedCategories(prev => {
       const next = new Set(prev)
@@ -523,7 +545,7 @@ export function RemixUiChecklistExplorerModal(props: RemixUiChecklistExplorerMod
   }
 
   /** Both audit launch paths funnel through here so neither can skip the prompt. */
-  const gateAudit = async (which: 'new' | 'existing', launch: () => void | Promise<void>) => {
+  const gateAudit = async (which: 'new' | 'existing' | 'resume', launch: () => void | Promise<void>) => {
     const choices = await loadAuditModelChoices()
     if (!choices.length) {
       await launch()
@@ -570,6 +592,7 @@ export function RemixUiChecklistExplorerModal(props: RemixUiChecklistExplorerMod
     setSwitchingModel(false)
     if (which === 'new') await handleConfirmChecklist()
     else if (which === 'existing') await runAuditExisting()
+    else if (which === 'resume') await runAuditResume()
   }
 
   const handleLoadSelected = () => {
@@ -595,12 +618,13 @@ export function RemixUiChecklistExplorerModal(props: RemixUiChecklistExplorerMod
     return `run-${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}-${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}`
   }
 
-  const auditInstruction = (checklistLabels: string, runId: string): string =>
-    `Use the Comprehensive_Auditor subagent to audit this contract, passing it these values verbatim:\n`
+  const auditInstruction = (checklistLabels: string, runId: string, resume = false): string =>
+    `Use the Comprehensive_Auditor subagent to ${resume ? 'continue the interrupted audit of' : 'audit'} this contract, passing it these values verbatim:\n`
     + `\nCONTRACT: ${contractName}\n`
     + `\nFILE: ${matchTarget}\n`
     + `\nCHECKLISTS: ${contractDir}/ (${checklistLabels})\n`
     + `\nRUN: ${runId}`
+    + (resume ? `\n\nRESUME: yes` : '')
 
   const handleConfirmChecklist = async () => {
     if (!plugin) {
@@ -778,7 +802,7 @@ export function RemixUiChecklistExplorerModal(props: RemixUiChecklistExplorerMod
    * The compile runs here rather than in either caller so neither audit path
    * can start without it.
    */
-  const startAudit = async (instruction: string) => {
+  const startAudit = async (instruction: string, verb = 'Auditing') => {
     onClose()
 
     // The modal is already gone, so the chat is the only place left to say
@@ -805,7 +829,7 @@ export function RemixUiChecklistExplorerModal(props: RemixUiChecklistExplorerMod
       await plugin?.call('remixaiassistant', 'chatPipe', finalInstruction, false, {
         source: 'checklist-explorer',
         presetId: 'audit-contract',
-        displayText: `Auditing \`${contractName}\` (${matchTarget}) with ${auditScopeLabels.length} checklist${auditScopeLabels.length === 1 ? '' : 's'} (${auditScopeLabels.join(', ')})...`
+        displayText: `${verb} \`${contractName}\` (${matchTarget}) with ${auditScopeLabels.length} checklist${auditScopeLabels.length === 1 ? '' : 's'} (${auditScopeLabels.join(', ')})...`
       })
     } catch (e) {
       // assistant plugin unavailable — modal is already closed
@@ -843,6 +867,27 @@ export function RemixUiChecklistExplorerModal(props: RemixUiChecklistExplorerMod
     }
 
     await startAudit(auditInstruction(auditScopeLabels.join(', '), newRunId()))
+  }
+
+  /**
+   * Continue the contract's interrupted run in its own folder: the auditor
+   * skips every checklist that already has a report and writes the rest.
+   */
+  const runAuditResume = async () => {
+    if (!plugin || !contractDir || !unfinishedRun) return
+    trackMatomoEvent(plugin, {
+      category: 'ai',
+      action: 'remixAI',
+      name: 'audit_resume_run',
+      value: `${unfinishedRun.reportsDone}/${auditScopePaths.length}`,
+      isClick: true
+    })
+    try {
+      await plugin.call('remixaiassistant', 'handleExternalMessage', `Resuming \`${unfinishedRun.run}\` for \`${contractName}\` — ${unfinishedRun.reportsDone} of ${auditScopePaths.length} checklist report${auditScopePaths.length === 1 ? '' : 's'} already written; only the rest will be audited.`)
+    } catch (e) {
+      // assistant panel unavailable — still hand off below
+    }
+    await startAudit(auditInstruction(auditScopeLabels.join(', '), unfinishedRun.run, true), 'Resuming the audit of')
   }
 
   const handleBack = () => {
@@ -1122,6 +1167,17 @@ export function RemixUiChecklistExplorerModal(props: RemixUiChecklistExplorerMod
                           <i className="fa-solid fa-shield-halved me-1"></i>
                           Audit with these {auditScopePaths.length} checklist{auditScopePaths.length === 1 ? '' : 's'}
                         </button>
+                        {unfinishedRun && (
+                          <button
+                            data-id="checklist-explorer-audit-resume"
+                            className="btn btn-sm btn-outline-primary text-nowrap"
+                            onClick={() => void gateAudit('resume', runAuditResume)}
+                            title={`Continue audit_reports/${contractName}/${unfinishedRun.run}/ — the checklists already reported there are skipped`}
+                          >
+                            <i className="fa-solid fa-rotate-right me-1"></i>
+                            Resume {unfinishedRun.run} ({unfinishedRun.reportsDone}/{auditScopePaths.length} done)
+                          </button>
+                        )}
                       </>
                     )}
                   </div>
