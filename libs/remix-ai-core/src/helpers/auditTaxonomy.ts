@@ -327,6 +327,29 @@ export function computeLoadedCategories(data: AuditChecklistNode[] | undefined, 
 }
 
 /* -------------------------------------------------------------------------- */
+/* Interrupted audit runs                                                     */
+/*                                                                            */
+/* A run writes audit_reports/<Contract>/<run-…>/<checklist>_security_audit_  */
+/* report.md per checklist and summary.md last, so a run folder without       */
+/* summary.md is one that stopped part-way and can be resumed.                */
+/* -------------------------------------------------------------------------- */
+
+const baseName = (entry: string): string => entry.split('/').filter(Boolean).pop() ?? entry
+
+/** The newest `run-YYYY-MM-DD-HHMMSS` folder in a listing (names sort by time), or null. */
+export function latestRunFolder(entries: string[]): string | null {
+  const runs = entries.map(baseName).filter(name => /^run-\d{4}-\d{2}-\d{2}-\d{6}$/.test(name)).sort()
+  return runs.length ? runs[runs.length - 1] : null
+}
+
+/** How far an unfinished run got (reports written), or null when it finished. */
+export function unfinishedRunProgress(runFiles: string[]): { reportsDone: number } | null {
+  const names = runFiles.map(baseName)
+  if (names.includes('summary.md')) return null
+  return { reportsDone: names.filter(name => name.endsWith('_security_audit_report.md')).length }
+}
+
+/* -------------------------------------------------------------------------- */
 /* Audience variants for a finished audit report                              */
 /* -------------------------------------------------------------------------- */
 
