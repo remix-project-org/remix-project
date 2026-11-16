@@ -32,7 +32,8 @@ export class RemixEngine extends Engine {
     if (name === 'filePanel') return { queueTimeout: 60000 * 20 }
     if (name === 'fileManager') return { queueTimeout: 60000 * 20 }
     if (name === 'remixAID') return { queueTimeout: 60000 * 20 }
-    if (name === 'remixAI') return { queueTimeout: 60000 * 20 }
+    // An agent run (an audit with approvals) can outlast 20 min; the agent's own inactivity guard handles real stalls
+    if (name === 'remixAI') return { queueTimeout: 60000 * 120 }
     if (name === 'cookbookdev') return { queueTimeout: 60000 * 3 }
     if (name === 'contentImport') return { queueTimeout: 60000 * 3 }
     if (name === 'resolutionIndex') return { queueTimeout: 60000 * 2 }
