@@ -523,10 +523,10 @@
   align-items: center;
   justify-content: space-between;
   gap: 1rem;
-  position: sticky;
-  bottom: 0;
-  padding: 1rem 0;
+  flex-shrink: 0;
+  padding: 0.75rem 1.25rem;
   border-top: 1px solid var(--bs-border-color);
+  margin-top: auto;
 }
 
 /* ========== Top cards ========== */
