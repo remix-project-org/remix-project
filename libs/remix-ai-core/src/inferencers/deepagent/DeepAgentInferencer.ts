@@ -81,6 +81,7 @@ export class DeepAgentInferencer implements ICompletions, IGeneration {
   private tools: DynamicStructuredTool[] = []
   private approvalGate: ToolApprovalGate | undefined
   private currentAbortController: AbortController | null = null
+  private activeRun: Promise<void> | null = null
   private quickDappLock: QuickDappWorkspaceLock | undefined
   /** Model-independent agent pieces, built once and reused across model swaps. */
   private checkpointer: IndexedDBCheckpointSaver | null = null
@@ -729,9 +730,19 @@ export class DeepAgentInferencer implements ICompletions, IGeneration {
       }
     })
     let fullResponse = ''
+    let finishRun: () => void = () => {}
+    const runFinished = new Promise<void>(resolve => { finishRun = resolve })
+    this.activeRun = runFinished
 
     const runTimeoutMs = this.config.timeout
     const stallTimeout = new InactivityTimeoutManager(runTimeoutMs, () => {
+      // A run parked on the user's Allow/Reject is waiting, not stalled.
+      // Aborting it here turned a slow reviewer into a "random" stop and
+      // settled their pending approval as a rejection.
+      if (this.hasPendingApprovals()) {
+        stallTimeout.reset()
+        return
+      }
       remixAILogger.warn(`[DeepAgentInferencer] no stream activity for ${runTimeoutMs}ms — aborting`)
       localAbortController.abort(new DOMException(`Agent run stalled: no activity for ${runTimeoutMs}ms.`, 'TimeoutError'))
     })
@@ -1014,10 +1025,19 @@ export class DeepAgentInferencer implements ICompletions, IGeneration {
       // per tick, so the tail of this run's trace needs an explicit push.
       void flushLangfuse()
       this.streamEventHandler.stopInactivityTracking()
+      const stillCurrent = !this.currentAbortController || thisRunControllers.has(this.currentAbortController)
+      // A run that died any other way (timeout, transport abort) used to leave
+      // its approval waiters pending, with the card still on screen and no run
+      // left to act on the answer.
+      if (stillCurrent && Array.from(thisRunControllers).some(c => c.signal.aborted)) {
+        this.cancelPendingApprovals()
+      }
       // Only null out if still one of this run's controllers (a new request might have started)
       if (this.currentAbortController && thisRunControllers.has(this.currentAbortController)) {
         this.currentAbortController = null
       }
+      if (this.activeRun === runFinished) this.activeRun = null
+      finishRun()
       if (runLock) {
         const lock = runLock
         finishQuickDappWorkspaceLock(lock, () => {
@@ -1395,22 +1415,49 @@ export class DeepAgentInferencer implements ICompletions, IGeneration {
     } catch (_) { /* best-effort cleanup */ }
   }
 
-  /** Settle every HITL approval still waiting on the user (see cancelRequest). */
-  private cancelPendingApprovals(): void {
+  /**
+   * Settle every HITL approval still waiting on the user as *cancelled* (not
+   * rejected), and tell the UI which cards no longer have anyone listening.
+   */
+  cancelPendingApprovals(): void {
+    const requestIds: string[] = []
     try {
-      this.approvalGate?.cancelPendingApprovals()
+      requestIds.push(...(this.approvalGate?.cancelPendingApprovals() ?? []))
     } catch (e) {
       remixAILogger.warn('[DeepAgentInferencer] approvalGate.cancelPendingApprovals failed', e)
     }
     try {
-      ;(this.filesystemBackend as any)?.cancelPendingApprovals?.()
+      requestIds.push(...(this.filesystemBackend?.cancelPendingApprovals() ?? []))
     } catch (e) {
       remixAILogger.warn('[DeepAgentInferencer] filesystemBackend.cancelPendingApprovals failed', e)
     }
+    if (requestIds.length > 0) {
+      this.event.emit('onToolApprovalCancelled', { requestIds, threadId: this.sessionThreadId })
+    }
+  }
+
+  hasPendingApprovals(): boolean {
+    return !!(this.approvalGate?.hasPendingApprovals() || this.filesystemBackend?.hasPendingApprovals())
+  }
+
+  /** True while runAgent is executing, including its error/retry handling. */
+  isRunning(): boolean {
+    return this.activeRun !== null
+  }
+
+  /** Resolves when the current run (if any) has fully finished. */
+  whenIdle(): Promise<void> {
+    return this.activeRun ?? Promise.resolve()
   }
 
   async close(): Promise<void> {
     this.__closed = true
+    // Nothing can answer this instance's approvals any more (responses go to
+    // the new inferencer), so its run must not carry on with them settled.
+    if (this.currentAbortController) {
+      this.currentAbortController.abort(new DOMException('The agent was rebuilt.', 'AbortError'))
+      this.currentAbortController = null
+    }
     // A close() racing an in-flight run (cancelRequest → reinitialize) must not
     // leave approval waiters pending — they would keep answer() alive forever.
     this.cancelPendingApprovals()

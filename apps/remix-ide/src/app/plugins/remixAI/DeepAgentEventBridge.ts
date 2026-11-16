@@ -35,6 +35,7 @@ export class DeepAgentEventBridge {
     'onTodoError',
     'onApiError',
     'onToolApprovalRequired',
+    'onToolApprovalCancelled',
     'onAIFileChanged',
     'onTokenUsage',
     'onModelUsed',
@@ -152,6 +153,12 @@ export class DeepAgentEventBridge {
     eventEmitter.on('onToolApprovalRequired', (request: ToolApprovalRequest) => {
       remixAILogger.log('[Bridge] onToolApprovalRequired', request.toolName, request.requestId)
       plugin.emit('onToolApprovalRequired', request)
+    })
+
+    // Approvals settled without the user (run stopped, agent rebuilt): drop their cards
+    eventEmitter.on('onToolApprovalCancelled', (data: { requestIds: string[]; threadId?: string }) => {
+      remixAILogger.log('[Bridge] onToolApprovalCancelled', data?.requestIds)
+      plugin.emit('onToolApprovalCancelled', data)
     })
 
     // Files the agent has actually written, for the AI mode changes panel

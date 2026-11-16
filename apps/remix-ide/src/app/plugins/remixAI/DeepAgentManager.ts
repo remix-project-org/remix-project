@@ -18,6 +18,9 @@ export class DeepAgentManager {
   // dispatch can await the rebuilt inferencer instead of racing the
   // about-to-be-replaced one.
   private reinitPromise: Promise<void> | null = null
+  // A background rebuild waiting for the current run to finish (see reinitialize).
+  private deferredReinit: Promise<void> | null = null
+  private enablePromise: Promise<void> | null = null
   private pendingHistoryMessages: Array<{ role: 'user' | 'assistant'; content: string }> | null = null
 
   constructor(deps: DeepAgentManagerDeps) {
@@ -32,6 +35,11 @@ export class DeepAgentManager {
    * about-to-be-replaced inferencer.
    */
   async awaitReady(): Promise<void> {
+    if (this.deferredReinit) {
+      try {
+        await this.deferredReinit
+      } catch { /* logged by reinitialize() */ }
+    }
     if (this.reinitPromise) {
       try {
         await this.reinitPromise
@@ -66,7 +74,20 @@ export class DeepAgentManager {
     return best
   }
 
+  /**
+   * Concurrent calls share one build. applyDefaultFromState() runs on every
+   * assistantState change, so after login two calls could both see "no agent",
+   * and the slower one (it waits for the MCP servers) replaced the agent the
+   * first had already started a run on — orphaning its pending approvals.
+   */
   async enable(): Promise<void> {
+    if (!this.enablePromise) {
+      this.enablePromise = this.doEnable().finally(() => { this.enablePromise = null })
+    }
+    return this.enablePromise
+  }
+
+  private async doEnable(): Promise<void> {
     const plugin = this.deps.plugin
 
     try {
@@ -79,6 +100,13 @@ export class DeepAgentManager {
       // Ensure MCP servers are fully ready before creating DeepAgent
       if (plugin.mcpInferencer) {
         await this.deps.mcpManager.waitForServersReady()
+      }
+
+      // An agent built and put to work while we waited is never swapped out
+      // from under its run; reinitialize() rebuilds it once the run is done.
+      if (plugin.deepAgentInferencer?.isRunning()) {
+        remixAILogger.log('[DeepAgentManager] enable: an agent is already running — rebuilding after its run instead')
+        return this.reinitialize()
       }
 
       // Create or reinitialize DeepAgentInferencer
@@ -153,6 +181,8 @@ export class DeepAgentManager {
     remixAILogger.log('[RemixAI Plugin] Disabling DeepAgent...')
 
     if (plugin.deepAgentInferencer) {
+      // Settle approvals while the bridge still relays, so their cards go too.
+      plugin.deepAgentInferencer.cancelPendingApprovals()
       this.deps.eventBridge.teardownListeners(plugin.deepAgentInferencer)
       await plugin.deepAgentInferencer.close()
     }
@@ -209,7 +239,8 @@ export class DeepAgentManager {
       // Stash history on the manager so doReinitialize() seeds it onto the
       // final inferencer regardless of how many rebuilds queue behind us.
       this.pendingHistoryMessages = historyMessages && historyMessages.length > 0 ? historyMessages : null
-      await this.reinitialize()
+      // The run was just aborted but may still be unwinding — don't wait for it.
+      await this.reinitialize({ force: true })
     }
   }
 
@@ -246,8 +277,28 @@ export class DeepAgentManager {
 
   /**
    * Reinitialize DeepAgent with current settings.
+   *
+   * Rebuilding closes the current inferencer, which kills its run and every
+   * approval it is waiting on. Background triggers (API keys, MCP refresh,
+   * auth) used to do that in the middle of an audit, so unless `force` is set
+   * the rebuild waits for the run to finish. The next turn still gates on it
+   * through awaitReady().
    */
-  async reinitialize(): Promise<void> {
+  async reinitialize(options: { force?: boolean } = {}): Promise<void> {
+    const inferencer = this.deps.plugin.deepAgentInferencer
+    if (!options.force && inferencer?.isRunning()) {
+      if (!this.deferredReinit) {
+        remixAILogger.log('[DeepAgentManager] run in flight — deferring reinitialize until it finishes')
+        this.deferredReinit = inferencer.whenIdle().then(() => {
+          this.deferredReinit = null
+          // A forced rebuild (Stop) may already have replaced it with one built from current settings.
+          if (this.deps.plugin.deepAgentInferencer === inferencer) return this.reinitialize()
+        })
+      }
+      // Callers that await (the MCP refresh) must not tear down what the
+      // running agent still uses before the rebuild has happened.
+      return this.deferredReinit
+    }
     const run = (this.reinitPromise ?? Promise.resolve())
       .catch(() => {}) // never let a prior failure break the chain
       .then(() => this.doReinitialize())
@@ -274,6 +325,8 @@ export class DeepAgentManager {
 
         // Clean up old instance first
         if (plugin.deepAgentInferencer) {
+          // Settle approvals while the bridge still relays, so their cards go too.
+          plugin.deepAgentInferencer.cancelPendingApprovals()
           this.deps.eventBridge.teardownListeners(plugin.deepAgentInferencer)
           await plugin.deepAgentInferencer.close()
         }
