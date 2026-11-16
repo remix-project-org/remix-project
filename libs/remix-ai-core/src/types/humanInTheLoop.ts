@@ -72,6 +72,12 @@ export interface AIFileChangeRecord extends AIFileChange {
 }
 
 export type ToolRisk = 'low' | 'medium' | 'high'
+/**
+ * What the model is told when its run stopped before the user answered. Kept
+ * apart from REJECTED: the user said nothing, so this must not read as a "no".
+ */
+export const APPROVAL_CANCELLED_REASON = 'CANCELLED: The run stopped before the user answered this approval request, so the operation was NOT performed. This is not a rejection by the user — if the work is still needed, it can be requested again in a new turn.'
+
 export type ToolApprovalPolicy = 'always_ask' | 'ask_risky' | 'auto_approve'
 export type ApprovalScope = 'once' | 'session' | 'always' | 'deny'
 

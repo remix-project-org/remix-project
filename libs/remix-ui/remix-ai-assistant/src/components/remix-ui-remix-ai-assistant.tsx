@@ -1432,6 +1432,20 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
     }
     props.plugin.on('remixAI', 'onToolApprovalRequired', handleToolApproval)
 
+    // The agent settled these without the user (its run stopped or it was
+    // rebuilt). An Allow clicked on one of them would reach no-one.
+    const handleToolApprovalCancelled = (data: { requestIds: string[] }) => {
+      const cancelled = new Set(data?.requestIds || [])
+      if (cancelled.size === 0) return
+      remixAILogger.log('[Assistant UI] approvals cancelled by the agent', Array.from(cancelled))
+      setPendingApprovals(prev => prev.filter(approval => !cancelled.has(approval.requestId)))
+      setReviewingApprovals(prev => new Set(Array.from(prev).filter(id => !cancelled.has(id))))
+      if (pendingDiffApprovalRef.current && cancelled.has(pendingDiffApprovalRef.current.requestId)) {
+        pendingDiffApprovalRef.current = null
+      }
+    }
+    props.plugin.on('remixAI', 'onToolApprovalCancelled', handleToolApprovalCancelled)
+
     // DApp update review: listen for post-update file changes
     const handleDappUpdateCompleted = (data: { slug: string; files: Record<string, string>; backups: Record<string, string> }) => {
       remixAILogger.log('[DAppReview] Update completed for:', data.slug, '- files:', Object.keys(data.files).length)
@@ -1578,6 +1592,7 @@ export const RemixUiRemixAiAssistant = React.forwardRef<
       props.plugin.off('remixAI', 'onAgentError')
       props.plugin.off('remixAI', 'onApiError')
       props.plugin.off('remixAI', 'onToolApprovalRequired')
+      props.plugin.off('remixAI', 'onToolApprovalCancelled')
       props.plugin.off('remixAI', 'onDappUpdateCompleted')
       props.plugin.off('remixAI', 'renderUI')
       props.plugin.off('remixAI', 'aiScreenshotCaptured')
