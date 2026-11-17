@@ -114,13 +114,14 @@ export function RemixUiChecklistExplorerModal(props: RemixUiChecklistExplorerMod
    */
   const [highlightTarget, setHighlightTarget] = useState<boolean>(false)
   const [contractNamesByFile, setContractNamesByFile] = useState<Record<string, string[]>>({})
+  const [existingAuditFolders, setExistingAuditFolders] = useState<string[]>([])
   const [currentSolFile, setCurrentSolFile] = useState<string>('')
   const containerRef = useRef<HTMLDivElement>(null)
   const matchRunId = useRef(0)
 
   // The contract the checklists are saved against: it names the folder, so every
   // save path and every "already saved" lookup is scoped through it.
-  const contractName = deriveContractName(matchTarget, contractNamesByFile)
+  const contractName = deriveContractName(matchTarget, contractNamesByFile, existingAuditFolders)
   const contractDir = contractName ? `audits/${contractName}` : ''
   /** Basename of the picked file — what the audit button names. */
   const selectedFileName = matchTarget ? (matchTarget.split('/').pop() ?? matchTarget) : ''
@@ -354,6 +355,9 @@ export function RemixUiChecklistExplorerModal(props: RemixUiChecklistExplorerMod
       setMatchError(null)
       setAiMatchedPaths(new Map())
       setMatchSummary(null)
+
+      Promise.all([fetchExistingChecklistFiles('audits'), fetchExistingChecklistFiles('audit_reports')])
+        .then(([checklistFolders, reportFolders]) => setExistingAuditFolders([...checklistFolders, ...reportFolders]))
 
       resolveSolCandidates().then(({ candidates, namesByFile, currentFile }) => {
         setSolCandidates(candidates)
