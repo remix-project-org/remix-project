@@ -1,6 +1,7 @@
 'use strict'
 import { SymbolicStackSlot } from './symbolicStack'
 import getOpcodes from '../code/opcodes'
+import { monadOpcodeByName } from '../code/monadOpcodes'
 
 /**
  * Opcode metadata including stack effects
@@ -47,6 +48,9 @@ const OPCODE_NAME_TO_BYTECODE: { [name: string]: number } = {
  * @returns Opcode information including pops and pushes
  */
 export function getOpcodeInfo(opcodeName: string): OpcodeInfo {
+  const monadOpcode = monadOpcodeByName(opcodeName)
+  if (monadOpcode) return monadOpcode
+
   // Handle PUSH opcodes
   if (opcodeName.startsWith('PUSH')) {
     const num = parseInt(opcodeName.slice(4))

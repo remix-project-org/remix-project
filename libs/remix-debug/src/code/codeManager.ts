@@ -25,6 +25,8 @@ export class CodeManager {
     this.traceManager = _traceManager
     this.codeResolver = new CodeResolver({
       getCode: async (address) => {
+        const recorded = this.traceManager.monadCodeByAddress?.[address.toLowerCase()]
+        if (recorded !== undefined) return recorded
         return new Promise((resolve, reject) => {
           this.traceManager.web3.getCode(address)
             .then(code => resolve(code))

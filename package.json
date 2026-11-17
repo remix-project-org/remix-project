@@ -228,6 +228,7 @@
     "latest-version": "^5.1.0",
     "lunr": "^2.3.9",
     "merge": "^2.1.1",
+    "monad-evm2js": "https://github.com/category-labs/monad-alloy-evm2.git#d8364f6dbc201bad0f6cffa314a901a7b0e591e2",
     "npm-install-version": "^6.0.2",
     "octokit": "^5.0.5",
     "path-browserify": "^1.0.1",

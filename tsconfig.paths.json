@@ -16,6 +16,9 @@
             "@remix-project/remix-lib": [
               "libs/remix-lib/src/index.ts"
             ],
+            "@remix-project/remix-monad": [
+              "libs/remix-monad/src/index.ts"
+            ],
             "@remix-project/remix-niks": [
               "libs/remix-niks/src/index.ts"
             ],

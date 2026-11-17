@@ -3,10 +3,16 @@ import { util } from '@remix-project/remix-lib'
 import { Common, Mainnet } from '@ethereumjs/common'
 import { getOpcodesForHF, paramsEVM } from '@ethereumjs/evm'
 import getOpcodes from './opcodes'
+import { monadOpcodeAt, MONAD_OPCODE_BASE_HARDFORKS } from './monadOpcodes'
+
+function getOpcodeTable (hardfork: string) {
+  const opcodeBaseHardfork = MONAD_OPCODE_BASE_HARDFORKS.get(hardfork) ?? hardfork
+  const common = new Common({ chain: Mainnet, hardfork: opcodeBaseHardfork, params: paramsEVM })
+  return getOpcodesForHF(common).opcodes
+}
 
 export function nameOpCodes (raw, hardfork) {
-  const common = new Common({ chain: Mainnet, hardfork, params: paramsEVM })
-  const opcodes = getOpcodesForHF(common).opcodes
+  const opcodes = getOpcodeTable(hardfork)
 
   let pushData = ''
   const codeMap = {}
@@ -15,12 +21,14 @@ export function nameOpCodes (raw, hardfork) {
   for (let i = 0; i < raw.length; i++) {
     const pc = i
     let curOpCode
+    const extension = monadOpcodeAt(raw, pc, hardfork)
     try {
-      curOpCode = opcodes.get(raw[pc]).fullName
+      curOpCode = extension ? extension.name : opcodes.get(raw[pc]).fullName
     } catch (e) {
       curOpCode = 'INVALID'
     }
     codeMap[i] = code.length
+    if (extension) i++
     // no destinations into the middle of PUSH
     if (curOpCode.slice(0, 4) === 'PUSH') {
       const jumpNum = raw[pc] - 0x5f
@@ -47,12 +55,17 @@ type Opcode = {
  * Parses code as a list of integers into a list of objects containing
  * information about the opcode.
  */
-export function parseCode (raw) {
-  const common = new Common({ chain: Mainnet, hardfork: 'osaka', params: paramsEVM })
-  const opcodes = getOpcodesForHF(common).opcodes
+export function parseCode (raw, hardfork = 'osaka') {
+  const opcodes = getOpcodeTable(hardfork)
 
   const code = []
   for (let i = 0; i < raw.length; i++) {
+    const extension = monadOpcodeAt(raw, i, hardfork)
+    if (extension) {
+      code.push(extension)
+      i++
+      continue
+    }
     const opcode: Opcode = { name: 'INVALID' }
     try {
       const code = opcodes.get(raw[i])

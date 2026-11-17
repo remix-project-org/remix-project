@@ -1,5 +1,6 @@
 /* global ethereum */
 'use strict'
+import { isMonadSpec } from '@remix-project/remix-monad'
 import { ethers, toNumber } from 'ethers'
 import { execution } from '@remix-project/remix-lib'
 import EventManager from '../lib/events'
@@ -80,6 +81,9 @@ export class ExecutionContext {
 
   async detectNetwork () {
     if (this.isVM()) {
+      if (isMonadSpec(this.currentFork)) {
+        return { id: '-', name: 'VM', networkNativeCurrency: { name: 'Monad', symbol: 'MON', decimals: 18 } }
+      }
       return { id: '-', name: 'VM' }
     } else {
       if (!provider) {
@@ -249,6 +253,9 @@ export class ExecutionContext {
   async getStateDetails() {
     const stateDb = await this.web3().remix.getStateDb()
     const blocksData = await this.web3().remix.getBlocksData()
+    if (stateDb.backend === 'monad-evm2') {
+      return JSON.stringify({ db: stateDb, blocks: [], latestBlockNumber: '0x' + blocksData.latestBlockNumber.toString(16), baseBlockNumber: '0x0' }, null, 2)
+    }
     const state = {
       db: Object.fromEntries(stateDb.db._database),
       blocks: blocksData.blocks,
