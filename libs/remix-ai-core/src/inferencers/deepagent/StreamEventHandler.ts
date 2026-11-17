@@ -322,7 +322,12 @@ export class StreamEventHandler {
     let finalMessage: string | undefined
     if (output?.messages && output.messages.length > 0) {
       const lastMessage = output.messages[output.messages.length - 1]
-      if (lastMessage.content && typeof lastMessage.content === 'string') {
+      // Only the agent's own words are an answer. When a run is stopped, the
+      // last chain to finish may end on a tool result ("Successfully wrote to
+      // …") or on the request itself, and either was shown as the reply.
+      const role = lastMessage?._getType?.() ?? lastMessage?.type ?? lastMessage?.role
+      const isAgentMessage = role === 'ai' || role === 'assistant'
+      if (isAgentMessage && lastMessage.content && typeof lastMessage.content === 'string') {
         finalMessage = lastMessage.content
       }
     }
