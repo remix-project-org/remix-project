@@ -1,0 +1,15 @@
+{
+  "name": "remix-monad",
+  "sourceRoot": "libs/remix-monad/src",
+  "projectType": "library",
+  "targets": {
+    "lint": {
+      "executor": "@nrwl/linter:eslint",
+      "options": {
+        "lintFilePatterns": [
+          "libs/remix-monad/src/**/*.ts"
+        ]
+      }
+    }
+  }
+}

@@ -45,7 +45,7 @@ import { StorageMonitorPlugin } from './app/plugins/storage-monitor'
 import { Layout } from './app/panels/layout'
 import { NotificationPlugin } from './app/plugins/notification'
 import { Blockchain } from './blockchain/blockchain'
-import { MergeVMProvider, LondonVMProvider, BerlinVMProvider, ShanghaiVMProvider, CancunVMProvider, PectraVMProvider, FusakaVMProvider } from '@remix-ui/run-tab-environment'
+import { MergeVMProvider, LondonVMProvider, BerlinVMProvider, ShanghaiVMProvider, CancunVMProvider, PectraVMProvider, FusakaVMProvider, MonadVMProvider } from '@remix-ui/run-tab-environment'
 import { MainnetForkVMProvider, SepoliaForkVMProvider, CustomForkVMProvider, HardhatProvider, GanacheProvider, FoundryProvider, ExternalHttpProvider, BaseProvider } from '@remix-ui/run-tab-environment'
 import { EnvironmentExplorer } from './app/providers/environment-explorer'
 import { FileDecorator } from './app/plugins/file-decorator'
@@ -469,6 +469,10 @@ class AppComponent {
     const vmProviderCancun = new CancunVMProvider(blockchain)
     const vmProviderPectra = new PectraVMProvider(blockchain)
     const vmProviderFusaka = new FusakaVMProvider(blockchain)
+    const vmProviderMonadEight = new MonadVMProvider(blockchain, 'monad-eight')
+    const vmProviderMonadNine = new MonadVMProvider(blockchain, 'monad-nine')
+    const vmProviderMonadTen = new MonadVMProvider(blockchain, 'monad-ten')
+    const vmProviderMonadNext = new MonadVMProvider(blockchain, 'monad-next')
     const vmProviderMerge = new MergeVMProvider(blockchain)
     const vmProviderBerlin = new BerlinVMProvider(blockchain)
     const vmProviderLondon = new LondonVMProvider(blockchain)
@@ -572,6 +576,10 @@ class AppComponent {
       vmProviderCancun,
       vmProviderPectra,
       vmProviderFusaka,
+      vmProviderMonadEight,
+      vmProviderMonadNine,
+      vmProviderMonadTen,
+      vmProviderMonadNext,
       vmProviderMerge,
       vmProviderBerlin,
       vmProviderLondon,

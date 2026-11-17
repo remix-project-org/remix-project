@@ -71,6 +71,7 @@ const RenderKnownTransactions = ({ tx, receipt, resolvedData, logs, index, plugi
       {showTableHash.includes(tx.hash)
         ? showTable(
           {
+            provider,
             'isUserOp': tx.isUserOp,
             'bundler': tx.bundler,
             'paymaster': tx.paymaster,

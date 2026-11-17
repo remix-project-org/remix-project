@@ -1,4 +1,5 @@
 import React from 'react' // eslint-disable-line
+import { isMonadProvider, formatMonadValue } from '@remix-project/remix-monad'
 import { shortenHexData } from '@remix-ui/helper'
 import { execution } from '@remix-project/remix-lib'
 const typeConversion = execution.typeConversion
@@ -32,7 +33,7 @@ const Context = ({ opts, provider }: {opts; provider: string}) => {
           </div>
           <div className="remix_ui_terminal_txItem">
             <span className="remix_ui_terminal_txItemTitle">value:</span>
-            <span className="remix_ui_terminal_txItemValue">{value} wei</span>
+            <span className="remix_ui_terminal_txItemValue">{isMonadProvider(provider) ? formatMonadValue(val || 0) : `${value} wei`}</span>
           </div>
           <div className="remix_ui_terminal_txItem">
             <span className="remix_ui_terminal_txItemTitle">data:</span>

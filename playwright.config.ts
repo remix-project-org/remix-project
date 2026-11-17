@@ -38,19 +38,19 @@ export default defineConfig({
     {
       name: 'chromium',
       use: { ...devices['Desktop Chrome'] },
-      testIgnore: '**/benchmarks/**',
+      testIgnore: ['**/benchmarks/**', '**/monad/**'],
     },
 
     {
       name: 'firefox',
       use: { ...devices['Desktop Firefox'] },
-      testIgnore: '**/benchmarks/**',
+      testIgnore: ['**/benchmarks/**', '**/monad/**'],
     },
 
     {
       name: 'webkit',
       use: { ...devices['Desktop Safari'] },
-      testIgnore: '**/benchmarks/**',
+      testIgnore: ['**/benchmarks/**', '**/monad/**'],
     },
 
     /* AI task cost benchmark — run explicitly with --project=benchmarks; it

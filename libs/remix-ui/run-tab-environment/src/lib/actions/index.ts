@@ -1,5 +1,6 @@
 /* eslint-disable @typescript-eslint/no-non-null-assertion */
 import React from "react"
+import { isMonadSpec } from '@remix-project/remix-monad'
 import { Plugin } from "@remixproject/engine"
 import { Actions, Provider, SmartAccount, WidgetState, Account } from "../types"
 import { trackMatomoEvent } from "@remix-api"
@@ -21,6 +22,11 @@ const { createSmartAccountClient } = require("permissionless") /* eslint-disable
 const { toSafeSmartAccount } = require("permissionless/accounts") /* eslint-disable-line  @typescript-eslint/no-var-requires */
 const { createPimlicoClient } = require("permissionless/clients/pimlico") /* eslint-disable-line  @typescript-eslint/no-var-requires */
 
+async function accountScope(plugin: EnvironmentPlugin): Promise<string | undefined> {
+  const provider = await plugin.call('blockchain', 'getProvider')
+  return provider?.startsWith('vm-') && isMonadSpec(await plugin.call('blockchain', 'getCurrentFork')) ? 'monad' : undefined
+}
+
 export async function resetVmState (plugin: EnvironmentPlugin, widgetState: WidgetState, dispatch: React.Dispatch<Actions>) {
   const context = widgetState.providers.selectedProvider
   const contextExists = await plugin.call('fileManager', 'exists', `.states/${context}/state.json`)
@@ -41,7 +47,7 @@ export async function resetVmState (plugin: EnvironmentPlugin, widgetState: Widg
   const isPinnedContracts = await plugin.call('fileManager', 'exists', `.deploys/pinned-contracts/${context}`)
   if (isPinnedContracts) await plugin.call('fileManager', 'remove', `.deploys/pinned-contracts/${context}`)
   // Clear account preferences (aliases and deleted accounts)
-  clearAccountPreferences()
+  clearAccountPreferences(await accountScope(plugin))
   // Refresh account list to show default names and all accounts
   await getAccountsList(plugin, dispatch)
   plugin.call('notification', 'toast', `VM state reset successfully.`)
@@ -129,6 +135,7 @@ function cleanupWalletConnectEvents (plugin: Plugin) {
 export async function getAccountsList (plugin: EnvironmentPlugin, dispatch: React.Dispatch<Actions>) {
   let accounts = await plugin.call('blockchain', 'getAccounts')
   const provider = await plugin.call('blockchain', 'getProvider')
+  const scope = await accountScope(plugin)
   let safeAddresses = []
   let storedSmartAccounts = {}
 
@@ -155,18 +162,18 @@ export async function getAccountsList (plugin: EnvironmentPlugin, dispatch: Reac
   if (!accounts) accounts = []
 
   // Filter out deleted accounts
-  accounts = accounts.filter((account: string) => !isAccountDeleted(account))
+  accounts = accounts.filter((account: string) => !isAccountDeleted(account, scope))
   const defaultAccounts = []
   const smartAccounts = []
   for (const account of accounts) {
     const balance = await plugin.blockchain.getBalanceInEther(account)
-    let alias = getAccountAlias(account)
+    let alias = getAccountAlias(account, scope)
 
     if (!alias) {
-      const accountNumber = getNextAvailableAccountNumber()
+      const accountNumber = getNextAvailableAccountNumber(scope)
 
       alias = `Account ${accountNumber}`
-      setAccountAlias(account, alias)
+      setAccountAlias(account, alias, scope)
     }
 
     if (provider.startsWith('injected') && plugin.blockchain && plugin.blockchain['networkNativeCurrency'] && plugin.blockchain['networkNativeCurrency'].symbol)
@@ -481,7 +488,7 @@ export async function deleteAccountAction (
   }
 
   // Mark account as deleted in localStorage
-  deleteAccountFromStorage(accountAddress)
+  deleteAccountFromStorage(accountAddress, await accountScope(plugin))
 
   // Refresh accounts list
   await getAccountsList(plugin, dispatch)
@@ -497,7 +504,7 @@ export async function updateAccountAlias (
   dispatch: React.Dispatch<Actions>
 ) {
   // Save alias to localStorage
-  setAccountAlias(accountAddress, newAlias)
+  setAccountAlias(accountAddress, newAlias, await accountScope(plugin))
 
   // Also update alias in smart account storage if this is a smart account
   const smartAccountsStr = localStorage.getItem(aaLocalStorageKey)

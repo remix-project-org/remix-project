@@ -60,6 +60,7 @@ const RenderCall = ({ tx, resolvedData, logs, index, plugin, showTableHash, txDe
       {showTableHash.includes(tx.hash)
         ? showTable(
           {
+            provider: tx.envMode,
             'hash': tx.hash,
             'isCall': tx.isCall,
             'contractAddress': tx.contractAddress,
