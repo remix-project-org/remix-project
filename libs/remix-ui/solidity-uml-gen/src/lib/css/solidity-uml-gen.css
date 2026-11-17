@@ -38,3 +38,37 @@
   align-items: center;
   justify-content: center;
 }
+#umlImageHolder .react-transform-wrapper {
+  cursor: grab;
+}
+
+#umlImageHolder.uml-can-zoom .uml-svg g.node {
+  cursor: zoom-in;
+}
+
+#umlImageHolder .react-transform-wrapper:active,
+#umlImageHolder .react-transform-wrapper:active .uml-svg g.node {
+  cursor: grabbing;
+}
+
+.uml-svg {
+  user-select: none;
+}
+
+.uml-svg > svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.uml-box-zoom {
+  position: absolute;
+  z-index: 3;
+  cursor: zoom-out;
+  transform-origin: 0 0;
+  filter: drop-shadow(0 6px 18px rgba(0, 0, 0, 0.35));
+}
+
+.uml-box-zoom > svg {
+  display: block;
+}

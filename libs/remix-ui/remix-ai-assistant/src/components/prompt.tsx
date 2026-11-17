@@ -1,19 +1,19 @@
 import { ActivityType } from "../lib/types"
 import React, { MutableRefObject, Ref, useContext, useEffect, useRef, useState, useCallback, useMemo } from 'react'
-import GroupListMenu from "./contextOptMenu"
-import { AiAssistantType, AiContextType, groupListType } from '../types/componentTypes'
+import { AiAssistantType } from '../types/componentTypes'
 import { MatomoEvent } from '@remix-api';
 import { Features } from '@remix-api';
 import { useAuth } from '@remix-ui/app'
 import { TrackingContext } from '@remix-ide/tracking'
 import { CustomTooltip } from '@remix-ui/helper'
-import { ToggleSwitch } from '@remix-ui/toggle'
 import { AIModel } from '@remix/remix-ai-core'
 import { PromptDefault } from "./promptDefault";
 import { AutocompletePanel, AVAILABLE_COMMANDS, Command } from './AutocompletePanel'
+import { ComposerMenu, ComposerActionGroup } from './composerMenu'
 import { AttachmentStrip } from './attachmentStrip'
 import { ACCEPTED_FILE_ACCEPT_ATTR, AttachmentError, filesFromClipboard } from '../hooks/useAttachments'
-import type { ChatAttachment } from '@remix/remix-ai-core'
+import type { ChatAttachment, ChatMessage } from '@remix/remix-ai-core'
+import { commandOf, pickTip } from '../lib/commandTips'
 
 const getActiveCommandName = (text: string): string | null => {
   const lastSpaceSlash = text.lastIndexOf(' /')
@@ -37,58 +37,6 @@ const getSlashWord = (text: string): string | null => {
   return afterSlash
 }
 
-// A shortcut prompt is either a plain prompt string (always available) or an
-// object that additionally lists the features required to use it. Gated
-// prompts behave like the permission-locked slash commands (e.g. Load Skills):
-// when the user lacks a required feature they see a lock + upsell/sign-in badge
-// and clicking routes to the plan manager instead of filling the composer.
-type ShortcutPrompt = string | { text: string; requiredFeatures?: string[] }
-
-interface ShortcutCategory {
-  id: string
-  label: string
-  prompts: ShortcutPrompt[]
-}
-
-const SHORTCUT_CATEGORIES: ShortcutCategory[] = [
-  {
-    id: 'code',
-    label: 'Code',
-    prompts: [
-      { text: 'Write a Solidity ERC20 token with mint and burn functions', requiredFeatures: [Features.AI_SOLCODER]},
-      { text: 'Add an ownable access control to a contract', requiredFeatures: [Features.AI_SOLCODER]},
-      { text: '/compile fix any errors in the active file', requiredFeatures: [Features.AI_SOLCODER]},
-    ],
-  },
-  {
-    id: 'explain',
-    label: 'Explain',
-    prompts: [
-      { text: 'Explain what this contract does line by line', requiredFeatures: [Features.AI_SOLCODER]},
-      { text: 'What are the security risks in this code?', requiredFeatures: [Features.AI_SOLCODER]},
-      { text: 'What does this function return and when does it revert?', requiredFeatures: [Features.AI_SOLCODER]},
-    ],
-  },
-  {
-    id: 'learn',
-    label: 'Learn',
-    prompts: [
-      { text: 'What is a smart contract?', requiredFeatures: [Features.AI_SOLCODER]},
-      { text: 'How does gas work in Ethereum?', requiredFeatures: [Features.AI_SOLCODER]},
-      { text: 'What is the difference between memory and storage in Solidity?', requiredFeatures: [Features.AI_SOLCODER]},
-    ],
-  },
-  {
-    id: 'deploy',
-    label: 'Deploy',
-    prompts: [
-      { text: '/deploy this contract to Sepolia testnet', requiredFeatures: [Features.AI_SOLCODER]},
-      { text: 'How do I verify my contract on Etherscan?', requiredFeatures: [Features.AI_SOLCODER]},
-      { text: 'What network should I use for testing?', requiredFeatures: [Features.AI_SOLCODER]},
-    ],
-  },
-]
-
 // PromptArea component
 export interface PromptAreaProps {
   input: any
@@ -99,18 +47,13 @@ export interface PromptAreaProps {
   selectedOllamaModel: any
   handleSetModel: () => void
   handleModelSelection: (modelId: string) => void
-  setShowOllamaModelSelector: React.Dispatch<React.SetStateAction<boolean>>
-  showOllamaModelSelector: boolean
   handleGenerateWorkspace: () => void
   selectedModel: AIModel | null
   dispatchActivity: (type: ActivityType, payload?: any) => void
   modelBtnRef: React.RefObject<HTMLButtonElement>
-  modelSelectorBtnRef: React.RefObject<HTMLButtonElement>
   textareaRef?: React.RefObject<HTMLTextAreaElement>
   showModelSelector: boolean
   setShowModelSelector: React.Dispatch<React.SetStateAction<boolean>>
-  handleOllamaModelSelection: (modelId: string) => void
-  ollamaModels: any[]
   themeTracker: any
   stopRequest: () => void
   handleLoadSkills?: () => void
@@ -127,6 +70,11 @@ export interface PromptAreaProps {
   isAuthenticated?: boolean
   onSignIn?: () => void
   isNewChat?: boolean
+  messages?: ChatMessage[]
+  usedCommands?: string[]
+  onCommandUsed?: (command: string) => void
+  tipDismissed?: boolean
+  onDismissTip?: () => void
   handleOpenSettings?: () => void
   handleLoadAuditChecklist?: (mode?: 'audit' | 'checklist') => void
   handleGasOptimisationAudit?: () => void
@@ -149,11 +97,6 @@ export interface PromptAreaProps {
   // False when the selected model cannot read images: the attach affordances
   // are disabled rather than hidden, so the reason stays discoverable.
   supportsVision?: boolean
-  /** Low-cost filter state — narrows the model menu to the `ai:cheapModels` tier. */
-  cheapModelsOnly?: boolean
-  /** False when the catalogue has no low-cost model; the toggle renders disabled. */
-  hasCheapModels?: boolean
-  onToggleCheapModels?: () => void
 }
 
 export const PromptArea: React.FC<PromptAreaProps> = ({
@@ -166,13 +109,10 @@ export const PromptArea: React.FC<PromptAreaProps> = ({
   modelBtnRef,
   textareaRef,
   themeTracker,
-  ollamaModels,
   showModelSelector,
+  setShowModelSelector,
   stopRequest,
-  setShowOllamaModelSelector,
-  showOllamaModelSelector,
   selectedOllamaModel,
-  modelSelectorBtnRef,
   usingOwnApiKey,
   aiRoute = 'chat',
   aiRouteReady = true,
@@ -194,9 +134,11 @@ export const PromptArea: React.FC<PromptAreaProps> = ({
   onDismissAttachmentErrors,
   onCaptureScreenshot,
   supportsVision = true,
-  cheapModelsOnly = false,
-  hasCheapModels = false,
-  onToggleCheapModels
+  messages = [],
+  usedCommands = [],
+  onCommandUsed,
+  tipDismissed = false,
+  onDismissTip
 }) => {
   const { trackMatomoEvent: baseTrackEvent } = useContext(TrackingContext)
   const trackMatomoEvent = <T extends MatomoEvent = MatomoEvent>(event: T) => {
@@ -218,9 +160,11 @@ export const PromptArea: React.FC<PromptAreaProps> = ({
 
   const [showAutocomplete, setShowAutocomplete] = useState(false)
   const [selectedCommandIndex, setSelectedCommandIndex] = useState(0)
+  // The "/word" the user closed with Escape: the panel stays shut until it changes.
+  const [dismissedSlashWord, setDismissedSlashWord] = useState<string | null>(null)
   const promptAreaRef = useRef<HTMLDivElement>(null)
-  const shortcutsRef = useRef<HTMLDivElement>(null)
-  const [activeShortcut, setActiveShortcut] = useState<string | null>(null)
+  const composerRef = useRef<HTMLDivElement>(null)
+  const [menuOpen, setMenuOpen] = useState(false)
   const [isDragging, setIsDragging] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
@@ -260,36 +204,6 @@ export const PromptArea: React.FC<PromptAreaProps> = ({
     e.preventDefault()
     setIsDragging(true)
   }, [canAttach])
-  // Shortcut pills scroll sideways when the panel is narrow; the faded edges show there is more
-  const pillRowRef = useRef<HTMLDivElement>(null)
-  const [pillOverflow, setPillOverflow] = useState({ start: false, end: false })
-  const updatePillOverflow = useCallback(() => {
-    const row = pillRowRef.current
-    if (!row) return
-    const start = row.scrollLeft > 1
-    const end = row.scrollLeft + row.clientWidth < row.scrollWidth - 1
-    setPillOverflow(prev => prev.start === start && prev.end === end ? prev : { start, end })
-  }, [])
-
-  useEffect(() => {
-    const row = pillRowRef.current
-    if (!row) return
-    updatePillOverflow()
-    const resizeObserver = new ResizeObserver(updatePillOverflow)
-    resizeObserver.observe(row)
-    // A vertical mouse wheel scrolls the row sideways
-    const handleWheel = (e: WheelEvent) => {
-      if (row.scrollWidth <= row.clientWidth || Math.abs(e.deltaY) <= Math.abs(e.deltaX)) return
-      e.preventDefault()
-      row.scrollLeft += e.deltaY
-    }
-    row.addEventListener('wheel', handleWheel, { passive: false })
-    return () => {
-      resizeObserver.disconnect()
-      row.removeEventListener('wheel', handleWheel)
-    }
-  }, [updatePillOverflow])
-
   // Auto-size the textarea to its content. Skipped while it isn't rendered
   // (e.g. mounted inside a still-hidden panel on a mode switch): a hidden
   // textarea measures 0 and would stay collapsed at min-height until typing.
@@ -322,16 +236,16 @@ export const PromptArea: React.FC<PromptAreaProps> = ({
 
   // Handle autocomplete visibility
   useEffect(() => {
-    const hasSlashWord = !!getSlashWord(input)
-    const shouldShow = hasSlashWord && !isStreaming
+    const slashWord = getSlashWord(input)
+    if (slashWord !== dismissedSlashWord) setDismissedSlashWord(null)
+    const shouldShow = !!slashWord && slashWord !== dismissedSlashWord && !isStreaming
 
     setShowAutocomplete(shouldShow)
     // Reset selected index when hiding or showing the panel
     if (!shouldShow || (shouldShow && !showAutocomplete)) {
       setSelectedCommandIndex(0)
     }
-    if (input.length > 0) setActiveShortcut(null)
-  }, [input, isStreaming, showAutocomplete])
+  }, [input, isStreaming, showAutocomplete, dismissedSlashWord])
 
   const actionCommands: Command[] = useMemo(() => {
     const cmds: Command[] = [
@@ -409,6 +323,7 @@ export const PromptArea: React.FC<PromptAreaProps> = ({
     })
 
     if (command.action) {
+      onCommandUsed?.(command.name)
       setInput('')
       setTimeout(() => command.action!(), 0)
     } else {
@@ -417,16 +332,65 @@ export const PromptArea: React.FC<PromptAreaProps> = ({
       setInput(input.slice(0, slashStart) + '/' + command.name + ' ')
     }
     textareaRef?.current?.focus()
-  }, [input, setInput, setShowAutocomplete, getMissingFeature, onUpgradeRequired, handleLoadAuditChecklist, hasAuditorPermission])
+  }, [input, setInput, setShowAutocomplete, getMissingFeature, onUpgradeRequired, onCommandUsed, handleLoadAuditChecklist, hasAuditorPermission])
 
   const handleShortcutSelect = useCallback((prompt: string) => {
     setInput(prompt)
-    setActiveShortcut(null)
     textareaRef?.current?.focus()
   }, [setInput])
 
+  // ↑/↓ recall this conversation's earlier prompts, like a shell. Prompts the
+  // IDE wrote on the user's behalf (they have a displayContent) are skipped.
+  const pastPrompts = useMemo(() => {
+    const list: string[] = []
+    for (const m of messages) {
+      if (m.role !== 'user' || m.displayContent || !m.content?.trim()) continue
+      if (list[list.length - 1] !== m.content) list.push(m.content)
+    }
+    return list
+  }, [messages])
+  // Index of the recalled prompt in pastPrompts, null when not browsing
+  const recallIndexRef = useRef<number | null>(null)
+  useEffect(() => { recallIndexRef.current = null }, [pastPrompts])
+
+  // Returns true when the key recalled a prompt
+  const recallPrompt = (e: React.KeyboardEvent<HTMLTextAreaElement>): boolean => {
+    if (e.shiftKey || e.altKey || e.ctrlKey || e.metaKey) return false
+    const el = e.currentTarget
+    // Editing a recalled prompt ends the browsing
+    if (recallIndexRef.current !== null && input !== pastPrompts[recallIndexRef.current]) recallIndexRef.current = null
+    const browsing = recallIndexRef.current !== null
+    if (el.selectionStart !== el.selectionEnd) return false
+
+    if (e.key === 'ArrowUp') {
+      const onFirstLine = input.lastIndexOf('\n', el.selectionStart - 1) === -1
+      if (!onFirstLine || (!browsing && input !== '')) return false
+      const index = browsing ? recallIndexRef.current - 1 : pastPrompts.length - 1
+      if (index < 0) return false
+      recallIndexRef.current = index
+      setInput(pastPrompts[index])
+      return true
+    }
+    if (e.key === 'ArrowDown' && browsing) {
+      const onLastLine = input.indexOf('\n', el.selectionStart) === -1
+      if (!onLastLine) return false
+      const index = recallIndexRef.current + 1
+      recallIndexRef.current = index < pastPrompts.length ? index : null
+      setInput(index < pastPrompts.length ? pastPrompts[index] : '')
+      return true
+    }
+    return false
+  }
+
+  // Sending "/cmd …" counts as using the command, so its tip stops showing.
+  const send = useCallback(() => {
+    const command = commandOf(input)
+    if (command) onCommandUsed?.(command)
+    handleSend()
+  }, [input, handleSend, onCommandUsed])
+
   // Handle keyboard navigation for autocomplete
-  const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
+  const handleKeyDown = useCallback((e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     // Handle Shift+Enter for new line
     if (e.key === 'Enter' && e.shiftKey) {
       e.preventDefault()
@@ -454,9 +418,15 @@ export const PromptArea: React.FC<PromptAreaProps> = ({
         return
       } else if (e.key === 'Escape') {
         e.preventDefault()
+        setDismissedSlashWord(getSlashWord(input))
         setShowAutocomplete(false)
         return
       }
+    }
+
+    if ((e.key === 'ArrowUp' || e.key === 'ArrowDown') && recallPrompt(e)) {
+      e.preventDefault()
+      return
     }
 
     // Handle Enter key
@@ -474,24 +444,30 @@ export const PromptArea: React.FC<PromptAreaProps> = ({
         }
         // If no commands in panel (shouldn't happen), hide panel and send
         setShowAutocomplete(false)
-        handleSend()
+        send()
       } else {
         // No autocomplete panel visible, just send the message
-        handleSend()
+        send()
       }
     }
-  }, [showAutocomplete, selectedCommandIndex, isStreaming, aiRouteReady, isAuthenticated, handleSend, setInput, setShowAutocomplete])
+  }, [input, pastPrompts, showAutocomplete, selectedCommandIndex, isStreaming, aiRouteReady, isAuthenticated, send, setInput, setShowAutocomplete])
 
+  // The "+" menu closes on a click outside the composer and on Escape.
   useEffect(() => {
-    if (!activeShortcut) return
+    if (!menuOpen) return
     const handleOutsideClick = (e: MouseEvent) => {
-      if (shortcutsRef.current && !shortcutsRef.current.contains(e.target as Node)) {
-        setActiveShortcut(null)
-      }
+      if (composerRef.current && !composerRef.current.contains(e.target as Node)) setMenuOpen(false)
+    }
+    const handleEscape = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setMenuOpen(false)
     }
     document.addEventListener('mousedown', handleOutsideClick)
-    return () => document.removeEventListener('mousedown', handleOutsideClick)
-  }, [activeShortcut])
+    document.addEventListener('keydown', handleEscape)
+    return () => {
+      document.removeEventListener('mousedown', handleOutsideClick)
+      document.removeEventListener('keydown', handleEscape)
+    }
+  }, [menuOpen])
 
   useEffect(() => {
     if (!showAutocomplete) return
@@ -504,34 +480,16 @@ export const PromptArea: React.FC<PromptAreaProps> = ({
     return () => document.removeEventListener('mousedown', handleOutsideClick)
   }, [showAutocomplete])
 
-  // The composer has three resting states:
-  //   1. ready              → normal send/stop affordance
-  //   2. !ready & authed    → disabled send (agents still booting)
-  //   3. !ready & anonymous → sign-in CTA (no amount of waiting fixes it)
-  // We split state 3 out so the user doesn't sit there waiting on a
-  // route that can never become ready until they authenticate.
-  const activeCategory = activeShortcut ? (SHORTCUT_CATEGORIES.find(c => c.id === activeShortcut) ?? null) : null
-
-  const actionCommandsByCategory = actionCommands.reduce<Record<string, Command[]>>((acc, cmd) => {
-    const cat = cmd.category ?? 'Other'
-    if (cat === 'Settings') return acc
-    if (!acc[cat]) acc[cat] = []
-    acc[cat].push(cmd)
-    return acc
-  }, {})
-
-  const activeActionCommands = activeShortcut
-    ? (actionCommandsByCategory[Object.keys(actionCommandsByCategory).find(k => k.toLowerCase() === activeShortcut) ?? ''] ?? [])
-    : []
-
-  const dynamicCategoryPills = Object.keys(actionCommandsByCategory).map(cat => {
-    const cmds = actionCommandsByCategory[cat]
-    return {
-      id: cat.toLowerCase(),
-      label: cat,
-      directAction: cmds.length === 1 && cmds[0].action ? cmds[0] : null,
+  const actionGroups: ComposerActionGroup[] = useMemo(() => {
+    const byCategory: Record<string, Command[]> = {}
+    for (const cmd of actionCommands) {
+      const cat = cmd.category ?? 'Other'
+      if (cat === 'Settings') continue
+      if (!byCategory[cat]) byCategory[cat] = []
+      byCategory[cat].push(cmd)
     }
-  })
+    return Object.keys(byCategory).map(cat => ({ id: cat.toLowerCase(), label: cat, commands: byCategory[cat] }))
+  }, [actionCommands])
 
   // Contextual hint for a just-inserted command (e.g. "/compile ") so the user
   const activeCommandHint = useMemo(() => {
@@ -541,6 +499,10 @@ export const PromptArea: React.FC<PromptAreaProps> = ({
     return cmd?.hint ?? null
   }, [input])
 
+  // The composer has three resting states:
+  //   1. ready              → normal send/stop affordance
+  //   2. !ready & authed    → disabled send (agents still booting)
+  //   3. !ready & anonymous → sign-in CTA (no amount of waiting fixes it)
   // Logout doesn't reliably flip `aiRouteReady` (the route was already ready),
   // so authentication is the source of truth for whether the composer is
   // usable. Folding it in here disables the input + send button and surfaces
@@ -548,208 +510,124 @@ export const PromptArea: React.FC<PromptAreaProps> = ({
   // depend on `aiRouteReady` either — after a logout the route stays ready.
   const composerReady = aiRouteReady && isAuthenticated
   const needsSignIn = !isAuthenticated && !!onSignIn
+  const hasContent = input.trim().length > 0 || attachments.length > 0
   const placeholderText = needsSignIn
     ? 'Sign in to chat with RemixAI…'
     : aiRouteReady
-      ? 'Type "/" for more options or ask me anything...'
+      ? 'Ask anything, or type / for commands'
       : 'Initialising agents…'
 
+  // One dot on the model button stands for the route and the degraded state;
+  // its tooltip spells them out, with the BYOK key.
+  const routeDot = !aiRouteReady || aiRoute === 'initializing' || modelDegradedDetail ? 'warn' : aiRoute
+  const modelTooltip = !selectedModel ? 'Select a model' : [
+    aiRoute === 'agent'
+      ? 'Agent ready: tools and subagents available'
+      : aiRoute === 'tools'
+        ? 'MCP tools ready (no subagents)'
+        : aiRoute === 'chat'
+          ? 'Plain chat: no tools or subagents'
+          : 'Initialising agents, please wait',
+    usingOwnApiKey ? 'Using your own API key' : null,
+    modelDegradedDetail ? `This model is underperforming: ${modelDegradedDetail}. Consider switching models.` : null
+  ].filter(Boolean).join('. ')
+  // A tip teaches one /command that fits the conversation; only commands the
+  // user can run and hasn't used yet.
+  const tip = useMemo(() => {
+    const canUse = (name: string) => {
+      const cmd = [...AVAILABLE_COMMANDS, ...actionCommands].find(c => c.name === name)
+      return !!cmd && !getMissingFeature(cmd)
+    }
+    return pickTip(messages, usedCommands, canUse)
+  }, [messages, usedCommands, actionCommands, getMissingFeature])
+  const showTip = !!tip && !tipDismissed && isAuthenticated
+  // Hidden while typing but keeps its space, so the chat above doesn't move
+  const tipHidden = !!input
+
+  const modelName = selectedModel?.provider === 'ollama' && selectedOllamaModel
+    ? selectedOllamaModel
+    : selectedModel?.displayName || 'Select Model'
+
   return (
-    <>
-      <div ref={shortcutsRef} className="position-relative mx-2 mb-1">
-        <div
-          ref={pillRowRef}
-          onScroll={updatePillOverflow}
-          className={`ai-shortcut-pills d-flex flex-row align-items-center ${pillOverflow.start ? 'ai-shortcut-pills-fade-start' : ''} ${pillOverflow.end ? 'ai-shortcut-pills-fade-end' : ''}`}
-          style={{ gap: '4px' }}
-          data-id="shortcut-pills"
-        >
-          {[...SHORTCUT_CATEGORIES, ...dynamicCategoryPills].map(cat => (
+    <div ref={composerRef} className="ai-composer">
+      {menuOpen && (
+        <ComposerMenu
+          actionGroups={actionGroups}
+          hasFeature={hasFeature}
+          isAuthenticated={isAuthenticated}
+          getRequiredPlanName={getRequiredPlanName}
+          onUpgradeRequired={onUpgradeRequired}
+          onPickPrompt={(text, categoryId, i) => {
+            // Track which canned prompt was picked by category + index —
+            // never the prompt text (kept short and content-free).
+            trackMatomoEvent({ category: 'ai', action: 'remixAI', name: 'shortcut_selected', value: `${categoryId}:${i}`, isClick: true })
+            handleShortcutSelect(text)
+          }}
+          onRunCommand={(cmd) => {
+            trackMatomoEvent({ category: 'ai', action: 'remixAI', name: 'tool_selected', value: cmd.name, isClick: true })
+            onCommandUsed?.(cmd.name)
+            cmd.action?.()
+          }}
+          onOpenGroup={(id) => trackMatomoEvent({ category: 'ai', action: 'remixAI', name: 'command_category_open', value: id, isClick: true })}
+          onClose={() => setMenuOpen(false)}
+          onOpenSettings={handleOpenSettings}
+          attach={onAddFiles ? {
+            enabled: canAttach,
+            hint: attachHint,
+            onClick: () => {
+              trackMatomoEvent({ category: 'ai', action: 'remixAI', name: 'attachFile', isClick: true })
+              fileInputRef.current?.click()
+            }
+          } : undefined}
+          screenshot={onCaptureScreenshot ? {
+            enabled: canAttach && supportsVision,
+            hint: !isAuthenticated
+              ? 'Sign in to attach a screenshot'
+              : supportsVision
+                ? 'Attach a screenshot of the IDE'
+                : `${selectedModel?.displayName || 'This model'} cannot read images. Pick a vision-capable model.`,
+            onClick: () => {
+              trackMatomoEvent({ category: 'ai', action: 'remixAI', name: 'captureScreenshot', isClick: true })
+              onCaptureScreenshot()
+            }
+          } : undefined}
+        />
+      )}
+      {showTip && (
+        <div className={`ai-tip ${tipHidden ? 'is-hidden' : ''}`} data-id="remix-ai-tip" aria-hidden={tipHidden || undefined}>
+          <i className="far fa-lightbulb ai-tip-icon"></i>
+          <span className="ai-tip-text">
             <button
-              key={cat.id}
+              type="button"
+              className="ai-tip-cmd"
+              data-id="remix-ai-tip-command"
               onClick={() => {
-                const direct = (cat as any).directAction
-                if (direct) {
-                  const missingFeature = getMissingFeature(direct)
-                  if (missingFeature) {
-                    onUpgradeRequired?.(direct.name, missingFeature)
-                    return
-                  }
-                  trackMatomoEvent({ category: 'ai', action: 'remixAI', name: 'tool_selected', value: direct.name, isClick: true })
-                  direct.action?.()
-                  return
-                }
-                setActiveShortcut(prev => {
-                  const next = prev === cat.id ? null : cat.id
-                  if (next) trackMatomoEvent({ category: 'ai', action: 'remixAI', name: 'command_category_open', value: cat.id, isClick: true })
-                  return next
-                })
+                trackMatomoEvent({ category: 'ai', action: 'remixAI', name: 'tip_used', value: tip.command, isClick: true })
+                setInput(`/${tip.command} `)
+                textareaRef?.current?.focus()
               }}
-              className="btn btn-sm rounded-pill flex-shrink-0 text-nowrap"
-              style={{
-                fontSize: '0.72rem',
-                padding: '2px 10px',
-                border: `1px solid ${activeShortcut === cat.id ? 'var(--custom-ai-color)' : 'var(--bs-border-color)'}`,
-                color: activeShortcut === cat.id ? 'var(--custom-ai-color)' : 'var(--bs-secondary-color)',
-                backgroundColor: activeShortcut === cat.id ? 'var(--custom-onsurface-layer-1)' : 'var(--bs-body-bg)',
-                transition: 'all 0.15s ease',
-              }}
-              onMouseEnter={e => { e.currentTarget.style.backgroundColor = 'var(--custom-onsurface-layer-1)' }}
-              onMouseLeave={e => { e.currentTarget.style.backgroundColor = activeShortcut === cat.id ? 'var(--custom-onsurface-layer-1)' : 'var(--bs-body-bg)' }}
-              data-id={`shortcut-btn-${cat.id}`}
             >
-              {cat.label}
-            </button>
-          ))}
+              /{tip.command}
+            </button> {tip.text}
+          </span>
+          <button
+            type="button"
+            className="ai-tip-close"
+            data-id="remix-ai-tip-close"
+            aria-label="Hide tips"
+            title="Hide tips for this conversation"
+            onClick={() => {
+              trackMatomoEvent({ category: 'ai', action: 'remixAI', name: 'tip_dismissed', value: tip.command, isClick: true })
+              onDismissTip?.()
+            }}
+          >
+            <i className="fas fa-times"></i>
+          </button>
         </div>
-        {activeShortcut && activeCategory && (
-          <div
-            className="position-absolute rounded-3 shadow-lg overflow-hidden"
-            style={{
-              bottom: 'calc(100% + 4px)',
-              left: 0,
-              right: 0,
-              backgroundColor: 'var(--bs-body-bg)',
-              border: '1px solid var(--bs-border-color)',
-              zIndex: 1000,
-            }}
-            data-id="shortcut-popover"
-          >
-            {activeCategory.prompts.map((prompt, i) => {
-              // Normalise the string|object prompt shape and resolve whether
-              // the user is missing any required feature (same gating model as
-              // the Tools commands / Load Skills).
-              const promptText = typeof prompt === 'string' ? prompt : prompt.text
-              const requiredFeatures = typeof prompt === 'string' ? undefined : prompt.requiredFeatures
-              const missingFeature = requiredFeatures?.find((f) => !hasFeature(f)) ?? null
-              const isLocked = missingFeature !== null
-              return (
-                <button
-                  key={i}
-                  onClick={() => {
-                    // Locked prompt → route to the plan manager (or sign-in
-                    // when anonymous) instead of dropping it into the composer.
-                    // The upgrade hand-off is tracked by onUpgradeRequired.
-                    if (isLocked) {
-                      setActiveShortcut(null)
-                      onUpgradeRequired?.(promptText, missingFeature as string)
-                      return
-                    }
-                    // Track which canned prompt was picked by category + index —
-                    // never the prompt text (kept short and content-free).
-                    trackMatomoEvent({ category: 'ai', action: 'remixAI', name: 'shortcut_selected', value: `${activeCategory.id}:${i}`, isClick: true })
-                    handleShortcutSelect(promptText)
-                  }}
-                  className="d-flex align-items-center justify-content-between w-100 text-start px-3 py-2 border-0"
-                  style={{
-                    backgroundColor: 'transparent',
-                    color: 'var(--bs-body-color)',
-                    fontSize: '0.8rem',
-                    borderBottom: i < activeCategory.prompts.length - 1 ? '1px solid var(--bs-border-color)' : 'none',
-                    cursor: 'pointer',
-                  }}
-                  onMouseEnter={e => { e.currentTarget.style.backgroundColor = 'var(--custom-onsurface-layer-1)' }}
-                  onMouseLeave={e => { e.currentTarget.style.backgroundColor = 'transparent' }}
-                  data-id={`shortcut-prompt-${i}`}
-                >
-                  <span>
-                    {promptText.startsWith('/') ? (
-                      <span>
-                        <span style={{ color: 'var(--custom-ai-color)', fontWeight: 600 }}>
-                          {promptText.indexOf(' ') === -1 ? promptText : promptText.substring(0, promptText.indexOf(' '))}
-                        </span>
-                        {promptText.indexOf(' ') === -1 ? '' : promptText.substring(promptText.indexOf(' '))}
-                      </span>
-                    ) : promptText}
-                  </span>
-                  {isLocked && (
-                    <span
-                      className="badge rounded-pill ms-2"
-                      style={{
-                        backgroundColor: 'var(--custom-ai-color)',
-                        color: 'var(--bs-body-bg)',
-                        fontSize: '0.6rem',
-                        padding: '2px 6px',
-                        fontWeight: 'normal',
-                        whiteSpace: 'nowrap'
-                      }}
-                      data-id={`shortcut-prompt-upgrade-${i}`}
-                    >
-                      {!isAuthenticated ? 'Sign in' : (getRequiredPlanName?.(missingFeature as string) ?? 'Upgrade')}
-                    </span>
-                  )}
-                </button>
-              )
-            })}
-          </div>
-        )}
-        {activeActionCommands.length > 0 && (
-          <div
-            className="position-absolute rounded-3 shadow-lg overflow-hidden"
-            style={{
-              bottom: 'calc(100% + 4px)',
-              left: 0,
-              right: 0,
-              backgroundColor: 'var(--bs-body-bg)',
-              border: '1px solid var(--bs-border-color)',
-              zIndex: 1000,
-            }}
-            data-id="shortcut-popover-action"
-          >
-            {activeActionCommands.map((cmd, i) => {
-              const missingFeature = getMissingFeature(cmd)
-              const isLocked = missingFeature !== null
-              return (
-                <button
-                  key={cmd.name}
-                  onClick={() => {
-                    setActiveShortcut(null)
-                    if (isLocked) {
-                      onUpgradeRequired?.(cmd.name, missingFeature as string)
-                      return
-                    }
-                    trackMatomoEvent({ category: 'ai', action: 'remixAI', name: 'tool_selected', value: cmd.name, isClick: true })
-                    cmd.action?.()
-                  }}
-                  className="d-block w-100 text-start px-3 py-2 border-0"
-                  style={{
-                    backgroundColor: 'transparent',
-                    color: 'var(--bs-body-color)',
-                    fontSize: '0.8rem',
-                    borderBottom: i < activeActionCommands.length - 1 ? '1px solid var(--bs-border-color)' : 'none',
-                    cursor: 'pointer',
-                  }}
-                  onMouseEnter={e => { e.currentTarget.style.backgroundColor = 'var(--custom-onsurface-layer-1)' }}
-                  onMouseLeave={e => { e.currentTarget.style.backgroundColor = 'transparent' }}
-                  data-id={`shortcut-tool-${cmd.name}`}
-                >
-                  <span style={{ color: 'var(--custom-ai-color)', fontWeight: 600 }}>/{cmd.name}</span>
-                  <span className="ms-2" style={{ color: 'var(--bs-secondary-color)', fontSize: '0.75rem' }}>{cmd.description}</span>
-                  {isLocked && (
-                    <span
-                      className="badge rounded-pill ms-2"
-                      style={{
-                        backgroundColor: 'var(--custom-ai-color)',
-                        color: 'var(--bs-body-bg)',
-                        fontSize: '0.6rem',
-                        padding: '2px 6px',
-                        fontWeight: 'normal'
-                      }}
-                      data-id={`shortcut-tool-upgrade-${cmd.name}`}
-                    >
-                      {!isAuthenticated ? 'Sign in' : (getRequiredPlanName?.(missingFeature as string) ?? 'Upgrade')}
-                    </span>
-                  )}
-                </button>
-              )
-            })}
-          </div>
-        )}
-      </div>
+      )}
       <div
         ref={promptAreaRef}
-        className={`prompt-area d-flex flex-column mx-2 p-1 rounded-3 border position-relative ${isDragging ? 'border-primary' : 'border-text'}`}
-        style={{ backgroundColor: themeTracker && themeTracker?.name.toLowerCase() === 'light' ? '#d9dee8' : '#222336' }}
+        className={`ai-composer-box ${isDragging ? 'is-dragging' : ''}`}
         data-id="remix-ai-prompt-area"
         onDragOver={handleDragOver}
         onDragLeave={() => setIsDragging(false)}
@@ -771,246 +649,109 @@ export const PromptArea: React.FC<PromptAreaProps> = ({
             getRequiredPlanName={getRequiredPlanName}
           />
         )}
-        <div className="ai-chat-input d-flex flex-column">
-          <div
-            className="d-flex flex-column rounded-3"
-            style={{
-              backgroundColor: themeTracker && themeTracker?.name.toLowerCase() === 'light' ? '#d9dee8' : '#222336',
-              outline: 'none',
-              boxShadow: 'none',
-              border: 'none'
-            }}
-          >
-            <AttachmentStrip
-              attachments={attachments}
-              errors={attachmentErrors}
-              onRemove={id => onRemoveAttachment?.(id)}
-              onDismissErrors={onDismissAttachmentErrors}
-            />
-            <textarea
-              ref={textareaRef}
-              style={{
-                flexGrow: 1,
-                outline: 'none',
-                resize: 'none',
-                font: 'inherit',
-                fontSize: '0.875rem',
-                color: '#A2A3BD',
-                backgroundColor: themeTracker && themeTracker?.name.toLowerCase() === 'light' ? '#d9dee8' : '#222336',
-                boxShadow: 'none',
-                paddingRight: isStreaming ? '50px' : '10px',
-                overflowY: 'auto',
-                minHeight: '2rem',
-                maxHeight: '12rem'
-              }}
-              className="form-control border-0"
-              id="remix-ai-prompt-input"
-              data-id="remix-ai-prompt-input"
-              value={input}
-              disabled={isStreaming || !composerReady}
-              onChange={e => {
-                setInput(e.target.value)
-              }}
-              onKeyDown={handleKeyDown}
-              onPaste={handlePaste}
-              placeholder={placeholderText}
-            />
-            {activeCommandHint && (
-              <div
-                className="px-2 pb-1 d-flex align-items-center"
-                style={{ fontSize: '0.72rem', color: 'var(--bs-secondary-color)', fontStyle: 'italic' }}
-                data-id="command-hint"
-              >
-                <i className="fa-regular fa-circle-question me-1" style={{ fontSize: '0.7rem' }}></i>
-                {activeCommandHint}
-              </div>
+        <AttachmentStrip
+          attachments={attachments}
+          errors={attachmentErrors}
+          onRemove={id => onRemoveAttachment?.(id)}
+          onDismissErrors={onDismissAttachmentErrors}
+        />
+        <textarea
+          ref={textareaRef}
+          rows={1}
+          className="ai-composer-input"
+          id="remix-ai-prompt-input"
+          data-id="remix-ai-prompt-input"
+          value={input}
+          disabled={isStreaming || !composerReady}
+          onChange={e => {
+            setInput(e.target.value)
+          }}
+          onKeyDown={handleKeyDown}
+          onPaste={handlePaste}
+          placeholder={placeholderText}
+        />
+        {activeCommandHint && (
+          <div className="ai-composer-hint" data-id="command-hint">
+            <i className="fa-regular fa-circle-question me-1"></i>
+            {activeCommandHint}
+          </div>
+        )}
+        <div className="ai-composer-bar">
+          <div className="ai-composer-bar-left">
+            {onAddFiles && (
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept={ACCEPTED_FILE_ACCEPT_ATTR}
+                multiple
+                className="d-none"
+                data-id="remix-ai-attach-input"
+                onChange={e => {
+                  onAddFiles(e.target.files)
+                  // Reset so picking the same file twice still fires onChange.
+                  e.target.value = ''
+                }}
+              />
             )}
-            <div className="d-flex flex-row align-items-center justify-content-between">
-              <div className="d-flex flex-row align-items-center" style={{ minWidth: 0, overflow: 'hidden' }}>
+            <button
+              type="button"
+              className={`ai-composer-plus ${menuOpen ? 'on' : ''}`}
+              data-id="remix-ai-composer-plus"
+              aria-label="Attach, prompts and commands"
+              aria-expanded={menuOpen}
+              title="Attach, prompts and commands"
+              onClick={() => {
+                // One composer menu at a time: opening "+" closes the model menu
+                if (!menuOpen) setShowModelSelector?.(false)
+                setMenuOpen(!menuOpen)
+              }}
+            >
+              <i className="fas fa-plus"></i>
+            </button>
+          </div>
+          <div className="ai-composer-bar-right">
+            {/* No `hide` toggle here: swapping the wrapper remounts the button
+                mid-click and the menu's click-outside handler closes it again. */}
+            <CustomTooltip placement="top" tooltipText={modelTooltip}>
+              <span className="ai-model-btn-wrap">
                 <button
-                  onClick={handleSetModel}
-                  className="btn btn-text btn-sm small font-weight-light text-dark align-self-end border-0 rounded"
+                  type="button"
+                  onClick={() => {
+                    setMenuOpen(false)
+                    handleSetModel()
+                  }}
+                  className={`ai-model-btn ${showModelSelector ? 'on' : ''}`}
                   data-assist-btn="assistant-selector-btn"
                   data-id="ai-model-selector-btn"
                   ref={modelBtnRef}
                 >
-                  <div className="d-flex flex-row flex-nowrap align-items-center justify-content-center">
-                    <span className="text-nowrap">
-                      {selectedModel?.displayName || 'Select Model'}
-                    </span>
-                    {usingOwnApiKey && (
-                      <CustomTooltip tooltipText="Using your own API key">
-                        <span
-                          className="badge bg-success ms-2"
-                          style={{ fontSize: '0.6rem', padding: '2px 4px', color: themeTracker && themeTracker?.name.toLowerCase() === 'light' ? '' :'#000' }}
-                          data-id="own-api-key-badge"
-                        >
-                          <i className="fas fa-key me-1" style={{ fontSize: '0.5rem' }}></i>
-                          Own Key
-                        </span>
-                      </CustomTooltip>
-                    )}
-                    <CustomTooltip
-                      tooltipText={
-                        aiRoute === 'agent'
-                          ? 'DeepAgent ready — subagents + tools available'
-                          : aiRoute === 'tools'
-                            ? 'MCP tools ready (no subagents)'
-                            : aiRoute === 'chat'
-                              ? 'Plain chat — no tools or subagents'
-                              : 'Initialising agents — please wait'
-                      }
-                    >
-                      <span
-                        className={`badge ms-2 ${
-                          aiRoute === 'agent'
-                            ? 'bg-success'
-                            : aiRoute === 'tools'
-                              ? 'bg-info'
-                              : aiRoute === 'chat'
-                                ? 'bg-secondary'
-                                : 'bg-warning'
-                        }`}
-                        style={{ fontSize: '0.6rem', padding: '2px 4px', visibility: selectedModel ? 'visible' : 'hidden', color: themeTracker && themeTracker?.name.toLowerCase() === 'light' ? '' :'#000' }}
-                        data-id="ai-route-status"
-                        data-route={aiRoute}
-                      >
-                        {aiRoute === 'agent'
-                          ? 'Agent'
-                          : aiRoute === 'tools'
-                            ? 'Tools'
-                            : aiRoute === 'chat'
-                              ? 'Chat'
-                              : 'Initialising…'}
-                      </span>
-                    </CustomTooltip>
-                    {modelDegradedDetail && (
-                      <CustomTooltip tooltipText={`This model is underperforming: ${modelDegradedDetail}. Consider switching models.`}>
-                        <span
-                          className="badge bg-warning ms-2"
-                          style={{ fontSize: '0.6rem', padding: '2px 4px', color: '#000' }}
-                          data-id="ai-model-degraded"
-                        >
-                          Degraded
-                        </span>
-                      </CustomTooltip>
-                    )}
-                    <span className={showModelSelector ? "fa fa-caret-up ms-1" : "fa fa-caret-down ms-1"}></span>
-                  </div>
+                  {selectedModel && (
+                    <span
+                      className={`ai-route-dot ai-route-dot-${routeDot}`}
+                      data-id="ai-route-status"
+                      data-route={aiRoute}
+                      data-degraded={modelDegradedDetail ? 'true' : undefined}
+                    ></span>
+                  )}
+                  <span className="ai-model-name">{modelName}</span>
+                  {usingOwnApiKey && <i className="fas fa-key ai-model-key" data-id="own-api-key-badge"></i>}
+                  <i className={`fas fa-chevron-${showModelSelector ? 'down' : 'up'} ai-model-chevron`}></i>
                 </button>
-                {onAddFiles && (
-                  <>
-                    <input
-                      ref={fileInputRef}
-                      type="file"
-                      accept={ACCEPTED_FILE_ACCEPT_ATTR}
-                      multiple
-                      className="d-none"
-                      data-id="remix-ai-attach-input"
-                      onChange={e => {
-                        onAddFiles(e.target.files)
-                        // Reset so picking the same file twice still fires onChange.
-                        e.target.value = ''
-                      }}
-                    />
-                    <CustomTooltip tooltipText={attachHint}>
-                      <span className="d-inline-block align-self-end">
-                        <button
-                          type="button"
-                          className="btn btn-text btn-sm border-0 rounded text-secondary"
-                          data-id="remix-ai-attach-btn"
-                          disabled={!canAttach}
-                          onClick={() => {
-                            trackMatomoEvent({ category: 'ai', action: 'remixAI', name: 'attachFile', isClick: true })
-                            fileInputRef.current?.click()
-                          }}
-                          aria-label="Attach a file"
-                        >
-                          <i className="fas fa-paperclip"></i>
-                        </button>
-                      </span>
-                    </CustomTooltip>
-                  </>
-                )}
-                {onCaptureScreenshot && (
-                  <CustomTooltip tooltipText={!isAuthenticated
-                    ? 'Sign in to attach a screenshot'
-                    : supportsVision
-                      ? 'Attach a screenshot of the IDE'
-                      : `${selectedModel?.displayName || 'This model'} cannot read images. Pick a vision-capable model.`}>
-                    <span className="d-inline-block align-self-end">
-                      <button
-                        type="button"
-                        className="btn btn-text btn-sm border-0 rounded text-secondary"
-                        data-id="remix-ai-screenshot-btn"
-                        disabled={!canAttach || !supportsVision}
-                        onClick={() => {
-                          trackMatomoEvent({ category: 'ai', action: 'remixAI', name: 'captureScreenshot', isClick: true })
-                          onCaptureScreenshot()
-                        }}
-                        aria-label="Attach a screenshot of the IDE"
-                      >
-                        <i className="fas fa-camera"></i>
-                      </button>
-                    </span>
-                  </CustomTooltip>
-                )}
-                <CustomTooltip
-                  tooltipText={
-                    !hasCheapModels
-                      ? 'No low-cost model is available on your plan'
-                      : cheapModelsOnly
-                        ? 'Showing only low-cost models in the selector. Click to show every model.'
-                        : 'Show only low-cost models in the selector — the cheapest tier across all providers, to make your credits last longer.'
-                  }
-                >
-                  <span
-                    className={`small font-weight-light align-self-center d-flex align-items-center px-2 ${cheapModelsOnly ? 'text-body' : 'text-secondary'}`}
-                    style={{ fontSize: '0.75rem', lineHeight: 1 }}
-                    data-id="ai-cheap-models-toggle"
-                    data-active={cheapModelsOnly ? 'true' : 'false'}
-                    data-available={hasCheapModels ? 'true' : 'false'}
-                  >
-                    <ToggleSwitch
-                      id="aiCheapModels"
-                      size="sm"
-                      isOn={cheapModelsOnly}
-                      disabled={!hasCheapModels}
-                      onClick={() => onToggleCheapModels?.()}
-                      label="low-cost AI"
-                    />
-                  </span>
-                </CustomTooltip>
-                {selectedModel?.provider === 'ollama' && ollamaModels.length > 0 && (
-                  <button
-                    onClick={() => setShowOllamaModelSelector(prev => !prev)}
-                    className="btn btn-text btn-sm small font-weight-light text-secondary align-self-end border border-text rounded ms-2"
-                    style={{ whiteSpace: 'nowrap', minWidth: 'fit-content' }}
-                    ref={modelSelectorBtnRef}
-                    data-id="ollama-model-selector"
-                    data-assist-btn="assistant-selector-btn"
-                  >
-                    <div className="d-flex flex-row flex-nowrap align-items-center justify-content-center">
-                      <span style={{ whiteSpace: 'nowrap' }}>{selectedOllamaModel || 'Select Ollama Model'}</span>
-                      <span className={showOllamaModelSelector ? "fa fa-caret-up ms-1" : "fa fa-caret-down ms-1"}></span>
-                    </div>
-                  </button>
-                )}
-              </div>
-              <PromptDefault
-                isStreaming={isStreaming}
-                disabled={!composerReady}
-                handleSend={handleSend}
-                themeTracker={themeTracker}
-                handleCancel={stopRequest}
-                showSignIn={needsSignIn}
-                onSignIn={onSignIn}
-              />
-            </div>
+              </span>
+            </CustomTooltip>
+            <PromptDefault
+              isStreaming={isStreaming}
+              hasContent={hasContent}
+              disabled={!composerReady}
+              handleSend={send}
+              handleCancel={stopRequest}
+              showSignIn={needsSignIn}
+              onSignIn={onSignIn}
+            />
           </div>
         </div>
       </div>
-    </>
+    </div>
   )
 }
 

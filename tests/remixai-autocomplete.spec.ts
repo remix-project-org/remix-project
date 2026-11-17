@@ -17,10 +17,10 @@ test('RemixAI action autocomplete panel should show available actions, selecting
   await page.locator('[data-id="loginModalE2EPoolButton"]').click()
   await expect(page.locator('[data-id="user-menu-compact"]').first()).toBeVisible({ timeout: 30000 })
 
-  await page.getByRole('textbox', { name: 'Type "/" for more options or' }).click();
-  await page.getByRole('textbox', { name: 'Type "/" for more options or' }).fill('/');
+  await page.locator('[data-id="remix-ai-prompt-input"]').click();
+  await page.locator('[data-id="remix-ai-prompt-input"]').fill('/');
   await page.getByRole('button', { name: '/alchemy Fetch data from' }).click();
-  await page.getByRole('textbox', { name: 'Type "/" for more options or' }).dblclick();
-  await expect(page.getByPlaceholder('Type "/" for more options or')).toContainText('/alchemy:');
+  await page.locator('[data-id="remix-ai-prompt-input"]').dblclick();
+  await expect(page.locator('[data-id="remix-ai-prompt-input"]')).toContainText('/alchemy:');
 });
 */
