@@ -233,7 +233,7 @@ export async function waitForIdle(page: Page, { timeoutMs = 600_000, settleMs = 
 }
 
 async function approvePending(page: Page): Promise<void> {
-  const autoAccept = page.getByRole('checkbox', { name: 'Auto-accept all changes' })
+  const autoAccept = page.locator('[data-id="hitl-auto-accept-checkbox"]')
   if (await autoAccept.isVisible().catch(() => false)) {
     await autoAccept.check().catch(() => {})
   }

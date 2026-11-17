@@ -154,14 +154,16 @@ export type AICheapModelsEventName =
 /**
  * Composer command / tools / shortcut interaction event names, emitted with
  * `{ category: 'ai', action: 'remixAI', name: <one of these> }`. They track how
- * users discover and trigger the slash-command palette, the Tools menu, and the
- * category shortcut chips above the prompt input.
+ * users discover and trigger the slash-command palette, the Tools menu, the
+ * prompt categories of the composer's "+" menu, and the tips above the input.
  *
  *  - 'command_category_open' value = category id ('code'|'explain'|'learn'|'deploy'|'tools')
  *  - 'command_selected'      value = slash-command name picked from the autocomplete palette
  *  - 'tool_selected'         value = tool command name run from the Tools menu
  *  - 'shortcut_selected'     value = '<categoryId>:<index>' of the canned prompt chip picked
  *  - 'command_upgrade_required' value = command/tool name a user lacked entitlement for
+ *  - 'tip_used'              value = command name of the tip clicked above the input
+ *  - 'tip_dismissed'         value = command name of the tip hidden for the conversation
  */
 export type AICommandEventName =
   | 'command_category_open'
@@ -169,6 +171,8 @@ export type AICommandEventName =
   | 'tool_selected'
   | 'shortcut_selected'
   | 'command_upgrade_required'
+  | 'tip_used'
+  | 'tip_dismissed'
 
 /**
  * @deprecated Use AIEvent with name: 'like-response' | 'dislike-response' instead

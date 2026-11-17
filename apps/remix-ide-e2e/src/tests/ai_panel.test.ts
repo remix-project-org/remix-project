@@ -108,7 +108,7 @@ const tests = {
         selector: "//*[@data-id='remix-ai-streaming' and @data-streaming='false']"
       })
   },
-  'Should create a new workspace using the AI assistant button in the composer #group1': function (browser: NightwatchBrowser) {
+  'Should fill the input from the + menu and create a new workspace with /generate #group1': function (browser: NightwatchBrowser) {
     browser
       .assistantClearChat()
       .waitForCompilerLoaded()
@@ -118,12 +118,17 @@ const tests = {
         locateStrategy: 'xpath',
         timeout: 120000
       })
-      .waitForElementVisible('*[data-id="remix-ai-assistant-starter-1"]')
-      .click('*[data-id="remix-ai-assistant-starter-1"]')
-      .waitForElementVisible('*[data-id="generate-workspaceModalDialogModalBody-react"]')
-      .click('*[data-id="modalDialogCustomTextarea"]')
-      .setValue('*[data-id="modalDialogCustomTextarea"]', 'a simple ERC20 contract')
-      .click('*[data-id="generate-workspace-modal-footer-ok-react"]')
+      .waitForElementVisible('*[data-id="remix-ai-composer-plus"]')
+      .click('*[data-id="remix-ai-composer-plus"]')
+      .waitForElementVisible('*[data-id="shortcut-btn-code"]')
+      .click('*[data-id="shortcut-btn-code"]')
+      .waitForElementVisible('*[data-id="shortcut-prompt-0"]')
+      .click('*[data-id="shortcut-prompt-0"]')
+      .assert.valueContains('*[data-id="remix-ai-prompt-input"]', 'ERC20')
+      .clearValue('*[data-id="remix-ai-prompt-input"]')
+      .setValue('*[data-id="remix-ai-prompt-input"]', '/generate a simple ERC20 contract')
+      .waitForElementVisible('*[data-id="remix-ai-composer-send-btn"]')
+      .click('*[data-id="remix-ai-composer-send-btn"]')
       .waitForElementVisible({
         locateStrategy: 'xpath',
         selector: '//div[contains(@class,"chat-bubble") and contains(.,"New workspace created:")]',
