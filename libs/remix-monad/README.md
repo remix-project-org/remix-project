@@ -15,3 +15,9 @@ Saved Monad VM sessions restore local accounts, contract state and debugging his
 The initial RPC surface supports local accounts, legacy and EIP-1559 transactions, calls, gas estimation, saved state and debugging.
 
 This is a local development VM with synthetic blocks and receipts. Remote RPC forking is unsupported. Each trace is limited to 100,000 steps or 32 MiB; incomplete traces report an error.
+
+## Tests
+
+Run `yarn test:monad` for provider and debugger regressions against the installed WASM package. For Chromium coverage, build with `yarn nx build remix-ide --configuration=development`, install Chromium with `yarn playwright install chromium`, then run `yarn test:monad:browser`.
+
+The browser suite covers environment selection, deployment, opcode activation, debugger inspection and saved-state reloads. It uses the local Solidity compiler and Remix's existing trace-navigation hook; bottom-bar stepping controls are outside this suite's scope. CI builds the IDE once and runs these checks on all four Monad forks, with an Ethereum Osaka deployment regression.

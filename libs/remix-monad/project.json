@@ -3,11 +3,26 @@
   "sourceRoot": "libs/remix-monad/src",
   "projectType": "library",
   "targets": {
+    "test": {
+      "executor": "nx:run-commands",
+      "dependsOn": [],
+      "inputs": [
+        "{projectRoot}/**/*",
+        "{workspaceRoot}/scripts/test-monad.mjs",
+        "{workspaceRoot}/package.json",
+        "{workspaceRoot}/yarn.lock",
+        "^production"
+      ],
+      "options": {
+        "command": "node scripts/test-monad.mjs"
+      }
+    },
     "lint": {
       "executor": "@nrwl/linter:eslint",
+      "inputs": ["{projectRoot}/**/*", "{workspaceRoot}/.eslintrc.json"],
       "options": {
         "lintFilePatterns": [
-          "libs/remix-monad/src/**/*.ts"
+          "libs/remix-monad/**/*.ts"
         ]
       }
     }
