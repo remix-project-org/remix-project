@@ -23,6 +23,7 @@ export function monadOpcodeAt (raw: ArrayLike<number>, pc: number, hardfork: str
   return MONAD_OPCODES[raw[pc + 1]]
 }
 
-export function monadOpcodeByName (name: string) {
+export function monadOpcodeByName (name: string, hardfork?: string) {
+  if (hardfork !== 'monad-next') return undefined
   return MONAD_OPCODES.find(opcode => opcode.name === name)
 }
