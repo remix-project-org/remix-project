@@ -57,13 +57,7 @@ for (const fork of ['monad-eight', 'monad-nine', 'monad-ten', 'monad-next', 'osa
     const depositHash = depositButton.replace('txLoggerDebugButton', '')
     const depositLog = page.locator(`[id="tx${depositHash}"]`)
     await expect(depositLog.locator('.remix_ui_terminal_log')).toContainText(monad ? '0.001 MON' : '1000000000000000 wei')
-    await debugTransaction(page, depositButton)
-    await showOpcodes(page)
-    await expect(page.locator('.opcodes-container')).toContainText('CHAINID')
-    await expect(currentOpcode(page)).not.toContainText('INVALID')
-    await page.getByRole('button', { name: 'Stop debugging', exact: true }).click()
-
-    await openContract(page)
+    let lastDepositButton = depositButton
     let balance = 1_001_000_000_000_000_000n
     for (const [denomination, amount, value, formatted] of [
       ['wei', '1', 1n, '0.000000000000000001 MON'],
@@ -73,12 +67,19 @@ for (const fork of ['monad-eight', 'monad-nine', 'monad-ten', 'monad-next', 'osa
       await page.locator('[data-id="contractItem-sendValue-0"]').fill(amount)
       await expect(page.locator('[data-id="contractItem-sendValue-0"]')).toHaveValue(amount)
       const button = await transact(page, 'deposit')
+      lastDepositButton = button
       const txHash = button.replace('txLoggerDebugButton', '')
       expect(BigInt((await rpc(page, 'eth_getTransactionByHash', txHash)).value)).toBe(value)
       balance += value
       await expect.poll(async () => BigInt(await rpc(page, 'eth_getBalance', address))).toBe(balance)
       await expect(page.locator(`[id="tx${txHash}"] .remix_ui_terminal_log`)).toContainText(monad ? formatted : `${value} wei`)
     }
+
+    await debugTransaction(page, lastDepositButton)
+    await showOpcodes(page)
+    await expect(page.locator('.opcodes-container')).toContainText('CHAINID')
+    await expect(currentOpcode(page)).not.toContainText('INVALID')
+    await page.getByRole('button', { name: 'Stop debugging', exact: true }).click()
 
     // Historical terminal entries keep the currency of their execution environment.
     await selectEnvironment(page, monad ? 'osaka' : 'monad-ten')
