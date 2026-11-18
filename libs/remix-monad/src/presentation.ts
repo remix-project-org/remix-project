@@ -2,6 +2,10 @@ import { formatUnits } from 'ethers'
 import { isMonadSpec } from './forks'
 import type { MonadSpec } from './types'
 
+const MONAD_UNIT_LABELS = new Map([
+  ['wei', 'wei'], ['gwei', 'gwei'], ['finney', 'mMON'], ['ether', 'MON']
+])
+
 export function monadVmLabel(fork: MonadSpec): string {
   const names: Record<MonadSpec, string> = {
     'monad-eight': 'Eight', 'monad-nine': 'Nine', 'monad-ten': 'Ten', 'monad-next': 'Next'
@@ -15,7 +19,8 @@ export function isMonadProvider(provider: unknown): boolean {
 
 /** Keep ethers unit identifiers for conversion; only their displayed names change. */
 export function monadUnitLabel(unit: string): string {
-  return unit === 'ether' ? 'MON' : unit === 'finney' ? 'mMON' : unit
+  // Wei and gwei remain the names of the 10^-18 and 10^-9 MON denominations.
+  return MONAD_UNIT_LABELS.get(unit) ?? unit
 }
 
 export function formatMonadValue(wei: string | bigint | number): string {

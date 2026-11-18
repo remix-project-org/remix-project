@@ -26,8 +26,10 @@ for (const fork of ['monad-eight', 'monad-nine', 'monad-ten', 'monad-next', 'osa
     expect(String(await rpc(page, 'net_version'))).toBe(monad ? '143' : '1337')
     await page.getByRole('tab', { name: 'Deploy', exact: true }).click()
     await expect(page.locator('[data-id="deploy-widget-header"] .badge')).toHaveText(badges[fork])
+    await unit(page, 'deployValueUnit', 'wei', 'wei')
     await unit(page, 'deployValueUnit', 'ether', monad ? 'MON' : 'ether')
-    await page.locator('[data-id="udapp_value"]').fill('1')
+    if (monad) await unit(page, 'deployValueUnit', 'gwei', 'gwei')
+    await page.locator('[data-id="udapp_value"]').fill(monad ? '1000000000' : '1')
     const deploymentButton = await deploy(page)
     const hash = deploymentButton.replace('txLoggerDebugButton', '')
     const receipt = await rpc(page, 'eth_getTransactionReceipt', hash)
@@ -60,6 +62,23 @@ for (const fork of ['monad-eight', 'monad-nine', 'monad-ten', 'monad-next', 'osa
     await expect(page.locator('.opcodes-container')).toContainText('CHAINID')
     await expect(currentOpcode(page)).not.toContainText('INVALID')
     await page.getByRole('button', { name: 'Stop debugging', exact: true }).click()
+
+    await openContract(page)
+    let balance = 1_001_000_000_000_000_000n
+    for (const [denomination, amount, value, formatted] of [
+      ['wei', '1', 1n, '0.000000000000000001 MON'],
+      ['gwei', '1', 1_000_000_000n, '0.000000001 MON']
+    ] as const) {
+      await unit(page, 'contractItem-valueUnit-0', denomination, denomination)
+      await page.locator('[data-id="contractItem-sendValue-0"]').fill(amount)
+      await expect(page.locator('[data-id="contractItem-sendValue-0"]')).toHaveValue(amount)
+      const button = await transact(page, 'deposit')
+      const txHash = button.replace('txLoggerDebugButton', '')
+      expect(BigInt((await rpc(page, 'eth_getTransactionByHash', txHash)).value)).toBe(value)
+      balance += value
+      await expect.poll(async () => BigInt(await rpc(page, 'eth_getBalance', address))).toBe(balance)
+      await expect(page.locator(`[id="tx${txHash}"] .remix_ui_terminal_log`)).toContainText(monad ? formatted : `${value} wei`)
+    }
 
     // Historical terminal entries keep the currency of their execution environment.
     await selectEnvironment(page, monad ? 'osaka' : 'monad-ten')

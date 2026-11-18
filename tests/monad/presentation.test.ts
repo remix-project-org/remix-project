@@ -9,12 +9,27 @@ test('Monad unit labels preserve ethers denominations and exact 18-decimal value
   assert.equal(monadUnitLabel('finney'), 'mMON')
   assert.equal(monadUnitLabel('gwei'), 'gwei')
   assert.equal(monadUnitLabel('wei'), 'wei')
+  assert.equal(monadUnitLabel('unknown'), 'unknown')
   assert.equal(formatMonadValue(parseUnits('1', 'ether')), '1.0 MON')
   assert.equal(formatMonadValue(parseUnits('1', 'finney')), '0.001 MON')
   assert.equal(formatMonadValue('10'), '0.00000000000000001 MON')
   assert.equal(formatMonadValue('9123456789012345678'), '9.123456789012345678 MON')
   assert.equal(formatMonadValue('0x0'), '0.0 MON')
 })
+
+for (const [unit, amount, wei, formatted] of [
+  ['wei', '1', 1n, '0.000000000000000001 MON'],
+  ['wei', '9007199254740993', 9_007_199_254_740_993n, '0.009007199254740993 MON'],
+  ['gwei', '1', 1_000_000_000n, '0.000000001 MON'],
+  ['gwei', '1.000000001', 1_000_000_001n, '0.000000001000000001 MON']
+] as const) {
+  test(`${amount} ${unit} retains its exact MON value`, () => {
+    assert.equal(monadUnitLabel(unit), unit)
+    const value = parseUnits(amount, unit)
+    assert.equal(value, wei)
+    assert.equal(formatMonadValue(value), formatted)
+  })
+}
 
 test('only the four supported Monad providers use MON transaction formatting', () => {
   for (const fork of ['eight', 'nine', 'ten', 'next']) assert.equal(isMonadProvider(`vm-monad-${fork}`), true)
