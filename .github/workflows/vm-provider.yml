@@ -1,0 +1,70 @@
+name: VM provider regressions
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/vm-provider.yml'
+      - 'apps/remix-ide/src/blockchain/**'
+      - 'libs/remix-ui/run-tab-environment/**'
+      - 'tests/*vm*.spec.ts'
+      - 'playwright.config.ts'
+      - 'package.json'
+      - 'yarn.lock'
+  push:
+    paths:
+      - '.github/workflows/vm-provider.yml'
+      - 'apps/remix-ide/src/blockchain/**'
+      - 'libs/remix-ui/run-tab-environment/**'
+      - 'tests/*vm*.spec.ts'
+      - 'playwright.config.ts'
+      - 'package.json'
+      - 'yarn.lock'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: vm-provider-${{ github.head_ref || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  vm-provider:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    env:
+      NX_NO_CLOUD: 'true'
+      NX_DAEMON: 'false'
+      NX_PARALLEL: '2'
+      NODE_OPTIONS: --max-old-space-size=6144
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: yarn
+      - run: yarn install --frozen-lockfile --non-interactive
+      - name: Lint VM provider and regression tests
+        run: |
+          yarn eslint -c apps/remix-ide/.eslintrc apps/remix-ide/src/blockchain/providers/vm.ts apps/remix-ide/src/blockchain/blockchain.tsx
+          yarn eslint libs/remix-ui/run-tab-environment/src/lib/actions/index.ts libs/remix-ui/run-tab-environment/src/lib/environment.tsx
+          yarn eslint tests/vm-provider-lifecycle.spec.ts tests/e2e-vm-switch.spec.ts
+      - run: yarn playwright install --with-deps chromium
+      - name: Test worker lifecycle
+        run: yarn playwright test tests/vm-provider-lifecycle.spec.ts --project=chromium
+      - name: Build Remix
+        run: yarn nx build remix-ide --configuration=development --skip-nx-cache
+      - name: Test switching with pending requests in Remix
+        run: PLAYWRIGHT_SPEC=tests/e2e-vm-switch.spec.ts bash apps/remix-ide/ci/run_playwright_ci.sh
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: vm-provider-results
+          path: |
+            playwright-report
+            test-results
+          if-no-files-found: ignore
+          retention-days: 7

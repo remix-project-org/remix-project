@@ -127,8 +127,13 @@ function cleanupWalletConnectEvents (plugin: Plugin) {
 }
 
 export async function getAccountsList (plugin: EnvironmentPlugin, dispatch: React.Dispatch<Actions>) {
+  return refreshForCurrentProvider(plugin, isCurrent => loadAccountsList(plugin, dispatch, isCurrent))
+}
+
+async function loadAccountsList (plugin: EnvironmentPlugin, dispatch: React.Dispatch<Actions>, isCurrent: () => boolean) {
   let accounts = await plugin.call('blockchain', 'getAccounts')
   const provider = await plugin.call('blockchain', 'getProvider')
+  if (!isCurrent()) return
   let safeAddresses = []
   let storedSmartAccounts = {}
 
@@ -160,6 +165,7 @@ export async function getAccountsList (plugin: EnvironmentPlugin, dispatch: Reac
   const smartAccounts = []
   for (const account of accounts) {
     const balance = await plugin.blockchain.getBalanceInEther(account)
+    if (!isCurrent()) return
     let alias = getAccountAlias(account)
 
     if (!alias) {
@@ -196,6 +202,7 @@ export async function getAccountsList (plugin: EnvironmentPlugin, dispatch: Reac
       })
     }
   }
+  if (!isCurrent()) return
   dispatch({ type: 'SET_ACCOUNTS', payload: defaultAccounts })
   dispatch({ type: 'SET_SMART_ACCOUNTS', payload: smartAccounts })
 }
@@ -520,12 +527,26 @@ export async function updateAccountAlias (
 }
 
 export async function refreshAccountBalances (plugin: EnvironmentPlugin, dispatch: React.Dispatch<Actions>) {
-  const widgetState = plugin.getWidgetState()
-  const allAccounts = [...(widgetState.accounts?.defaultAccounts || []), ...(widgetState.accounts?.smartAccounts || [])]
+  return refreshForCurrentProvider(plugin, async isCurrent => {
+    const widgetState = plugin.getWidgetState()
+    const allAccounts = [...(widgetState.accounts?.defaultAccounts || []), ...(widgetState.accounts?.smartAccounts || [])]
 
-  for (const account of allAccounts) {
-    const balance = await plugin.call('blockchain', 'getBalanceInEther', account.account)
+    for (const account of allAccounts) {
+      const balance = await plugin.call('blockchain', 'getBalanceInEther', account.account)
+      if (!isCurrent()) return
 
-    dispatch({ type: 'SET_ACCOUNT_BALANCE', payload: { address: account.account, balance: formatBalance(balance, 3) } })
+      dispatch({ type: 'SET_ACCOUNT_BALANCE', payload: { address: account.account, balance: formatBalance(balance, 3) } })
+    }
+  })
+}
+
+export async function refreshForCurrentProvider (plugin: EnvironmentPlugin, refresh: (isCurrent: () => boolean) => Promise<void>) {
+  const web3 = plugin.blockchain.web3()
+  const isCurrent = () => !web3?.destroyed && plugin.blockchain.web3() === web3
+  try {
+    await refresh(isCurrent)
+  } catch (error) {
+    // A switch may cancel an in-flight read. The new provider starts its own refresh.
+    if (isCurrent()) throw error
   }
 }
