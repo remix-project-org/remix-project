@@ -1,6 +1,6 @@
 /* global ethereum */
 'use strict'
-import { isMonadSpec } from '@remix-project/remix-monad'
+import { isMonadSpec, MONAD_CURRENCY } from '@remix-project/remix-monad'
 import { ethers, toNumber } from 'ethers'
 import { execution } from '@remix-project/remix-lib'
 import EventManager from '../lib/events'
@@ -82,7 +82,7 @@ export class ExecutionContext {
   async detectNetwork () {
     if (this.isVM()) {
       if (isMonadSpec(this.currentFork)) {
-        return { id: '-', name: 'VM', networkNativeCurrency: { name: 'Monad', symbol: 'MON', decimals: 18 } }
+        return { id: '-', name: 'VM', networkNativeCurrency: { ...MONAD_CURRENCY } }
       }
       return { id: '-', name: 'VM' }
     } else {

@@ -1,5 +1,5 @@
 import React, { useContext, useEffect, useState, useRef, useMemo } from 'react'
-import { isMonadSpec, monadVmLabel, monadUnitLabel } from '@remix-project/remix-monad'
+import { isMonadCurrency, isMonadSpec, monadVmLabel, monadUnitLabel } from '@remix-project/remix-monad'
 import { FormattedMessage, useIntl } from 'react-intl'
 import { CustomTooltip, getTimeAgo, shortenAddress, isNumeric, is0XPrefixed, isHexadecimal, logBuilder, extractDataDefault, getMultiValsString, isQuickDappRemixVMIdentifier, normalizeQuickDappEnvironment, Select } from '@remix-ui/helper'
 import { CopyToClipboard } from '@remix-ui/clipboard'
@@ -47,6 +47,7 @@ export function DeployedContractItem({ contract, index, collapseSignal, register
   const isDesktop = isElectron()
   const [networkName, setNetworkName] = useState<string>('')
   const [isMonad, setIsMonad] = useState(false)
+  const [isMonadVM, setIsMonadVM] = useState(false)
   const [isExpanded, setIsExpanded] = useState<boolean>(true)
   const [contractABI, setContractABI] = useState(null)
   const [value, setValue] = useState<string>('0')
@@ -86,7 +87,9 @@ export function DeployedContractItem({ contract, index, collapseSignal, register
       if (net && net.name) {
         const fork = net.name === 'VM' ? await plugin.call('blockchain', 'getCurrentFork') : undefined
         const monad = isMonadSpec(fork)
-        setIsMonad(monad)
+        setIsMonadVM(monad)
+        // the balance and its units follow the native currency, which a connected Monad network reports as well.
+        setIsMonad(isMonadCurrency(await plugin.call('blockchain', 'getCurrentNetworkCurrency')))
         const networkName = net.name === 'VM' ? (monad ? monadVmLabel(fork) : 'Remix VM') : net.name
 
         setNetworkName(networkName)
@@ -1155,7 +1158,7 @@ For Inline mode, preserve the existing /frontend overwrite confirmation flow. Co
               crossChainDestinations={crossChainDestinations}
               onCreateCrossChainProxy={handleCreateCrossChainProxy}
               onInteractThroughProxy={handleInteractThroughProxy}
-              onNameContract={!isMonad && networkName !== 'Remix VM' ? handleNameContract : undefined}
+              onNameContract={!isMonadVM && networkName !== 'Remix VM' ? handleNameContract : undefined}
               onCopyABI={handleCopyABI}
               onSaveABI={handleSaveABI}
               onCopyBytecode={handleCopyDeployedBytecode}

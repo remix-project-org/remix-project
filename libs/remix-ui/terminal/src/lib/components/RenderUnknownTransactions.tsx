@@ -6,7 +6,7 @@ import showTable from './Table'
 import { TrackingContext } from '@remix-ide/tracking'
 import { MatomoEvent, UdappEvent } from '@remix-api'
 
-const RenderUnKnownTransactions = ({ tx, receipt, index, plugin, showTableHash, txDetails, modal, provider }) => {
+const RenderUnKnownTransactions = ({ tx, receipt, index, plugin, showTableHash, txDetails, modal, provider, currency }) => {
   const { trackMatomoEvent: baseTrackEvent } = useContext(TrackingContext)
   const trackMatomoEvent = <T extends MatomoEvent = UdappEvent>(event: T) => {
     baseTrackEvent?.<T>(event)
@@ -66,7 +66,7 @@ const RenderUnKnownTransactions = ({ tx, receipt, index, plugin, showTableHash, 
     <span id={`tx${tx.hash}`} key={index}>
       <div className="remix_ui_terminal_log" onClick={(event) => txDetails(event, tx)}>
         <CheckTxStatus tx={receipt || tx} type={txType} />
-        <Context opts={options} provider={provider} />
+        <Context opts={options} provider={provider} currency={currency} />
         <div className="remix_ui_terminal_buttons">
           <div
             className="remix_ui_terminal_debug btn btn-primary btn-sm"
@@ -83,7 +83,7 @@ const RenderUnKnownTransactions = ({ tx, receipt, index, plugin, showTableHash, 
       {showTableHash.includes(tx.hash)
         ? showTable(
           {
-            provider,
+            currency,
             'isUserOp': tx.isUserOp,
             'bundler': tx.bundler,
             'paymaster': tx.paymaster,

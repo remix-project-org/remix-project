@@ -26,4 +26,4 @@ yarn playwright install chromium
 yarn test:monad:browser
 ```
 
-The browser tests cover fork-specific VM badges, chain IDs, account aliases, payable deployments and transaction currency on all four Monad forks and Ethereum Osaka, using the installed Solidity compiler.
+The browser tests cover fork-specific VM badges, chain IDs, account aliases, payable deployments and transaction currency on all four Monad forks and Ethereum Osaka, using the installed Solidity compiler. They also cover MON formatting in a named fork of a Monad VM.

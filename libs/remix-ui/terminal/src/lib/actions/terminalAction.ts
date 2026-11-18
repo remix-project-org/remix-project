@@ -131,6 +131,8 @@ export const initListeningOnNetwork = (plugins, dispatch: React.Dispatch<any>) =
   const log = async (plugins, tx, receipt, dispatch: React.Dispatch<any>) => {
     const resolvedTransaction = await plugins.txListener.resolvedTransaction(tx.hash)
     const provider = plugins.blockchain.getProvider()
+    // Kept with the entry: its value stays in the currency of the network that executed it.
+    const currency = plugins.blockchain.getCurrentNetworkCurrency()
 
     if (resolvedTransaction) {
       let compiledContracts = null
@@ -156,11 +158,11 @@ export const initListeningOnNetwork = (plugins, dispatch: React.Dispatch<any>) =
       }
       await plugins.eventsDecoder.parseLogs(tx, resolvedTransaction.contractName, compiledContracts, async (error, logs) => {
         if (!error) {
-          await dispatch({ type: KNOWN_TRANSACTION, payload: { message: [{ tx: tx, receipt: receipt, resolvedData: resolvedTransaction, logs: logs }], provider } })
+          await dispatch({ type: KNOWN_TRANSACTION, payload: { message: [{ tx: tx, receipt: receipt, resolvedData: resolvedTransaction, logs: logs }], provider, currency } })
         }
       })
     } else {
-      await dispatch({ type: UNKNOWN_TRANSACTION, payload: { message: [{ tx: tx, receipt: receipt }], provider } })
+      await dispatch({ type: UNKNOWN_TRANSACTION, payload: { message: [{ tx: tx, receipt: receipt }], provider, currency } })
     }
   }
 

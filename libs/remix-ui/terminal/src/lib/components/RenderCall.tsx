@@ -7,7 +7,7 @@ import { execution } from '@remix-project/remix-lib'
 
 const typeConversion = execution.typeConversion
 
-const RenderCall = ({ tx, resolvedData, logs, index, plugin, showTableHash, txDetails, modal }) => {
+const RenderCall = ({ tx, resolvedData, logs, index, plugin, showTableHash, txDetails, modal, currency }) => {
   const intl = useIntl()
   const to = resolvedData.contractName + '.' + resolvedData.fn
   const from = tx.from ? tx.from : ' - '
@@ -60,7 +60,7 @@ const RenderCall = ({ tx, resolvedData, logs, index, plugin, showTableHash, txDe
       {showTableHash.includes(tx.hash)
         ? showTable(
           {
-            provider: tx.envMode,
+            currency,
             'hash': tx.hash,
             'isCall': tx.isCall,
             'contractAddress': tx.contractAddress,

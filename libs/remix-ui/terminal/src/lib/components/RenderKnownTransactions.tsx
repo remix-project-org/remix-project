@@ -6,7 +6,7 @@ import showTable from './Table'
 import { execution } from '@remix-project/remix-lib'
 const typeConversion = execution.typeConversion
 
-const RenderKnownTransactions = ({ tx, receipt, resolvedData, logs, index, plugin, showTableHash, txDetails, modal, provider }) => {
+const RenderKnownTransactions = ({ tx, receipt, resolvedData, logs, index, plugin, showTableHash, txDetails, modal, provider, currency }) => {
   const intl = useIntl()
   const debug = (event, tx) => {
     event.stopPropagation()
@@ -54,7 +54,7 @@ const RenderKnownTransactions = ({ tx, receipt, resolvedData, logs, index, plugi
     <span id={`tx${tx.hash}`} key={index}>
       <div className="remix_ui_terminal_log" onClick={(event) => txDetails(event, tx)}>
         <CheckTxStatus tx={receipt} type={txType} />
-        <Context opts={options} provider={provider} />
+        <Context opts={options} provider={provider} currency={currency} />
         <div className="remix_ui_terminal_buttons">
           <div
             className="remix_ui_terminal_debug btn btn-primary btn-sm"
@@ -71,7 +71,7 @@ const RenderKnownTransactions = ({ tx, receipt, resolvedData, logs, index, plugi
       {showTableHash.includes(tx.hash)
         ? showTable(
           {
-            provider,
+            currency,
             'isUserOp': tx.isUserOp,
             'bundler': tx.bundler,
             'paymaster': tx.paymaster,

@@ -1,5 +1,4 @@
 import { formatUnits } from 'ethers'
-import { isMonadSpec } from './forks'
 import type { MonadSpec } from './types'
 
 const MONAD_UNIT_LABELS = new Map([
@@ -13,8 +12,12 @@ export function monadVmLabel(fork: MonadSpec): string {
   return `Monad VM (${names[fork]})`
 }
 
-export function isMonadProvider(provider: unknown): boolean {
-  return typeof provider === 'string' && provider.startsWith('vm-') && isMonadSpec(provider.slice(3))
+/** The currency of every Monad network: the local VM and its forked states, and connected chains. */
+export const MONAD_CURRENCY = { name: 'Monad', symbol: 'MON', decimals: 18 }
+
+/** MON formatting follows the detected native currency, whichever provider reported it. */
+export function isMonadCurrency(currency: unknown): boolean {
+  return (currency as { symbol?: unknown })?.symbol === MONAD_CURRENCY.symbol
 }
 
 /** Keep ethers unit identifiers for conversion; only their displayed names change. */
