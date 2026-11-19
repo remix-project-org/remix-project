@@ -3,7 +3,7 @@ import isElectron from 'is-electron'
 import { EnvAppContext } from './contexts'
 import { widgetInitialState, widgetReducer } from './reducers'
 import EnvironmentPortraitView from './widgets/envPortraitView'
-import { addFVSProvider, addProvider, getAccountsList, loadAllDelegations, refreshAccountBalances, registerInjectedProvider } from './actions'
+import { addFVSProvider, addProvider, getAccountsList, loadAllDelegations, refreshAccountBalances, refreshForCurrentProvider, registerInjectedProvider } from './actions'
 import { ProviderDetailsEvent } from './types'
 import { formatBalance } from '@remix-ui/helper'
 // eslint-disable-next-line @nrwl/nx/enforce-module-boundaries
@@ -101,19 +101,22 @@ function EnvironmentWidget({ plugin }: { plugin: EnvironmentPlugin }) {
       })()
     }
 
-    plugin.on('blockchain', 'contextChanged', async (context) => {
+    plugin.on('blockchain', 'contextChanged', () => refreshForCurrentProvider(plugin, async isCurrent => {
       await getAccountsList(plugin, dispatch)
+      if (!isCurrent()) return
       // Load delegations for all accounts after accounts are loaded
       const currentProvider = await plugin.call('blockchain', 'getProvider')
       const accounts = await plugin.call('blockchain', 'getAccounts')
+      if (!isCurrent()) return
       if (accounts && accounts.length > 0) {
         dispatch({ type: 'SET_SELECTED_ACCOUNT', payload: accounts[0] })
         // Convert account addresses to Account objects for loadAllDelegations
         const accountObjects = accounts.map((addr: string) => ({ account: addr } as any))
         await loadAllDelegations(plugin, accountObjects, currentProvider, dispatch)
       }
+      if (!isCurrent()) return
       dispatch({ type: 'COMPLETED_LOADING_ALL_ACCOUNTS', payload: null })
-    })
+    }))
 
     plugin.on('blockchain', 'networkStatus', async (networkStatus: any) => {
       dispatch({ type: 'SET_NETWORK_STATUS', payload: { chainId: networkStatus.network.id, name: networkStatus.network.name } })

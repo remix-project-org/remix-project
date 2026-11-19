@@ -157,7 +157,13 @@ export class Blockchain extends Plugin {
     this.executionContext.event.register('contextChanged', async (context) => {
       if (!this.isWorkspaceLoaded) return
       // reset environment to last known state of the context
-      await this.loadContext(context)
+      try {
+        await this.loadContext(context)
+      } catch (error) {
+        if (context !== this.getProvider()) return
+        throw error
+      }
+      if (context !== this.getProvider()) return
       this._triggerEvent('contextChanged', [context])
       const network = await this.detectNetwork()
       this.networkStatus = { network, error: null }
