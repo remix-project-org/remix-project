@@ -260,7 +260,7 @@ export class TxRunnerWeb3 {
               },
               cancelLabel: 'Cancel Transaction',
               cancelFn: () => {
-                reject(new Error('Transaction canceled by user.'))
+                reject(new Error('Transaction canceled by user (gas estimation failed).'))
               }
             })
           })
@@ -307,7 +307,7 @@ export class TxRunnerWeb3 {
           }
         },
         cancelFn: () => {
-          reject(new Error('Transaction canceled by user.'))
+          reject(new Error('Transaction canceled by user (confirmation dialog).'))
         }
       })
     })

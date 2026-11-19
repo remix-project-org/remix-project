@@ -8,6 +8,7 @@ import { IntlShape } from "react-intl"
 import { deployWithProxyMsg, isOverSizePrompt, logBuilder, unavailableProxyLayoutMsg, upgradeReportMsg, upgradeWithProxyMsg } from "@remix-ui/helper"
 import { SolcInput, SolcOutput } from "@openzeppelin/upgrades-core"
 import { isAddress } from "ethers"
+import { deployFailureReason } from "./deployFailureReason"
 // eslint-disable-next-line @nrwl/nx/enforce-module-boundaries
 import type { DeployPlugin } from "apps/remix-ide/src/app/udapp/udappDeploy"
 // Used direct path to UpgradeableContract class to fix cyclic dependency error from @openzeppelin/upgrades-core library
@@ -275,13 +276,28 @@ async function createInstance(selectedContract: ContractData, args: string | any
 async function deployOnBlockchain (selectedContract: ContractData, args: string | any[], contractMetadata: any, compilerContracts: any, plugin: DeployPlugin) {
   const networkStatus = await plugin.call('udappEnv', 'getNetwork')
   await trackMatomoEvent(plugin, { category: 'udapp', action: 'DeployContractTo', name: networkStatus.name || 'unknown', isClick: false })
-  if (!contractMetadata || (contractMetadata && contractMetadata.autoDeployLib)) {
-    return await plugin.call('blockchain', 'deployContractAndLibraries', selectedContract, args, contractMetadata, compilerContracts)
+  try {
+    if (!contractMetadata || (contractMetadata && contractMetadata.autoDeployLib)) {
+      return await plugin.call('blockchain', 'deployContractAndLibraries', selectedContract, args, contractMetadata, compilerContracts)
+    }
+    if (Object.keys(selectedContract.bytecodeLinkReferences).length) {
+      // statusCb(`linking ${JSON.stringify(selectedContract.bytecodeLinkReferences, null, '\t')} using ${JSON.stringify(contractMetadata.linkReferences, null, '\t')}`)
+    }
+    return await plugin.call('blockchain', 'deployContractWithLibrary', selectedContract, args, contractMetadata, compilerContracts)
+  } catch (error) {
+    // DeployContractTo above is an attempt; this says why an attempt did not
+    // end in a deploy. The reason is a fixed label (never the error text, which
+    // can hold addresses or argument values), the value is the chain id.
+    const chainId = parseInt(String(networkStatus?.chainId), 10)
+    await trackMatomoEvent(plugin, {
+      category: 'udapp',
+      action: 'deployFailed',
+      name: deployFailureReason(error),
+      ...(Number.isFinite(chainId) ? { value: chainId } : {}),
+      isClick: false
+    })
+    throw error
   }
-  if (Object.keys(selectedContract.bytecodeLinkReferences).length) {
-    // statusCb(`linking ${JSON.stringify(selectedContract.bytecodeLinkReferences, null, '\t')} using ${JSON.stringify(contractMetadata.linkReferences, null, '\t')}`)
-  }
-  return await plugin.call('blockchain', 'deployContractWithLibrary', selectedContract, args, contractMetadata, compilerContracts)
 }
 
 function showUpgradeModal(selectedContract: ContractData, args: string, deployMode: OZDeployMode, plugin: DeployPlugin, intl: IntlShape, dispatch: React.Dispatch<Actions>) {
