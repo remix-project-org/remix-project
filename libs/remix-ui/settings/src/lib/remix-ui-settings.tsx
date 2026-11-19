@@ -199,6 +199,15 @@ const settingsSections: SettingsSection[] = [
         }]
       },
       {
+        title: 'settings.aiSecurityChecksSection',
+        options: [{
+          name: 'ai-security-checks',
+          label: 'settings.aiSecurityChecks',
+          description: 'settings.aiSecurityChecksDescription',
+          type: 'toggle'
+        }]
+      },
+      {
         title: 'settings.aiFeedbackSection',
         options: [{
           name: 'ai-feedback',

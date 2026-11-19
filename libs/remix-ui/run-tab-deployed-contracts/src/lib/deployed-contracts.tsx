@@ -6,6 +6,7 @@ import './css/index.css'
 // eslint-disable-next-line @nrwl/nx/enforce-module-boundaries
 import { DeployedContractsPlugin } from 'apps/remix-ide/src/app/udapp/udappDeployedContracts'
 import { loadPinnedContracts, refreshDeployedContractBalances } from './actions'
+import { LightCheckInfo } from './types'
 
 interface DeployedContractsWidgetProps {
   plugin: DeployedContractsPlugin
@@ -16,6 +17,7 @@ function DeployedContractsWidget({ plugin }: DeployedContractsWidgetProps) {
   const [widgetState, dispatch] = useReducer(deployedContractsReducer, widgetInitializer || deployedContractsInitialState)
   const [themeQuality, setThemeQuality] = useState<string>('dark')
   const [eezNetworksVersion, setEezNetworksVersion] = useState<number>(0)
+  const [lightChecks, setLightChecks] = useState<Record<string, LightCheckInfo>>({})
 
   useEffect(() => {
     if (plugin.setStateGetter) {
@@ -106,12 +108,26 @@ function DeployedContractsWidget({ plugin }: DeployedContractsWidgetProps) {
     }
   }, [])
 
+  // one subscription for all cards: a listener per card would replace the previous one
+  useEffect(() => {
+    const keep = (records: LightCheckInfo[]) => setLightChecks((current) => {
+      const next = { ...current }
+      for (const record of records) if (record?.address) next[record.address.toLowerCase()] = record
+      return next
+    })
+    plugin.on('preDeployChecks', 'lightCheckChanged', (record: LightCheckInfo) => keep([record]))
+    plugin.call('preDeployChecks', 'getLightChecks')
+      .then((records: LightCheckInfo[]) => keep(records || []))
+      .catch(() => { /* Pre-deploy Checks not active */ })
+    return () => plugin.off('preDeployChecks', 'lightCheckChanged')
+  }, [])
+
   useEffect(() => {
     plugin.emit('deployedInstanceUpdated', widgetState.deployedContracts)
   }, [widgetState.deployedContracts])
 
   return (
-    <DeployedContractsAppContext.Provider value={{ widgetState, dispatch, plugin, themeQuality, eezNetworksVersion }}>
+    <DeployedContractsAppContext.Provider value={{ widgetState, dispatch, plugin, themeQuality, eezNetworksVersion, lightChecks }}>
       <DeployedContractsPortraitView />
     </DeployedContractsAppContext.Provider>
   )

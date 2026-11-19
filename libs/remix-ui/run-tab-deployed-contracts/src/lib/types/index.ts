@@ -31,12 +31,26 @@ export interface DeployedContractsWidgetState {
   highlightAddDialog: boolean
 }
 
+/** Pre-deploy Checks' light security check of a deployment (its lightCheckChanged payload). */
+export interface LightCheckInfo {
+  address: string
+  contractName: string
+  file: string
+  status: 'running' | 'clear' | 'issues' | 'signin' | 'exhausted' | 'unavailable' | 'error'
+  reasons: string[]
+  suggestions: string[]
+  at: number
+  reused?: boolean
+}
+
 export interface DeployedContractsAppContextType {
   widgetState: DeployedContractsWidgetState
   dispatch: React.Dispatch<Actions>
   plugin: DeployedContractsPlugin
   themeQuality: string
   eezNetworksVersion: number
+  /** light security checks by lowercased address */
+  lightChecks: Record<string, LightCheckInfo>
 }
 
 export type Actions =
