@@ -219,12 +219,12 @@ export const registerScriptRunnerReducer = (state, action) => {
   case KNOWN_TRANSACTION:
     return {
       ...state,
-      journalBlocks: initialState.journalBlocks.push({ message: action.payload.message, style: '', name: 'knownTransaction', provider: action.payload.provider }),
+      journalBlocks: initialState.journalBlocks.push({ message: action.payload.message, style: '', name: 'knownTransaction', provider: action.payload.provider, currency: action.payload.currency }),
     }
   case UNKNOWN_TRANSACTION:
     return {
       ...state,
-      journalBlocks: initialState.journalBlocks.push({ message: action.payload.message, style: '', name: 'unknownTransaction', provider: action.payload.provider }),
+      journalBlocks: initialState.journalBlocks.push({ message: action.payload.message, style: '', name: 'unknownTransaction', provider: action.payload.provider, currency: action.payload.currency }),
     }
   case EMPTY_BLOCK:
     return {

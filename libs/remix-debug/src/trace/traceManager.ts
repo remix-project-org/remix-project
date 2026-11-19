@@ -1,4 +1,5 @@
 'use strict'
+import { isMonadFork } from '../code/monadOpcodes'
 import { util, execution } from '@remix-project/remix-lib'
 const { toHexPaddedString } = util
 import { TraceAnalyser } from './traceAnalyser'
@@ -11,6 +12,7 @@ import { DebugTraceTransactionResult } from '../types'
 export class TraceManager {
   web3: any
   fork: string
+  monadCodeByAddress: Record<string, string> = {}
   isLoading: boolean
   trace: DebugTraceTransactionResult['structLogs']
   traceCache: TraceCache
@@ -34,17 +36,21 @@ export class TraceManager {
   // init section
   async resolveTrace (tx) {
     this.tx = tx
+    this.monadCodeByAddress = {}
     this.init()
     if (!this.web3) throw new Error('web3 not loaded')
     this.isLoading = true
     const result = await this.getTrace(tx.hash)
+    if (isMonadFork(result.fork)) {
+      this.monadCodeByAddress = result.codeByAddress || {}
+    }
     try {
       if (result['structLogs'].length > 0) {
         this.trace = result['structLogs']
 
         try {
-          const networkId = (await this.web3.getNetwork()).chainId
-          this.fork = execution.forkAt(networkId, tx.blockNumber)
+          this.fork = isMonadFork(result.fork)
+            ? result.fork : execution.forkAt((await this.web3.getNetwork()).chainId, tx.blockNumber)
         } catch (e) {
           this.fork = 'osaka'
           console.log(`unable to detect fork, defaulting to ${this.fork}..`)

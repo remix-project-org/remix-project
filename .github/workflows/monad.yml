@@ -1,0 +1,94 @@
+name: Monad UI regressions
+
+on:
+  pull_request:
+    branches: [master]
+    paths:
+      - '.github/workflows/monad.yml'
+      - 'libs/remix-monad/**'
+      - 'libs/remix-debug/**'
+      - 'libs/remix-ui/debugger-ui/**'
+      - 'libs/remix-ui/run-tab*/**'
+      - 'libs/remix-ui/terminal/**'
+      - 'apps/remix-ide/src/blockchain/**'
+      - 'apps/remix-ide/src/app.ts'
+      - 'tests/monad/**'
+      - 'scripts/test-monad-ui.mjs'
+      - 'playwright.monad.config.ts'
+      - 'package.json'
+      - 'yarn.lock'
+      - '.nvmrc'
+      - 'tsconfig*.json'
+  push:
+    paths:
+      - '.github/workflows/monad.yml'
+      - 'libs/remix-monad/**'
+      - 'libs/remix-debug/**'
+      - 'libs/remix-ui/debugger-ui/**'
+      - 'libs/remix-ui/run-tab*/**'
+      - 'libs/remix-ui/terminal/**'
+      - 'apps/remix-ide/src/blockchain/**'
+      - 'apps/remix-ide/src/app.ts'
+      - 'tests/monad/**'
+      - 'scripts/test-monad-ui.mjs'
+      - 'playwright.monad.config.ts'
+      - 'package.json'
+      - 'yarn.lock'
+      - '.nvmrc'
+      - 'tsconfig*.json'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: monad-ui-${{ github.head_ref || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  ui:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    env:
+      NX_NO_CLOUD: 'true'
+      NX_DAEMON: 'false'
+      NX_PARALLEL: '2'
+      NODE_OPTIONS: --max-old-space-size=6144
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: yarn
+      - name: Install locked dependencies
+        run: yarn install --frozen-lockfile --non-interactive
+      - name: Check types and lint
+        run: |
+          yarn tsc -p libs/remix-monad/tsconfig.json --noEmit
+          yarn tsc -p tests/monad/tsconfig.json
+          yarn nx lint remix-monad --skip-nx-cache
+          yarn eslint playwright.monad.config.ts tests/monad/*.ts
+      - name: Test chain IDs, save/restore, account preferences and MON values
+        run: yarn test:monad:ui
+      - name: Test existing debugger behavior
+        run: >-
+          yarn ts-node --project tsconfig.base.json --require tsconfig-paths/register node_modules/.bin/tape
+          libs/remix-debug/test/tests.ts
+      - name: Build Remix with its VM worker and WASM asset
+        run: yarn nx build remix-ide --configuration=development --skip-nx-cache
+      - name: Install Chromium
+        run: yarn playwright install --with-deps chromium
+      - name: Test badges, account aliases and transaction currency
+        run: yarn test:monad:browser
+      - name: Upload browser report and failure diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: monad-browser-results
+          path: |
+            playwright-report/monad
+            test-results/monad
+          if-no-files-found: ignore
+          retention-days: 7

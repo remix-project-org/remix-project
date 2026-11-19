@@ -1,4 +1,5 @@
 import React, { useContext, useEffect, useMemo, useRef, useState } from 'react'
+import { monadUnitLabel } from '@remix-project/remix-monad'
 import { FormattedMessage } from 'react-intl'
 import { Dropdown } from 'react-bootstrap'
 import { CustomTooltip, extractNameFromKey, getMultiValsString, ProxyAddressToggle, ProxyDropdownMenu, Select, shortenDate, shortenProxyAddress } from '@remix-ui/helper'
@@ -21,7 +22,7 @@ const txHelper = remixLib.execution.txHelper
 const queryParams = new remixLib.QueryParams()
 
 function DeployPortraitView() {
-  const { plugin, widgetState, dispatch, themeQuality } = useContext(DeployAppContext)
+  const { plugin, widgetState, dispatch, themeQuality, isMonad } = useContext(DeployAppContext)
   const { trackMatomoEvent } = useContext(TrackingContext)
   const { isAuthenticated } = useAuth()
   // TODO: Move all state to reducer
@@ -844,7 +845,7 @@ function DeployPortraitView() {
                     compact
                     align="end"
                     value={widgetState.valueUnit}
-                    options={['wei', 'gwei', 'finney', 'ether'].map((unit) => ({ value: unit, label: unit }))}
+                    options={['wei', 'gwei', 'finney', 'ether'].map((unit) => ({ value: unit, label: isMonad ? monadUnitLabel(unit) : unit }))}
                     onChange={(unit) => {
                       trackMatomoEvent?.({ category: 'udapp', action: 'valueUnitChange', name: unit, isClick: true })
                       dispatch({ type: 'SET_VALUE_UNIT', payload: unit as typeof widgetState.valueUnit })

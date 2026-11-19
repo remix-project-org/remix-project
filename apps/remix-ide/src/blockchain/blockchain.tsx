@@ -79,7 +79,7 @@ export class Blockchain extends Plugin {
     this.networkcallid = 0
     this.registeredPluginEvents = []
     // the first item in the list should be latest fork.
-    this.defaultPinnedProviders = ['vm-osaka', 'vm-prague', 'vm-cancun', 'vm-mainnet-fork', 'walletconnect', 'injected-MetaMask', 'basic-http-provider', 'hardhat-provider', 'foundry-provider', 'desktopHost']
+    this.defaultPinnedProviders = ['vm-osaka', 'vm-prague', 'vm-cancun', 'vm-monad-eight', 'vm-monad-nine', 'vm-monad-ten', 'vm-monad-next', 'vm-mainnet-fork', 'walletconnect', 'injected-MetaMask', 'basic-http-provider', 'hardhat-provider', 'foundry-provider', 'desktopHost']
     this.networkStatus = { network: { name: this.defaultPinnedProviders[0], id: ' - ' } }
     this.networkNativeCurrency = { name: "Ether", symbol: "ETH", decimals: 18 }
     this.pinnedProviders = []
@@ -675,6 +675,7 @@ export class Blockchain extends Plugin {
       // udapp: this.udapp.event
       udapp: this.event
     }
+    opts.api.getNetworkCurrency = () => this.getCurrentNetworkCurrency()
     const txlistener = new Txlistener(opts, this.executionContext)
     return txlistener
   }
