@@ -119,3 +119,39 @@ test('account aliases stay separate between Ethereum and Monad across hardforks 
   await selectEnvironment(page, 'osaka')
   await expect(account).toContainText('Ethereum account')
 })
+
+test('a named fork of a Monad VM keeps MON for values, units and balances', async ({ page }) => {
+  await selectEnvironment(page, 'monad-ten')
+  // A VM can be forked once it holds state.
+  await deploy(page)
+  await page.evaluate(() => { (window as any).__forkedVM = (window as any).__remixVM_web3 })
+  await page.locator('[data-id="fork-state-icon"]').click()
+  await page.locator('[data-id="forkInput"]').fill('monad-fork')
+  await page.locator('[data-id="btnForkState"]').click()
+  await expect(page.locator('[data-id="selected-provider-vm-fs-monad-fork"]')).toBeVisible()
+  await expect(page.locator('[data-id="runTabSelectAccount"]')).toContainText('MON')
+  // The fork is selected before its VM has loaded the forked state.
+  await expect.poll(() => page.evaluate(() => (window as any).__remixVM_web3 !== (window as any).__forkedVM)).toBe(true)
+  expect(await rpc(page, 'eth_chainId')).toBe('0x8f')
+
+  await page.getByRole('tab', { name: 'Deploy', exact: true }).click()
+  await expect(page.locator('[data-id="deploy-widget-header"] .badge')).toHaveText(badges['monad-ten'])
+  await unit(page, 'deployValueUnit', 'ether', 'MON')
+  await page.locator('[data-id="udapp_value"]').fill('1')
+  const buttons = page.locator('[data-shared="txLoggerDebugButton"]')
+  const logged = await buttons.count()
+  await page.locator('[data-id="deployButton"]').click()
+  await expect(buttons).toHaveCount(logged + 1)
+  const hash = (await buttons.last().getAttribute('data-id')).replace('txLoggerDebugButton', '')
+  const log = page.locator(`[id="tx${hash}"] .remix_ui_terminal_log`)
+  await expect(log).toContainText('1.0 MON')
+  await log.click()
+  await expect(page.locator(`[data-id="txLoggerTable${hash}"]`)).toContainText('1.0 MON')
+  await page.getByRole('tab', { name: /^Deployed Contracts\b/ }).click()
+  await expect(page.locator('[data-id="deployedContractBal"]').last()).toContainText('1.0 MON')
+
+  // The entry keeps the currency it was executed in after leaving the fork.
+  await selectEnvironment(page, 'osaka')
+  await expect(log).toContainText('1.0 MON')
+  await expect(page.locator(`[data-id="txLoggerTable${hash}"]`)).toContainText('1.0 MON')
+})

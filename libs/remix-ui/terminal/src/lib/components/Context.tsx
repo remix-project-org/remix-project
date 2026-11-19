@@ -1,10 +1,10 @@
 import React from 'react' // eslint-disable-line
-import { isMonadProvider, formatMonadValue } from '@remix-project/remix-monad'
+import { isMonadCurrency, formatMonadValue } from '@remix-project/remix-monad'
 import { shortenHexData } from '@remix-ui/helper'
 import { execution } from '@remix-project/remix-lib'
 const typeConversion = execution.typeConversion
 
-const Context = ({ opts, provider }: {opts; provider: string}) => {
+const Context = ({ opts, provider, currency }: {opts; provider: string; currency?: {symbol: string}}) => {
   const data = opts.tx || ''
   const from = opts.from ? shortenHexData(opts.from) : ''
   let to = opts.to
@@ -17,7 +17,7 @@ const Context = ({ opts, provider }: {opts; provider: string}) => {
   let txIndex
   if (data.index == 0) txIndex = 0
   else txIndex = data.index ? data.index.toString() : '-'
-  const value = val ? typeConversion.toInt(val) : 0
+  const value = isMonadCurrency(currency) ? formatMonadValue(val || 0) : `${val ? typeConversion.toInt(val) : 0} wei`
   if (provider && provider.startsWith('vm')) {
     return (
       <div>
@@ -33,7 +33,7 @@ const Context = ({ opts, provider }: {opts; provider: string}) => {
           </div>
           <div className="remix_ui_terminal_txItem">
             <span className="remix_ui_terminal_txItemTitle">value:</span>
-            <span className="remix_ui_terminal_txItemValue">{isMonadProvider(provider) ? formatMonadValue(val || 0) : `${value} wei`}</span>
+            <span className="remix_ui_terminal_txItemValue">{value}</span>
           </div>
           <div className="remix_ui_terminal_txItem">
             <span className="remix_ui_terminal_txItemTitle">data:</span>
@@ -67,7 +67,7 @@ const Context = ({ opts, provider }: {opts; provider: string}) => {
           </div>
           <div className="remix_ui_terminal_txItem">
             <span className="remix_ui_terminal_txItemTitle">value:</span>
-            <span className="remix_ui_terminal_txItemValue">{value} wei</span>
+            <span className="remix_ui_terminal_txItemValue">{value}</span>
           </div>
           <div className="remix_ui_terminal_txItem">
             <span className="remix_ui_terminal_txItemTitle">data:</span>
@@ -102,7 +102,7 @@ const Context = ({ opts, provider }: {opts; provider: string}) => {
           </div>
           <div className="remix_ui_terminal_txItem">
             <span className="remix_ui_terminal_txItemTitle">value:</span>
-            <span className="remix_ui_terminal_txItemValue">{value} wei</span>
+            <span className="remix_ui_terminal_txItemValue">{value}</span>
           </div>
           <div className="remix_ui_terminal_txItem">
             <span className="remix_ui_terminal_txItemTitle">data:</span>

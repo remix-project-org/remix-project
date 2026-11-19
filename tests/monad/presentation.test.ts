@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
 import { parseUnits } from 'ethers'
-import { isMonadProvider, monadUnitLabel, formatMonadValue } from '../../libs/remix-monad/src/presentation'
+import { MONAD_CURRENCY, isMonadCurrency, monadUnitLabel, formatMonadValue } from '../../libs/remix-monad/src/presentation'
 import { clearAccountPreferences, deleteAccount, getAccountAlias, getNextAvailableAccountNumber, isAccountDeleted, restoreAccount, setAccountAlias } from '../../libs/remix-ui/run-tab-environment/src/lib/utils/accountStorage'
 
 test('Monad unit labels preserve ethers denominations and exact 18-decimal values', () => {
@@ -31,10 +31,12 @@ for (const [unit, amount, wei, formatted] of [
   })
 }
 
-test('only the four supported Monad providers use MON transaction formatting', () => {
-  for (const fork of ['eight', 'nine', 'ten', 'next']) assert.equal(isMonadProvider(`vm-monad-${fork}`), true)
-  for (const provider of ['vm-osaka', 'vm-prague', 'vm-monad-future', 'injected', null, undefined]) {
-    assert.equal(isMonadProvider(provider), false)
+test('MON formatting follows the native currency of the network, not the name of its provider', () => {
+  // The local VM, its forked states and connected Monad chains all report MON.
+  assert.equal(isMonadCurrency(MONAD_CURRENCY), true)
+  assert.equal(isMonadCurrency({ name: 'Testnet MON Token', symbol: 'MON', decimals: 18 }), true)
+  for (const currency of [{ name: 'Ether', symbol: 'ETH', decimals: 18 }, { symbol: 'mon' }, {}, 'MON', null, undefined]) {
+    assert.equal(isMonadCurrency(currency), false)
   }
 })
 

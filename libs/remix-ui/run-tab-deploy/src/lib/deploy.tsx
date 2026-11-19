@@ -1,5 +1,5 @@
 import React, { useEffect, useReducer, useState } from 'react'
-import { isMonadSpec, monadVmLabel } from '@remix-project/remix-monad'
+import { isMonadCurrency, isMonadSpec, monadVmLabel } from '@remix-project/remix-monad'
 import { DeployAppContext } from './contexts'
 import { deployInitialState, deployReducer } from './reducers'
 import DeployPortraitView from './widgets/deployPortraitView'
@@ -99,7 +99,8 @@ function DeployWidget({ plugin }: DeployWidgetProps) {
       const isVM = networkProvider.startsWith('vm') ? true : false
       const fork = isVM ? await plugin.call('blockchain', 'getCurrentFork') : undefined
       const monad = isMonadSpec(fork)
-      setIsMonad(monad)
+      // value units follow the native currency, which a connected Monad network reports as well.
+      setIsMonad(isMonadCurrency(network.networkNativeCurrency))
       // For forked VM states (vm-fs-*), remove the vm-fs- prefix to show just the state name
       // For regular VM states (vm-*), remove the vm- prefix to show the fork name
       const vmName = networkProvider?.startsWith('vm-fs-')
