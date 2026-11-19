@@ -669,6 +669,7 @@ export class Blockchain extends Plugin {
       // udapp: this.udapp.event
       udapp: this.event
     }
+    opts.api.getNetworkCurrency = () => this.getCurrentNetworkCurrency()
     const txlistener = new Txlistener(opts, this.executionContext)
     return txlistener
   }

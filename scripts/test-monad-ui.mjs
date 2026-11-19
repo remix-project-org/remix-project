@@ -6,9 +6,10 @@ const suites = readdirSync('tests/monad').filter(file => file.endsWith('.test.ts
 mkdirSync('tmp/monad-ui-tests', { recursive: true })
 await build({
   entryPoints: suites.map(file => `tests/monad/${file}`), bundle: true,
-  platform: 'node', format: 'esm', packages: 'external',
-  outdir: 'tmp/monad-ui-tests', outExtension: { '.js': '.mjs' }
+  // The shared transaction listener also loads CommonJS dependencies.
+  platform: 'node', format: 'cjs', packages: 'external',
+  outdir: 'tmp/monad-ui-tests', outExtension: { '.js': '.cjs' }
 })
-const result = spawnSync(process.execPath, ['--test', ...suites.map(file => `tmp/monad-ui-tests/${file.replace(/\.ts$/, '.mjs')}`)], { stdio: 'inherit' })
+const result = spawnSync(process.execPath, ['--test', ...suites.map(file => `tmp/monad-ui-tests/${file.replace(/\.ts$/, '.cjs')}`)], { stdio: 'inherit' })
 if (result.error) throw result.error
 process.exit(result.status ?? 1)
