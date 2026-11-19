@@ -1,5 +1,11 @@
 import { Provider } from '@remix-project/remix-simulator'
 
+const rpcError = (error) => error ? {
+  message: error.message || String(error),
+  code: error.code || -32603,
+  data: error.data
+} : null
+
 let provider: Provider = null
 self.onmessage = (e: MessageEvent) => {
   const data = e.data
@@ -15,7 +21,7 @@ self.onmessage = (e: MessageEvent) => {
     }).catch((error) => {
       self.postMessage({
         cmd: 'initiateResult',
-        error,
+        error: rpcError(error),
         stamp: data.stamp
       })
     })
@@ -27,7 +33,7 @@ self.onmessage = (e: MessageEvent) => {
       provider.sendAsync(data.query, (error, result) => {
         self.postMessage({
           cmd: 'sendAsyncResult',
-          error,
+          error: rpcError(error),
           result,
           stamp: data.stamp
         })
@@ -58,7 +64,7 @@ self.onmessage = (e: MessageEvent) => {
         }).catch((error) => {
           self.postMessage({
             cmd: 'requestResult',
-            error: error,
+            error: rpcError(error),
             result: null,
             stamp: stamp
           })
