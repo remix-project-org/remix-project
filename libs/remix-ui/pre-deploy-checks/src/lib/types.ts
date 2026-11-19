@@ -6,7 +6,8 @@ export type StepStatus = 'not-run' | 'running' | 'passed' | 'findings' | 'submit
 
 export type FindingSource = 'compiler' | 'remix' | 'solhint' | 'slither' | 'ai'
 
-export type Origin = 'panel' | 'manual'
+/** panel: run here · manual: done by hand in another panel · auto: the background check after a paste */
+export type Origin = 'panel' | 'manual' | 'auto'
 
 export interface Position {
   line: number // 0-based

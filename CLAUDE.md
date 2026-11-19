@@ -237,6 +237,8 @@ nx generate @nrwl/node:library <name>
 
 8. **Signing in as a test user in the browser**: load the IDE with `#e2e_pool_key=<key>` in the URL (optionally `&e2e_feature_groups=<group>[,<group>]`, e.g. `beta`, `ai-pro`, `e2e-unlimited-quota`; leave it out for a plain free-tier account). The login modal then shows an **E2E Test Pool** button (`data-id="loginModalE2EPoolButton"`), which checks out an exclusive pooled account without OAuth (`auth.login('test')`). The key is a secret: ask the user for it, or read `E2E_POOL_KEY` / `E2E_POOL_API_KEY` from the environment, and **never commit it** to the repo or docs. Call `auth.poolRelease()` when you're done so the account goes back to the pool (see `apps/remix-ide-e2e/src/helpers/e2ePool.ts`).
 
+9. **Which backend a local IDE talks to**: `preload.tsx` always runs endpoint discovery against `https://api.remix.live/.well-known/remix-config`, and the production API answers based on the request `Origin`. Local dev origins (`http://localhost:8080`, `http://127.0.0.1:8080`) are pointed at the sandbox/staging instance automatically (currently `https://tokens.staging.remix.live`), while `https://remix.ethereum.org` gets `https://api.remix.live`. You don't need `NX_ENDPOINTS_URL` for local testing against the sandbox; plain `yarn serve` is enough. Check what a given origin resolves to with `curl -H "Origin: http://localhost:8080" https://api.remix.live/.well-known/remix-config`.
+
 ## Project-Specific Knowledge
 
 ### Ethereum/Solidity Context

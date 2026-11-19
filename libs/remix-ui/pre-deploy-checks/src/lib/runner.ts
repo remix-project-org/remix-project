@@ -172,7 +172,9 @@ async function runAiReview (host: CheckHost, file: string): Promise<StepResult> 
   }
   if (!answer || typeof answer.Answer !== 'string') return result('failed', { note: 'RemixAI returned an answer that could not be read' })
   const findings = aiFindings(answer, file)
-  return result(findings.length ? 'findings' : 'passed', { findings, note: findings.length ? undefined : 'No major vulnerability reported' })
+  // the structured answer lets the light check on deployment reuse this verdict for the same content
+  const data = { answer: { Answer: answer.Answer, Reason: answer.Reason, Suggestion: answer.Suggestion } }
+  return result(findings.length ? 'findings' : 'passed', { findings, data, note: findings.length ? undefined : 'No major vulnerability reported' })
 }
 
 export function flattenedPath (file: string): string {

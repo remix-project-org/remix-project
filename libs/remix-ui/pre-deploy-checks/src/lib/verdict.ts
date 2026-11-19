@@ -45,14 +45,18 @@ export interface ToolLine {
 
 const usable = (status?: string) => status === 'passed' || status === 'findings'
 
-function enabledSteps (toggles: StepToggles): CheckStepId[] {
-  return CHECK_STEPS.filter((id) => id === 'compile' || toggles[id])
+/**
+ * The steps that count: the ones switched on, plus an AI verdict from the automatic check after a paste,
+ * which counts even with the panel's AI toggle off (the user didn't run it, so must still see what it found).
+ */
+function enabledSteps (toggles: StepToggles, state?: FileCheckState | null): CheckStepId[] {
+  return CHECK_STEPS.filter((id) => id === 'compile' || toggles[id] || (id === 'ai' && state?.steps.ai?.origin === 'auto'))
 }
 
 /** Tools whose results are current: what "From N tools" counts. */
 export function toolsWithResults (state: FileCheckState, toggles: StepToggles): ToolId[] {
   const tools: ToolId[] = []
-  for (const id of enabledSteps(toggles)) {
+  for (const id of enabledSteps(toggles, state)) {
     const step = state.steps[id]
     if (!STEP_TOOLS[id] || !step || !usable(step.status) || isStale(state, id)) continue
     tools.push(...STEP_TOOLS[id].filter((tool) => !(tool === 'solhint' && step.data?.solhintError)))
@@ -72,10 +76,10 @@ export function deriveVerdict ({ state, findings, toggles, runningStep }: Verdic
 
   const deploy = state.steps.deploy
   const deployed = deploy?.status === 'passed' && deploy.data?.address
-  const checked = enabledSteps(toggles).some((id) => id !== 'compile' && state.steps[id] && state.steps[id].status !== 'running')
+  const checked = enabledSteps(toggles, state).some((id) => id !== 'compile' && state.steps[id] && state.steps[id].status !== 'running')
   if (!checked && !deployed) return { verdict: { kind: 'not-checked' }, actions: ['run']}
 
-  if (enabledSteps(toggles).some((id) => isStale(state, id))) return { verdict: { kind: 'out-of-date' }, actions: ['run']}
+  if (enabledSteps(toggles, state).some((id) => isStale(state, id))) return { verdict: { kind: 'out-of-date' }, actions: ['run']}
 
   if (deployed && !deployedFromOlderVersion(state)) {
     return { verdict: { kind: 'deployed', contractName: deploy.data.contractName, network: deploy.data.network, at: deploy.at }, actions: []}
@@ -105,7 +109,7 @@ export function deriveVerdict ({ state, findings, toggles, runningStep }: Verdic
 export function toolLines ({ state, toggles, runningStep }: VerdictInput): ToolLine[] {
   if (!state) return []
   const lines: ToolLine[] = []
-  for (const id of enabledSteps(toggles)) {
+  for (const id of enabledSteps(toggles, state)) {
     const tools = STEP_TOOLS[id]
     if (!tools) continue
     const step = state.steps[id]

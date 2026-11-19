@@ -11,6 +11,7 @@ import { DeployedContract } from '../types'
 import { runTransactions, pinContract, checkCrossChainProxy, getCrossChainDestinations, quoteCrossChainFee, traceCrossChainCall, CrossChainDestination, CrossChainProxyInfo, CrossChainTraceResult, EezNetworkEntry } from '../actions'
 import { ContractKebabMenu } from './ContractKebabMenu'
 import { EnsNaming } from './EnsNaming'
+import { LightSecurityCheck } from './LightSecurityCheck'
 import { QuickDappContractSelector, QuickDappFigmaPreparationResult, QuickDappSetupOptions, QuickDappModelChoice } from '@remix-ui/quick-dapp-v2'
 import { frontierAlternativesFor, frontierFamilyOf } from '@remix/remix-ai-core/model-tiers'
 
@@ -1137,6 +1138,7 @@ For Inline mode, preserve the existing /frontend overwrite confirmation flow. Co
                 ></i>
               </div>
             </div>
+            <LightSecurityCheck contract={contract} />
             <ContractKebabMenu
               show={isKebabMenuOpen}
               target={kebabIconRef.current}
