@@ -21,6 +21,8 @@ export interface BlockchainEvent extends MatomoEventBase {
 export interface UdappEvent extends MatomoEventBase {
   category: 'udapp';
   action:
+    | 'lightSecurityCheck'
+    | 'lightSecurityCheckCta'
     | 'sendTransaction-from-plugin'
     | 'sendTransaction-from-gui'
     | 'safeSmartAccount'

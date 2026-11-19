@@ -1108,9 +1108,13 @@ export const EditorUI = (props: EditorUIProps) => {
     })
 
     editor.onDidPaste(async (e) => {
+      const isLargePaste = !pasteCodeRef.current && e && e.range && e.range.startLineNumber >= 0 && e.range.endLineNumber >= 0 && e.range.endLineNumber - e.range.startLineNumber > 10
+      if (!isLargePaste) return
+      // RemixAI checks the file in the background, also when the warning below is switched off
+      const backgroundCheck: 'checking' | 'signin' | 'off' = await props.plugin.call('preDeployChecks', 'checkPasted').catch(() => 'off')
       const shouldShowWarning = localStorage.getItem(HIDE_PASTE_WARNING_KEY) !== 'true';
       // Only show the modal if the user hasn't opted out
-      if (shouldShowWarning && !pasteCodeRef.current && e && e.range && e.range.startLineNumber >= 0 && e.range.endLineNumber >= 0 && e.range.endLineNumber - e.range.startLineNumber > 10) {
+      if (shouldShowWarning) {
         // get the file name
         const pastedCode = editor.getModel().getValueInRange(e.range)
         const pastedCodePrompt = intl.formatMessage({ id: 'editor.PastedCodeSafety' }, { content:pastedCode })
@@ -1160,6 +1164,12 @@ export const EditorUI = (props: EditorUIProps) => {
                 <div className="mt-2">
                   <FormattedMessage id="editor.title1.message5" />
                 </div>
+                {backgroundCheck !== 'off' && (
+                  <div className="mt-2 text-info" data-id="pasteBackgroundCheck" data-status={backgroundCheck}>
+                    <i className="fas fa-shield-alt me-1"></i>
+                    <FormattedMessage id={backgroundCheck === 'checking' ? 'editor.pasteCheck.checking' : 'editor.pasteCheck.signin'} />
+                  </div>
+                )}
                 <div className="mt-2">
                   <FormattedMessage
                     id="editor.title1.message6"

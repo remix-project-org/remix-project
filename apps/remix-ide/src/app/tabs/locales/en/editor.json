@@ -16,6 +16,8 @@
   "editor.title1.message4": "If you don't fully understand it, please don't run this code.",
   "editor.title1.message5": "If you are not a smart contract developer, ask someone you trust who has the skills to determine if this code is safe to use.",
   "editor.title1.message6": "See <a>these recommendations</a> for more information.",
+  "editor.pasteCheck.checking": "RemixAI is checking this code for scams and major vulnerabilities in the background. We'll let you know if it finds something.",
+  "editor.pasteCheck.signin": "Sign in to have RemixAI check pasted code for scams and major vulnerabilities automatically, for free.",
   "editor.zoomIn": "Zoom In",
   "editor.zoomOut": "Zoom Out",
   "editor.formatCode": "Format Code",

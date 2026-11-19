@@ -18,6 +18,12 @@ export interface ModelSelection {
   modelId: string
   /** The transport that carries the request; wins over `provider`. */
   routeProvider?: ModelTransport
+  /**
+   * false: send no OpenRouter `models` fallback list. With that list present the chat
+   * completions endpoint often serves a fallback instead of `modelId` (see openrouter.ts),
+   * so calls pinned to one model for cost or behaviour turn it off.
+   */
+  fallbacks?: boolean
 }
 
 /**
