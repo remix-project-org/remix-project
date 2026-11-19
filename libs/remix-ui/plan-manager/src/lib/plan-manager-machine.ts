@@ -1022,9 +1022,19 @@ function emptyCreditStatus(state: CreditState = 'unknown'): CreditStatus {
   }
 }
 
+/**
+ * True when a quota row may be presented to the user as included AI usage.
+ * Hidden quotas (`is_visible === false`, e.g. free security-check allowances)
+ * still drain on the backend but must not inflate "Free included AI" or show
+ * up in the quota panel. Missing flag (older backends) → visible.
+ */
+export function isUserVisibleQuota(q: Pick<QuotaEntry, 'is_visible'> | null | undefined): boolean {
+  return !!q && q.is_visible !== false
+}
+
 function selectIncludedCredits(credits: Credits): Pick<CreditStatus, 'includedRemaining' | 'includedTotal' | 'includedUsed' | 'hasUnlimitedIncluded'> {
   const quotas = Array.isArray(credits.quotas) ? credits.quotas : []
-  const activeQuotas = quotas.filter(q => q && typeof q.amount === 'number' && q.amount > 0)
+  const activeQuotas = quotas.filter(q => isUserVisibleQuota(q) && typeof q.amount === 'number' && q.amount > 0)
   const hasUnlimitedIncluded = activeQuotas.some(q => q.amount >= THRESHOLDS.INCLUDED_UNLIMITED_AMOUNT)
   const finiteQuotas = activeQuotas.filter(q => q.amount < THRESHOLDS.INCLUDED_UNLIMITED_AMOUNT)
 
@@ -1178,6 +1188,8 @@ export function selectPurchasingProductId(snap: PlanManagerSnapshot): string | n
  *   - non-array payloads (defensive against bad shapes)
  *   - rows with `amount <= 0` (per the brief, these are disabled and must
  *     not be rendered)
+ *   - hidden rows (`is_visible === false`), e.g. free security-check
+ *     allowances that aren't presented as included credit
  *
  * Preserves the backend ordering (amount ASC, slug ASC) so the tightest
  * cap — which drains first — stays on top.
@@ -1185,7 +1197,7 @@ export function selectPurchasingProductId(snap: PlanManagerSnapshot): string | n
 export function selectQuotas(snap: PlanManagerSnapshot): QuotaEntry[] {
   const raw = snap.credits?.quotas
   if (!Array.isArray(raw)) return []
-  return raw.filter(q => q && typeof q.amount === 'number' && q.amount > 0)
+  return raw.filter(q => isUserVisibleQuota(q) && typeof q.amount === 'number' && q.amount > 0)
 }
 
 /**

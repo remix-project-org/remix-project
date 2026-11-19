@@ -4551,9 +4551,29 @@ function prettifyModel(slug: string, lookup: ModelLookup): string {
     .join(' ')
 }
 
+function prettifyOperation(slug: string | undefined): string {
+  // '*' / absent = applies to every call; no operation label.
+  if (!slug || slug === '*') return ''
+  // 'security_check' → 'Security Check'
+  return slug
+    .split(/[-_]/)
+    .filter(Boolean)
+    .map(p => p.charAt(0).toUpperCase() + p.slice(1))
+    .join(' ')
+}
+
 function formatQuotaLabel(q: QuotaEntry, lookup: ModelLookup): string {
+  const operation = prettifyOperation(q.operation)
   const model = prettifyModel(q.model, lookup)
   const provider = prettifyProvider(q.provider)
+  // Operation-scoped quotas (e.g. free security checks) lead with the
+  // operation — that's what the allowance is *for*. Provider/model only
+  // add signal when they're concrete.
+  if (operation) {
+    if (q.provider === '*' && q.model === '*') return operation
+    if (q.model === '*') return `${operation} · ${provider}`
+    return `${operation} · ${model}`
+  }
   // When the model is wildcarded but the provider is concrete, lead with
   // the provider ("Mistralai · All models"). When both are wildcards we
   // get the catch-all "All providers · All models" which is honest.
@@ -4806,6 +4826,7 @@ const QuotasPanel: React.FC<{
               data-quota-slug={q.slug}
               data-quota-provider={q.provider}
               data-quota-model={q.model}
+              data-quota-operation={q.operation ?? '*'}
               data-quota-period={q.period}
               data-quota-used={q.used}
               data-quota-amount={q.amount}
