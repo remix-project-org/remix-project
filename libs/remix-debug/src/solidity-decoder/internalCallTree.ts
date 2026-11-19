@@ -796,7 +796,7 @@ async function buildTree (tree: InternalCallTree, step, scopeId, isCreation, sou
     }
 
     // if have to  use that stack to update the context after we get out of the call
-    const newSymbolicStack = updateSymbolicStack(previousSymbolicStack, stepDetail.op, step)
+    const newSymbolicStack = updateSymbolicStack(previousSymbolicStack, stepDetail.op, step, tree.traceManager.getCurrentFork())
     // if it's call with have to reset the symbolic stack
     // step + 1 because the symbolic stack represents the state AFTER the opcode execution
     const zeroTheStack = (isInternalTxInstrn || isCreateInstrn) //  && !isStaticCallInstruction(stepDetail)

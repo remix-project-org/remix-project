@@ -26528,6 +26528,10 @@ monaco-editor@0.44.0:
   resolved "https://registry.yarnpkg.com/monaco-editor/-/monaco-editor-0.44.0.tgz#3c0fe3655923bbf7dd647057302070b5095b6c59"
   integrity sha512-5SmjNStN6bSuSE5WPT2ZV+iYn1/yI9sd4Igtk23ChvqB7kDk9lZbB9F5frsuvpB+2njdIeGGFf2G4gbE6rCC9Q==
 
+"monad-evm2js@https://github.com/category-labs/monad-alloy-evm2.git#d8364f6dbc201bad0f6cffa314a901a7b0e591e2":
+  version "0.1.0-preview.1"
+  resolved "https://github.com/category-labs/monad-alloy-evm2.git#d8364f6dbc201bad0f6cffa314a901a7b0e591e2"
+
 move-concurrently@^1.0.1, move-concurrently@~1.0.1:
   version "1.0.1"
   resolved "https://registry.yarnpkg.com/move-concurrently/-/move-concurrently-1.0.1.tgz#be2c005fda32e0b29af1f05d7c4b33214c701f92"

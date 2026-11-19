@@ -3,7 +3,7 @@ import isElectron from 'is-electron'
 import { EnvAppContext } from './contexts'
 import { widgetInitialState, widgetReducer } from './reducers'
 import EnvironmentPortraitView from './widgets/envPortraitView'
-import { addFVSProvider, addProvider, getAccountsList, loadAllDelegations, refreshAccountBalances, registerInjectedProvider } from './actions'
+import { addFVSProvider, addProvider, getAccountsList, loadAllDelegations, refreshAccountBalances, refreshForCurrentProvider, registerInjectedProvider } from './actions'
 import { ProviderDetailsEvent } from './types'
 import { formatBalance } from '@remix-ui/helper'
 // eslint-disable-next-line @nrwl/nx/enforce-module-boundaries
@@ -43,6 +43,10 @@ function EnvironmentWidget({ plugin }: { plugin: EnvironmentPlugin }) {
         await plugin.call('blockchain', 'resetAndInit')
         // VM
         const titleVM = 'Execution environment is local to Remix.  Data is only saved to browser memory and will vanish upon reload.'
+        await addProvider({ position: 6, name: 'vm-monad-eight', displayName: 'Monad Eight', category: 'Monad VM', providerConfig: { isInjected: false, isVM: true, isRpcForkedState: false, statePath: '.states/vm-monad-eight/state.json', fork: 'monad-eight' }, dataId: 'settingsVMMonadEightMode', title: titleVM }, plugin, dispatch)
+        await addProvider({ position: 5, name: 'vm-monad-nine', displayName: 'Monad Nine', category: 'Monad VM', providerConfig: { isInjected: false, isVM: true, isRpcForkedState: false, statePath: '.states/vm-monad-nine/state.json', fork: 'monad-nine' }, dataId: 'settingsVMMonadNineMode', title: titleVM }, plugin, dispatch)
+        await addProvider({ position: 4, name: 'vm-monad-ten', displayName: 'Monad Ten', category: 'Monad VM', providerConfig: { isInjected: false, isVM: true, isRpcForkedState: false, statePath: '.states/vm-monad-ten/state.json', fork: 'monad-ten' }, dataId: 'settingsVMMonadTenMode', title: titleVM }, plugin, dispatch)
+        await addProvider({ position: 7, name: 'vm-monad-next', displayName: 'Monad Next (experimental)', category: 'Monad VM', providerConfig: { isInjected: false, isVM: true, isRpcForkedState: false, statePath: '.states/vm-monad-next/state.json', fork: 'monad-next' }, dataId: 'settingsVMMonadNextMode', title: 'Local Monad development specification with experimental extension instructions.' }, plugin, dispatch)
         await addProvider({ position: 1, name: 'vm-osaka', displayName: 'Osaka', category: 'Remix VM', providerConfig: { isInjected: false, isVM: true, isRpcForkedState: false, statePath: '.states/vm-osaka/state.json', fork: 'osaka' }, dataId: 'settingsVMOsakaMode', title: titleVM }, plugin, dispatch)
         await addProvider({ position: 2, name: 'vm-prague', displayName: 'Prague', category: 'Remix VM', providerConfig: { isInjected: false, isVM: true, isRpcForkedState: false, statePath: '.states/vm-prague/state.json', fork: 'prague' }, dataId: 'settingsVMPectraMode', title: titleVM }, plugin, dispatch)
         await addProvider({ position: 3, name: 'vm-cancun', displayName: 'Cancun', category: 'Remix VM', providerConfig: { isInjected: false, isVM: true, isRpcForkedState: false, statePath: '.states/vm-cancun/state.json', fork: 'cancun' }, dataId: 'settingsVMCancunMode', title: titleVM }, plugin, dispatch)
@@ -97,19 +101,22 @@ function EnvironmentWidget({ plugin }: { plugin: EnvironmentPlugin }) {
       })()
     }
 
-    plugin.on('blockchain', 'contextChanged', async (context) => {
+    plugin.on('blockchain', 'contextChanged', () => refreshForCurrentProvider(plugin, async isCurrent => {
       await getAccountsList(plugin, dispatch)
+      if (!isCurrent()) return
       // Load delegations for all accounts after accounts are loaded
       const currentProvider = await plugin.call('blockchain', 'getProvider')
       const accounts = await plugin.call('blockchain', 'getAccounts')
+      if (!isCurrent()) return
       if (accounts && accounts.length > 0) {
         dispatch({ type: 'SET_SELECTED_ACCOUNT', payload: accounts[0] })
         // Convert account addresses to Account objects for loadAllDelegations
         const accountObjects = accounts.map((addr: string) => ({ account: addr } as any))
         await loadAllDelegations(plugin, accountObjects, currentProvider, dispatch)
       }
+      if (!isCurrent()) return
       dispatch({ type: 'COMPLETED_LOADING_ALL_ACCOUNTS', payload: null })
-    })
+    }))
 
     plugin.on('blockchain', 'networkStatus', async (networkStatus: any) => {
       dispatch({ type: 'SET_NETWORK_STATUS', payload: { chainId: networkStatus.network.id, name: networkStatus.network.name } })

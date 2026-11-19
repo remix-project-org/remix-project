@@ -1,6 +1,7 @@
 'use strict'
 import { SymbolicStackSlot } from './symbolicStack'
 import getOpcodes from '../code/opcodes'
+import { monadOpcodeByName } from '../code/monadOpcodes'
 
 /**
  * Opcode metadata including stack effects
@@ -44,9 +45,13 @@ const OPCODE_NAME_TO_BYTECODE: { [name: string]: number } = {
  * Retrieves opcode metadata (stack effects) from opcode name
  *
  * @param opcodeName - Name of the opcode (e.g., 'ADD', 'PUSH1', 'DUP1')
+ * @param hardfork - Fork of the loaded execution trace; omitted forks use standard opcode metadata only
  * @returns Opcode information including pops and pushes
  */
-export function getOpcodeInfo(opcodeName: string): OpcodeInfo {
+export function getOpcodeInfo(opcodeName: string, hardfork?: string): OpcodeInfo {
+  const monadOpcode = monadOpcodeByName(opcodeName, hardfork)
+  if (monadOpcode) return monadOpcode
+
   // Handle PUSH opcodes
   if (opcodeName.startsWith('PUSH')) {
     const num = parseInt(opcodeName.slice(4))
@@ -402,12 +407,14 @@ function applyStackEffect(
  * @param previousStack - Symbolic stack state before this step
  * @param opcode - Opcode being executed
  * @param step - Current VM trace step index
+ * @param hardfork - Fork of the loaded execution trace
  * @returns Updated symbolic stack after opcode execution
  */
 export function updateSymbolicStack(
   previousStack: SymbolicStackSlot[],
   opcode: string,
-  step: number
+  step: number,
+  hardfork?: string
 ): SymbolicStackSlot[] {
   // Special handling for stack manipulation opcodes
   if (opcode.startsWith('DUP')) {
@@ -424,7 +431,7 @@ export function updateSymbolicStack(
   }
 
   // For all other opcodes, use generic stack effect handling
-  const opcodeInfo = getOpcodeInfo(opcode)
+  const opcodeInfo = getOpcodeInfo(opcode, hardfork)
 
   return applyStackEffect(
     previousStack,

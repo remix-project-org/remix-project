@@ -1,4 +1,5 @@
 import React from 'react' // eslint-disable-line
+import { isMonadCurrency, formatMonadValue } from '@remix-project/remix-monad'
 import { FormattedMessage, useIntl } from 'react-intl'
 import {CopyToClipboard} from '@remix-ui/clipboard' // eslint-disable-line
 import { shortenHexData } from '@remix-ui/helper'
@@ -232,8 +233,8 @@ const showTable = (opts, showTableHash) => {
               <FormattedMessage id="terminal.value" />
             </td>
             <td className="remix_ui_terminal_td" data-id={`txLoggerTableHash${opts.hash}`} data-shared={`pair_${opts.hash}`}>
-              {val} <FormattedMessage id="terminal.wei" />
-              <CopyToClipboard content={`${val} wei`} />
+              {isMonadCurrency(opts.currency) ? formatMonadValue(opts.val) : <>{val} <FormattedMessage id="terminal.wei" /></>}
+              <CopyToClipboard content={isMonadCurrency(opts.currency) ? formatMonadValue(opts.val) : `${val} wei`} />
             </td>
           </tr>
         ) : null}
