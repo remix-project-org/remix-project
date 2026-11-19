@@ -315,6 +315,10 @@ export class Ethdebugger {
     this.tx = tx
 
     await this.traceManager.resolveTrace(tx)
+    if (this.codeManager.codeResolver.fork !== this.traceManager.getCurrentFork()) {
+      this.codeManager.clear()
+      this.codeManager.codeResolver.fork = this.traceManager.getCurrentFork()
+    }
     this.event.trigger('newTraceLoaded', [this.traceManager.trace])
     if (this.breakpointManager && this.breakpointManager.hasBreakpoint()) {
       this.breakpointManager.jumpNextBreakpoint(false, false)
