@@ -70,7 +70,7 @@ jobs:
           yarn tsc -p tests/monad/tsconfig.json
           yarn nx lint remix-monad --skip-nx-cache
           yarn eslint playwright.monad.config.ts tests/monad/*.ts
-      - name: Test chain IDs, save/restore, account preferences and MON values
+      - name: Test Monad provider and UI behavior
         run: yarn test:monad:ui
       - name: Test existing debugger behavior
         run: >-
