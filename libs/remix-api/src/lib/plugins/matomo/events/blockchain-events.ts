@@ -39,6 +39,7 @@ export interface UdappEvent extends MatomoEventBase {
     | 'DeployAndPublish'
     | 'DeployOnly'
     | 'DeployContractTo'
+    | 'deployFailed'
     | 'broadcastCompilationResult'
     | 'environmentDropdownOpen'
     | 'environmentSelected'
