@@ -14,6 +14,19 @@ export interface QuotaEntry {
   slug: string
   provider: string // 'mistralai', 'anthropic', '*', …
   model: string // 'mistral-small-latest', '*', …
+  /**
+   * '*' = applies to every call; else a forced-tool slug (e.g. 'security_check')
+   * meaning the quota only covers calls whose `tool_choice` forces that tool.
+   * Operation-specific quotas drain before wildcard ones. Absent on older backends.
+   */
+  operation?: string
+  /**
+   * false = internal allowance (e.g. free security checks) that must NOT be
+   * presented as free included credit: excluded from the "Free included AI"
+   * total, the quota panel and quota-based nudges. It still drains normally
+   * on the backend. Absent on older backends → treat as visible.
+   */
+  is_visible?: boolean
   period: 'day' | 'week' | 'month'
   amount: number // cap in credits
   used: number // credits drained this period
