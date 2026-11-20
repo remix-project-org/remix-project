@@ -217,7 +217,8 @@ async function loadAccountsList (plugin: EnvironmentPlugin, dispatch: React.Disp
 export async function loadAllDelegations (plugin: EnvironmentPlugin, accounts: Account[], currentProvider: string, dispatch: React.Dispatch<Actions>) {
   // Only load delegations for EIP-7702 compatible environments
   if (currentProvider !== 'vm-prague' && currentProvider !== 'vm-osaka' && !currentProvider.includes('mainnet-fork')) {
-    return
+    const monad = currentProvider.startsWith('vm-') && isMonadSpec(await plugin.call('blockchain', 'getCurrentFork'))
+    if (!monad) return
   }
 
   try {

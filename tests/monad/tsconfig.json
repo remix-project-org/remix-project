@@ -2,6 +2,8 @@
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
     "noEmit": true,
+    "jsx": "react",
+    "allowJs": true,
     "types": ["node"]
   },
   "include": ["./*.ts", "../../playwright.monad.config.ts"]

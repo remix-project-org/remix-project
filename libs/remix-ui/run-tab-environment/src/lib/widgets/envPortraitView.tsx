@@ -1,4 +1,5 @@
 import React, { useMemo, useState, useRef } from 'react'
+import { isMonadSpec } from '@remix-project/remix-monad'
 import { AddressToggle, CustomMenu, CustomTooltip, Select, shortenAddress, SmartAccountPromptTitle } from "@remix-ui/helper"
 import { Dropdown } from "react-bootstrap"
 import { useIntl } from 'react-intl'
@@ -333,8 +334,9 @@ function EnvironmentPortraitView() {
   }, [widgetState.network.chainId])
 
   const enableDelegationAuthorization = useMemo(() => {
-    return widgetState.providers.selectedProvider === 'vm-prague' || widgetState.providers.selectedProvider === 'vm-osaka'
-  }, [widgetState.providers.selectedProvider])
+    const monad = selectedProvider?.config?.isVM && isMonadSpec(selectedProvider.config.fork)
+    return monad || widgetState.providers.selectedProvider === 'vm-prague' || widgetState.providers.selectedProvider === 'vm-osaka'
+  }, [widgetState.providers.selectedProvider, selectedProvider])
 
   const delegationAddress = useMemo(() => {
     return widgetState.accounts.delegations?.[selectedAccount?.account]
