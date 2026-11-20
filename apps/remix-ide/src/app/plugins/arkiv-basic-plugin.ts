@@ -73,6 +73,36 @@ export interface ArkivQueryResult {
   count?: string
 }
 
+// ─── Chunked file types ─────────────────────────────────────────────────────
+
+export interface UploadChunkedFileParams {
+  payload: string // hex-encoded file content
+  filename: string
+  contentType: string
+  attributes?: Record<string, unknown>
+  expires: ExpiresInput
+}
+
+export interface ChunkedUploadResult {
+  manifestKey: string
+  txHash: string
+  chunkCount: number
+  sha256?: string
+  expiresAt?: string
+}
+
+export interface DownloadChunkedFileParams {
+  manifestKey: string
+  expectedSha256?: string
+}
+
+export interface ChunkedDownloadResult {
+  payload: string // hex-encoded file content
+  contentType?: string
+  filename?: string
+  sha256?: string
+}
+
 // ─── Profile ────────────────────────────────────────────────────────────────
 
 const profile = {
@@ -83,6 +113,7 @@ const profile = {
     'unlock', 'lock', 'isUnlocked',
     'createEntity', 'getEntity', 'patchEntity', 'deleteEntity', 'extendEntity',
     'query', 'getEntityCount',
+    'uploadChunkedFile', 'downloadChunkedFile',
   ],
   events: ['unlocked', 'locked'],
   version: '1.0.0',
@@ -175,5 +206,21 @@ export class ArkivBasicPlugin extends Plugin {
   async getEntityCount(): Promise<number> {
     const { count } = await this._fetch<{ count: string }>('/entity-count')
     return Number(count)
+  }
+
+  // ─── Chunked file operations ─────────────────────────────────────────────
+
+  async uploadChunkedFile(params: UploadChunkedFileParams): Promise<ChunkedUploadResult> {
+    return this._fetch('/upload-chunked-file', {
+      method: 'POST',
+      body: JSON.stringify(params),
+    })
+  }
+
+  async downloadChunkedFile(params: DownloadChunkedFileParams): Promise<ChunkedDownloadResult> {
+    return this._fetch('/download-chunked-file', {
+      method: 'POST',
+      body: JSON.stringify(params),
+    })
   }
 }
