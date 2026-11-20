@@ -9,6 +9,7 @@ import { eip7702Constants } from '@remix-project/remix-lib'
 import { Dropdown } from 'react-bootstrap'
 import { TrackingContext } from '@remix-ide/tracking'
 import { UdappEvent } from '@remix-api'
+import { isMonadSpec } from '@remix-project/remix-monad'
 
 export function AccountUI(props: AccountProps) {
   const { selectedAccount, loadedAccounts } = props.accounts
@@ -66,7 +67,8 @@ export function AccountUI(props: AccountProps) {
 
   useEffect(() => {
     const run = async () => {
-      if (selectExEnv !== 'vm-osaka' && selectExEnv !== 'vm-prague' && selectExEnv !== 'vm-mainnet-fork') {
+      const monad = props.runTabPlugin?.blockchain?.isVM() && isMonadSpec(props.runTabPlugin.blockchain.getCurrentFork())
+      if (!monad && selectExEnv !== 'vm-osaka' && selectExEnv !== 'vm-prague' && selectExEnv !== 'vm-mainnet-fork') {
         setEnableDelegationAuthorization(false)
         setContractHasDelegation(false)
         delegationAuthorizationAddressRef.current = null
