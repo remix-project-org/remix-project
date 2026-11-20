@@ -305,7 +305,7 @@ contract HelloWorld {
                 <a href="https://remix.live/docs/claude-plugin" target="_blank" rel="noreferrer" className="ht-section-link">Docs</a>
               </div>
               <p className="ht-section-tagline">Compile, deploy and debug contracts without leaving Claude.</p>
-              <button className="ht-cta-secondary" onClick={() => setShowWebModal(true)}>
+              <button className="ht-cta-secondary" onClick={() => { setShowWebModal(true); trackMatomoEvent({ category: 'hometab', action: 'claudePlugin', name: 'openWebModal', isClick: true }) }}>
                 <span className="ht-cta-secondary-icon"><i className="fa-solid fa-globe"></i></span>
                 <span className="ht-cta-secondary-text">
                   <strong>claude.ai</strong>
@@ -313,7 +313,7 @@ contract HelloWorld {
                 </span>
                 <i className="fa-solid fa-chevron-right ht-external-icon"></i>
               </button>
-              <button className="ht-cta-secondary" onClick={() => setShowCodeModal(true)}>
+              <button className="ht-cta-secondary" onClick={() => { setShowCodeModal(true); trackMatomoEvent({ category: 'hometab', action: 'claudePlugin', name: 'openCodeModal', isClick: true }) }}>
                 <span className="ht-cta-secondary-icon"><i className="fa-solid fa-terminal"></i></span>
                 <span className="ht-cta-secondary-text">
                   <strong>Claude Code</strong>
@@ -321,7 +321,7 @@ contract HelloWorld {
                 </span>
                 <i className="fa-solid fa-chevron-right ht-external-icon"></i>
               </button>
-              <button className="ht-cta-secondary" onClick={() => setShowDesktopModal(true)}>
+              <button className="ht-cta-secondary" onClick={() => { setShowDesktopModal(true); trackMatomoEvent({ category: 'hometab', action: 'claudePlugin', name: 'openDesktopModal', isClick: true }) }}>
                 <span className="ht-cta-secondary-icon"><i className="fa-solid fa-desktop"></i></span>
                 <span className="ht-cta-secondary-text">
                   <strong>Claude Desktop</strong>
