@@ -1,4 +1,5 @@
-import React, { Dispatch } from 'react'
+import React, { Dispatch, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { CustomTooltip } from '@remix-ui/helper'
 import { ToggleSwitch } from '@remix-ui/toggle'
 import GroupListMenu from './contextOptMenu'
@@ -84,7 +85,25 @@ interface AiChatPromptAreaProps {
     onDismissTip?: () => void
 }
 
+const INSTALL_REPO = 'remix-project-org/remix-ai-plugin'
+const CODE_STEPS = [
+  'claude plugin marketplace add remix-project-org/remix-ai-plugin',
+  'claude plugin install remix-solidity@remixlabs',
+  'claude plugin list',
+]
+
 export default function AiChatPromptArea(props: AiChatPromptAreaProps) {
+  const [showClaudeModal, setShowClaudeModal] = useState(false)
+  const [claudeModalTab, setClaudeModalTab] = useState<'web' | 'code' | 'desktop'>('web')
+  const [copiedInstallCmd, setCopiedInstallCmd] = useState<string | null>(null)
+
+  const copyInstallCmd = (text: string, key: string) => {
+    navigator.clipboard.writeText(text).then(() => {
+      setCopiedInstallCmd(key)
+      setTimeout(() => setCopiedInstallCmd(null), 2000)
+    })
+  }
+
   const handleLockedItemClick = (item: groupListType) => {
     props.onLockedModelClick?.(item.stateValue, item.label)
   }
@@ -250,7 +269,101 @@ export default function AiChatPromptArea(props: AiChatPromptAreaProps) {
         onCaptureScreenshot={props.onCaptureScreenshot}
         supportsVision={props.supportsVision}
       />
-      <div className="ai-disclaimer">RemixAI can make mistakes. Check important info.</div>
+      <div className="ai-bottom-bar">
+        <CustomTooltip placement="top" tooltipText="RemixAI can make mistakes. Check important info.">
+          <i className="fa-solid fa-triangle-exclamation ai-disclaimer-icon"></i>
+        </CustomTooltip>
+        <button className="ai-claude-promo" data-id="ai-claude-promo-btn" onClick={() => setShowClaudeModal(true)}>
+          <i className="fa-solid fa-sparkles"></i>
+          Use Remix directly in Claude
+          <i className="fa-solid fa-chevron-right" style={{ fontSize: '9px' }}></i>
+        </button>
+      </div>
+
+      {showClaudeModal && createPortal(
+        <div className="ai-install-overlay" onClick={() => setShowClaudeModal(false)}>
+          <div className="ai-install-modal" onClick={e => e.stopPropagation()}>
+            <div className="ai-install-modal-header">
+              <span><i className="fa-solid fa-sparkles" style={{ marginRight: '8px' }}></i>Use Remix in Claude</span>
+              <button className="ai-install-modal-close" onClick={() => setShowClaudeModal(false)}><i className="fa-solid fa-xmark"></i></button>
+            </div>
+            <div className="ai-install-tab-bar">
+              <button className={`ai-install-tab-btn${claudeModalTab === 'web' ? ' active' : ''}`} onClick={() => setClaudeModalTab('web')}><i className="fa-solid fa-globe"></i> claude.ai</button>
+              <button className={`ai-install-tab-btn${claudeModalTab === 'code' ? ' active' : ''}`} onClick={() => setClaudeModalTab('code')}><i className="fa-solid fa-terminal"></i> Claude Code</button>
+              <button className={`ai-install-tab-btn${claudeModalTab === 'desktop' ? ' active' : ''}`} onClick={() => setClaudeModalTab('desktop')}><i className="fa-solid fa-desktop"></i> Claude Desktop</button>
+            </div>
+
+            {claudeModalTab === 'web' && (
+              <ol className="ai-install-steps">
+                <li>Go to <strong>claude.ai</strong> and open <strong>Customize</strong> in the left sidebar.</li>
+                <li>Open the <strong>Plugins</strong> tab. In <strong>Personal plugins</strong>, click <strong>+</strong> → <strong>Add marketplace</strong>. Depending on your UI version, you may see <strong>Add Marketplace</strong> on an <strong>Added</strong> tab.</li>
+                <li>
+                  Choose <strong>Add from a repository</strong>, enter the GitHub repo, then click <strong>Sync</strong>.
+                  <span className="ai-install-step-cmd">
+                    <code className="ai-install-code">{INSTALL_REPO}</code>
+                    <button className="ai-install-copy-btn" onClick={() => copyInstallCmd(INSTALL_REPO, 'web-repo')}>
+                      <i className={copiedInstallCmd === 'web-repo' ? 'fa-solid fa-check ai-install-copied' : 'fa-regular fa-copy'}></i>
+                    </button>
+                  </span>
+                </li>
+                <li>Find <strong>remix-solidity</strong> in the plugin list and click <strong>Install</strong>.</li>
+                <li>In a chat, type <code className="ai-install-code-inline">/</code> or click <strong>+</strong> to access skills like <code className="ai-install-code-inline">deploy-contract</code> and <code className="ai-install-code-inline">call-contract</code>.</li>
+              </ol>
+            )}
+
+            {claudeModalTab === 'code' && (
+              <ol className="ai-install-steps">
+                <li>
+                  Add the Remix marketplace.
+                  <span className="ai-install-step-cmd">
+                    <code className="ai-install-code">{CODE_STEPS[0]}</code>
+                    <button className="ai-install-copy-btn" onClick={() => copyInstallCmd(CODE_STEPS[0], 'code-0')}>
+                      <i className={copiedInstallCmd === 'code-0' ? 'fa-solid fa-check ai-install-copied' : 'fa-regular fa-copy'}></i>
+                    </button>
+                  </span>
+                </li>
+                <li>
+                  Install the Remix Solidity plugin.
+                  <span className="ai-install-step-cmd">
+                    <code className="ai-install-code">{CODE_STEPS[1]}</code>
+                    <button className="ai-install-copy-btn" onClick={() => copyInstallCmd(CODE_STEPS[1], 'code-1')}>
+                      <i className={copiedInstallCmd === 'code-1' ? 'fa-solid fa-check ai-install-copied' : 'fa-regular fa-copy'}></i>
+                    </button>
+                  </span>
+                </li>
+                <li>
+                  Verify — <strong>remix-solidity</strong> should appear in the list.
+                  <span className="ai-install-step-cmd">
+                    <code className="ai-install-code">{CODE_STEPS[2]}</code>
+                    <button className="ai-install-copy-btn" onClick={() => copyInstallCmd(CODE_STEPS[2], 'code-2')}>
+                      <i className={copiedInstallCmd === 'code-2' ? 'fa-solid fa-check ai-install-copied' : 'fa-regular fa-copy'}></i>
+                    </button>
+                  </span>
+                </li>
+              </ol>
+            )}
+
+            {claudeModalTab === 'desktop' && (
+              <ol className="ai-install-steps">
+                <li>Open <strong>Claude Desktop</strong>, go to the <strong>Cowork</strong> tab, and click <strong>Customize</strong> in the left sidebar.</li>
+                <li>Open the <strong>Plugins</strong> tab. In <strong>Personal plugins</strong>, click <strong>+</strong> → <strong>Add marketplace</strong>.</li>
+                <li>
+                  Choose <strong>Add from a repository</strong>, enter the GitHub repo, then click <strong>Sync</strong>.
+                  <span className="ai-install-step-cmd">
+                    <code className="ai-install-code">{INSTALL_REPO}</code>
+                    <button className="ai-install-copy-btn" onClick={() => copyInstallCmd(INSTALL_REPO, 'desktop-repo')}>
+                      <i className={copiedInstallCmd === 'desktop-repo' ? 'fa-solid fa-check ai-install-copied' : 'fa-regular fa-copy'}></i>
+                    </button>
+                  </span>
+                </li>
+                <li>Find <strong>remix-solidity</strong> in the marketplace's plugin list and click <strong>Install</strong>.</li>
+                <li>Type <code className="ai-install-code-inline">/</code> or click <strong>+</strong> in a chat or Cowork task to access skills like <code className="ai-install-code-inline">deploy-contract</code> and <code className="ai-install-code-inline">call-contract</code>.</li>
+              </ol>
+            )}
+          </div>
+        </div>,
+        document.body
+      )}
     </section>
   )
 }
