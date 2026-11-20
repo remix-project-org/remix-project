@@ -12,13 +12,13 @@ The package is pinned to a prebuilt distribution commit; its `build-info.json` r
 
 All Monad forks use chain ID **143**, matching Monad mainnet, while executing locally. Saved Monad VM sessions restore local accounts, contract state and debugging history for the same hardfork and chain ID.
 
-The RPC surface supports local accounts, legacy and EIP-1559 transactions, calls, gas estimation, saved state, debugging and EIP-712 signing. Solidity `hardhat/console.sol` output is available through Remix's existing console-log API. See the [signing and console example](docs/signing-and-console.md).
+The RPC surface supports local accounts, transaction types 0/1/2/4, calls, gas estimation, saved state, debugging and EIP-712 signing. See the [access-list and delegation example](docs/transactions.md). Solidity `hardhat/console.sol` output is available through Remix's existing console-log API; see the [signing and console example](docs/signing-and-console.md).
 
 This is a local development VM with synthetic blocks and receipts. Remote RPC forking is unsupported. Each trace is limited to 100,000 steps or 32 MiB; incomplete traces report an error.
 
 ## Test
 
-Run `yarn test:monad:ui` for chain ID consistency, signed transactions, typed-data signing, console output, the signing example, save/restore, account-preference isolation and exact MON formatting. For browser regressions:
+Run `yarn test:monad:ui` for chain IDs, typed transactions and signing, delegation and historical debugging, console output, the examples, save/restore, account preferences and MON formatting. For browser regressions:
 
 ```sh
 yarn nx build remix-ide --configuration=development

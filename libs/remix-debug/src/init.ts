@@ -1,6 +1,21 @@
 'use strict'
 import { toNumber, ethers } from 'ethers'
 
+export async function getTransactionForDebugging (provider, hash) {
+  try {
+    return await provider.getTransaction(hash)
+  } catch (error) {
+    // ethers cannot represent skipped 7702 signatures. Preserve local Monad RPC data for debugging.
+    if (error.code !== 'BAD_DATA' || error.value?.type !== '0x4' || !Array.isArray(error.value.authorizationList)) throw error
+    const client = await provider.send('web3_clientVersion', []).catch(() => null)
+    if (typeof client !== 'string' || !client.startsWith('Remix/monad-evm2-wasm/')) throw error
+    const tx = await provider.send('eth_getTransactionByHash', [hash])
+    if (!tx) return null
+    const json = { ...tx, data: tx.input, gasLimit: tx.gas, blockNumber: Number(BigInt(tx.blockNumber)), nonce: Number(BigInt(tx.nonce)), index: Number(BigInt(tx.transactionIndex)) }
+    return { ...json, value: BigInt(tx.value), gasLimit: BigInt(tx.gas), gasPrice: BigInt(tx.gasPrice), chainId: BigInt(tx.chainId), toJSON: () => json }
+  }
+}
+
 export function loadWeb3 (url = 'http://localhost:8545') {
   const provider = new ethers.JsonRpcProvider(url)
   extendProvider(provider)
