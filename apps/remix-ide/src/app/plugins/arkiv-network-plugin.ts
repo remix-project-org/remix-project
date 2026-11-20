@@ -335,6 +335,8 @@ export class ArkivNetworkPlugin extends Plugin {
     walletAddress: string
     cursor?: string
   }): Promise<RetrieveResult> {
+    await (this as any).call('arkivBasic', 'unlock')
+
     const LIMIT = 50
     const offset = params.cursor ? Number(params.cursor) : 0
 
