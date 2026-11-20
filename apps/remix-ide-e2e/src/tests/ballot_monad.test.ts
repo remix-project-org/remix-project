@@ -4,8 +4,26 @@ import { NightwatchBrowser } from 'nightwatch'
 import init from '../helpers/init'
 import examples from '../examples/example-contracts'
 
+const payableContract = `
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.0;
+
+contract PayableTest {
+    event Received(address sender, uint amount);
+
+    function receivePayment() public payable {
+        emit Received(msg.sender, msg.value);
+    }
+
+    function getBalance() public view returns (uint) {
+        return address(this).balance;
+    }
+}
+`
+
 const sources = [
-  { 'Untitled.sol': { content: examples.ballot.content } }
+  { 'Untitled.sol': { content: examples.ballot.content } },
+  { 'PayableTest.sol': { content: payableContract } }
 ]
 
 module.exports = {
@@ -20,22 +38,85 @@ module.exports = {
     browser
       .addFile('Untitled.sol', sources[0]['Untitled.sol'])
   },
-  'Deploy Ballot on Monad VM #group1': function (browser: NightwatchBrowser) {
+  'Verify Monad VM (Ten) badge displays correctly #group1': function (browser: NightwatchBrowser) {
     browser
       .waitForElementVisible('*[data-id="remixIdeIconPanel"]', 10000)
+      .clickLaunchIcon('udapp')
+      .switchEnvironment('vm-monad-ten', 'Monad_VM')
+      .waitForElementVisible('[data-id="deploy-widget-header"]')
+      .assert.textContains('[data-id="deploy-widget-header"] .badge', 'Monad VM (Ten)')
+  },
+
+  'Verify Monad VM (Nine) badge displays correctly #group1': function (browser: NightwatchBrowser) {
+    browser
+      .switchEnvironment('vm-monad-nine', 'Monad_VM')
+      .waitForElementVisible('[data-id="deploy-widget-header"]')
+      .assert.textContains('[data-id="deploy-widget-header"] .badge', 'Monad VM (Nine)')
+  },
+
+  'Verify Monad VM (Eight) badge displays correctly #group1': function (browser: NightwatchBrowser) {
+    browser
+      .switchEnvironment('vm-monad-eight', 'Monad_VM')
+      .waitForElementVisible('[data-id="deploy-widget-header"]')
+      .assert.textContains('[data-id="deploy-widget-header"] .badge', 'Monad VM (Eight)')
+  },
+
+  'Verify Monad VM (Next) badge displays correctly #group1': function (browser: NightwatchBrowser) {
+    browser
+      .switchEnvironment('vm-monad-next', 'Monad_VM')
+      .waitForElementVisible('[data-id="deploy-widget-header"]')
+      .assert.textContains('[data-id="deploy-widget-header"] .badge', 'Monad VM (Next)')
+  },
+
+  'Deploy Ballot on Monad VM #group1': function (browser: NightwatchBrowser) {
+    browser
       .clickLaunchIcon('solidity')
       .testContracts('Untitled.sol', sources[0]['Untitled.sol'], ['Ballot'])
       .clickLaunchIcon('udapp')
       .switchEnvironment('vm-monad-ten', 'Monad_VM')
-      .selectAccount('0xCA35b7d915458EF540aDe6068dFe2F44E8fa733c')
       .createContract('["0x48656c6c6f20576f726c64210000000000000000000000000000000000000000"]')
+      .waitForElementVisible('[data-id="deployedContractItem-0"]')
+      .assert.textContains('[data-id="deployedContractItem-0"] .badge', 'Monad VM (Ten)')
       .clickInstance(0)
+      .waitForElementVisible('[data-id="deployedContractBal"]')
+      .assert.textContains('[data-id="deployedContractBal"]', 'MON')
       .clickFunction(0, 0, ['"0x4b0897b0513fdc7c541b6d9d7e929c4e5364d2db"'])
       .testFunction('last',
         {
           status: '1 Transaction mined and execution completed',
           'decoded input': { 'address to': '0x4B0897b0513fdC7C541B6d9D7E929C4e5364D2dB' }
         })
+  },
+
+  'Deploy PayableTest contract & Send 1 MON to verify MON unit in terminal #group1': function (browser: NightwatchBrowser) {
+    let txHash: string
+    browser
+      .addFile('PayableTest.sol', { content: payableContract })
+      .clickLaunchIcon('solidity')
+      .testContracts('PayableTest.sol', { content: payableContract }, ['PayableTest'])
+      .clickLaunchIcon('udapp')
+      .createContract('')
+      .clickInstance(1)
+      .waitForElementVisible('[data-id="deployedContractItem-1-function-0"]')
+      .waitForElementVisible('[data-id="contractItem-sendValue-1"]')
+      .clearValue('[data-id="contractItem-sendValue-1"]')
+      .setValue('[data-id="contractItem-sendValue-1"]', '1')
+      .click('#contractItem-valueUnit-1')
+      .waitForElementVisible('[data-id="contractItem-valueUnit-1-ether"]')
+      .click('[data-id="contractItem-valueUnit-1-ether"]')
+      .clickFunction(1, 0)
+      .perform((done: VoidFunction) => {
+        browser.getLastTransactionHash((hash) => {
+          txHash = hash
+          done()
+        })
+      })
+      .testFunction('last', {
+        status: '1 Transaction mined and execution completed'
+      })
+      .perform(() => {
+        browser.assert.textContains(`[data-id="txLoggerTable${txHash}"]`, '1.0 MON')
+      })
   },
 
   'Call method from Ballot to check return value on Monad VM #group1': function (browser: NightwatchBrowser) {
@@ -48,7 +129,7 @@ module.exports = {
           'decoded output': { 0: 'bytes32: winnerName_ 0x48656c6c6f20576f726c64210000000000000000000000000000000000000000' }
         })
       // Test in Udapp UI , treeViewDiv0 shows returned value on method click
-      .assert.containsText('*[data-id="treeViewDiv0"]', 'bytes32: winnerName_ 0x48656c6c6f20576f726c64210000000000000000000000000000000000000000')
+      .assert.textContains('*[data-id="treeViewDiv0"]', 'bytes32: winnerName_ 0x48656c6c6f20576f726c64210000000000000000000000000000000000000000')
   },
 
   'Access Ballot via at address on Monad VM #group1': function (browser: NightwatchBrowser) {
