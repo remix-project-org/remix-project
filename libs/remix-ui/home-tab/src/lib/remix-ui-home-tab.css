@@ -10,17 +10,18 @@
 
 .ht-layout {
   padding: 16px 24px;
-  overflow-y: scroll;
+  overflow-y: auto;
   display: flex;
   flex-direction: column;
-  gap: 0;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .ht-columns {
   display: flex;
   flex-direction: row;
   align-items: flex-start;
-  gap: 0;
+  width: 100%;
 }
 
 /* ─── Panel ─── */
@@ -29,17 +30,16 @@
   display: flex;
   flex-direction: column;
   gap: 1rem;
-  max-width: 560px;
-  flex-shrink: 0;
+  flex: 3;
+  min-width: 0;
 }
 
 .ht-panel-right {
   display: flex;
   flex-direction: column;
   gap: 1rem;
-  min-width: 200px;
-  max-width: 280px;
-  flex-shrink: 0;
+  flex: 2;
+  min-width: 0;
   border-left: 1px solid var(--bs-border-color);
   padding-left: 1.5rem;
   margin-left: 1rem;
@@ -311,6 +311,76 @@ a.ht-cta-secondary:hover {
   text-decoration: underline;
 }
 
+/* ─── Desktop install modal ─── */
+
+.ht-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+}
+
+.ht-modal {
+  background: var(--bs-body-bg);
+  border: 1px solid var(--bs-border-color);
+  border-radius: 12px;
+  padding: 24px;
+  max-width: 480px;
+  width: calc(100% - 48px);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.35);
+}
+
+.ht-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 20px;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--bs-emphasis-color);
+}
+
+.ht-modal-close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  flex-shrink: 0;
+  border: none;
+  background: transparent;
+  color: var(--bs-secondary-color);
+  cursor: pointer;
+  border-radius: 4px;
+  font-size: 14px;
+}
+
+.ht-modal-close:hover {
+  background: var(--ht-hover-bg);
+  color: var(--bs-emphasis-color);
+}
+
+.ht-modal-steps {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding-left: 20px;
+  margin: 0;
+}
+
+.ht-modal-steps li {
+  font-size: 13px;
+  color: var(--bs-body-color);
+  line-height: 1.6;
+}
+
+.ht-modal-steps li strong {
+  color: var(--bs-emphasis-color);
+}
+
 /* ─── Section header link (e.g. "Docs") ─── */
 
 .ht-section-tagline {
@@ -350,6 +420,68 @@ a.ht-cta-secondary:hover {
 
 .ht-copy-icon--done {
   color: var(--bs-success, #198754);
+}
+
+/* ─── Static card (non-interactive ht-cta-secondary) ─── */
+
+.ht-cta-static {
+  cursor: default;
+  align-items: flex-start;
+}
+
+.ht-cta-static:hover {
+  background: transparent !important;
+  border-color: var(--bs-border-color) !important;
+}
+
+/* ─── Multi-step command list ─── */
+
+.ht-step-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 4px;
+}
+
+.ht-step {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+}
+
+.ht-step .ht-code-badge {
+  flex: 1;
+  min-width: 0;
+}
+
+.ht-step-note {
+  font-size: 11px;
+  color: var(--bs-secondary-color);
+  line-height: 1.4;
+}
+
+/* ─── Per-step copy button ─── */
+
+.ht-copy-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+  border-radius: 3px;
+  border: none;
+  background: transparent;
+  color: var(--bs-secondary-color);
+  cursor: pointer;
+  font-size: 11px;
+  padding: 0;
+}
+
+.ht-copy-btn:hover {
+  background: rgba(var(--bs-body-color-rgb), 0.08);
+  color: var(--bs-emphasis-color);
 }
 
 /* ─── Inline code badge (command / filename) ─── */

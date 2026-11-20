@@ -27,6 +27,9 @@ export const RemixUiHomeTab = (props: RemixUiHomeTabProps) => {
     themeQuality: themes.light
   })
   const [copiedPlatform, setCopiedPlatform] = useState<string | null>(null)
+  const [showDesktopModal, setShowDesktopModal] = useState(false)
+  const [showWebModal, setShowWebModal] = useState(false)
+  const [showCodeModal, setShowCodeModal] = useState(false)
 
   const { features } = useAuth()
   const hasAuditorPermission = features[Features.AI_AUDITOR]?.is_enabled === true
@@ -144,10 +147,11 @@ contract HelloWorld {
 
   // ─── Claude Plugin ───
 
-  const MCP_URL = 'https://mcp.remix.live'
-  const CLAUDE_CODE_CMD = `claude mcp add remix --transport sse ${MCP_URL}`
-  const CLAUDE_DESKTOP_CONFIG = JSON.stringify({ mcpServers: { remix: { type: 'sse', url: MCP_URL } } }, null, 2)
-
+  const CLAUDE_CODE_STEPS = [
+    'claude plugin marketplace add remix-project-org/remix-ai-plugin',
+    'claude plugin install remix-solidity@remixlabs',
+    'claude plugin list',
+  ]
   const copyToClipboard = (text: string, platform: string) => {
     navigator.clipboard.writeText(text).then(() => {
       setCopiedPlatform(platform)
@@ -301,35 +305,129 @@ contract HelloWorld {
                 <a href="https://remix.live/docs/claude-plugin" target="_blank" rel="noreferrer" className="ht-section-link">Docs</a>
               </div>
               <p className="ht-section-tagline">Compile, deploy and debug contracts without leaving Claude.</p>
-              <a className="ht-cta-secondary" href="https://claude.ai/settings/integrations" target="_blank" rel="noreferrer">
+              <button className="ht-cta-secondary" onClick={() => setShowWebModal(true)}>
                 <span className="ht-cta-secondary-icon"><i className="fa-solid fa-globe"></i></span>
                 <span className="ht-cta-secondary-text">
                   <strong>claude.ai</strong>
-                  <span>Settings → Integrations → Add an integration</span>
+                  <span>View installation steps</span>
                 </span>
-                <i className="fa-solid fa-arrow-up-right-from-square ht-external-icon"></i>
-              </a>
-              <button className="ht-cta-secondary" onClick={() => copyToClipboard(CLAUDE_CODE_CMD, 'code')} title="Click to copy command">
+                <i className="fa-solid fa-chevron-right ht-external-icon"></i>
+              </button>
+              <button className="ht-cta-secondary" onClick={() => setShowCodeModal(true)}>
                 <span className="ht-cta-secondary-icon"><i className="fa-solid fa-terminal"></i></span>
                 <span className="ht-cta-secondary-text">
                   <strong>Claude Code</strong>
-                  <code className="ht-code-badge">{CLAUDE_CODE_CMD}</code>
+                  <span>View installation steps</span>
                 </span>
-                <i className={`ht-copy-icon ${copiedPlatform === 'code' ? 'fa-solid fa-check ht-copy-icon--done' : 'fa-regular fa-copy'}`}></i>
+                <i className="fa-solid fa-chevron-right ht-external-icon"></i>
               </button>
-              <button className="ht-cta-secondary" onClick={() => copyToClipboard(CLAUDE_DESKTOP_CONFIG, 'desktop')} title="Click to copy config">
+              <button className="ht-cta-secondary" onClick={() => setShowDesktopModal(true)}>
                 <span className="ht-cta-secondary-icon"><i className="fa-solid fa-desktop"></i></span>
                 <span className="ht-cta-secondary-text">
                   <strong>Claude Desktop</strong>
-                  <span>Copy config → paste in <code className="ht-code-badge-inline">claude_desktop_config.json</code></span>
+                  <span>View installation steps</span>
                 </span>
-                <i className={`ht-copy-icon ${copiedPlatform === 'desktop' ? 'fa-solid fa-check ht-copy-icon--done' : 'fa-regular fa-copy'}`}></i>
+                <i className="fa-solid fa-chevron-right ht-external-icon"></i>
               </button>
             </div>
           </div>
           </div>{/* ht-columns */}
 
         </div>
+
+        {showCodeModal && (
+          <div className="ht-modal-overlay" onClick={() => setShowCodeModal(false)}>
+            <div className="ht-modal" onClick={e => e.stopPropagation()}>
+              <div className="ht-modal-header">
+                <span><i className="fa-solid fa-terminal" style={{ marginRight: '8px' }}></i>Install Remix Plugin on Claude Code</span>
+                <button className="ht-modal-close" onClick={() => setShowCodeModal(false)}><i className="fa-solid fa-xmark"></i></button>
+              </div>
+              <ol className="ht-modal-steps">
+                <li>
+                  Add the Remix marketplace to Claude Code.
+                  <span className="ht-step" style={{ marginTop: '8px' }}>
+                    <code className="ht-code-badge">{CLAUDE_CODE_STEPS[0]}</code>
+                    <button className="ht-copy-btn" onClick={() => copyToClipboard(CLAUDE_CODE_STEPS[0], 'code-0')} title="Copy">
+                      <i className={copiedPlatform === 'code-0' ? 'fa-solid fa-check ht-copy-icon--done' : 'fa-regular fa-copy'}></i>
+                    </button>
+                  </span>
+                </li>
+                <li>
+                  Install the Remix Solidity plugin.
+                  <span className="ht-step" style={{ marginTop: '8px' }}>
+                    <code className="ht-code-badge">{CLAUDE_CODE_STEPS[1]}</code>
+                    <button className="ht-copy-btn" onClick={() => copyToClipboard(CLAUDE_CODE_STEPS[1], 'code-1')} title="Copy">
+                      <i className={copiedPlatform === 'code-1' ? 'fa-solid fa-check ht-copy-icon--done' : 'fa-regular fa-copy'}></i>
+                    </button>
+                  </span>
+                </li>
+                <li>
+                  Verify the plugin is installed — <strong>remix-solidity</strong> should appear in the list.
+                  <span className="ht-step" style={{ marginTop: '8px' }}>
+                    <code className="ht-code-badge">{CLAUDE_CODE_STEPS[2]}</code>
+                    <button className="ht-copy-btn" onClick={() => copyToClipboard(CLAUDE_CODE_STEPS[2], 'code-2')} title="Copy">
+                      <i className={copiedPlatform === 'code-2' ? 'fa-solid fa-check ht-copy-icon--done' : 'fa-regular fa-copy'}></i>
+                    </button>
+                  </span>
+                </li>
+              </ol>
+            </div>
+          </div>
+        )}
+
+        {showWebModal && (
+          <div className="ht-modal-overlay" onClick={() => setShowWebModal(false)}>
+            <div className="ht-modal" onClick={e => e.stopPropagation()}>
+              <div className="ht-modal-header">
+                <span><i className="fa-solid fa-globe" style={{ marginRight: '8px' }}></i>Install Remix Plugin on claude.ai</span>
+                <button className="ht-modal-close" onClick={() => setShowWebModal(false)}><i className="fa-solid fa-xmark"></i></button>
+              </div>
+              <ol className="ht-modal-steps">
+                <li>Go to <strong>claude.ai</strong> and open <strong>Customize</strong> in the left sidebar.</li>
+                <li>Open the <strong>Plugins</strong> tab. In the <strong>Personal plugins</strong> section, click <strong>+</strong> and choose <strong>Add marketplace</strong>. Depending on your UI version, you may instead see <strong>Add Marketplace</strong> on an <strong>Added</strong> tab.</li>
+                <li>
+                  Choose <strong>Add from a repository</strong> and enter the GitHub repo. Both the shorthand and the full URL are accepted.
+                  <span className="ht-step" style={{ marginTop: '8px' }}>
+                    <code className="ht-code-badge">remix-project-org/remix-ai-plugin</code>
+                    <button className="ht-copy-btn" onClick={() => copyToClipboard('remix-project-org/remix-ai-plugin', 'web-repo')} title="Copy">
+                      <i className={copiedPlatform === 'web-repo' ? 'fa-solid fa-check ht-copy-icon--done' : 'fa-regular fa-copy'}></i>
+                    </button>
+                  </span>
+                </li>
+                <li>Click <strong>Sync</strong>.</li>
+                <li>Find <strong>remix-solidity</strong> in the plugin list and click <strong>Install</strong>.</li>
+                <li>In a chat, type <code className="ht-code-badge-inline">/</code> or click <strong>+</strong> to see the plugin's skills, such as <code className="ht-code-badge-inline">deploy-contract</code> and <code className="ht-code-badge-inline">call-contract</code>.</li>
+              </ol>
+            </div>
+          </div>
+        )}
+
+        {showDesktopModal && (
+          <div className="ht-modal-overlay" onClick={() => setShowDesktopModal(false)}>
+            <div className="ht-modal" onClick={e => e.stopPropagation()}>
+              <div className="ht-modal-header">
+                <span><i className="fa-solid fa-desktop" style={{ marginRight: '8px' }}></i>Install Remix Plugin on Claude Desktop</span>
+                <button className="ht-modal-close" onClick={() => setShowDesktopModal(false)}><i className="fa-solid fa-xmark"></i></button>
+              </div>
+              <ol className="ht-modal-steps">
+                <li>Open <strong>Claude Desktop</strong>, go to the <strong>Cowork</strong> tab, and click <strong>Customize</strong> in the left sidebar.</li>
+                <li>Open the <strong>Plugins</strong> tab. In the <strong>Personal plugins</strong> section, click <strong>+</strong> and choose <strong>Add marketplace</strong>.</li>
+                <li>
+                  Choose <strong>Add from repository</strong>, enter the GitHub URL below, then click <strong>Sync</strong>.
+                  <span className="ht-step" style={{ marginTop: '8px' }}>
+                    <code className="ht-code-badge">remix-project-org/remix-ai-plugin</code>
+                    <button className="ht-copy-btn" onClick={() => copyToClipboard('remix-project-org/remix-ai-plugin', 'desktop-repo')} title="Copy">
+                      <i className={copiedPlatform === 'desktop-repo' ? 'fa-solid fa-check ht-copy-icon--done' : 'fa-regular fa-copy'}></i>
+                    </button>
+                  </span>
+                </li>
+                <li>Once synced, find <strong>remix-solidity</strong> in the marketplace's plugin list and click <strong>Install</strong>.</li>
+                <li>Type <code className="ht-code-badge-inline">/</code> or click <strong>+</strong> in a chat or Cowork task to see the plugin's skills, such as <code className="ht-code-badge-inline">deploy-contract</code> and <code className="ht-code-badge-inline">call-contract</code>.</li>
+              </ol>
+            </div>
+          </div>
+        )}
+
       </ThemeContext.Provider>
     </div>
   )
