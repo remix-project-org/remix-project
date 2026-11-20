@@ -80,7 +80,7 @@ jobs:
         run: yarn nx build remix-ide --configuration=development --skip-nx-cache
       - name: Install Chromium
         run: yarn playwright install --with-deps chromium
-      - name: Test badges, account aliases and transaction currency
+      - name: Test Monad UI and event workflows
         run: yarn test:monad:browser
       - name: Upload browser report and failure diagnostics
         if: always()

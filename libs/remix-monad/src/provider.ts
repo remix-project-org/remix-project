@@ -6,6 +6,7 @@ import { RpcError } from './types'
 import { readState, RecordedExecution } from './state'
 import { MONAD_CHAIN_ID } from './constants'
 import { decodeConsoleCalls } from './console'
+import { MonadFilters } from './filters'
 
 const GAS_LIMIT = 30_000_000
 const GAS_PRICE = 1_000_000_000n
@@ -30,6 +31,7 @@ export class MonadProvider {
   private wallets = new Map<string, Wallet>()
   private blocks: any[] = []
   private executions = new Map<string, RecordedExecution>()
+  private filters = new MonadFilters(() => this.blocks, block => block.transactions.flatMap(hash => this.recorded(hash).receipt.logs))
   private tags = new Map<string, string>()
   private callId: string | number | undefined
   private callCounter = 0
@@ -375,6 +377,16 @@ export class MonadProvider {
       const block = this.block(params[0])
       return block && JSON.parse(JSON.stringify({ ...block, transactions: params[1] ? block.transactions.map(hash => this.recorded(hash).tx) : block.transactions }))
     }
+    case 'eth_getLogs': case 'eth_newFilter': case 'eth_getFilterChanges': case 'eth_getFilterLogs': case 'eth_uninstallFilter':
+      if (params.length !== 1) throw new RpcError(`Expected one parameter for ${method}`)
+      if (method === 'eth_getLogs') return this.filters.getLogs(params[0])
+      if (method === 'eth_newFilter') return this.filters.newFilter(params[0])
+      if (method === 'eth_getFilterChanges') return this.filters.getFilterChanges(params[0])
+      if (method === 'eth_getFilterLogs') return this.filters.getFilterLogs(params[0])
+      return this.filters.uninstallFilter(params[0])
+    case 'eth_newBlockFilter':
+      if (params.length) throw new RpcError('Expected no parameters for eth_newBlockFilter')
+      return this.filters.newBlockFilter()
     case 'eth_registerCallId': this.callId = params[0]; return null
     case 'eth_getHashFromTagBySimulator': return this.tags.get(String(params[0])) || null
     case 'eth_getHHLogsForTx': return decodeConsoleCalls(this.executions.get(params[0])?.result.consoleCalls)

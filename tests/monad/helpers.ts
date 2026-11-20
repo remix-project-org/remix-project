@@ -1,10 +1,13 @@
 import { test as base, expect, Locator, Page } from '@playwright/test'
 import solc from 'solc'
+import { routeScriptRunner } from './script-runner'
 
 const compiler = `soljson-v${solc.version().split('.Emscripten')[0]}.js`
 export type Fork = 'monad-eight' | 'monad-nine' | 'monad-next' | 'monad-ten' | 'osaka'
 
-export const test = base.extend<{ diagnostics: void; ide: void }>({
+export const test = base.extend<{ diagnostics: void; ide: void; contractFile: string; scriptRunner: boolean }>({
+  contractFile: ['tests/monad/fixtures/Payable.sol', { option: true }],
+  scriptRunner: [false, { option: true }],
   diagnostics: [async ({ page }, use, testInfo) => {
     const messages: string[] = []
     page.on('console', message => {
@@ -14,13 +17,14 @@ export const test = base.extend<{ diagnostics: void; ide: void }>({
     await use()
     await testInfo.attach('browser-diagnostics', { body: messages.join('\n'), contentType: 'text/plain' })
   }, { auto: true }],
-  ide: [async ({ page, diagnostics }, use) => {
-    await prepareIde(page)
+  ide: [async ({ page, diagnostics, contractFile, scriptRunner }, use) => {
+    if (scriptRunner) await routeScriptRunner(page)
+    await prepareIde(page, contractFile)
     await use()
   }, { auto: true }]
 })
 
-async function prepareIde(page: Page) {
+async function prepareIde(page: Page, contractFile: string) {
   await page.addInitScript(() => {
     const NativeWorker = window.Worker
     const requests = new Set<Set<number>>()
@@ -63,15 +67,16 @@ async function prepareIde(page: Page) {
   await page.goto(`/#activate=solidity,udapp,debugger,filePanel&version=${compiler}`, { waitUntil: 'domcontentloaded' })
   await waitForIde(page)
   await expect(page.locator('[data-id="treeViewUltreeViewMenu"]')).toBeVisible()
-  await page.locator('[data-id="fileExplorerLocalFileSystemUpload"]').setInputFiles('tests/monad/fixtures/Payable.sol')
-  await page.locator('[data-id="treeViewLitreeViewItemPayable.sol"]').click()
+  const filename = contractFile.split('/').pop()
+  await page.locator('[data-id="fileExplorerLocalFileSystemUpload"]').setInputFiles(contractFile)
+  await page.locator(`[data-id="treeViewLitreeViewItem${filename}"]`).click()
   await page.locator('#icon-panel div[plugin="solidity"]').click()
   await expect(page.locator('[data-id="compilerloaded"]')).toBeAttached({ timeout: 60_000 })
   await page.locator('[data-id="scConfigExpander"]').click()
   await page.locator('#evmVersionSelector').click()
   await page.locator('[data-id="evmVersionSelector-cancun"]').click()
   await page.locator('[data-id="compilerContainerCompileBtn"]').click()
-  await expect(page.locator('[data-id="compiledContracts"]')).toContainText('Payable')
+  await expect(page.locator('[data-id="compiledContracts"]')).toContainText(filename.replace('.sol', ''))
 }
 
 export async function waitForIde(page: Page) {
@@ -151,6 +156,26 @@ export async function showOpcodes(page: Page) {
 }
 
 export const currentOpcode = (page: Page) => page.locator('.opcodes-container .opcode-item[style*="background-color"]')
+
+export async function seekOpcode(page: Page, opcode: string) {
+  const header = page.locator('[data-id="callTraceHeader"]')
+  const current = Number((await header.innerText()).match(/Step: (\d+) /)[1])
+  const hash = await page.locator('[data-id="debuggerTransactionInput"]').inputValue()
+  const target = await page.evaluate(async ({ hash, current, opcode }) => {
+    const trace = await (window as any).__remixVM_web3.send('debug_traceTransaction', [hash])
+    return trace.structLogs.findIndex((entry: { op: string }, index: number) => index >= current && entry.op === opcode)
+  }, { hash, current, opcode })
+  expect(target, `${opcode} at or after trace step ${current} in ${hash}`).toBeGreaterThanOrEqual(current)
+  await jumpToStep(page, target)
+  await expect(currentOpcode(page)).toContainText(new RegExp(`\\b${opcode}\\b`))
+  return target
+}
+
+export async function jumpToStep(page: Page, index: number) {
+  // Use the existing trace-navigation hook independently of the bottom bar's source/opcode mode.
+  await page.evaluate(index => (window as any).jumpToDebuggerStep(index), index)
+  await expect(page.locator('[data-id="callTraceHeader"]')).toHaveText(new RegExp(`\\(Step: ${index} / \\d+\\)`))
+}
 
 export async function openContract(page: Page) {
   if (!await page.getByRole('tab', { name: /^Deployed Contracts\b/ }).isVisible()) {
