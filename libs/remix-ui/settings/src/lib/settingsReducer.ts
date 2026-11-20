@@ -45,6 +45,7 @@ let saveEvmState = config.get('settings/save-evm-state')
 let aiFeedback = config.get('settings/ai-feedback')
 let aiFeedbackCreditThreshold = config.get('settings/ai-feedback-credit-threshold')
 let aiScreenCaptureConsent = config.get('settings/ai-screen-capture-consent')
+let aiSecurityChecks = config.get('settings/ai-security-checks')
 
 if (!githubConfig && (githubUserName || githubEmail || gistAccessToken)) {
   config.set('settings/github-config', true)
@@ -106,6 +107,10 @@ if (typeof displayErrors !== 'boolean') {
 if (typeof saveEvmState !== 'boolean') {
   config.set('settings/save-evm-state', true)
   saveEvmState = true
+}
+if (typeof aiSecurityChecks !== 'boolean') {
+  config.set('settings/ai-security-checks', true)
+  aiSecurityChecks = true
 }
 if (typeof aiFeedback !== 'boolean') {
   config.set('settings/ai-feedback', true)
@@ -321,6 +326,10 @@ export const initialState: SettingsState = {
   },
   'ai-feedback': {
     value: aiFeedback,
+    isLoading: false
+  },
+  'ai-security-checks': {
+    value: aiSecurityChecks,
     isLoading: false
   },
   'ai-screen-capture-consent': {

@@ -7,7 +7,8 @@ import {
   PreDeployChecksUI, PreDeployChecksViewState, CheckStore, CheckHost, Compilation, CompilerSummary, FileCheckState, SlitherReport, parseSlitherAnalysis,
   Finding, IgnoreReason, Range, CheckStepId, StepToggles, DEFAULT_TOGGLES, collectFindings, contentHash, compilerMessages, compilerSettingsKey,
   withIssueKeys, ownFindings, runPipeline, blockingFindings, buildReport, reportFileName, summarize, ChecksSummary,
-  AnalysisEvent, recordManualAnalysis, recordManualFlatten, VerificationEvent, isRecordedDeployment, verificationStep
+  AnalysisEvent, recordManualAnalysis, recordManualFlatten, VerificationEvent, isRecordedDeployment, verificationStep,
+  LightChecker, LightCheckRecord, LightCheckOutcome, LightCheckMode, PasteCheckResult, aiFindings, getSettingsKey
 } from '@remix-ui/pre-deploy-checks'
 import * as packageJson from '../../../../../package.json'
 
@@ -15,8 +16,8 @@ const profile = {
   name: 'preDeployChecks',
   displayName: 'Pre-deploy Checks',
   description: 'Compile, analyze and flatten the current Solidity file in one run before deploying it.',
-  methods: ['open', 'openFromContextMenu', 'run', 'getState', 'getSummary'],
-  events: ['stateChanged', 'summaryChanged'],
+  methods: ['open', 'openFromContextMenu', 'run', 'getState', 'getSummary', 'getLightChecks', 'fullAudit', 'checkPasted'],
+  events: ['stateChanged', 'summaryChanged', 'lightCheckChanged'],
   icon: 'assets/img/preDeployChecks.svg',
   location: 'sidePanel',
   documentation: '',
@@ -36,6 +37,10 @@ interface Deployment {
 }
 
 const TOGGLES_KEY = 'preDeployChecks:toggles'
+/** wait for the paste to settle (more pastes, quick fixes) before checking the file */
+const PASTE_CHECK_DELAY = 2500
+/** What the paste warning can tell the user about the background check. */
+type PasteCheckState = 'checking' | 'signin' | 'off'
 const COMPILE_TIMEOUT = 120000
 
 function loadToggles (): StepToggles {
@@ -63,6 +68,27 @@ export class PreDeployChecksPlugin extends ViewPlugin implements CheckHost {
   private showingIssueIn: string | null = null
 
   private summaries = new Map<string, string>()
+  /** latest editor content per file, so a paste is checked as it is now (the file may not be saved yet) */
+  private editorContent = new Map<string, string>()
+  private pasteTimers = new Map<string, ReturnType<typeof setTimeout>>()
+  /** file + content already warned about after a paste: pasting the same code again doesn't warn twice */
+  private pasteWarned = new Set<string>()
+
+  /** Background check of each deployment, shown on its card in Deployed Contracts. */
+  private lightChecker = new LightChecker({
+    isEnabled: () => this.automaticChecksEnabled(),
+    isSignedIn: () => this.call('auth', 'isAuthenticated'),
+    getSource: async (file: string) => this.compilations.get(file)?.source?.sources?.[file]?.content ?? await this.call('fileManager', 'readFile', file),
+    panelVerdict: (file: string, hash: string) => {
+      const ai = this.store.has(file) ? this.store.get(file).steps.ai : undefined
+      return ai && ai.contentHash === hash && (ai.status === 'passed' || ai.status === 'findings') ? ai.data?.answer : undefined
+    },
+    check: (source: string, file: string, contractName: string, mode?: LightCheckMode): Promise<LightCheckOutcome> => this.call('remixAI', 'light_security_check', source, file, contractName, mode),
+    onChange: (record: LightCheckRecord) => {
+      this.emit('lightCheckChanged', record)
+      if (record.status !== 'running') this.call('matomo', 'trackEvent', 'udapp', 'lightSecurityCheck', record.status, undefined).catch(() => { /* matomo not active */ })
+    }
+  })
 
   constructor () {
     super(profile)
@@ -96,9 +122,15 @@ export class PreDeployChecksPlugin extends ViewPlugin implements CheckHost {
       if (this.currentFile === file) this.setCurrentFile(null)
     })
     this.on('editor', 'contentChanged', (file: string, content: string) => {
-      if (file && file.endsWith('.sol') && typeof content === 'string') this.store.setCurrentHash(file, contentHash(content))
+      if (file && file.endsWith('.sol') && typeof content === 'string') {
+        this.editorContent.set(file, content)
+        this.store.setCurrentHash(file, contentHash(content))
+      }
     })
     this.on('udappDeploy', 'contractDeployed', (deployment: Deployment) => this.onDeployed(deployment))
+    this.on('auth', 'authStateChanged', (state: { isAuthenticated?: boolean }) => {
+      if (state?.isAuthenticated) this.lightChecker.onSignedIn().catch((e) => console.warn('Pre-deploy checks: light check after sign-in failed', e))
+    })
     // checks run by hand in their own panels
     this.on('solidityStaticAnalysis', 'analysisFinished', (event: AnalysisEvent) => {
       recordManualAnalysis(this, event).catch((e) => console.warn('Pre-deploy checks: could not record the analysis', e))
@@ -130,6 +162,9 @@ export class PreDeployChecksPlugin extends ViewPlugin implements CheckHost {
     this.off('editor', 'contentChanged')
     this.off('theme', 'themeChanged')
     this.off('udappDeploy', 'contractDeployed')
+    this.off('auth', 'authStateChanged')
+    this.pasteTimers.forEach((timer) => clearTimeout(timer))
+    this.pasteTimers.clear()
     this.off('solidityStaticAnalysis', 'analysisFinished')
     this.off('contractflattener', 'contractFlattened')
     this.off('contract-verification', 'verificationFinished')
@@ -398,6 +433,98 @@ export class PreDeployChecksPlugin extends ViewPlugin implements CheckHost {
     if (verify && chainId) steps.verify = { status: 'submitted', at, origin: 'manual', data: { address, chainId } }
     else delete steps.verify
     this.store.patch(filePath, { steps })
+    this.lightChecker.onDeployed({ filePath, contractName, address, chainId, network })
+      .catch((e) => console.warn('Pre-deploy checks: light security check failed', e))
+  }
+
+  /** The automatic checks are on: server-side switch (app config) and the user's setting. */
+  private async automaticChecksEnabled (): Promise<boolean> {
+    const server = await this.call('auth', 'getAppConfigValue', 'security_check.light_enabled', true).catch(() => true)
+    if (server === false || server === 'false') return false
+    const setting = await this.call('settings' as any, 'get', 'settings/ai-security-checks').catch((): undefined => undefined)
+    return setting !== false
+  }
+
+  /**
+   * Called by the editor after a paste of more than 10 lines: checks the current Solidity file in the
+   * background once the paste settles. Returns what the paste warning can tell the user about it.
+   */
+  async checkPasted (): Promise<PasteCheckState> {
+    const file: string = await this.call('fileManager', 'file').catch((): null => null)
+    if (!file || !file.endsWith('.sol') || !(await this.automaticChecksEnabled())) return 'off'
+    if (!(await this.call('auth', 'isAuthenticated').catch(() => false))) return 'signin'
+    clearTimeout(this.pasteTimers.get(file))
+    this.pasteTimers.set(file, setTimeout(() => {
+      this.pasteTimers.delete(file)
+      this.runPasteCheck(file).catch((e) => console.warn('Pre-deploy checks: check after paste failed', e))
+    }, PASTE_CHECK_DELAY))
+    return 'checking'
+  }
+
+  private async runPasteCheck (file: string) {
+    const source = this.editorContent.get(file) ?? await this.call('fileManager', 'readFile', file).catch((): undefined => undefined)
+    const result = await this.lightChecker.onPasted(file, source)
+    if (!result) return
+    this.call('matomo', 'trackEvent', 'udapp', 'lightSecurityCheck', `paste-${result.status}`, undefined).catch(() => { /* matomo not active */ })
+    if (!result.answer) return
+    if (!result.reused) await this.recordPasteCheck(result, source)
+    const warned = `${result.file}:${result.contentHash}`
+    if (result.status === 'issues' && !this.pasteWarned.has(warned)) {
+      this.pasteWarned.add(warned)
+      this.toastPasteIssues(result)
+    }
+  }
+
+  /** The verdict becomes the file's AI step: Deploy & Run's status line shows it, and a deploy of the same code reuses it. */
+  private async recordPasteCheck (result: PasteCheckResult, source: string) {
+    const state = this.store.get(result.file)
+    // the user kept editing: the verdict is about content that's gone
+    if (state.currentHash && state.currentHash !== result.contentHash) return
+    // a check run in this panel on the same content wins
+    const ai = state.steps.ai
+    if (ai && ai.contentHash === result.contentHash && ai.origin === 'panel' && ai.status !== 'running') return
+    const findings = withIssueKeys(aiFindings(result.answer, result.file), { [result.file]: { content: source } })
+    this.store.setStep(result.file, 'ai', {
+      status: findings.length ? 'findings' : 'passed',
+      at: Date.now(),
+      origin: 'auto',
+      findings,
+      note: findings.length ? undefined : 'No major vulnerability reported',
+      data: { answer: result.answer },
+      contentHash: result.contentHash,
+      settingsKey: await getSettingsKey(this)
+    })
+  }
+
+  private toastPasteIssues (result: PasteCheckResult) {
+    const count = (result.answer.Reason || []).filter(Boolean).length
+    // hideToaster needs the id toast() resolves with
+    let toastId: number | undefined
+    const act = (name: string, run: () => Promise<any>) => () => {
+      this.call('matomo', 'trackEvent', 'udapp', 'lightSecurityCheckCta', name, undefined).catch(() => { /* matomo not active */ })
+      if (toastId !== undefined) this.call('notification', 'hideToaster', toastId).catch(() => { /* toaster already gone */ })
+      run().catch((e) => console.warn('Pre-deploy checks: action failed', e))
+    }
+    this.call('notification', 'toast', (
+      <div data-id="pasteCheckToast">
+        <div className="fw-bold mb-1"><i className="fas fa-exclamation-triangle text-danger me-2"></i>RemixAI security check</div>
+        <div className="mb-2">
+          {count
+            ? `The code you pasted in ${result.file.split('/').pop()} has ${count} possible major ${count === 1 ? 'vulnerability' : 'vulnerabilities'}.`
+            : `The code you pasted in ${result.file.split('/').pop()} may contain a major vulnerability.`}
+          {' '}Review it before deploying or interacting with it.
+        </div>
+        <div className="d-flex gap-2">
+          <button className="btn btn-sm btn-primary" data-id="pasteCheckToastDetails" onClick={act('pasteDetails', () => this.open(result.file))}>Details</button>
+          <button className="btn btn-sm btn-secondary" data-id="pasteCheckToastAudit" onClick={act('pasteFullAudit', () => this.fullAudit(result.file))}>Full security audit</button>
+        </div>
+      </div>
+    ), 20000).then((id: number) => { toastId = id }).catch(() => { /* notification not active */ })
+  }
+
+  /** Light check results for the deployments of this session, for Deployed Contracts. */
+  getLightChecks (): LightCheckRecord[] {
+    return this.lightChecker.all()
   }
 
   /** Verification receipts from Contract Verification, for the deployment recorded for the file (Deploy & Run's Verify or a manual one). */
@@ -442,9 +569,22 @@ export class PreDeployChecksPlugin extends ViewPlugin implements CheckHost {
     await this.call('menuicons', 'select', name)
   }
 
+  /**
+   * The full security audit offered next to a light check: a subscriber feature (ai:auditor).
+   * Without it the plan manager shows what the upgrade includes.
+   */
+  async fullAudit (file: string) {
+    const hasAuditor = await this.call('assistantState', 'hasFeature', 'ai:auditor').catch(() => false)
+    if (!hasAuditor) {
+      await this.call('planManager' as any, 'open', { reason: 'feature-required', requiredFeature: 'ai:auditor' })
+      return
+    }
+    await this.securityAudit(file)
+  }
+
   /** Same audit as the Solidity compiler's Security Audit button, in RemixAI chat. */
-  async securityAudit () {
-    const file = this.currentFile
+  async securityAudit (target?: string) {
+    const file = target || this.currentFile
     if (!file) return
     const hasAuditor = await this.call('assistantState', 'hasFeature', 'ai:auditor').catch(() => false)
     const upsell = hasAuditor ? '' : ' At the end, mention that a more thorough and complete security audit with deeper analysis and detailed reporting is available in the Remix Pro plan.'

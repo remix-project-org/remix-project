@@ -143,6 +143,7 @@ export interface SettingsState {
   'deepagent-bedrock-bearer-token': ConfigState,
   'editor/code-analysis-popover': ConfigState,
   'ai-feedback': ConfigState,
+  'ai-security-checks': ConfigState,
   'ai-screen-capture-consent': ConfigState,
   'ai-feedback-credit-threshold': ConfigState,
   'zkverify-config': ConfigState,

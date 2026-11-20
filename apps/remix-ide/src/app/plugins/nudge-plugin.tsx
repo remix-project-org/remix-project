@@ -487,7 +487,10 @@ export class NudgePlugin extends Plugin {
       const permissions = await this.call('auth' as any, 'getAllPermissions')
       // Users with quotas already have included AI usage — the low-balance
       // nudge only makes sense for pure pay-as-you-go users with no quota.
-      const hasQuotas = Array.isArray(permissions?.quotas) && permissions.quotas.length > 0
+      // Hidden quotas (is_visible === false, e.g. free security checks) are
+      // not general-purpose included usage, so they don't count here.
+      const hasQuotas = Array.isArray(permissions?.quotas) &&
+        permissions.quotas.some((q: any) => q && q.is_visible !== false)
       if (!hasQuotas && balance <= 10000) {
         this.engine_.fire('user:credits_low')
       }
