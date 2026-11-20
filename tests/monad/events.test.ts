@@ -9,6 +9,7 @@ import { MonadProvider } from '../../libs/remix-monad/src/provider'
 import { RpcError } from '../../libs/remix-monad/src/types'
 import { extendProvider } from '../../libs/remix-debug/src/init'
 import { Ethdebugger } from '../../libs/remix-debug/src/Ethdebugger'
+import { DebuggerStepManager } from '../../libs/remix-debug/src/debugger/stepManager'
 import { CompilerAbstract } from '@remix-project/remix-solidity'
 import { convertOffsetToLineColumn, getLinebreakPositions } from '../../libs/remix-debug/src/source/sourceMappingDecoder'
 
@@ -69,6 +70,14 @@ async function inspectEvent(f: Awaited<ReturnType<typeof fixture>>, hash: string
   const trace = debug.getTrace()
   const index = trace.findIndex(step => step.op === 'LOG3')
   assert.ok(index >= 0, 'event emission remains in the trace even when it reverts')
+  const steps = new DebuggerStepManager(debug, debug.traceManager)
+  const visited: number[] = []
+  steps.event.register('stepChanged', steps, step => visited.push(step))
+  steps.jumpTo(index)
+  steps.stepIntoForward(false)
+  steps.stepIntoBack(false)
+  assert.deepEqual(visited, [index, index + 1, index], 'instruction stepping advances once and returns to the event')
+  assert.equal(trace[steps.currentStepIndex].op, 'LOG3')
   const location = await debug.callTree.extractSourceLocation(index) as { start: number; length: number }
   assert.match(source.slice(location.start, location.start + location.length), failed
     ? /Updated\(msg.sender, key, 99/ : /Updated\(msg.sender, key, next/)

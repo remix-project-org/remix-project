@@ -1,7 +1,7 @@
 import { expect, Page } from '@playwright/test'
 import { readFileSync } from 'node:fs'
 import { Interface } from 'ethers'
-import { test, selectEnvironment, showOpcodes, currentOpcode, seekOpcode, step } from './helpers'
+import { test, selectEnvironment, showOpcodes, currentOpcode, seekOpcode, jumpToStep } from './helpers'
 
 test.use({ contractFile: 'libs/remix-monad/examples/EventQueries.sol', scriptRunner: true })
 test.describe.configure({ timeout: 180_000 })
@@ -19,7 +19,7 @@ async function inspect(page: Page, hash: string, failed: boolean) {
   await expect(page.locator('[data-id="txStatus"]')).toHaveText(failed ? 'Failed' : 'Success')
   await expect(page.locator('[data-id="btnStepBack"]')).toBeEnabled()
   await showOpcodes(page)
-  await seekOpcode(page, 'LOG3')
+  const eventStep = await seekOpcode(page, 'LOG3')
   const fragment = failed ? 'emit Updated(msg.sender, key, 99' : 'emit Updated(msg.sender, key, next'
   const line = source.split('\n').findIndex(line => line.includes(fragment)) + 1
   await expect(page.locator(`#editorView .highlightLine${line}`).first()).toBeVisible()
@@ -32,8 +32,8 @@ async function inspect(page: Page, hash: string, failed: boolean) {
   }
   await expect(state.locator('[data-id="value-json-nested"] [data-id="value-json-value"]')).toHaveText(failed ? '"99"' : '"11"')
   await showOpcodes(page)
-  await step(page, 'forward')
-  await step(page, 'back')
+  await jumpToStep(page, eventStep + 1)
+  await jumpToStep(page, eventStep)
   await expect(currentOpcode(page)).toContainText('LOG3')
   await expect(page.locator(`#editorView .highlightLine${line}`).first()).toBeVisible()
   await page.getByRole('button', { name: 'Stop debugging', exact: true }).click()

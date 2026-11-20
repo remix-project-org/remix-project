@@ -166,18 +166,15 @@ export async function seekOpcode(page: Page, opcode: string) {
     return trace.structLogs.findIndex((entry: { op: string }, index: number) => index >= current && entry.op === opcode)
   }, { hash, current, opcode })
   expect(target, `${opcode} at or after trace step ${current} in ${hash}`).toBeGreaterThanOrEqual(current)
-  // Use the existing debugger navigation hook before checking source highlighting and button stepping.
-  await page.evaluate(target => (window as any).jumpToDebuggerStep(target), target)
-  await expect(header).toHaveText(new RegExp(`\\(Step: ${target} / \\d+\\)`))
+  await jumpToStep(page, target)
   await expect(currentOpcode(page)).toContainText(new RegExp(`\\b${opcode}\\b`))
+  return target
 }
 
-export async function step(page: Page, direction: 'forward' | 'back') {
-  const header = page.locator('[data-id="callTraceHeader"]')
-  const current = Number((await header.innerText()).match(/Step: (\d+) /)[1])
-  await page.locator(`[data-id="${direction === 'forward' ? 'btnStepInto' : 'btnStepBack'}"]`).click()
-  const next = current + (direction === 'forward' ? 1 : -1)
-  await expect(header).toHaveText(new RegExp(`\\(Step: ${next} / \\d+\\)`))
+export async function jumpToStep(page: Page, index: number) {
+  // Use the existing trace-navigation hook independently of the bottom bar's source/opcode mode.
+  await page.evaluate(index => (window as any).jumpToDebuggerStep(index), index)
+  await expect(page.locator('[data-id="callTraceHeader"]')).toHaveText(new RegExp(`\\(Step: ${index} / \\d+\\)`))
 }
 
 export async function openContract(page: Page) {
