@@ -2,7 +2,6 @@
 import React, { createElement, useEffect, useRef, useState } from 'react' // eslint-disable-line
 import { createPortal } from 'react-dom'
 import { RunTabUI } from '@remix-ui/run-tab'
-import { trackMatomoEvent } from '@remix-api'
 import { ViewPlugin } from '@remixproject/engine-web'
 import { addressToString, PluginViewWrapper } from '@remix-ui/helper'
 import * as packageJson from '../../../../../package.json'
@@ -25,6 +24,13 @@ const profile = {
   methods: ['showPluginDetails']
 }
 
+const INSTALL_REPO = 'remix-project-org/remix-ai-plugin'
+const CLAUDE_CODE_STEPS = [
+  'claude plugin marketplace add remix-project-org/remix-ai-plugin',
+  'claude plugin install remix-solidity@remixlabs',
+  'claude plugin list',
+]
+
 const UDAPP_TAB_KEY = 'udapp.activeTab'
 const EV_DEPLOYED = 'udapp:deployedCountChanged'
 const EV_TX = 'udapp:txCountChanged'
@@ -36,6 +42,16 @@ type UdappTab = 'deploy' | 'contracts' | 'history' | 'eez'
 
 function UdappBody() {
   const [tab, setTab] = useState<UdappTab>(() => (localStorage.getItem(UDAPP_TAB_KEY) as UdappTab) || 'deploy')
+  const [showClaudeModal, setShowClaudeModal] = useState(false)
+  const [claudeTab, setClaudeTab] = useState<'web' | 'code' | 'desktop'>('web')
+  const [copiedCmd, setCopiedCmd] = useState<string | null>(null)
+
+  const copyCmd = (text: string, key: string) => {
+    navigator.clipboard.writeText(text).then(() => {
+      setCopiedCmd(key)
+      setTimeout(() => setCopiedCmd(null), 2000)
+    })
+  }
   const [isEezNetwork, setIsEezNetwork] = useState(isEezNetworkActive)
   const activeTab: UdappTab = tab === 'eez' && !isEezNetwork ? 'deploy' : tab
   const [deployedCount, setDeployedCount] = useState(0)
@@ -113,6 +129,95 @@ function UdappBody() {
         <div id="udappTransactionsComponent" style={{ display: activeTab === 'history' ? '' : 'none' }}></div>
         <div id="udappEezComponent" style={{ display: activeTab === 'eez' ? '' : 'none' }}></div>
       </div>
+      <div className="udapp-claude-footer">
+        <button className="udapp-claude-promo" onClick={() => setShowClaudeModal(true)}>
+          <i className="fa-solid fa-sparkles"></i>
+          Deploy directly from Claude
+          <i className="fa-solid fa-chevron-right" style={{ fontSize: '9px' }}></i>
+        </button>
+      </div>
+
+      {showClaudeModal && createPortal(
+        <div className="ai-install-overlay" onClick={() => setShowClaudeModal(false)}>
+          <div className="ai-install-modal" onClick={e => e.stopPropagation()}>
+            <div className="ai-install-modal-header">
+              <span><i className="fa-solid fa-sparkles" style={{ marginRight: '8px' }}></i>Deploy directly from Claude</span>
+              <button className="ai-install-modal-close" onClick={() => setShowClaudeModal(false)}><i className="fa-solid fa-xmark"></i></button>
+            </div>
+            <div className="ai-install-tab-bar">
+              <button className={`ai-install-tab-btn${claudeTab === 'web' ? ' active' : ''}`} onClick={() => setClaudeTab('web')}><i className="fa-solid fa-globe"></i> claude.ai</button>
+              <button className={`ai-install-tab-btn${claudeTab === 'code' ? ' active' : ''}`} onClick={() => setClaudeTab('code')}><i className="fa-solid fa-terminal"></i> Claude Code</button>
+              <button className={`ai-install-tab-btn${claudeTab === 'desktop' ? ' active' : ''}`} onClick={() => setClaudeTab('desktop')}><i className="fa-solid fa-desktop"></i> Claude Desktop</button>
+            </div>
+            {claudeTab === 'web' && (
+              <ol className="ai-install-steps">
+                <li>Go to <strong>claude.ai</strong> and open <strong>Customize</strong> in the left sidebar.</li>
+                <li>Open the <strong>Plugins</strong> tab. In <strong>Personal plugins</strong>, click <strong>+</strong> → <strong>Add marketplace</strong>.</li>
+                <li>
+                  Choose <strong>Add from a repository</strong>, enter the GitHub repo, then click <strong>Sync</strong>.
+                  <span className="ai-install-step-cmd">
+                    <code className="ai-install-code">{INSTALL_REPO}</code>
+                    <button className="ai-install-copy-btn" onClick={() => copyCmd(INSTALL_REPO, 'web-repo')}>
+                      <i className={copiedCmd === 'web-repo' ? 'fa-solid fa-check ai-install-copied' : 'fa-regular fa-copy'}></i>
+                    </button>
+                  </span>
+                </li>
+                <li>Find <strong>remix-solidity</strong> in the plugin list and click <strong>Install</strong>.</li>
+                <li>Use skills like <code className="ai-install-code-inline">deploy-contract</code> and <code className="ai-install-code-inline">call-contract</code> in any chat.</li>
+              </ol>
+            )}
+            {claudeTab === 'code' && (
+              <ol className="ai-install-steps">
+                <li>
+                  Add the Remix marketplace.
+                  <span className="ai-install-step-cmd">
+                    <code className="ai-install-code">{CLAUDE_CODE_STEPS[0]}</code>
+                    <button className="ai-install-copy-btn" onClick={() => copyCmd(CLAUDE_CODE_STEPS[0], 'code-0')}>
+                      <i className={copiedCmd === 'code-0' ? 'fa-solid fa-check ai-install-copied' : 'fa-regular fa-copy'}></i>
+                    </button>
+                  </span>
+                </li>
+                <li>
+                  Install the Remix Solidity plugin.
+                  <span className="ai-install-step-cmd">
+                    <code className="ai-install-code">{CLAUDE_CODE_STEPS[1]}</code>
+                    <button className="ai-install-copy-btn" onClick={() => copyCmd(CLAUDE_CODE_STEPS[1], 'code-1')}>
+                      <i className={copiedCmd === 'code-1' ? 'fa-solid fa-check ai-install-copied' : 'fa-regular fa-copy'}></i>
+                    </button>
+                  </span>
+                </li>
+                <li>
+                  Verify — <strong>remix-solidity</strong> should appear in the list.
+                  <span className="ai-install-step-cmd">
+                    <code className="ai-install-code">{CLAUDE_CODE_STEPS[2]}</code>
+                    <button className="ai-install-copy-btn" onClick={() => copyCmd(CLAUDE_CODE_STEPS[2], 'code-2')}>
+                      <i className={copiedCmd === 'code-2' ? 'fa-solid fa-check ai-install-copied' : 'fa-regular fa-copy'}></i>
+                    </button>
+                  </span>
+                </li>
+              </ol>
+            )}
+            {claudeTab === 'desktop' && (
+              <ol className="ai-install-steps">
+                <li>Open <strong>Claude Desktop</strong>, go to the <strong>Cowork</strong> tab, and click <strong>Customize</strong> in the left sidebar.</li>
+                <li>Open the <strong>Plugins</strong> tab. In <strong>Personal plugins</strong>, click <strong>+</strong> → <strong>Add marketplace</strong>.</li>
+                <li>
+                  Choose <strong>Add from a repository</strong>, enter the GitHub repo, then click <strong>Sync</strong>.
+                  <span className="ai-install-step-cmd">
+                    <code className="ai-install-code">{INSTALL_REPO}</code>
+                    <button className="ai-install-copy-btn" onClick={() => copyCmd(INSTALL_REPO, 'desktop-repo')}>
+                      <i className={copiedCmd === 'desktop-repo' ? 'fa-solid fa-check ai-install-copied' : 'fa-regular fa-copy'}></i>
+                    </button>
+                  </span>
+                </li>
+                <li>Find <strong>remix-solidity</strong> in the plugin list and click <strong>Install</strong>.</li>
+                <li>Use skills like <code className="ai-install-code-inline">deploy-contract</code> and <code className="ai-install-code-inline">call-contract</code> in any Cowork task.</li>
+              </ol>
+            )}
+          </div>
+        </div>,
+        document.body
+      )}
     </div>
   )
 }
