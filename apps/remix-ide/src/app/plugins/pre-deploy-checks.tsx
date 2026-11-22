@@ -8,7 +8,7 @@ import {
   Finding, IgnoreReason, Range, CheckStepId, StepToggles, DEFAULT_TOGGLES, collectFindings, contentHash, compilerMessages, compilerSettingsKey,
   withIssueKeys, ownFindings, runPipeline, blockingFindings, buildReport, reportFileName, summarize, ChecksSummary,
   AnalysisEvent, recordManualAnalysis, recordManualFlatten, VerificationEvent, isRecordedDeployment, verificationStep,
-  LightChecker, LightCheckRecord, LightCheckOutcome, LightCheckMode, PasteCheckResult, aiFindings, getSettingsKey
+  LightChecker, LightCheckRecord, LightCheckOutcome, LightCheckMode, PasteCheckResult, PasteGuardContext, PasteScan, scanAllowance, verdictFields, aiFindings, getSettingsKey
 } from '@remix-ui/pre-deploy-checks'
 import * as packageJson from '../../../../../package.json'
 
@@ -16,8 +16,8 @@ const profile = {
   name: 'preDeployChecks',
   displayName: 'Pre-deploy Checks',
   description: 'Compile, analyze and flatten the current Solidity file in one run before deploying it.',
-  methods: ['open', 'openFromContextMenu', 'run', 'getState', 'getSummary', 'getLightChecks', 'fullAudit', 'checkPasted'],
-  events: ['stateChanged', 'summaryChanged', 'lightCheckChanged'],
+  methods: ['open', 'openFromContextMenu', 'run', 'getState', 'getSummary', 'getLightChecks', 'fullAudit', 'getPasteGuardContext', 'startPasteScan', 'getPasteScan', 'cancelPendingPasteScan'],
+  events: ['stateChanged', 'summaryChanged', 'lightCheckChanged', 'pasteScanChanged'],
   icon: 'assets/img/preDeployChecks.svg',
   location: 'sidePanel',
   documentation: '',
@@ -37,10 +37,6 @@ interface Deployment {
 }
 
 const TOGGLES_KEY = 'preDeployChecks:toggles'
-/** wait for the paste to settle (more pastes, quick fixes) before checking the file */
-const PASTE_CHECK_DELAY = 2500
-/** What the paste warning can tell the user about the background check. */
-type PasteCheckState = 'checking' | 'signin' | 'off'
 const COMPILE_TIMEOUT = 120000
 
 function loadToggles (): StepToggles {
@@ -68,11 +64,11 @@ export class PreDeployChecksPlugin extends ViewPlugin implements CheckHost {
   private showingIssueIn: string | null = null
 
   private summaries = new Map<string, string>()
-  /** latest editor content per file, so a paste is checked as it is now (the file may not be saved yet) */
-  private editorContent = new Map<string, string>()
-  private pasteTimers = new Map<string, ReturnType<typeof setTimeout>>()
-  /** file + content already warned about after a paste: pasting the same code again doesn't warn twice */
-  private pasteWarned = new Set<string>()
+  /** the latest scan of pasted code, shown in the editor's paste guard and the status bar */
+  private pasteScan: PasteScan | null = null
+  private pasteScanSeq = 0
+  /** a scan asked for while signed out: it starts once the user signs in */
+  private pendingPasteScan: { file: string, content: string } | null = null
 
   /** Background check of each deployment, shown on its card in Deployed Contracts. */
   private lightChecker = new LightChecker({
@@ -123,13 +119,16 @@ export class PreDeployChecksPlugin extends ViewPlugin implements CheckHost {
     })
     this.on('editor', 'contentChanged', (file: string, content: string) => {
       if (file && file.endsWith('.sol') && typeof content === 'string') {
-        this.editorContent.set(file, content)
         this.store.setCurrentHash(file, contentHash(content))
       }
     })
     this.on('udappDeploy', 'contractDeployed', (deployment: Deployment) => this.onDeployed(deployment))
     this.on('auth', 'authStateChanged', (state: { isAuthenticated?: boolean }) => {
-      if (state?.isAuthenticated) this.lightChecker.onSignedIn().catch((e) => console.warn('Pre-deploy checks: light check after sign-in failed', e))
+      if (!state?.isAuthenticated) return
+      this.lightChecker.onSignedIn().catch((e) => console.warn('Pre-deploy checks: light check after sign-in failed', e))
+      const pending = this.pendingPasteScan
+      this.pendingPasteScan = null
+      if (pending) this.startPasteScan(pending.file, pending.content).catch((e) => console.warn('Pre-deploy checks: scan after sign-in failed', e))
     })
     // checks run by hand in their own panels
     this.on('solidityStaticAnalysis', 'analysisFinished', (event: AnalysisEvent) => {
@@ -163,8 +162,7 @@ export class PreDeployChecksPlugin extends ViewPlugin implements CheckHost {
     this.off('theme', 'themeChanged')
     this.off('udappDeploy', 'contractDeployed')
     this.off('auth', 'authStateChanged')
-    this.pasteTimers.forEach((timer) => clearTimeout(timer))
-    this.pasteTimers.clear()
+    this.pendingPasteScan = null
     this.off('solidityStaticAnalysis', 'analysisFinished')
     this.off('contractflattener', 'contractFlattened')
     this.off('contract-verification', 'verificationFinished')
@@ -445,34 +443,69 @@ export class PreDeployChecksPlugin extends ViewPlugin implements CheckHost {
     return setting !== false
   }
 
-  /**
-   * Called by the editor after a paste of more than 10 lines: checks the current Solidity file in the
-   * background once the paste settles. Returns what the paste warning can tell the user about it.
-   */
-  async checkPasted (): Promise<PasteCheckState> {
-    const file: string = await this.call('fileManager', 'file').catch((): null => null)
-    if (!file || !file.endsWith('.sol') || !(await this.automaticChecksEnabled())) return 'off'
-    if (!(await this.call('auth', 'isAuthenticated').catch(() => false))) return 'signin'
-    clearTimeout(this.pasteTimers.get(file))
-    this.pasteTimers.set(file, setTimeout(() => {
-      this.pasteTimers.delete(file)
-      this.runPasteCheck(file).catch((e) => console.warn('Pre-deploy checks: check after paste failed', e))
-    }, PASTE_CHECK_DELAY))
-    return 'checking'
+  /** What the editor's paste guard needs to know about the user: signed in, plan, scans left. */
+  async getPasteGuardContext (): Promise<PasteGuardContext> {
+    const server = await this.call('auth', 'getAppConfigValue', 'security_check.light_enabled', true).catch(() => true)
+    const available = server !== false && server !== 'false'
+    const autoScan = available && await this.automaticChecksEnabled()
+    const signedIn = !!(await this.call('auth', 'isAuthenticated').catch(() => false))
+    if (!signedIn) return { available, autoScan, signedIn, hasAuditor: false, canScan: true, freeScansLeft: false }
+    const [hasAuditor, credits] = await Promise.all([
+      this.call('assistantState', 'hasFeature', 'ai:auditor').catch(() => false),
+      this.call('auth', 'getCredits').catch((): null => null)
+    ])
+    return { available, autoScan, signedIn, hasAuditor: !!hasAuditor, ...scanAllowance(credits) }
   }
 
-  private async runPasteCheck (file: string) {
-    const source = this.editorContent.get(file) ?? await this.call('fileManager', 'readFile', file).catch((): undefined => undefined)
-    const result = await this.lightChecker.onPasted(file, source)
-    if (!result) return
-    this.call('matomo', 'trackEvent', 'udapp', 'lightSecurityCheck', `paste-${result.status}`, undefined).catch(() => { /* matomo not active */ })
-    if (!result.answer) return
-    if (!result.reused) await this.recordPasteCheck(result, source)
-    const warned = `${result.file}:${result.contentHash}`
-    if (result.status === 'issues' && !this.pasteWarned.has(warned)) {
-      this.pasteWarned.add(warned)
-      this.toastPasteIssues(result)
+  getPasteScan (): PasteScan | null {
+    return this.pasteScan
+  }
+
+  cancelPendingPasteScan () {
+    this.pendingPasteScan = null
+  }
+
+  private publishPasteScan (scan: PasteScan) {
+    this.pasteScan = scan
+    this.emit('pasteScanChanged', scan)
+  }
+
+  /**
+   * Scans a file the user pasted code into, as it is in the editor (it may not be saved yet).
+   * Asked for by the paste guard, so it runs even with automatic checks off. Signed out, it
+   * waits for the sign-in. Resolves once the scan has started (a scan can outlast a plugin call):
+   * progress and the verdict go out as pasteScanChanged.
+   */
+  async startPasteScan (file: string, content: string): Promise<PasteScan | null> {
+    if (!file || !file.endsWith('.sol') || typeof content !== 'string' || !content.trim()) return null
+    const id = ++this.pasteScanSeq
+    const base = { id, file, lines: content.split('\n').length, reasons: [] as string[], suggestions: [] as string[], startedAt: Date.now() }
+    if (!(await this.call('auth', 'isAuthenticated').catch(() => false))) {
+      this.pendingPasteScan = { file, content }
+      this.publishPasteScan({ ...base, phase: 'signin' })
+      return this.pasteScan
     }
+    this.pendingPasteScan = null
+    this.publishPasteScan({ ...base, phase: 'scanning' })
+    const started = this.pasteScan
+    this.runPasteScan(base, content).catch((e) => console.warn('Pre-deploy checks: scan after paste failed', e))
+    return started
+  }
+
+  private async runPasteScan (base: Omit<PasteScan, 'phase'>, content: string) {
+    const { id, file } = base
+    let result: PasteCheckResult | null = null
+    try {
+      result = await this.lightChecker.onPasted(file, content, { force: true })
+    } catch (e) {
+      console.warn('Pre-deploy checks: scan after paste failed', e)
+    }
+    this.call('matomo', 'trackEvent', 'udapp', 'lightSecurityCheck', `paste-${result?.status || 'error'}`, undefined).catch(() => { /* matomo not active */ })
+    if (result?.answer && !result.reused) await this.recordPasteCheck(result, content).catch((e) => console.warn('Pre-deploy checks: could not record the scan', e))
+    // a newer scan replaced this one meanwhile
+    if (this.pasteScan?.id !== id) return
+    const { reasons, suggestions } = result?.answer ? verdictFields(result.answer) : base
+    this.publishPasteScan({ ...base, phase: result?.status || 'error', reasons, suggestions, finishedAt: Date.now(), reused: result?.reused })
   }
 
   /** The verdict becomes the file's AI step: Deploy & Run's status line shows it, and a deploy of the same code reuses it. */
@@ -494,32 +527,6 @@ export class PreDeployChecksPlugin extends ViewPlugin implements CheckHost {
       contentHash: result.contentHash,
       settingsKey: await getSettingsKey(this)
     })
-  }
-
-  private toastPasteIssues (result: PasteCheckResult) {
-    const count = (result.answer.Reason || []).filter(Boolean).length
-    // hideToaster needs the id toast() resolves with
-    let toastId: number | undefined
-    const act = (name: string, run: () => Promise<any>) => () => {
-      this.call('matomo', 'trackEvent', 'udapp', 'lightSecurityCheckCta', name, undefined).catch(() => { /* matomo not active */ })
-      if (toastId !== undefined) this.call('notification', 'hideToaster', toastId).catch(() => { /* toaster already gone */ })
-      run().catch((e) => console.warn('Pre-deploy checks: action failed', e))
-    }
-    this.call('notification', 'toast', (
-      <div data-id="pasteCheckToast">
-        <div className="fw-bold mb-1"><i className="fas fa-exclamation-triangle text-danger me-2"></i>RemixAI security check</div>
-        <div className="mb-2">
-          {count
-            ? `The code you pasted in ${result.file.split('/').pop()} has ${count} possible major ${count === 1 ? 'vulnerability' : 'vulnerabilities'}.`
-            : `The code you pasted in ${result.file.split('/').pop()} may contain a major vulnerability.`}
-          {' '}Review it before deploying or interacting with it.
-        </div>
-        <div className="d-flex gap-2">
-          <button className="btn btn-sm btn-primary" data-id="pasteCheckToastDetails" onClick={act('pasteDetails', () => this.open(result.file))}>Details</button>
-          <button className="btn btn-sm btn-secondary" data-id="pasteCheckToastAudit" onClick={act('pasteFullAudit', () => this.fullAudit(result.file))}>Full security audit</button>
-        </div>
-      </div>
-    ), 20000).then((id: number) => { toastId = id }).catch(() => { /* notification not active */ })
   }
 
   /** Light check results for the deployments of this session, for Deployed Contracts. */

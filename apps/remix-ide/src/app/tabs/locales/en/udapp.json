@@ -348,7 +348,7 @@
   "udapp.checks.viewFindings": "View issues",
   "udapp.checks.viewChecks": "View checks",
   "udapp.lightCheck.kicker": "Free AI security check",
-  "udapp.lightCheck.running": "Checking this contract for major vulnerabilities…",
+  "udapp.lightCheck.running": "Scanning for scams and major vulnerabilities…",
   "udapp.lightCheck.clear": "No major vulnerabilities found",
   "udapp.lightCheck.issues": "{count, plural, one {# possible major vulnerability} other {# possible major vulnerabilities}}",
   "udapp.lightCheck.issuesNoDetails": "Possible major vulnerability found",

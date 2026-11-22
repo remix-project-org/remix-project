@@ -56,3 +56,24 @@
   box-shadow: none !important;
   border: none !important;
 }
+
+/* background AI security scan */
+.remixui_statusbar_securityscan {
+  max-width: 22rem;
+  animation: remixui_securityscan_in 0.25s ease-out;
+}
+.remixui_statusbar_securityscan.scanning {
+  color: var(--bs-info, var(--info));
+}
+.remixui_statusbar_securityscan.clear,
+.remixui_statusbar_securityscan.issues {
+  cursor: pointer;
+}
+.remixui_statusbar_securityscan.issues {
+  color: var(--bs-danger, var(--danger));
+  font-weight: 600;
+}
+@keyframes remixui_securityscan_in {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: none; }
+}
