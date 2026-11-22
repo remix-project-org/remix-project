@@ -5,7 +5,7 @@ import { DeployedContractsAppContext } from '../contexts'
 import { DeployedContract, LightCheckInfo } from '../types'
 
 const LOOK: Partial<Record<LightCheckInfo['status'], { tone: string, icon: string }>> = {
-  running: { tone: 'neutral', icon: 'fas fa-circle-notch fa-spin' },
+  running: { tone: 'scanning', icon: 'fas fa-shield-alt udapp-light-check-pulse' },
   clear: { tone: 'success', icon: 'fas fa-check-circle' },
   issues: { tone: 'danger', icon: 'fas fa-exclamation-triangle' },
   signin: { tone: 'promo', icon: 'fas fa-shield-alt' },
@@ -66,6 +66,8 @@ export function LightSecurityCheck ({ contract }: { contract: DeployedContract }
 
   return (
     <div
+      // keyed on the status so each new state fades in
+      key={record.status}
       className={`udapp-light-check udapp-light-check-${look.tone} udapp-light-check-${themeQuality === 'light' ? 'light' : 'dark'} mx-3 mb-2`}
       data-id={`lightCheck-${contract.address}`}
       data-status={record.status}
@@ -79,6 +81,7 @@ export function LightSecurityCheck ({ contract }: { contract: DeployedContract }
         </span>
         {action()}
       </div>
+      {record.status === 'running' && <div className="udapp-light-check-progress" role="presentation"><div></div></div>}
       {record.status === 'issues' && open && (
         <div className="udapp-light-check-details" data-id="lightCheckDetails">
           <ul className="mb-2 ps-3">

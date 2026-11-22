@@ -1,5 +1,5 @@
 import * as assert from 'assert'
-import { LightChecker, LightCheckHost, LightCheckOutcome, LightCheckRecord, verdictFields } from '../src/lib/light-check'
+import { LightChecker, LightCheckHost, LightCheckOutcome, LightCheckRecord, verdictFields, scanAllowance } from '../src/lib/light-check'
 import { contentHash } from '../src/lib/store'
 
 const FILE = 'contracts/Vault.sol'
@@ -196,6 +196,13 @@ describe('light security check', () => {
       assert.strictEqual(await setup().checker.onPasted(FILE, '   '), null)
     })
 
+    it('runs a scan the user asked for even with automatic checks switched off', async () => {
+      const { checker, calls } = setup({ isEnabled: async () => false })
+      assert.strictEqual(await checker.onPasted(FILE, SOURCE), null)
+      assert.strictEqual((await checker.onPasted(FILE, SOURCE, { force: true })).status, 'clear')
+      assert.strictEqual(calls.length, 1)
+    })
+
     it('reports a failed check without a verdict, and checks again next time', async () => {
       const outcomes: LightCheckOutcome[] = [{ status: 'exhausted' }, clean]
       const { checker, calls } = setup({ check: async (source) => { calls.push(source); return outcomes.shift() } })
@@ -213,5 +220,28 @@ describe('light security check', () => {
     const noSource = setup({ getSource: async () => undefined })
     assert.strictEqual(await noSource.checker.onDeployed(deployment()), null)
     assert.strictEqual(noSource.calls.length, 0)
+  })
+})
+
+describe('scanAllowance', () => {
+  const quota = (over: any) => ({ provider: '*', model: '*', operation: '*', remaining: 0, periodResetAt: '2030-01-02T00:00:00Z', ...over })
+
+  it('uses the free security_check allowance first, then an allowance for every call, then credits', () => {
+    assert.deepStrictEqual(scanAllowance({ balance: 0, quotas: [quota({ operation: 'security_check', remaining: 3 })]}), { canScan: true, freeScansLeft: true, resetAt: undefined })
+    assert.strictEqual(scanAllowance({ balance: 0, quotas: [quota({ remaining: 100 })]}).canScan, true)
+    assert.strictEqual(scanAllowance({ balance: 5, quotas: []}).canScan, true)
+  })
+
+  it('reports when the free scans come back once nothing is left', () => {
+    const credits = { balance: 0, quotas: [
+      quota({ operation: 'security_check', remaining: 0, periodResetAt: '2030-01-02T00:00:00Z' }),
+      // a model-specific allowance doesn't pay for a scan
+      quota({ provider: 'mistralai', model: 'mistral-small-latest', remaining: 5000 })
+    ]}
+    assert.deepStrictEqual(scanAllowance(credits), { canScan: false, freeScansLeft: false, resetAt: '2030-01-02T00:00:00Z' })
+  })
+
+  it('assumes a scan can run when the balance is unknown', () => {
+    assert.strictEqual(scanAllowance(null).canScan, true)
   })
 })

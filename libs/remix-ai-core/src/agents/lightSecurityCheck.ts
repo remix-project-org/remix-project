@@ -51,7 +51,8 @@ Report only concrete, high-impact problems. Look first for code written to steal
 - addresses hidden in hex, string or arithmetic tricks, or obfuscated assembly that moves value
 - hidden owner backdoors: minting, draining, pausing transfers, blacklisting, changing fees to 100%
 - honeypot tokens that can be bought but not sold, unlimited approvals to arbitrary spenders
-Also report exploitable bugs that put funds at risk: reentrancy around transfers, missing access control on privileged functions, unprotected selfdestruct or delegatecall, authorization through tx.origin.
+- approval drainers: functions that call transferFrom (directly or through a low-level call) to move tokens out of an address other than msg.sender
+Also report exploitable bugs that put funds at risk: reentrancy around transfers, missing access control on privileged functions (anyone can change the owner, withdraw, mint), unprotected selfdestruct or delegatecall, authorization through tx.origin.
 
 Do not report gas optimizations, style, missing events or NatSpec, floating pragmas, compiler versions, missing code in an incomplete snippet, or theoretical concerns without a concrete exploit path.
 

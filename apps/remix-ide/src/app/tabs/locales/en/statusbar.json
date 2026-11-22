@@ -10,5 +10,9 @@
   "statusbar.remixAICopilotDisabled": "RemixAI Copilot (disabled)",
   "statusbar.remixAICopilotEnabled": "RemixAI Copilot (enabled)",
   "statusbar.initializeAsGitRepo": "Initialize as git repo",
-  "statusbar.scamAlerts": "Scam Alerts"
+  "statusbar.scamAlerts": "Scam Alerts",
+  "statusbar.securityScan.scanning": "Scanning {name} for security issues…",
+  "statusbar.securityScan.clear": "{name}: no major issues found",
+  "statusbar.securityScan.issues": "{name}: {count, plural, =0 {possible issues} one {# possible issue} other {# possible issues}}",
+  "statusbar.securityScan.open": "Show the scan results"
 }

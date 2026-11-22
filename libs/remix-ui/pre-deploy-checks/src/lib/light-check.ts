@@ -54,6 +54,63 @@ export interface PasteCheckResult {
   reused?: boolean
 }
 
+/** What the paste guard needs to know about the user before offering a scan. */
+export interface PasteGuardContext {
+  /** the server allows light checks at all (app config kill switch) */
+  available: boolean
+  /** the user's "Automatic AI security checks" setting, and the server switch */
+  autoScan: boolean
+  signedIn: boolean
+  /** the full Security Audit is in the user's plan */
+  hasAuditor: boolean
+  /** a scan can be paid for: free security_check allowance or credits left (true when unknown) */
+  canScan: boolean
+  /** the free security-check allowance has headroom */
+  freeScansLeft: boolean
+  /** when the free security-check allowance resets (ISO) */
+  resetAt?: string
+}
+
+export type PasteScanPhase = 'scanning' | 'clear' | 'issues' | 'exhausted' | 'signin' | 'unavailable' | 'error'
+
+/** The scan of a file after a paste, as shown in the paste guard and the status bar. */
+export interface PasteScan {
+  id: number
+  file: string
+  lines: number
+  phase: PasteScanPhase
+  reasons: string[]
+  suggestions: string[]
+  startedAt: number
+  finishedAt?: number
+  /** this content was already checked: no new call was made */
+  reused?: boolean
+}
+
+/** A quota from the credits balance, as far as the scan allowance needs it. */
+interface QuotaLike {
+  provider: string
+  model: string
+  operation?: string
+  remaining: number
+  periodResetAt?: string
+}
+
+/**
+ * Whether a light check can be paid for, from the credits balance: the free security_check
+ * allowance, an allowance covering every call, or credits. Unknown balance: assume it can.
+ */
+export function scanAllowance (credits: { balance?: number, quotas?: QuotaLike[] } | null | undefined): Pick<PasteGuardContext, 'canScan' | 'freeScansLeft' | 'resetAt'> {
+  if (!credits) return { canScan: true, freeScansLeft: false }
+  const quotas = credits.quotas || []
+  const scanQuotas = quotas.filter((q) => q.operation === 'security_check')
+  const freeScansLeft = scanQuotas.some((q) => q.remaining > 0)
+  const coversAll = quotas.some((q) => (!q.operation || q.operation === '*') && q.provider === '*' && q.model === '*' && q.remaining > 0)
+  const canScan = freeScansLeft || coversAll || (credits.balance || 0) > 0
+  const resets = scanQuotas.map((q) => q.periodResetAt).filter(Boolean).sort()
+  return { canScan, freeScansLeft, resetAt: canScan ? undefined : resets[0] }
+}
+
 /** remixAI.light_security_check's result. */
 export type LightCheckOutcome =
   | { status: 'ok', result: AiSecurityAnswer, model?: string }
@@ -179,11 +236,12 @@ export class LightChecker {
 
   /**
    * Checks a file the user just pasted code into, as a whole (a snippet alone lacks context).
-   * Resolves with null when nothing was checked: switched off, signed out, or not Solidity.
+   * Resolves with null when nothing was checked: switched off (unless forced), signed out, or not Solidity.
    */
-  async onPasted (file: string, source: string): Promise<PasteCheckResult | null> {
+  async onPasted (file: string, source: string, opts: { force?: boolean } = {}): Promise<PasteCheckResult | null> {
     if (!file || !file.endsWith('.sol') || !source || !source.trim()) return null
-    if (!(await this.host.isEnabled().catch(() => false))) return null
+    // force: the user asked for this scan, so the automatic-checks setting doesn't apply
+    if (!opts.force && !(await this.host.isEnabled().catch(() => false))) return null
     if (!(await this.host.isSignedIn().catch(() => false))) return null
     const hash = contentHash(source)
 

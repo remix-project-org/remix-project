@@ -3,7 +3,7 @@ import { FormattedMessage, useIntl } from 'react-intl'
 import { diffLines } from 'diff'
 import { isArray } from 'lodash'
 import Editor, { DiffEditor, loader, Monaco } from '@monaco-editor/react'
-import { AppContext, AppModal, useAuth } from '@remix-ui/app'
+import { AppContext, useAuth } from '@remix-ui/app'
 import { DISCORD_URL, REMIX_WEBSITE_URL, REMIX_DOCS_URL } from '@remix-ui/helper'
 import { MatomoEvent, EditorEvent, AIEvent, Features } from '@remix-api'
 //@ts-ignore
@@ -36,6 +36,7 @@ import { GenerationParams } from '@remix/remix-ai-core';
 import { RemixInLineCompletionProvider } from './providers/inlineCompletionProvider'
 import { RemixTSCompletionProvider } from './providers/tsCompletionProvider'
 import { TooltipPopOver, openContextualTooltip } from './tooltipPopOver'
+import { PasteGuard, PasteGuardRequest } from './paste-guard'
 import { QuickDappContractSelector, QuickDappSetupOptions, QuickDappFigmaPreparationResult } from '@remix-ui/quick-dapp-v2'
 import { DeployedContract } from '@remix-ui/run-tab-deployed-contracts'
 import { isQuickDappRemixVMIdentifier, normalizeQuickDappEnvironment } from '@remix-ui/helper'
@@ -251,6 +252,9 @@ export const EditorUI = (props: EditorUIProps) => {
   const inlineCompletionProviderRef = useRef<RemixInLineCompletionProvider|null>(null)
   const hoverTimeoutRef = useRef<NodeJS.Timeout | null>(null)
   const lastHoverPositionRef = useRef<monacoTypes.IPosition | null>(null)
+  const [pasteGuardRequest, setPasteGuardRequest] = useState<PasteGuardRequest | null>(null)
+  /** the code of the latest large paste, for the paste guard's Ask RemixAI */
+  const pastedCodeRef = useRef('')
   const [tooltipData, setTooltipData] = useState<{keyword: string, position: {x: number, y: number}, contextLines?: string, isSelectedText?: boolean} | null>(null)
   const [quickDappStartSetup, setQuickDappStartSetup] = useState<{
     contracts: DeployedContract[]
@@ -1110,97 +1114,14 @@ export const EditorUI = (props: EditorUIProps) => {
     editor.onDidPaste(async (e) => {
       const isLargePaste = !pasteCodeRef.current && e && e.range && e.range.startLineNumber >= 0 && e.range.endLineNumber >= 0 && e.range.endLineNumber - e.range.startLineNumber > 10
       if (!isLargePaste) return
-      // RemixAI checks the file in the background, also when the warning below is switched off
-      const backgroundCheck: 'checking' | 'signin' | 'off' = await props.plugin.call('preDeployChecks', 'checkPasted').catch(() => 'off')
-      const shouldShowWarning = localStorage.getItem(HIDE_PASTE_WARNING_KEY) !== 'true';
-      // Only show the modal if the user hasn't opted out
-      if (shouldShowWarning) {
-        // get the file name
-        const pastedCode = editor.getModel().getValueInRange(e.range)
-        const pastedCodePrompt = intl.formatMessage({ id: 'editor.PastedCodeSafety' }, { content:pastedCode })
-
-        // State for the checkbox inside this specific modal instance
-        let dontShowAgainChecked = false;
-        const handleClose = (askAI = false) => {
-          if (dontShowAgainChecked) {
-            try {
-              localStorage.setItem(HIDE_PASTE_WARNING_KEY, 'true');
-            } catch (e) {
-              console.error("Failed to write to localStorage:", e);
-            }
-          }
-          if (askAI) {
-            // Proceed with the original okFn logic
-            (async () => {
-              await props.plugin.call('popupPanel', 'showPopupPanel', true)
-              setTimeout(async () => {
-                (props.plugin as any).call('remixAI', 'chatPipe', 'vulnerability_check', pastedCodePrompt, undefined, undefined, { source: 'editor', presetId: 'paste-vulnerability-check' })
-              }, 500)
-              trackMatomoEvent<AIEvent>({ category: 'ai', action: 'remixAI', name: 'vulnerability_check_pasted_code', isClick: true })
-            })();
-          }
-        };
-
-        const modalContent: AppModal = {
-          id: 'newCodePasted',
-          title: "New code pasted",
-          okLabel: 'Ask RemixAI',
-          cancelLabel: 'Close',
-          cancelFn: () => handleClose(false), // Pass false for askAI
-          okFn: () => handleClose(true), // Pass true for askAI
-          message: (
-            <div>
-              {' '}
-              <i className="fas fa-exclamation-triangle text-danger me-1"></i>
-              <FormattedMessage id="editor.title1.message1" />
-              <div>
-                <FormattedMessage id="editor.title1.message2" />
-                <div className="mt-2">
-                  <FormattedMessage id="editor.title1.message3" values={{ span: (chunks) => <span className="text-warning">{chunks}</span> }} />
-                </div>
-                <div className="text-warning  mt-2">
-                  <FormattedMessage id="editor.title1.message4" />
-                </div>
-                <div className="mt-2">
-                  <FormattedMessage id="editor.title1.message5" />
-                </div>
-                {backgroundCheck !== 'off' && (
-                  <div className="mt-2 text-info" data-id="pasteBackgroundCheck" data-status={backgroundCheck}>
-                    <i className="fas fa-shield-alt me-1"></i>
-                    <FormattedMessage id={backgroundCheck === 'checking' ? 'editor.pasteCheck.checking' : 'editor.pasteCheck.signin'} />
-                  </div>
-                )}
-                <div className="mt-2">
-                  <FormattedMessage
-                    id="editor.title1.message6"
-                    values={{
-                      a: (chunks) => (
-                        <a target="_blank" href="https://remix-ide.readthedocs.io/en/latest/security.html">
-                          {chunks}
-                        </a>
-                      ),
-                    }}
-                  />
-                </div>
-              </div>
-              {/* Added Checkbox section below */}
-              <div className="mt-3">
-                <label htmlFor="donotshowagain" className="text-dark">
-                  <input
-                    type="checkbox"
-                    id="donotshowagain"
-                    className="me-2"
-                    onChange={(e) => dontShowAgainChecked = e.target.checked}
-                  />
-                  <FormattedMessage id="editor.doNotShowAgain" defaultMessage="Do not show this warning again" /> {/* Consider adding this to locale files */}
-                </label>
-              </div>
-            </div>
-          )
-        }
-        props.plugin.call('notification', 'modal', modalContent)
-        trackMatomoEvent({ category: 'editor', action: 'onDidPaste', name: 'more_than_10_lines', isClick: false })
-      }
+      const file: string = await props.plugin.call('fileManager', 'file').catch((): string => currentFileRef.current)
+      if (!file) return
+      // Solidity gets the paste guard's scan every time; other files keep honouring the old opt-out
+      if (!file.endsWith('.sol') && localStorage.getItem(HIDE_PASTE_WARNING_KEY) === 'true') return
+      const model = editor.getModel()
+      pastedCodeRef.current = model.getValueInRange(e.range)
+      setPasteGuardRequest({ nonce: Date.now(), file, content: model.getValue(), lines: e.range.endLineNumber - e.range.startLineNumber + 1 })
+      trackMatomoEvent({ category: 'editor', action: 'onDidPaste', name: 'more_than_10_lines', isClick: false })
     })
 
     // add context menu items
@@ -2461,6 +2382,19 @@ For Inline mode, preserve the existing /frontend overwrite confirmation flow.`
       )}
 
       {COLLAB_ENABLED && <SwarmCollab plugin={props.plugin} editorRef={editorRef} monacoRef={monacoRef} currentFile={props.currentFile} hidden={props.isDiff} />}
+
+      <PasteGuard
+        plugin={props.plugin}
+        request={pasteGuardRequest}
+        onAskAI={async () => {
+          const prompt = intl.formatMessage({ id: 'editor.PastedCodeSafety' }, { content: pastedCodeRef.current })
+          await props.plugin.call('popupPanel', 'showPopupPanel', true)
+          setTimeout(() => {
+            (props.plugin as any).call('remixAI', 'chatPipe', 'vulnerability_check', prompt, undefined, undefined, { source: 'editor', presetId: 'paste-vulnerability-check' })
+          }, 500)
+          trackMatomoEvent<AIEvent>({ category: 'ai', action: 'remixAI', name: 'vulnerability_check_pasted_code', isClick: true })
+        }}
+      />
 
       {/* Web3 Keyword Tooltip */}
       {tooltipData && hasContextualEditorFeature && (
