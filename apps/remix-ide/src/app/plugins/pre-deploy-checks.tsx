@@ -589,6 +589,10 @@ export class PreDeployChecksPlugin extends ViewPlugin implements CheckHost {
     await this.securityAudit(file)
   }
 
+  async getPlan () {
+    await this.call('planManager' as any, 'open', { reason: 'feature-required', requiredFeature: 'ai:auditor' })
+  }
+
   /** Same audit as the Solidity compiler's Security Audit button, in RemixAI chat. */
   async securityAudit (target?: string) {
     const file = target || this.currentFile

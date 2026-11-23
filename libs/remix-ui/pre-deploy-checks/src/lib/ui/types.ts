@@ -37,4 +37,6 @@ export interface PreDeployChecksActions {
   saveReport: () => Promise<void>
   /** opens RemixAI chat with a full security audit of the file */
   securityAudit: () => Promise<void>
+  /** opens the plan manager to let the user upgrade */
+  getPlan: () => Promise<void>
 }
