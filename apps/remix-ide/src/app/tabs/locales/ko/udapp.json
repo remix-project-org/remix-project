@@ -126,7 +126,7 @@
   "udapp.customVmForkProviderText": "사용자 정의 포크에 대한 정보를 제공하세요. 노드 URL이 제공되지 않으면 VM이 빈 상태로 시작됩니다.",
   "udapp.nodeUrl": "노드 URL",
   "udapp.blockNumber": "블록 넘버(또는 최신)",
-  "udapp.externalHttpProviderText1": "참고: Geth & https://remix.ethereum.org을 사용하려면 Remix에서 요청을 허용하도록 구성하세요:(<a>Geth 문서의 rpc 서버</a> 참조)",
+  "udapp.externalHttpProviderText1": "참고: Geth & https://app.remix.live을 사용하려면 Remix에서 요청을 허용하도록 구성하세요:(<a>Geth 문서의 rpc 서버</a> 참조)",
   "udapp.externalHttpProviderText2": "Remix & 로컬 Geth 테스트 노드를 실행하려면 다음 명령을 사용하세요: (<a>Geth 문서의 개발 모드</a> 참조)",
   "udapp.externalHttpProviderText3": "<b>경고:</b> 와일드카드를 사용하여 --http.corsdomain 플래그를 설정하는 것은 안전하지 않습니다: <b>--http.corsdomain *</b>",
   "udapp.externalHttpProviderText4": "자세한 정보: <a>Remix 문서의 외부 HTTP 제공자</a>",

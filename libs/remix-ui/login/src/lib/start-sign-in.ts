@@ -2,7 +2,7 @@
  * Centralized helper for starting a sign-in flow.
  *
  * On desktop (Electron), this calls `desktopAuthHandler.login` so the user is
- * sent to the system browser to authenticate on remix.ethereum.org. The
+ * sent to the system browser to authenticate on app.remix.live. The
  * resulting tokens come back via the `remix://` custom protocol and are
  * applied by the auth-plugin's persistent listener.
  *

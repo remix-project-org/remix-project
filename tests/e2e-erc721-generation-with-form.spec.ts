@@ -17,23 +17,39 @@ test('e2e-erc721-generation-with-form', async ({ page }) => {
     throw new Error('Missing E2E pool key. Set E2E_POOL_API_KEY (or E2E_POOL_KEY) before running.')
   }
   await page.goto(`http://127.0.0.1:8080/#e2e_feature_groups=e2e-unlimited-quota&e2e_pool_key=${encodeURIComponent(poolApiKey)}&lang=en&optimize&runs=200&evmVersion&version=soljson-v0.8.34+commit.80d5c536.js`);
+  await expect(page.locator('[data-id="verticalIconsHomeIcon"]').first()).toBeVisible({ timeout: 30000 })
   try {
-    await page.getByTitle('Dismiss').waitFor({ state: 'visible', timeout: 50000 });
+    await expect(page.getByTitle('Dismiss')).toBeVisible({ timeout: 3000 })
     await page.getByTitle('Dismiss').click();
+  } catch { /* not present */ }
+  await page.waitForTimeout(2000)
+  try {
+    await expect(page.locator('[data-id="planManagerCloseButton"]')).toBeVisible({ timeout: 30000 })
+    await page.locator('[data-id="planManagerCloseButton"]').click();
   } catch { /* not present */ }
   await page.getByRole('button', { name: 'Sign In', exact: true }).click();
+  await page.locator('[data-id="pm-free-plan-start"]').click();
   await page.getByRole('button', { name: 'E2E Test Pool', exact: false }).click();
+  await expect(page.locator('[data-id="verticalIconsHomeIcon"]').first()).toBeVisible({ timeout: 30000 })
   try {
-    await page.getByTitle('Dismiss').waitFor({ state: 'visible', timeout: 3000 });
+    await expect(page.getByTitle('Dismiss')).toBeVisible({ timeout: 3000 })
     await page.getByTitle('Dismiss').click();
   } catch { /* not present */ }
-  await page.getByRole('textbox', { name: 'Type "/" for more options or' }).click();
-  await page.getByRole('textbox', { name: 'Type "/" for more options or' }).fill(prompt);
-  await page.getByRole('textbox', { name: 'Type "/" for more options or' }).press('Enter');
-  await page.getByRole('checkbox', { name: 'Auto-accept all changes' }).check();
+  await page.waitForTimeout(2000)
+  try {
+    await expect(page.locator('[data-id="planManagerCloseButton"]')).toBeVisible({ timeout: 30000 })
+    await page.locator('[data-id="planManagerCloseButton"]').click();
+  } catch { /* not present */ }
+  await page.locator('[data-id="remix-ai-prompt-input"]').click();
+  await page.locator('[data-id="remix-ai-prompt-input"]').fill(prompt);
+  await page.locator('[data-id="remix-ai-prompt-input"]').press('Enter');
+  await page.locator('[data-id="hitl-auto-accept-checkbox"]').check();
   await page.locator('[data-id="tool-approval-approve-button"]').first().click();
-  await page.getByRole('combobox').waitFor({ state: 'visible' });
-  await page.getByRole('combobox').selectOption('openzeppelin');
+  // form selects use the shared Select: a toggle button with a dropdown list
+  const frameworkSelect = page.locator('button[id^="genui-select-"]').first();
+  await frameworkSelect.waitFor({ state: 'visible' });
+  await frameworkSelect.click();
+  await page.locator('.rx-select-menu .dropdown-item', { hasText: /openzeppelin/i }).first().click();
   await page.getByRole('textbox', { name: 'My NFT Collection' }).waitFor({ state: 'visible' });
   await page.getByRole('textbox', { name: 'My NFT Collection' }).click();
   await page.getByRole('textbox', { name: 'My NFT Collection' }).fill('CollectionName');

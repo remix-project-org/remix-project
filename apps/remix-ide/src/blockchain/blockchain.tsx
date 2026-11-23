@@ -11,6 +11,7 @@ import { VMProvider } from './providers/vm'
 import { InjectedProvider } from './providers/injected'
 import { NodeProvider } from './providers/node'
 import { execution, EventManager, helpers } from '@remix-project/remix-lib'
+import type { QuotedFee } from '@remix-project/remix-lib'
 import { etherScanLink, getBlockScoutUrl } from './helper'
 import { logBuilder, cancelUpgradeMsg, cancelProxyMsg, addressToString } from '@remix-ui/helper'
 import { Provider } from '@remix-ui/environment-explorer'
@@ -78,7 +79,7 @@ export class Blockchain extends Plugin {
     this.networkcallid = 0
     this.registeredPluginEvents = []
     // the first item in the list should be latest fork.
-    this.defaultPinnedProviders = ['vm-osaka', 'vm-prague', 'vm-cancun', 'vm-mainnet-fork', 'walletconnect', 'injected-MetaMask', 'basic-http-provider', 'hardhat-provider', 'foundry-provider', 'desktopHost']
+    this.defaultPinnedProviders = ['vm-osaka', 'vm-prague', 'vm-cancun', 'vm-monad-eight', 'vm-monad-nine', 'vm-monad-ten', 'vm-monad-next', 'vm-mainnet-fork', 'walletconnect', 'injected-MetaMask', 'basic-http-provider', 'hardhat-provider', 'foundry-provider', 'desktopHost']
     this.networkStatus = { network: { name: this.defaultPinnedProviders[0], id: ' - ' } }
     this.networkNativeCurrency = { name: "Ether", symbol: "ETH", decimals: 18 }
     this.pinnedProviders = []
@@ -156,7 +157,13 @@ export class Blockchain extends Plugin {
     this.executionContext.event.register('contextChanged', async (context) => {
       if (!this.isWorkspaceLoaded) return
       // reset environment to last known state of the context
-      await this.loadContext(context)
+      try {
+        await this.loadContext(context)
+      } catch (error) {
+        if (context !== this.getProvider()) return
+        throw error
+      }
+      if (context !== this.getProvider()) return
       this._triggerEvent('contextChanged', [context])
       const network = await this.detectNetwork()
       this.networkStatus = { network, error: null }
@@ -189,7 +196,7 @@ export class Blockchain extends Plugin {
 
     this.on('txRunner','transactionBroadcasted', async (txhash, isUserOp) => {
       if (isUserOp) trackMatomoEvent(this, { category: 'udapp', action: 'safeSmartAccount', name: 'txBroadcastedFromSmartAccount', isClick: false })
-      // logTransaction(txhash, 'gui')
+      this.logTransaction(txhash, 'gui')
       const network = await this.executionContext.detectNetwork()
       if (!network) return
       if (network.name === 'VM') return
@@ -221,6 +228,22 @@ export class Blockchain extends Plugin {
         )
       }
     })
+  }
+
+  async logTransaction(txhash, origin) {
+    const network = await this.detectNetwork()
+    const actionName = origin === 'plugin' ? 'sendTransaction-from-plugin' : 'sendTransaction-from-gui'
+
+    if (network && network.id) {
+      trackMatomoEvent(this, { category: 'udapp', action: actionName, name: `${txhash}-${network.id}`, isClick: false })
+    } else {
+      try {
+        const networkString = JSON.stringify(network)
+        trackMatomoEvent(this, { category: 'udapp', action: actionName, name: `${txhash}-${networkString}`, isClick: false })
+      } catch (e) {
+        trackMatomoEvent(this, { category: 'udapp', action: actionName, name: `${txhash}-unknownnetwork`, isClick: false })
+      }
+    }
   }
 
   discardPreviousConnectionAttempt () {
@@ -652,11 +675,12 @@ export class Blockchain extends Plugin {
       // udapp: this.udapp.event
       udapp: this.event
     }
+    opts.api.getNetworkCurrency = () => this.getCurrentNetworkCurrency()
     const txlistener = new Txlistener(opts, this.executionContext)
     return txlistener
   }
 
-  async runOrCallContractMethod(contractName, contractAbi, funABI, contract, value, address, callType, sendParams?: { value: string, gasLimit: string }) {
+  async runOrCallContractMethod(contractName, contractAbi, funABI, contract, value, address, callType, sendParams?: { value: string, gasLimit: string, quotedFee?: QuotedFee }) {
     // contractsDetails is used to resolve libraries
     const data = await txFormat.buildData(
       contractName,
@@ -690,6 +714,8 @@ export class Blockchain extends Plugin {
         data.value = sendParams.value
         // @ts-ignore
         data.gasLimit = sendParams.gasLimit
+        // @ts-ignore
+        data.quotedFee = sendParams.quotedFee
       }
     }
     const useCall = funABI.stateMutability === 'view' || funABI.stateMutability === 'pure'
@@ -762,24 +788,8 @@ export class Blockchain extends Plugin {
     // Expose web3 for QuickDapp bridge (bypasses plugin queue)
     ;(globalThis as any).__remixVM_web3 = this.web3()
 
-    const logTransaction = async (txhash, origin) => {
-      const network = await this.detectNetwork()
-      const actionName = origin === 'plugin' ? 'sendTransaction-from-plugin' : 'sendTransaction-from-gui';
-
-      if (network && network.id) {
-        trackMatomoEvent(this, { category: 'udapp', action: actionName, name: `${txhash}-${network.id}`, isClick: false })
-      } else {
-        try {
-          const networkString = JSON.stringify(network)
-          trackMatomoEvent(this, { category: 'udapp', action: actionName, name: `${txhash}-${networkString}`, isClick: false })
-        } catch (e) {
-          trackMatomoEvent(this, { category: 'udapp', action: actionName, name: `${txhash}-unknownnetwork`, isClick: false })
-        }
-      }
-    }
-
     this.on('web3Provider', 'transactionBroadcasted', (txhash) => {
-      logTransaction(txhash, 'plugin')
+      this.logTransaction(txhash, 'plugin')
     })
 
     this.call('txRunner', 'resetInternalRunner')
@@ -1027,7 +1037,8 @@ export class Blockchain extends Plugin {
       web3: await this.getWeb3(), // Pass web3 to avoid circular callback
       provider: this.getProvider(), // Pass provider to avoid circular callback deadlock
       isVM: this.executionContext.isVM(), // Pass isVM to avoid circular callback deadlock
-      determineGasPrice: await this.determineGasPrice() // Pass gasPrice to avoid circular callback deadlock
+      determineGasPrice: await this.determineGasPrice(), // Pass gasPrice to avoid circular callback deadlock
+      quotedFee: args.data?.quotedFee
     }
     const payLoad = {
       funAbi: args.data.funAbi,

@@ -180,7 +180,8 @@ export class Compiler {
     if (data.error) checkIfFatalError(data.error)
     if (data.errors) data.errors.forEach((err) => checkIfFatalError(err))
     if (!noFatalErrors) {
-      // There are fatal errors, abort here
+      // There are fatal errors, abort here. Listeners still need to know which file failed
+      if (source) source.target = this.state.target
       this.state.lastCompilationResult = null
       this.event.trigger('compilationFinished', [false, data, source, input, version])
     } else if (missingInputs !== undefined && missingInputs.length > 0 && source && source.sources) {

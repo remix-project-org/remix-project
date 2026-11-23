@@ -178,6 +178,10 @@ export class TxRunnerWeb3 {
         txCopy.gasPrice = undefined
       }
     }
+    if (args.quotedFee) {
+      const { type, nonce, gas, ...fees } = args.quotedFee
+      return await this._executeTx({ ...tx, ...fees, ...(type === '0x2' ? { type } : {}), nonce: Number(nonce), gasLimit: gas }, network, null)
+    }
     const ethersProvider = tx.web3 || await this._api.call('blockchain', 'getWeb3')
     const config = Registry.getInstance().get('config').api
 

@@ -24,6 +24,16 @@ export type Transaction = {
   provider?: string // Provider type to avoid circular callback deadlock
   isVM?: boolean // VM flag to avoid circular callback deadlock
   determineGasPrice?: any // Gas price to avoid circular callback deadlock
+  quotedFee?: QuotedFee // Sent as quoted, without gas estimation or fee confirmation
+}
+
+export type QuotedFee = {
+  type: '0x0' | '0x2'
+  nonce: string
+  gas: string
+  gasPrice?: string
+  maxFeePerGas?: string
+  maxPriorityFeePerGas?: string
 }
 
 export type TxResult = {

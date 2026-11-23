@@ -1,7 +1,8 @@
 const branches = {
   'beta.remix.live': 'beta',
   'alpha.remix.live': 'alpha',
-  'remix.ethereum.org': 'live'
+  'remix.ethereum.org': 'live',
+  'app.remix.live': 'live'
 }
 
 const getBaseUrl = () => {

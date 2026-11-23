@@ -48,3 +48,44 @@ tape('Debugger updates cached opcode decoding when the transaction fork changes'
     t.end()
   }
 })
+
+tape('Execution fork selection preserves per-transaction Monad bytecode across VM changes', async t => {
+  let traceFork = 'monad-eight'
+  let bytecode = '0x6001'
+  let codeReads = 0
+  const debug = new Ethdebugger({
+    web3: {
+      getNetwork: async () => ({ chainId: 1n }),
+      getCode: async () => { codeReads++; return '0x6003' },
+      debug: {
+        traceTransaction: (_hash, _options, callback) => callback(null, {
+          fork: traceFork,
+          codeByAddress: { [address]: bytecode },
+          structLogs: [{ pc: 0, op: 'PUSH1', depth: 1, gas: 100, gasCost: 3, stack: [], memory: []}]
+        })
+      }
+    },
+    compilationResult: async () => null,
+    offsetToLineColumnConverter: { offsetToLineColumn: async () => null }
+  })
+  try {
+    let id = 0
+    for (const [fork, recorded, expected] of [
+      ['monad-eight', '0x6001', '0x6001'], ['monad-eight', '0x6002', '0x6002'],
+      ['osaka', '0x6002', '0x6003'], ['paris', '0x6002', '0x6003'],
+      ['monad-next', '0x6004', '0x6004'], ['monad-next', '0x6005', '0x6005']
+    ]) {
+      traceFork = fork
+      bytecode = recorded
+      await debug.debug({ hash: '0x' + (++id).toString(16).padStart(64, '0'), to: address, data: '0x', blockNumber: 16000000 })
+      t.equal(debug.traceManager.getCurrentFork(), fork, `${fork}: recognized execution metadata overrides network inference`)
+      t.equal(debug.codeManager.codeResolver.fork, fork, `${fork}: resolver follows the loaded trace`)
+      t.equal((await debug.codeManager.getCode(address)).bytecode, expected, `${fork}: bytecode comes from the current execution`)
+    }
+    t.equal(codeReads, 2, 'only Ethereum executions resolve code through RPC')
+  } catch (error) {
+    t.fail(error.stack || String(error))
+  } finally {
+    t.end()
+  }
+})

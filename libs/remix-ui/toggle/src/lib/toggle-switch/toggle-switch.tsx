@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React from 'react'
 import { FormattedMessage } from 'react-intl'
 
 import './toggle-switch.css'
@@ -6,54 +6,44 @@ import { CustomTooltip } from '@remix-ui/helper'
 
 interface IToggleSwitch {
   id: string
-  onstyle?: string // text-ai, text-primary etc
-  offstyle?: string // text-ai, text-secondary etc
-  size?: string // lg,xl,2xl etc
+  size?: string // 'sm' for the small switch; any other value (lg, 2xl etc) gives the regular one
+  tone?: 'primary' | 'ai' // colour of the track when on
+  label?: React.ReactNode // text shown after the switch, inside the same clickable button
   tooltipTextId?: string // formatted message id like "remixApp.mpOp1Tooltip" etc
   disabled?: boolean
   isOn?: boolean
   onClick?: () => void
 }
 export const ToggleSwitch = (props: IToggleSwitch) => {
-  const { id, tooltipTextId, disabled, onClick } = props
-  let { onstyle, offstyle, size, isOn } = props
-  size = size || 'lg'
-  onstyle = onstyle || 'text-primary'
-  offstyle = offstyle || 'text-secondary'
-  isOn = isOn === false ? isOn : true
+  const { id, size, tone, label, tooltipTextId, disabled, onClick } = props
+  const isOn = props.isOn !== false
 
-  const childJSXWithTooltip = (
+  const toggle = (
+    <button
+      type="button"
+      role="switch"
+      aria-checked={isOn}
+      data-id={ id + "Switch"}
+      id={id}
+      className={`remix-switch ${size === 'sm' ? 'remix-switch-sm' : ''} ${tone === 'ai' ? 'remix-switch-ai' : ''}`}
+      onClick={() => { if (!disabled) onClick()}}
+      disabled = {disabled || false}
+    >
+      <span className="remix-switch-track"><span className="remix-switch-knob"></span></span>
+      {label && <span className="remix-switch-label">{label}</span>}
+    </button>
+  )
+
+  return tooltipTextId ? (
     <CustomTooltip
       placement={"auto"}
       tooltipId={ id + "Tooltip"}
       tooltipClasses="text-nowrap"
       tooltipText={<FormattedMessage id={tooltipTextId} />}
     >
-      <button
-        data-id={ id + "Switch"}
-        id={id}
-        className={`btn ${isOn ? onstyle : offstyle}`}
-        onClick={() => { if (!disabled) onClick()}}
-        disabled = {disabled || false}
-      >
-        { isOn ? <i className={`fas fa-toggle-on ${size ? `fa-${size}` : "fa-lg"}`}></i> : <i className={`fas fa-toggle-off ${size ? `fa-${size}` : "fa-lg"}`}></i> }
-      </button>
+      {toggle}
     </CustomTooltip>
-  )
-
-  const childJSXWithoutTooltip = (
-    <button
-      data-id={ id + "Switch"}
-      id={id}
-      className={`btn ${isOn ? onstyle : offstyle}`}
-      onClick={() => { if (!disabled) onClick()}}
-      disabled = {disabled || false}
-    >
-      { isOn ? <i className={`fas fa-toggle-on ${size ? `fa-${size}` : "fa-lg"}`}></i> : <i className={`fas fa-toggle-off ${size ? `fa-${size}` : "fa-lg"}`}></i> }
-    </button>
-  )
-
-  return tooltipTextId ? childJSXWithTooltip : childJSXWithoutTooltip
+  ) : toggle
 }
 
 export default ToggleSwitch

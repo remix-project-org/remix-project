@@ -1,4 +1,5 @@
 import { StatusEvents } from "@remixproject/plugin-utils"
+import type { SameEmailOverviewResponse } from "./api-types"
 
 export interface AuthUser {
   sub: string
@@ -27,6 +28,8 @@ export interface ISSOApi {
     tokenRefreshed: (data: { token: string }) => void
     openWindow: (data: { url: string; id: string }) => void
     gitHubTokenReady: (data: { token: string | null }) => void
+    /** Fired when the same-email accounts overview changes; null when unavailable (signed out / no verified email). */
+    sameEmailAccountsChanged: (overview: SameEmailOverviewResponse | null) => void
   } & StatusEvents
   methods: {
     login(provider: AuthProvider): Promise<void>
@@ -37,6 +40,7 @@ export interface ISSOApi {
     refreshToken(): Promise<void>
     fetchGitHubToken(): Promise<string | null>
     disconnectGitHub(): Promise<void>
+    getSameEmailAccounts(forceRefresh?: boolean): Promise<SameEmailOverviewResponse | null>
     handlePopupResult(result: {
       id: string
       success: boolean

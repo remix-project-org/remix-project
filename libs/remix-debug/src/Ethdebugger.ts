@@ -1,4 +1,5 @@
 'use strict'
+import { isMonadFork } from './code/monadOpcodes'
 
 import { StorageViewer } from './storage/storageViewer'
 import { StorageResolver } from './storage/storageResolver'
@@ -315,7 +316,7 @@ export class Ethdebugger {
     this.tx = tx
 
     await this.traceManager.resolveTrace(tx)
-    if (this.codeManager.codeResolver.fork !== this.traceManager.getCurrentFork()) {
+    if (isMonadFork(this.traceManager.getCurrentFork()) || this.codeManager.codeResolver.fork !== this.traceManager.getCurrentFork()) {
       this.codeManager.clear()
       this.codeManager.codeResolver.fork = this.traceManager.getCurrentFork()
     }

@@ -34,11 +34,11 @@ export function hsection(this: unknown, hsublevel: number | HelperOptions, opts?
 }
 
 /**
- * Returns a Markdown heading marker. An optional number increases the heading level.
+ * Returns a Markdown horizontal rule separator. Any supplied number is ignored.
  *
  *    Input                  Output
- *    {{h}} {{name}}         # Name
- *    {{h 2}} {{name}}       ## Name
+ *    {{s}}                  ---
+ *    {{s 2}}                ---
  */
 export function s(opts: HelperOptions): string;
 export function s(hsublevel: number, opts: HelperOptions): string;

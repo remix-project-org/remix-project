@@ -2,7 +2,7 @@ import React, {useState, useEffect, useRef, useContext} from 'react' // eslint-d
 import { FormattedMessage, useIntl } from 'react-intl'
 import SearchBar from './search-bar/search-bar' // eslint-disable-line
 import DebugLayout from './debug-layout/debug-layout' // eslint-disable-line
-import {TransactionDebugger as Debugger} from '@remix-project/remix-debug' // eslint-disable-line
+import {TransactionDebugger as Debugger, init} from '@remix-project/remix-debug' // eslint-disable-line
 import {DebuggerUIProps} from './idebugger-api' // eslint-disable-line
 import {Toaster} from '@remix-ui/toaster' // eslint-disable-line
 import { CustomTooltip, isValidHash } from '@remix-ui/helper'
@@ -409,7 +409,7 @@ export const DebuggerUI = (props: DebuggerUIProps) => {
     try {
       currentReceipt = await web3.getTransactionReceipt(txNumber)
       currentBlock = await web3.getBlock(currentReceipt.blockHash)
-      currentTransaction = await web3.getTransaction(txNumber)
+      currentTransaction = await init.getTransactionForDebugging(web3, txNumber)
     } catch (e) {
       trackMatomoEvent({ category: 'debugger', action: 'errorInStartDebugging', value: e.message, isClick: true })
       setState((prevState) => {

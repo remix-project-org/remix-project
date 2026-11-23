@@ -1,6 +1,6 @@
 # Transaction Simulator Plugin
 
-The Transaction Simulator plugin allows you to simulate transactions using the `eth_simulateV1` RPC endpoint in Remix IDE. It automatically decodes event logs using the 4byte.directory API.
+The Transaction Simulator plugin allows you to simulate transactions using the `eth_simulateV1` RPC endpoint in Remix Web3. It automatically decodes event logs using the 4byte.directory API.
 
 ## Usage
 
@@ -327,7 +327,7 @@ Emitted when logs are successfully decoded.
 
 - This plugin requires a provider that supports the `eth_simulateV1` RPC method
 - Not all providers support transaction simulation
-- The plugin uses the currently selected provider in Remix IDE
+- The plugin uses the currently selected provider in Remix Web3
 - Simulation results depend on the provider's implementation
 - Event signature lookup requires an internet connection to access 4byte.directory
 - Decoded log parameters are returned as strings for bigint values to prevent precision loss

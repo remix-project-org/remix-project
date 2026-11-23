@@ -14,6 +14,7 @@ import JSZip from 'jszip'
 import { Actions, FileTree } from '../types'
 import IpfsHttpClient from 'ipfs-http-client'
 import { Topbar } from 'apps/remix-ide/src/app/components/top-bar'
+import { hexToBytes } from 'apps/remix-ide/src/app/plugins/arkiv-utils'
 
 export * from './events'
 export * from './workspace'
@@ -63,6 +64,7 @@ export type UrlParametersType = {
   ghfolder: string
   endpoint: string
   remaps: string
+  arkiv: string
 }
 
 // Helper function to check if a workspace name matches the code-sample pattern
@@ -131,6 +133,26 @@ const basicWorkspaceInit = async (workspaces: { name: string; isGitRepo: boolean
   }
 }
 
+async function loadArkivEntity(entityKey: string, workspaces: any, workspaceProvider: any, plugin: any, dispatch: any, lifecycle: any) {
+  try {
+    await plugin.call('arkivBasic', 'unlock')
+    const entity = await plugin.call('arkivBasic', 'getEntity', entityKey)
+    const fileName = (entity.attributes?.name?.value as string) || entityKey
+    const filePath = (entity.attributes?.path?.value as string) || fileName
+    const content = entity.payload ? new TextDecoder().decode(hexToBytes(String(entity.payload))) : ''
+    const workspaceName = `arkiv-${await generateRandomSuffix(entityKey)}`
+    await createWorkspaceTemplate(workspaceName, 'code-template')
+    plugin.setWorkspace({ name: workspaceName, isLocalhost: false })
+    dispatch(setCurrentWorkspace({ name: workspaceName, isGitRepo: false }))
+    await workspaceProvider.set(filePath, content)
+    lifecycle.when(all('EDITOR_MOUNTED', 'WORKSPACE_INITIALIZED'), async () => {
+      await plugin.fileManager.openFile(filePath)
+    })
+  } catch (error) {
+    await basicWorkspaceInit(workspaces, workspaceProvider)
+  }
+}
+
 export const initWorkspace = (filePanelPlugin) => async (reducerDispatch: React.Dispatch<Actions>) => {
   if (filePanelPlugin) {
     plugin = filePanelPlugin
@@ -171,6 +193,8 @@ export const initWorkspace = (filePanelPlugin) => async (reducerDispatch: React.
       lifecycle.when(all('EDITOR_MOUNTED', 'WORKSPACE_INITIALIZED'), async () => {
         await plugin.fileManager.openFile(filePath)
       })
+    } else if (params.arkiv) {
+      await loadArkivEntity(params.arkiv, workspaces, workspaceProvider, plugin, dispatch, lifecycle)
     } else if (params.address && params.blockscout) {
       if (params.address.startsWith('0x') && params.address.length === 42 && params.blockscout.length > 0) {
         const contractAddress = params.address
@@ -320,6 +344,8 @@ export const initWorkspace = (filePanelPlugin) => async (reducerDispatch: React.
       lifecycle.when(all('EDITOR_MOUNTED', 'WORKSPACE_INITIALIZED'), async () => {
         await plugin.fileManager.openFile(filePath)
       })
+    } else if (params.arkiv) {
+      await loadArkivEntity(params.arkiv, workspaces, workspaceProvider, plugin, dispatch, lifecycle)
     } else if (params.address && params.blockscout) {
       if (params.address.startsWith('0x') && params.address.length === 42 && params.blockscout.length > 0) {
         const contractAddress = params.address
@@ -491,7 +517,7 @@ export const publishFilesToGist = (arrayOfSelectedFiles: any) => {
 
   try {
     const params = queryParams.get() as SolidityConfiguration
-    const description = 'Created using remix-ide: Realtime Ethereum Contract Compiler and Runtime. \n Load this file by pasting this gists URL or ID at https://remix.ethereum.org/#version=' + params.version + '&optimize=' + params.optimize + '&runs=' + params.runs + '&gist='
+    const description = 'Created using remix-ide: Realtime Ethereum Contract Compiler and Runtime. \n Load this file by pasting this gists URL or ID at https://app.remix.live/#version=' + params.version + '&optimize=' + params.optimize + '&runs=' + params.runs + '&gist='
     const gists = new Gists({ token: accessToken })
     dispatch(displayPopUp('Creating a new gist ...'))
 
@@ -529,7 +555,7 @@ export const publishToGist = async (path?: string) => {
       dispatch(displayNotification('Authorize Token', 'Remix requires an access token (which includes gists creation permission). Please go to the settings tab to create one.', 'Close', null, () => { }))
     } else {
       const params = queryParams.get() as SolidityConfiguration
-      const description = 'Created using remix-ide: Realtime Ethereum Contract Compiler and Runtime. \n Load this file by pasting this gists URL or ID at https://remix.ethereum.org/#version=' +
+      const description = 'Created using remix-ide: Realtime Ethereum Contract Compiler and Runtime. \n Load this file by pasting this gists URL or ID at https://app.remix.live/#version=' +
         params.version + '&optimize=' + params.optimize + '&runs=' + params.runs + '&gist='
       const gists = new Gists({ token: accessToken })
 

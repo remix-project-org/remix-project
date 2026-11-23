@@ -38,5 +38,5 @@
   "settings.ipfs-port": "ПОРТ",
   "settings.ipfs-project-id": "ID ПРОЕКТА",
   "settings.ipfs-project-secret": "СЕКРЕТ ПРОЕКТА",
-  "settings.analyticsInRemix": "Аналитика в Remix IDE"
+  "settings.analyticsInRemix": "Аналитика в Remix Web3"
 }

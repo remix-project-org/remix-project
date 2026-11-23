@@ -241,6 +241,17 @@ export function getFileOperationTools(tools: DynamicStructuredTool[]): DynamicSt
   return fileOperationTools
 }
 
+/**
+ * The auditor's file tools: everything it needs to read checklists and write
+ * reports, but nothing that removes or relocates files. On a restart it used
+ * to delete the contract's audit folder and start over, which auto-accept
+ * then approved silently.
+ */
+export function getFileOperationToolsForAuditor(tools: DynamicStructuredTool[]): DynamicStructuredTool[] {
+  const destructive = new Set(['file_delete', 'file_move'])
+  return getFileOperationTools(tools).filter(tool => !destructive.has(tool.name))
+}
+
 export function filterOutFileOperationTools(tools: DynamicStructuredTool[]): DynamicStructuredTool[] {
   const fileOperationToolNames = [
     'directory_list',
