@@ -213,7 +213,7 @@ export function PasteGuard ({ plugin, request, onAskAI }: PasteGuardProps) {
     <button className="btn btn-sm btn-secondary" data-id="pasteGuardFullAudit" onClick={then('fullAudit', () => plugin.call('preDeployChecks', 'fullAudit', request.file))}>
       {hasAuditor
         ? <FormattedMessage id="editor.pasteGuard.runFullAudit" />
-        : <><FormattedMessage id="editor.pasteGuard.getFullAudit" /> <span className="badge bg-primary-subtle text-primary ms-1">Pro</span></>}
+        : <><FormattedMessage id="editor.pasteGuard.getFullAudit" /></>}
     </button>
   )
 
@@ -299,10 +299,21 @@ export function PasteGuard ({ plugin, request, onAskAI }: PasteGuardProps) {
       </>
     case 'issues':
       return <>
-        {reasons.length > 0 && <ul className="remix-paste-guard-reasons" data-id="pasteGuardReasons">
-          {reasons.slice(0, MAX_REASONS).map((r, i) => <li key={i}>{r}</li>)}
-          {reasons.length > MAX_REASONS && <li className="text-muted list-unstyled"><FormattedMessage id="editor.pasteGuard.more" values={{ count: reasons.length - MAX_REASONS }} /></li>}
-        </ul>}
+        {reasons.length > 0 && (
+          <div className={hasAuditor ? undefined : 'remix-paste-guard-reasons-gated'}>
+            <ul className="remix-paste-guard-reasons" data-id="pasteGuardReasons">
+              {reasons.slice(0, MAX_REASONS).map((r, i) => <li key={i}>{r}</li>)}
+              {reasons.length > MAX_REASONS && <li className="text-muted list-unstyled"><FormattedMessage id="editor.pasteGuard.more" values={{ count: reasons.length - MAX_REASONS }} /></li>}
+            </ul>
+            {!hasAuditor && (
+              <div className="remix-paste-guard-gate-overlay">
+                <button className="btn btn-sm btn-primary" data-id="pasteGuardGateCta" onClick={ctx?.signedIn ? then('getPlan', () => plugin.call('planManager', 'open')) : signIn}>
+                  <FormattedMessage id="editor.pasteGuard.getPlanToView" />
+                </button>
+              </div>
+            )}
+          </div>
+        )}
         <p className="mb-0 small"><FormattedMessage id="editor.pasteGuard.issuesAdvice" /></p>
       </>
     case 'error':

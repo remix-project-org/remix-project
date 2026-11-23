@@ -58,6 +58,9 @@
 .remix-paste-guard-reasons li {
   margin-bottom: 0.35rem;
 }
+.remix-paste-guard-reasons-gated { position: relative; }
+.remix-paste-guard-reasons-gated > .remix-paste-guard-reasons { filter: blur(4px); user-select: none; pointer-events: none; }
+.remix-paste-guard-gate-overlay { position: absolute; inset: 0; z-index: 1; display: flex; align-items: center; justify-content: center; background: color-mix(in srgb, var(--bs-body-bg, rgba(255,255,255,0.9)) 70%, transparent); }
 .remix-paste-guard-pulse {
   animation: remix-paste-guard-pulse 1.2s ease-in-out infinite;
 }

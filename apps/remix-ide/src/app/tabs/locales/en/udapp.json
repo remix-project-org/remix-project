@@ -360,5 +360,7 @@
   "udapp.lightCheck.details": "Details",
   "udapp.lightCheck.hide": "Hide",
   "udapp.lightCheck.lightNote": "This is a quick automated scan, not an audit. A full security audit reviews every function in depth and gives you a detailed report.",
-  "udapp.lightCheck.fullAuditCta": "Run a full security audit"
+  "udapp.lightCheck.fullAuditCta": "Run a full security audit",
+  "udapp.lightCheck.signinToView": "Sign in or get a paid plan to see the details",
+  "udapp.lightCheck.upgradeToView": "Get a paid plan to see the details"
 }

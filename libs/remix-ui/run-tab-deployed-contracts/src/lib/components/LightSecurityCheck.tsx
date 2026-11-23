@@ -1,6 +1,8 @@
 import React, { useContext, useState } from 'react'
 import { FormattedMessage, useIntl } from 'react-intl'
 import { TrackingContext } from '@remix-ide/tracking'
+import { useAuth } from '@remix-ui/app'
+import { Features } from '@remix-api'
 import { DeployedContractsAppContext } from '../contexts'
 import { DeployedContract, LightCheckInfo } from '../types'
 
@@ -19,8 +21,11 @@ const LOOK: Partial<Record<LightCheckInfo['status'], { tone: string, icon: strin
 export function LightSecurityCheck ({ contract }: { contract: DeployedContract }) {
   const { plugin, lightChecks, themeQuality } = useContext(DeployedContractsAppContext)
   const { trackMatomoEvent } = useContext(TrackingContext)
+  const { isAuthenticated, features } = useAuth()
   const intl = useIntl()
   const [open, setOpen] = useState(false)
+
+  const hasAuditorAccess = isAuthenticated && features?.[Features.AI_AUDITOR]?.is_enabled === true
 
   const record = lightChecks?.[(contract.address || '').toLowerCase()]
   // a reset Remix VM reuses addresses: only the check of this very contract counts
@@ -84,14 +89,23 @@ export function LightSecurityCheck ({ contract }: { contract: DeployedContract }
       {record.status === 'running' && <div className="udapp-light-check-progress" role="presentation"><div></div></div>}
       {record.status === 'issues' && open && (
         <div className="udapp-light-check-details" data-id="lightCheckDetails">
-          <ul className="mb-2 ps-3">
-            {record.reasons.map((reason, i) => (
-              <li key={i}>
-                {reason}
-                {record.suggestions[i] && <div className="udapp-light-check-suggestion">{record.suggestions[i]}</div>}
-              </li>
-            ))}
-          </ul>
+          <div className={hasAuditorAccess ? undefined : 'udapp-light-check-details-gated'}>
+            <ul className="mb-2 ps-3">
+              {record.reasons.map((reason, i) => (
+                <li key={i}>
+                  {reason}
+                  {record.suggestions[i] && <div className="udapp-light-check-suggestion">{record.suggestions[i]}</div>}
+                </li>
+              ))}
+            </ul>
+            {!hasAuditorAccess && (
+              <div className="udapp-light-check-gate-overlay">
+                <button className="btn btn-sm btn-primary" data-id="lightCheckGateCta" onClick={isAuthenticated ? topUp : signIn}>
+                  <FormattedMessage id={isAuthenticated ? 'udapp.lightCheck.upgradeToView' : 'udapp.lightCheck.signinToView'} />
+                </button>
+              </div>
+            )}
+          </div>
           <div className="udapp-light-check-note"><FormattedMessage id="udapp.lightCheck.lightNote" /></div>
           <button className="btn btn-sm btn-primary w-100 mt-2" data-id="lightCheckFullAudit" onClick={fullAudit}>
             <FormattedMessage id="udapp.lightCheck.fullAuditCta" />

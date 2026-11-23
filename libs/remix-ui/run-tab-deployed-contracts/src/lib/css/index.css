@@ -181,6 +181,9 @@ button[data-id^="copyParameters"] {
 .udapp-light-check-details { margin-top: 6px; padding-top: 6px; border-top: 1px solid var(--bs-border-color); }
 .udapp-light-check-suggestion { margin-top: 2px; color: var(--bs-secondary-color); }
 .udapp-light-check-note { font-size: 11px; color: var(--bs-secondary-color); }
+.udapp-light-check-details-gated { position: relative; }
+.udapp-light-check-details-gated > ul { filter: blur(4px); user-select: none; pointer-events: none; }
+.udapp-light-check-gate-overlay { position: absolute; inset: 0; z-index: 1; display: flex; align-items: center; justify-content: center; background: color-mix(in srgb, var(--custom-onsurface-layer-1, rgba(0,0,0,0.12)) 75%, transparent); }
 .udapp-light-check { animation: udapp-light-check-in 0.25s ease-out; }
 .udapp-light-check-scanning { box-shadow: inset 2px 0 0 var(--udapp-light-check-promo); }
 .udapp-light-check-scanning > div > i { color: var(--udapp-light-check-promo); }
