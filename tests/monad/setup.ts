@@ -1,5 +1,6 @@
 import { copyFileSync, existsSync, mkdirSync, writeFileSync } from 'node:fs'
 import solc from 'solc'
+import { prepareScriptRunner } from './script-runner'
 
 export default async function setup() {
   if (!existsSync('dist/apps/remix-ide/index.html')) {
@@ -17,4 +18,5 @@ export default async function setup() {
     releases: { [version]: path },
     latestRelease: version
   }))
+  await prepareScriptRunner()
 }
