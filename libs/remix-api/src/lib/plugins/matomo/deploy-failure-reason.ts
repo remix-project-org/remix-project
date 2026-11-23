@@ -1,6 +1,7 @@
-// Turns a deploy error into a short, fixed reason for the udapp:deployFailed
-// Matomo event. Only the reason is sent, never the error text: messages can
-// hold addresses, argument values or RPC URLs.
+// Turns a deploy error into a short, fixed reason for the deploy-failure
+// Matomo events (udapp:deployFailed, ai:remixAI agent_deploy_failed|<reason>).
+// Only the reason is sent, never the error text: messages can hold addresses,
+// argument values or RPC URLs.
 //
 // The checks run in order, first match wins. Library deploys and Remix's
 // own error rewriting (txExecution.checkError) wrap the original message,

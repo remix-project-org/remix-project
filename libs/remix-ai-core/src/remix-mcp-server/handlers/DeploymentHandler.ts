@@ -23,6 +23,8 @@ import {
 import { Plugin } from '@remixproject/engine';
 import { getContractData } from '@remix-project/core-plugin'
 import { remixAILogger } from '../../helpers/logger'
+import { trackMatomoEvent } from '../../helpers/matomo'
+import { deployFailureReason, type AgentDeployLocalFailureReason, type DeployFailureReason } from '@remix-api'
 import type { TxResult } from '@remix-project/remix-lib';
 import { BrowserProvider, formatEther } from "ethers"
 import { toNumber } from 'ethers'
@@ -96,11 +98,19 @@ export class DeployContractHandler extends BaseToolHandler {
   }
 
   async execute(args: DeployContractArgs, plugin: Plugin): Promise<IMCPToolResult> {
+    // The agent deploys through the blockchain plugin directly, so none of the
+    // udapp deploy events fire. These say how each agent deploy ended. The
+    // reason is a fixed label, never the error text (it can hold addresses,
+    // argument values or RPC URLs).
+    const fail = async (reason: DeployFailureReason | AgentDeployLocalFailureReason, message: string) => {
+      await trackAgentDeploy(plugin, `agent_deploy_failed|${reason}`)
+      return this.createErrorResult(message)
+    }
     try {
       // Get compilation result to find contract
       const compilerArtefact = await plugin.call('compilerArtefacts', 'getCompilerAbstractByContractName', args.contractName) as CompilerAbstract;
       if (!compilerArtefact) {
-        return this.createErrorResult(
+        return fail('not-compiled',
           `No compilation result for '${args.contractName}'. Compile the file that defines it first (compile_solidity), then deploy. ` +
           'Note that contractName is the contract name, not the file name.'
         );
@@ -114,7 +124,7 @@ export class DeployContractHandler extends BaseToolHandler {
         data = null
       }
       if (!data) {
-        return this.createErrorResult(`'${args.contractName}' was not found in the latest compilation. Compile it first, then deploy.`);
+        return fail('contract-not-found', `'${args.contractName}' was not found in the latest compilation. Compile it first, then deploy.`);
       }
 
       // Honour the requested sender — it was accepted in the schema and then
@@ -123,7 +133,7 @@ export class DeployContractHandler extends BaseToolHandler {
         try {
           await plugin.call('udappEnv' as any, 'setSelectedAccount', args.account)
         } catch (e) {
-          return this.createErrorResult(`Could not select account '${args.account}': ${(e as any)?.message || e}`)
+          return fail('account-selection-failed', `Could not select account '${args.account}': ${(e as any)?.message || e}`)
         }
       }
 
@@ -148,12 +158,12 @@ export class DeployContractHandler extends BaseToolHandler {
           compilerArtefact
         )
       } catch (e) {
-        return this.createErrorResult(`Deployment error: ${e.message || e}`)
+        return fail(deployFailureReason(e), `Deployment error: ${e.message || e}`)
       }
 
       const receipt = txReturn?.txResult?.receipt
       if (!receipt) {
-        return this.createErrorResult('Deployment returned no transaction receipt — the transaction may not have been sent.')
+        return fail('no-receipt', 'Deployment returned no transaction receipt — the transaction may not have been sent.')
       }
       const result: DeploymentResult = {
         transactionHash: receipt.hash,
@@ -165,6 +175,14 @@ export class DeployContractHandler extends BaseToolHandler {
         contractAddress: receipt.contractAddress || txReturn.address,
         success: receipt.status === 1 ? true : false
       }
+      // A mined but reverted deploy used to come back as a successful tool
+      // call (with success:false inside), so the agent took it as deployed.
+      if (!result.success) {
+        return fail('reverted',
+          `Deployment transaction reverted (status ${receipt.status}); no contract was deployed. ` +
+          `Transaction hash: ${result.transactionHash}, gas used: ${result.gasUsed}.`
+        )
+      }
       // Registering the instance in the UI must not turn a successful
       // deployment into a failed tool call (it also used to float an
       // unhandled rejection when the panel was not active).
@@ -174,12 +192,30 @@ export class DeployContractHandler extends BaseToolHandler {
         remixAILogger.warn('[DeployContractHandler] addInstance failed after a successful deployment', e)
       }
 
+      await trackAgentDeploy(plugin, 'agent_deploy_succeeded')
       return this.createSuccessResult(result);
 
     } catch (error) {
-      return this.createErrorResult(`Deployment failed: ${error.message}`);
+      return fail(deployFailureReason(error), `Deployment failed: ${error?.message ?? error}`);
     }
   }
+}
+
+/**
+ * Sends an agent deploy outcome to Matomo, with the chain id as the value
+ * (none on the Remix VM, whose network id is '-'). The lookup is best effort:
+ * neither it nor the tracking may break the deploy result.
+ */
+async function trackAgentDeploy(plugin: Plugin, name: string): Promise<void> {
+  let chainId: number | undefined
+  try {
+    const network = await plugin.call('network', 'detectNetwork') as { id?: string | number } | undefined
+    const parsed = parseInt(String(network?.id), 10)
+    if (Number.isFinite(parsed)) chainId = parsed
+  } catch (e) {
+    remixAILogger.debug('[DeployContractHandler] chain id lookup failed', e)
+  }
+  trackMatomoEvent('ai', 'remixAI', name, chainId)
 }
 
 /** Parse an ABI that arrived as a JSON string; returns null when it is not a usable array. */

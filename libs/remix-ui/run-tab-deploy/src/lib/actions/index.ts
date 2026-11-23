@@ -1,6 +1,6 @@
 import React from "react"
 import { Actions, CompilationRawResult, OZDeployMode, VisitedContract, NetworkDeploymentFile } from "../types"
-import { trackMatomoEvent } from "@remix-api"
+import { trackMatomoEvent, deployFailureReason } from "@remix-api"
 import { CompilerAbstract } from "@remix-project/remix-solidity"
 import type { ContractData, SolcBuildFile, FuncABI } from "@remix-project/core-plugin"
 import { execution } from '@remix-project/remix-lib'
@@ -8,7 +8,6 @@ import { IntlShape } from "react-intl"
 import { deployWithProxyMsg, isOverSizePrompt, logBuilder, unavailableProxyLayoutMsg, upgradeReportMsg, upgradeWithProxyMsg } from "@remix-ui/helper"
 import { SolcInput, SolcOutput } from "@openzeppelin/upgrades-core"
 import { isAddress } from "ethers"
-import { deployFailureReason } from "./deployFailureReason"
 // eslint-disable-next-line @nrwl/nx/enforce-module-boundaries
 import type { DeployPlugin } from "apps/remix-ide/src/app/udapp/udappDeploy"
 // Used direct path to UpgradeableContract class to fix cyclic dependency error from @openzeppelin/upgrades-core library
