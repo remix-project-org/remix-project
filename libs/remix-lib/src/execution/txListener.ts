@@ -6,6 +6,11 @@ import { compareByteCode, getinputParameters } from '../util'
 import { decodeResponse } from './txFormat'
 import { getFunction, getReceiveInterface, getConstructorInterface, visitContracts, makeFullTypeDefinition } from './txHelper'
 
+interface TransactionContext {
+  provider: string
+  currency?: { name: string; symbol: string; decimals: number }
+}
+
 function addExecutionCosts (txResult, tx, execResult) {
   if (txResult) {
     if (execResult) {
@@ -60,6 +65,7 @@ export class TxListener {
       if (!this._isListening) return // we don't listen
       if (this._loopId) return // we seems to already listen on a "web3" network
 
+      const context = this._captureContext()
       let returnValue
       let execResult
       if (this.executionContext.isVM()) {
@@ -75,13 +81,13 @@ export class TxListener {
         hash: txResult.transactionHash ? txResult.transactionHash : 'call' + (from || '') + to + data,
         isCall: true,
         returnValue,
-        envMode: this.executionContext.getProvider()
+        envMode: context.provider
       }
 
       addExecutionCosts(txResult, call, execResult)
       this._resolveTx(call, call, (error, resolvedData) => {
         if (!error) {
-          this.event.trigger('newCall', [call])
+          this.event.trigger('newCall', [call, undefined, context])
         }
       })
     })
@@ -94,6 +100,7 @@ export class TxListener {
       // in web3 mode && listen remix txs only
       if (!this._isListening) return // we don't listen
       if (this._loopId) return // we seems to already listen on a "web3" network
+      const context = this._captureContext()
       this.executionContext.web3().getTransaction(txResult.transactionHash).then(async tx=>{
         let execResult
         if (this.executionContext.isVM()) {
@@ -101,13 +108,19 @@ export class TxListener {
         }
 
         addExecutionCosts(txResult, tx, execResult)
-        tx.envMode = this.executionContext.getProvider()
+        tx.envMode = context.provider
         tx.status = txResult.receipt.status
         tx.isUserOp = txResult.tx.isUserOp
         tx.originTo = txResult.tx.originTo
-        this._resolve([tx])
+        this._resolve([tx], context)
       }).catch(error=>console.log(error))
     })
+  }
+
+  _captureContext (): TransactionContext {
+    const currency = this._api.getNetworkCurrency?.()
+    // A wallet can change chains without changing its provider name.
+    return { provider: this.executionContext.getProvider(), currency: currency ? { ...currency } : undefined }
   }
 
   /**
@@ -201,9 +214,10 @@ export class TxListener {
   }
 
   async _manageBlock (blockNumber) {
+    const context = this._captureContext()
     try {
       const result: Block = await this.executionContext.web3().getBlock(blockNumber, true)
-      return await this._newBlock(Object.assign(result, { type: 'web3' } ))
+      return await this._newBlock(Object.assign(result, { type: 'web3' } ), context)
     } catch (e) { }
   }
 
@@ -228,13 +242,13 @@ export class TxListener {
     return this._resolvedTransactions[txHash]
   }
 
-  async _newBlock (block) {
+  async _newBlock (block, context = this._captureContext()) {
     this.blocks.push(block)
-    await this._resolve(block.prefetchedTransactions || block.transactions)
+    await this._resolve(block.prefetchedTransactions || block.transactions, context)
     this.event.trigger('newBlock', [block])
   }
 
-  _resolveAsync (tx) {
+  _resolveAsync (tx, context = this._captureContext()) {
     return new Promise((resolve, reject) => {
       this._api.resolveReceipt(tx, (error, receipt) => {
         if (error) return reject(error)
@@ -243,18 +257,18 @@ export class TxListener {
           if (resolvedData) {
             this.event.trigger('txResolved', [tx, receipt, resolvedData])
           }
-          this.event.trigger('newTransaction', [tx, receipt])
+          this.event.trigger('newTransaction', [tx, receipt, context])
           resolve({})
         })
       })
     })
   }
 
-  async _resolve (transactions) {
+  async _resolve (transactions, context = this._captureContext()) {
     for (const tx of transactions) {
       try {
         if (!this._isListening) break
-        await this._resolveAsync(tx)
+        await this._resolveAsync(tx, context)
       } catch (e) { console.error(e)}
     }
   }

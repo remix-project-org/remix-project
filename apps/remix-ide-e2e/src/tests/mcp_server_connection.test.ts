@@ -53,7 +53,7 @@ const tests = {
           done({
             connectedServers: connectedServers,
             connectionStatuses: connectionStatuses,
-            hasRemixMcpServer: connectedServers.includes('Remix IDE Server'),
+            hasRemixMcpServer: connectedServers.includes('Remix Web3 Server'),
             totalConnected: connectedServers.length
           });
         }).catch(function (error) {
@@ -65,7 +65,7 @@ const tests = {
           console.error('MCP connection error:', data.error);
           return;
         }
-        browser.assert.ok(data.hasRemixMcpServer, 'Should be connected to Remix IDE Server');
+        browser.assert.ok(data.hasRemixMcpServer, 'Should be connected to Remix Web3 Server');
         browser.assert.ok(data.totalConnected > 0, 'Should have at least one connected server');
       });
   },
@@ -169,7 +169,7 @@ const tests = {
         }
 
         const connectionStatuses = aiPlugin.mcpInferencer.getConnectionStatuses();
-        const remixServerStatus = connectionStatuses.find((s: any) => s.serverName === 'Remix IDE Server');
+        const remixServerStatus = connectionStatuses.find((s: any) => s.serverName === 'Remix Web3 Server');
 
         return {
           serverFound: !!remixServerStatus,
@@ -182,7 +182,7 @@ const tests = {
           console.error('Server capabilities error:', data.error);
           return;
         }
-        browser.assert.ok(data.serverFound, 'Should find Remix IDE Server');
+        browser.assert.ok(data.serverFound, 'Should find Remix Web3 Server');
         browser.assert.equal(data.status, 'connected', 'Server should be connected');
         browser.assert.ok(data.capabilities, 'Server should have capabilities');
       });

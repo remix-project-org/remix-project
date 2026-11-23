@@ -148,6 +148,7 @@ export type PluginNames = 'manager' |
   'doc-gen' |
   'doc-viewer' |
   'contract-verification' |
+  'preDeployChecks' |
   'vyper' |
   'solhint' |
   'circuit-compiler' |

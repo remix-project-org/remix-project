@@ -126,7 +126,7 @@
   "udapp.customVmForkProviderText": "Por favor, proporcione información sobre el fork personalizado. Si la URL del nodo no se proporciona, la MV comenzará con un estado vacío.",
   "udapp.nodeUrl": "URL del Nodo",
   "udapp.blockNumber": "Número de bloque (o \"último\")",
-  "udapp.externalHttpProviderText1": "Nota: Para usar Geth & https://remix.ethereum.org, configúrelo para permitir solicitudes de Remix:(ver <a>Documentación de Geth en el servidor rpc</a>)",
+  "udapp.externalHttpProviderText1": "Nota: Para usar Geth & https://app.remix.live, configúrelo para permitir solicitudes de Remix:(ver <a>Documentación de Geth en el servidor rpc</a>)",
   "udapp.externalHttpProviderText2": "Para ejecutar Remix y un nodo de prueba Geth local, utilice este comando: (vea <a>Documentación de Geth en el modo Desarrollador</a>)",
   "udapp.externalHttpProviderText3": "<b>ALERTA:</b> No es seguro usar la bandera --http.corsdomain con un comodín: <b>--http.corsdomain *</b>",
   "udapp.externalHttpProviderText4": "Para más información en: <a>Documentación de Remix en Provedor HTTP Externo</a>",

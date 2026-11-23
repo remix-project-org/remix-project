@@ -84,6 +84,7 @@ ul {
 li.remixui_fileRow {
     padding-left: 28px !important;
     padding-right: 8px;
+    cursor: pointer;
 }
 
 /* Root workspace row (the top-level folder wrapping every other row) isn't

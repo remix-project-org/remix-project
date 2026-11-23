@@ -10,13 +10,14 @@ import { RemixUiStaticAnalyserProps } from '@remix-ui/static-analyser'
  * @param dispatch { React.Dispatch<any> } analysisReducer function's dispatch method
  */
 export const compilation = (analysisModule: AnalysisTab,
-  dispatch: React.Dispatch<RemixUiStaticAnalyserReducerActionType>) => {
+  dispatch: React.Dispatch<RemixUiStaticAnalyserReducerActionType>, onCompilationFinished?: (file: string, source: SourceWithTarget) => void) => {
   if (analysisModule) {
     analysisModule.on(
       'solidity',
       'compilationFinished',
       (file: string, source: SourceWithTarget, languageVersion: string, data: CompilationResult, input: string, version: string) => {
         if (languageVersion.indexOf('soljson') !== 0) return
+        onCompilationFinished && onCompilationFinished(file, source)
         dispatch({ type: 'compilationFinished', payload: { file, source, languageVersion, data, input, version } })
       }
     )
@@ -55,10 +56,13 @@ export async function run (lastCompilationResult, lastCompilationSource, current
       const warningMessage = []
       const warningErrors = []
       props.analysisModule.hints = []
+      // what ran, announced as analysisFinished for other plugins (Pre-deploy Checks); null when a tool was off
+      let hintsResult = null
+      let results = null
       // Run solhint
       if (solhintEnabled) {
         trackMatomoEvent?.({ category: 'solidityStaticAnalyzer', action: 'analyze', name: 'solHint', isClick: true })
-        const hintsResult = await props.analysisModule.call('solhint', 'lint', state.file)
+        hintsResult = await props.analysisModule.call('solhint', 'lint', state.file)
         props.analysisModule.hints = hintsResult
         setHints(hintsResult)
       } else {
@@ -68,7 +72,7 @@ export async function run (lastCompilationResult, lastCompilationSource, current
       // Remix Analysis
       if (basicEnabled) {
         trackMatomoEvent?.({ category: 'solidityStaticAnalyzer', action: 'analyze', name: 'remixAnalyzer', isClick: true })
-        const results = runner.run(lastCompilationResult, categoryIndex)
+        results = runner.run(lastCompilationResult, categoryIndex)
         for (const result of results) {
           let moduleName
           Object.keys(groupedModules).map(key => {
@@ -132,6 +136,7 @@ export async function run (lastCompilationResult, lastCompilationSource, current
       } else {
         setSsaWarnings([])
       }
+      props.analysisModule.emit('analysisFinished', { file: state.file, remix: results, solhint: hintsResult })
       // Slither Analysis
       if (showSlither && slitherEnabled) {
         setSlitherWarnings([])
@@ -142,8 +147,9 @@ export async function run (lastCompilationResult, lastCompilationSource, current
           trackMatomoEvent?.({ category: 'solidityStaticAnalyzer', action: 'analyze', name: 'slitherAnalyzer', isClick: true })
           const result: SlitherAnalysisResults = await props.analysisModule.call('slither', 'analyse', state.file, { currentVersion, optimize, evmVersion })
           if (result.status) {
-            props.analysisModule.call('terminal', 'log', { type: 'log', value: `[Slither Analysis]: Analysis Completed!! ${result.count} warnings found.` })
-            const report = result.data
+            props.analysisModule.call('terminal', 'log', { type: 'log', value: result.count ? `[Slither Analysis]: Analysis Completed!! ${result.count} warnings found.` : '[Slither Analysis]: Analysis Completed. No issues found.' })
+            // a clean run comes back as { count: 0 } without data
+            const report = result.data || []
             for (const item of report) {
               let location: any = {}
               let locationString = 'not available'
@@ -180,9 +186,14 @@ export async function run (lastCompilationResult, lastCompilationSource, current
                 const { file, provider } = await props.analysisModule.call('fileManager', 'getPathFromUrl', fileName)
                 if (file.startsWith('.deps') || (file.includes('.deps')) || (provider.type === 'localhost' && file.startsWith('localhost/node_modules'))) isLibrary = true
               }
-              const msg = message(item.title, item.description, item.more ?? '', fileName, locationString)
+              // keep Slither's own rating: impact (reported as `severity`) and confidence
+              const rating = [item.severity && `${item.severity} impact`, item.confidence && `${item.confidence} confidence`].filter(Boolean).join(' · ')
+              const msg = message(rating ? `${item.title} (${rating})` : item.title, item.description, item.more ?? '', fileName, locationString)
               const options = {
-                type: item.sourceMap && item.sourceMap.length > 0 ? item.sourceMap[0].type : '',
+                type: item.severity === 'High' ? 'error' : 'warning',
+                elementType: item.sourceMap && item.sourceMap.length > 0 ? item.sourceMap[0].type : '',
+                severity: item.severity,
+                confidence: item.confidence,
                 useSpan: true,
                 errFile: fileName,
                 fileName,
@@ -213,7 +224,7 @@ export async function run (lastCompilationResult, lastCompilationSource, current
         warningContainer.current.innerText = 'No compiled AST available'
       }
 
-      props.event.trigger('staticAnaysisWarning', [-1])
+      props.event.trigger('staticAnalysisWarning', [-1])
     }
   }
 }

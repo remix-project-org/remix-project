@@ -347,8 +347,8 @@ module.exports = {
       .switchEnvironment('vm-cancun', 'Remix_VM')
       .clickLaunchIcon('solidity')
       .setSolidityCompilerVersion('builtin')
-      .click('.remixui_compilerConfigSection')
-      .setValue('#evmVersionSelector', 'cancun') // Temporary fix
+      .click('*[data-id="scConfigExpander"]')
+      .setEvmVersion('cancun') // Temporary fix
       .clickLaunchIcon('filePanel')
       .click('*[data-id="treeViewLitreeViewItemcontracts"]')
       .openFile('contracts/3_Ballot.sol')

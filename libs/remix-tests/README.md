@@ -5,9 +5,9 @@
 [![GitHub](https://img.shields.io/github/license/mashape/apistatus.svg)](https://github.com/remix-project-org/remix-project/tree/master/libs/remix-tests)
 [![contributions welcome](https://img.shields.io/badge/contributions-welcome-brightgreen.svg?style=flat)](https://github.com/remix-project-org/remix-project/issues)
 
-`@remix-project/remix-tests` is a tool to test Solidity smart contracts. It works underneath Remix IDE "Solidity Unit Testing" plugin which is used to write and run test cases for a contract. Tests are written in Solidity itself. `@remix-project/remix-tests` can be used as CLI and a library too.
+`@remix-project/remix-tests` is a tool to test Solidity smart contracts. It works underneath Remix Web3 "Solidity Unit Testing" plugin which is used to write and run test cases for a contract. Tests are written in Solidity itself. `@remix-project/remix-tests` can be used as CLI and a library too.
 
-To know more about Remix IDE `Solidity Unit Testing Plugin`, visit [Remix IDE official documentation](https://remix-ide.readthedocs.io/en/latest/unittesting.html).
+To know more about Remix Web3 `Solidity Unit Testing Plugin`, visit [Remix Web3 official documentation](https://remix-ide.readthedocs.io/en/latest/unittesting.html).
 
 ### Installation
 * As a dev dependency:

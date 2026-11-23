@@ -5,6 +5,7 @@ import { isContractCreation } from '../trace/traceHelper'
 import { findNodeAtInstructionIndex } from '../source/sourceMappingDecoder'
 import { CodeResolver } from './codeResolver'
 import { TraceManager } from '../trace/traceManager' // eslint-disable-line
+import { isMonadFork } from './monadOpcodes'
 
 /*
   resolve contract code referenced by vmtrace in order to be used by asm listview.
@@ -25,6 +26,10 @@ export class CodeManager {
     this.traceManager = _traceManager
     this.codeResolver = new CodeResolver({
       getCode: async (address) => {
+        if (isMonadFork(this.traceManager.getCurrentFork())) {
+          const recorded = this.traceManager.monadCodeByAddress?.[address.toLowerCase()]
+          if (recorded !== undefined) return recorded
+        }
         return new Promise((resolve, reject) => {
           this.traceManager.web3.getCode(address)
             .then(code => resolve(code))

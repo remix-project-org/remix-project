@@ -48,7 +48,7 @@ function toString (expr) {
 /**
   * Disassembler that turns bytecode (as a hex string) into Solidity inline assembly.
   */
-export function disassemble (input) {
-  const code = parseCode(util.hexToIntArray(input))
+export function disassemble (input, hardfork = 'osaka') {
+  const code = parseCode(util.hexToIntArray(input), hardfork)
   return createExpressions(code).map(toString).join('\n')
 }

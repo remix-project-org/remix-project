@@ -251,6 +251,21 @@ const App = () => {
     }
   }, [submittedContracts])
 
+  // Receipts are updated from several places (verify on deploy, the form, polling, retry): announce new final statuses here
+  const finalCounts = useRef<Record<string, number>>(null)
+  useEffect(() => {
+    const counts: Record<string, number> = {}
+    for (const contract of Object.values(submittedContracts)) {
+      counts[contract.id] = contract.receipts.filter((r) => r.status !== 'pending' && r.status !== 'awaiting implementation verification').length
+    }
+    const previous = finalCounts.current
+    finalCounts.current = counts
+    if (!previous) return
+    for (const contract of Object.values(submittedContracts)) {
+      if (counts[contract.id] > (previous[contract.id] ?? 0)) plugin.notifyVerification(contract)
+    }
+  }, [submittedContracts])
+
   return (
     <IntlProvider locale={locale.code} messages={locale.messages}>
       <AppContext.Provider value={{ themeType, setThemeType, clientInstance: plugin, settings, setSettings, chains, compilationOutput, submittedContracts, setSubmittedContracts }}>

@@ -3,8 +3,7 @@ import { NightwatchBrowser } from 'nightwatch'
 
 module.exports = {
     before: function (browser: NightwatchBrowser, done: VoidFunction) {
-        browser.hideToolTips()
-        done()
+        browser.hideToolTips().perform(() => done())
     },
     'download compiler': function (browser: NightwatchBrowser) {
         browser

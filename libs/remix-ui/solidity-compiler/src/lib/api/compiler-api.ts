@@ -23,6 +23,7 @@ export const CompilerApiMixin = (Base) => class extends Base {
   onSetWorkspace: (isLocalhost: boolean, workspaceName: string) => void
   onFileRemoved: (path: string) => void
   onNoFileSelected: () => void
+  onThemeChanged: (quality: string) => void
   onCompilationFinished: (compilationDetails: { contractMap: { file: string } | Record<string, any>, contractsDetails: Record<string, any> }) => void
   onSessionSwitched: () => void
   onContentChanged: () => void
@@ -91,7 +92,7 @@ export const CompilerApiMixin = (Base) => class extends Base {
 
     this.off('fileManager', 'noFileSelected')
 
-    this.off('themeModule', 'themeChanged')
+    this.off('theme', 'themeChanged')
 
     if (this.data.eventHandlers.onKeyDown) {
       window.document.removeEventListener('keydown', this.data.eventHandlers.onKeyDown)
@@ -376,14 +377,11 @@ export const CompilerApiMixin = (Base) => class extends Base {
       this.data.eventHandlers.onCompilationFinished(true, output, sources, JSON.stringify(contract.metadata), version)
     })
 
+    // the panel picks its colours from the theme quality (dark / light)
     this.data.eventHandlers.onThemeChanged = (theme) => {
-      const invert = theme.quality === 'dark' ? 1 : 0
-      const img = document.getElementById('swarmLogo')
-      if (img) {
-        img.style.filter = `invert(${invert})`
-      }
+      if (this.onThemeChanged) this.onThemeChanged(theme?.quality)
     }
-    this.on('themeModule', 'themeChanged', this.data.eventHandlers.onThemeChanged)
+    this.on('theme', 'themeChanged', this.data.eventHandlers.onThemeChanged)
 
     // Run the compiler instead of trying to save the website
     this.data.eventHandlers.onKeyDown = async (e) => {

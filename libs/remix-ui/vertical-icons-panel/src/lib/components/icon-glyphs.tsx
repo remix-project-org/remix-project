@@ -45,6 +45,11 @@ export const iconGlyphs: Record<string, JSX.Element> = {
       <path d="M10.5992 9.61176L5.30791 1.25L0 9.60442L5.30791 12.5826L10.5992 9.61176Z" fill="var(--bs-secondary-color)" />
     </svg>
   ),
+  preDeployChecks: (
+    <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <path fillRule="evenodd" clipRule="evenodd" d="M7 1.5h6a1 1 0 0 1 1 1V3h2a1.5 1.5 0 0 1 1.5 1.5v13A1.5 1.5 0 0 1 16 19H4a1.5 1.5 0 0 1-1.5-1.5v-13A1.5 1.5 0 0 1 4 3h2v-.5a1 1 0 0 1 1-1zM6 4.5H4v13h12v-13h-2V5a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1v-.5zM7.5 3v1.5h5V3h-5zm5.78 5.22a.75.75 0 0 1 0 1.06l-4 4a.75.75 0 0 1-1.06 0l-2-2a.75.75 0 1 1 1.06-1.06l1.47 1.47 3.47-3.47a.75.75 0 0 1 1.06 0z" fill="var(--bs-secondary-color)" />
+    </svg>
+  ),
   debugger: (
     <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
       <g clipPath="url(#clip0_1226_40928)">

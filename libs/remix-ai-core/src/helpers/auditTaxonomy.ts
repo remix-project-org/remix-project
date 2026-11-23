@@ -293,15 +293,14 @@ export function categoryFileToken(categoryPath: string): string {
  * sanitizes away (a file named `__.sol`). The result is always a single path
  * segment — it is interpolated straight into a write path.
  */
-export function deriveContractName(target: string, namesByFile: Record<string, string[]> = {}): string {
+export function deriveContractName(target: string, namesByFile: Record<string, string[]> = {}, existingFolders: string[] = []): string {
   if (!target) return ''
-  const compiled = namesByFile[target]?.[0]
-  if (compiled) {
-    const fromCompiled = sanitizeSegment(compiled)
-    if (fromCompiled) return fromCompiled
-  }
-  const stem = (target.split('/').pop() ?? target).replace(/\.sol$/i, '')
-  return sanitizeSegment(stem) || 'contract'
+  const fromCompiled = sanitizeSegment(namesByFile[target]?.[0] ?? '')
+  const fromStem = sanitizeSegment((target.split('/').pop() ?? target).replace(/\.sol$/i, '')) || 'contract'
+  const existing = new Set(existingFolders.map(entry => entry.split('/').filter(Boolean).pop()))
+  if (fromCompiled && existing.has(fromCompiled)) return fromCompiled
+  if (existing.has(fromStem)) return fromStem
+  return fromCompiled || fromStem
 }
 
 /**
@@ -324,6 +323,29 @@ export function computeLoadedCategories(data: AuditChecklistNode[] | undefined, 
     if (token && stems.has(token)) loaded.add(path)
   })
   return loaded
+}
+
+/* -------------------------------------------------------------------------- */
+/* Interrupted audit runs                                                     */
+/*                                                                            */
+/* A run writes audit_reports/<Contract>/<run-…>/<checklist>_security_audit_  */
+/* report.md per checklist and summary.md last, so a run folder without       */
+/* summary.md is one that stopped part-way and can be resumed.                */
+/* -------------------------------------------------------------------------- */
+
+const baseName = (entry: string): string => entry.split('/').filter(Boolean).pop() ?? entry
+
+/** The newest `run-YYYY-MM-DD-HHMMSS` folder in a listing (names sort by time), or null. */
+export function latestRunFolder(entries: string[]): string | null {
+  const runs = entries.map(baseName).filter(name => /^run-\d{4}-\d{2}-\d{2}-\d{6}$/.test(name)).sort()
+  return runs.length ? runs[runs.length - 1] : null
+}
+
+/** How far an unfinished run got (reports written), or null when it finished. */
+export function unfinishedRunProgress(runFiles: string[]): { reportsDone: number } | null {
+  const names = runFiles.map(baseName)
+  if (names.includes('summary.md')) return null
+  return { reportsDone: names.filter(name => name.endsWith('_security_audit_report.md')).length }
 }
 
 /* -------------------------------------------------------------------------- */

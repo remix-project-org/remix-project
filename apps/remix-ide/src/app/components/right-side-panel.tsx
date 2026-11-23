@@ -10,7 +10,7 @@ import { trackMatomoEvent } from '@remix-api'
 const rightSidePanel = {
   name: 'rightSidePanel',
   displayName: 'Right Side Panel',
-  description: 'Remix IDE right side panel',
+  description: 'Remix Web3 right side panel',
   version: packageJson.version,
   methods: ['addView', 'removeView', 'currentFocus', 'pinView', 'unPinView', 'highlight',
     'getHiddenPlugin', 'togglePanel', 'isPanelHidden', 'maximizePanel', 'isRightSidePanelMaximized'

@@ -1,10 +1,10 @@
 import { remixAILogger } from '../../helpers/logger'
 /**
- * DeepAgent Inferencer for Remix IDE
+ * DeepAgent Inferencer for Remix Web3
  * Integrates LangChain DeepAgent with Remix's AI system
  */
 
-import { createDeepAgent, createPatchToolCallsMiddleware, CreateDeepAgentParams } from 'deepagents'
+import { createDeepAgent, createPatchToolCallsMiddleware, createSummarizationMiddleware, CreateDeepAgentParams } from 'deepagents'
 import { ICompletions, IGeneration, IParams } from '../../types/types'
 import { AIModel, modelSupportsVision } from '../../types/models'
 import { lookupCatalogEntry } from './modelParams'
@@ -32,6 +32,10 @@ import { BaseChatModel } from '@langchain/core/language_models/chat_models'
 import { IndexedDBCheckpointSaver } from '../../storage/IndexedDBCheckpointSaver'
 import type { DeepAgent } from 'deepagents'
 import { RemixDeepAgentMiddleware } from './deepAgentMiddleWare'
+import { ContextLeakGuardMiddleware } from './contextLeakGuardMiddleware'
+import { DriftMonitorMiddleware } from './driftMonitorMiddleware'
+import { getDriftMode } from '../../helpers/driftActions'
+import { startDriftBaselinePersistence } from '../../helpers/driftBaselineStore'
 import { RemixVisionMiddleware } from './visionMiddleware'
 import { screenshotBuffer } from './visionBuffer'
 import { screenshotConsent } from './screenshotConsent'
@@ -77,6 +81,7 @@ export class DeepAgentInferencer implements ICompletions, IGeneration {
   private tools: DynamicStructuredTool[] = []
   private approvalGate: ToolApprovalGate | undefined
   private currentAbortController: AbortController | null = null
+  private activeRun: Promise<void> | null = null
   private quickDappLock: QuickDappWorkspaceLock | undefined
   /** Model-independent agent pieces, built once and reused across model swaps. */
   private checkpointer: IndexedDBCheckpointSaver | null = null
@@ -268,6 +273,7 @@ export class DeepAgentInferencer implements ICompletions, IGeneration {
   async initialize(): Promise<void> {
     try {
       await this.logInitDiagnostics()
+      void startDriftBaselinePersistence()
 
       // Mirror the backend catalogue before building anything — it carries
       // each model's token budget / temperature, which ModelFactory reads.
@@ -724,9 +730,19 @@ export class DeepAgentInferencer implements ICompletions, IGeneration {
       }
     })
     let fullResponse = ''
+    let finishRun: () => void = () => {}
+    const runFinished = new Promise<void>(resolve => { finishRun = resolve })
+    this.activeRun = runFinished
 
     const runTimeoutMs = this.config.timeout
     const stallTimeout = new InactivityTimeoutManager(runTimeoutMs, () => {
+      // A run parked on the user's Allow/Reject is waiting, not stalled.
+      // Aborting it here turned a slow reviewer into a "random" stop and
+      // settled their pending approval as a rejection.
+      if (this.hasPendingApprovals()) {
+        stallTimeout.reset()
+        return
+      }
       remixAILogger.warn(`[DeepAgentInferencer] no stream activity for ${runTimeoutMs}ms — aborting`)
       localAbortController.abort(new DOMException(`Agent run stalled: no activity for ${runTimeoutMs}ms.`, 'TimeoutError'))
     })
@@ -797,6 +813,13 @@ export class DeepAgentInferencer implements ICompletions, IGeneration {
 
         const result = this.streamEventHandler.processEvent(event)
         fullResponse += result.content
+        // An echo retry took the first attempt back off the screen; keep the
+        // transcript in step, or onStreamComplete would paint it again.
+        const retracted = this.streamEventHandler.consumeRetractedText()
+        if (retracted && fullResponse.includes(retracted)) {
+          const at = fullResponse.lastIndexOf(retracted)
+          fullResponse = fullResponse.slice(0, at) + fullResponse.slice(at + retracted.length)
+        }
         if (result.finalMessage) {
           finalMessageFromChain = result.finalMessage
         }
@@ -1002,10 +1025,19 @@ export class DeepAgentInferencer implements ICompletions, IGeneration {
       // per tick, so the tail of this run's trace needs an explicit push.
       void flushLangfuse()
       this.streamEventHandler.stopInactivityTracking()
+      const stillCurrent = !this.currentAbortController || thisRunControllers.has(this.currentAbortController)
+      // A run that died any other way (timeout, transport abort) used to leave
+      // its approval waiters pending, with the card still on screen and no run
+      // left to act on the answer.
+      if (stillCurrent && Array.from(thisRunControllers).some(c => c.signal.aborted)) {
+        this.cancelPendingApprovals()
+      }
       // Only null out if still one of this run's controllers (a new request might have started)
       if (this.currentAbortController && thisRunControllers.has(this.currentAbortController)) {
         this.currentAbortController = null
       }
+      if (this.activeRun === runFinished) this.activeRun = null
+      finishRun()
       if (runLock) {
         const lock = runLock
         finishQuickDappWorkspaceLock(lock, () => {
@@ -1029,11 +1061,11 @@ export class DeepAgentInferencer implements ICompletions, IGeneration {
 
     try {
       const connectedServers = this.mcpInferencer.getConnectedServers()
-      if (!connectedServers || !connectedServers.includes('Remix IDE Server')) {
+      if (!connectedServers || !connectedServers.includes('Remix Web3 Server')) {
         return ''
       }
 
-      const mcpClient = (this.mcpInferencer as any).mcpClients?.get('Remix IDE Server')
+      const mcpClient = (this.mcpInferencer as any).mcpClients?.get('Remix Web3 Server')
       if (!mcpClient || !mcpClient.isConnected()) {
         return ''
       }
@@ -1066,11 +1098,11 @@ export class DeepAgentInferencer implements ICompletions, IGeneration {
 
     try {
       const connectedServers = this.mcpInferencer.getConnectedServers()
-      if (!connectedServers || !connectedServers.includes('Remix IDE Server')) {
+      if (!connectedServers || !connectedServers.includes('Remix Web3 Server')) {
         return ''
       }
 
-      const mcpClient = (this.mcpInferencer as any).mcpClients?.get('Remix IDE Server')
+      const mcpClient = (this.mcpInferencer as any).mcpClients?.get('Remix Web3 Server')
       if (!mcpClient || !mcpClient.isConnected()) {
         return ''
       }
@@ -1107,6 +1139,54 @@ export class DeepAgentInferencer implements ICompletions, IGeneration {
         })
       }
     ) as unknown as DynamicStructuredTool
+  }
+
+  /** The main agent's monitor, which subagent monitors report writes to. */
+  private mainDriftMonitor: DriftMonitorMiddleware | null = null
+
+  private createDriftMonitor(role: 'main' | 'subagent'): DriftMonitorMiddleware {
+    const monitor = new DriftMonitorMiddleware({
+      plugin: this.plugin,
+      role,
+      onFileWrite: role === 'subagent'
+        ? (threadId) => this.mainDriftMonitor?.noteFileWritten(threadId)
+        : undefined,
+      retraction: role === 'main'
+        ? {
+          request: () => this.streamEventHandler.requestRetraction(),
+          cancel: () => this.streamEventHandler.cancelRetraction()
+        }
+        : undefined,
+      onDegradation: (label, degraded, detail) => {
+        // `label` is the served model; under a router it is not the one the
+        // user picked, so name it.
+        const modelId = this.modelSelection.modelId
+        this.event.emit('onModelDegraded', {
+          modelId,
+          label,
+          degraded,
+          detail: label === modelId ? detail : `${label}: ${detail}`
+        })
+      }
+    })
+    if (role === 'main') this.mainDriftMonitor = monitor
+    return monitor
+  }
+
+  /**
+   * deepagents summarises the history only at 85% of the context window (or
+   * 170k tokens when the model reports no window) — long after a thread has
+   * started drifting. In `act` mode the default is replaced, by name, with
+   * one that compacts much earlier. Read when the agent is built, so a mode
+   * change applies from the next model switch or reload.
+   */
+  private summarizationOverride(): any[] {
+    if (getDriftMode() !== 'act') return []
+    return [createSummarizationMiddleware({
+      backend: this.filesystemBackend as any,
+      trigger: { type: 'tokens', value: 60_000 },
+      keep: { type: 'messages', value: 8 }
+    } as any)]
   }
 
   private async createAgentWithTools(selectedTools: DynamicStructuredTool[]): Promise<void> {
@@ -1164,7 +1244,18 @@ export class DeepAgentInferencer implements ICompletions, IGeneration {
         },
         skills: hasSkillsPermission ? ["skills/"] : [],
         checkpointer,
-        middleware: [createPatchToolCallsMiddleware(), new RemixDeepAgentMiddleware(this.plugin, this), new RemixVisionMiddleware()],
+        // Order matters for wrapModelCall: the first entry is outermost. The
+        // leak guard wraps the drift monitor so the monitor still reports the
+        // original answer; the monitor is innermost so it measures the request
+        // exactly as sent and its retries go straight to the model.
+        middleware: [
+          createPatchToolCallsMiddleware(),
+          new RemixDeepAgentMiddleware(this.plugin, this),
+          new ContextLeakGuardMiddleware(),
+          new RemixVisionMiddleware(),
+          this.createDriftMonitor('main'),
+          ...this.summarizationOverride()
+        ],
       }
 
       if (this.config.enableSubagents && this.model) {
@@ -1182,7 +1273,8 @@ export class DeepAgentInferencer implements ICompletions, IGeneration {
           agentConfig.subagents = await buildSubagentConfigs(
             shapedTools,
             this.model,
-            this.filesystemBackend
+            this.filesystemBackend,
+            () => [this.createDriftMonitor('subagent')]
           )
         } catch (subagentError) {
           remixAILogger.error(
@@ -1323,22 +1415,49 @@ export class DeepAgentInferencer implements ICompletions, IGeneration {
     } catch (_) { /* best-effort cleanup */ }
   }
 
-  /** Settle every HITL approval still waiting on the user (see cancelRequest). */
-  private cancelPendingApprovals(): void {
+  /**
+   * Settle every HITL approval still waiting on the user as *cancelled* (not
+   * rejected), and tell the UI which cards no longer have anyone listening.
+   */
+  cancelPendingApprovals(): void {
+    const requestIds: string[] = []
     try {
-      this.approvalGate?.cancelPendingApprovals()
+      requestIds.push(...(this.approvalGate?.cancelPendingApprovals() ?? []))
     } catch (e) {
       remixAILogger.warn('[DeepAgentInferencer] approvalGate.cancelPendingApprovals failed', e)
     }
     try {
-      ;(this.filesystemBackend as any)?.cancelPendingApprovals?.()
+      requestIds.push(...(this.filesystemBackend?.cancelPendingApprovals() ?? []))
     } catch (e) {
       remixAILogger.warn('[DeepAgentInferencer] filesystemBackend.cancelPendingApprovals failed', e)
     }
+    if (requestIds.length > 0) {
+      this.event.emit('onToolApprovalCancelled', { requestIds, threadId: this.sessionThreadId })
+    }
+  }
+
+  hasPendingApprovals(): boolean {
+    return !!(this.approvalGate?.hasPendingApprovals() || this.filesystemBackend?.hasPendingApprovals())
+  }
+
+  /** True while runAgent is executing, including its error/retry handling. */
+  isRunning(): boolean {
+    return this.activeRun !== null
+  }
+
+  /** Resolves when the current run (if any) has fully finished. */
+  whenIdle(): Promise<void> {
+    return this.activeRun ?? Promise.resolve()
   }
 
   async close(): Promise<void> {
     this.__closed = true
+    // Nothing can answer this instance's approvals any more (responses go to
+    // the new inferencer), so its run must not carry on with them settled.
+    if (this.currentAbortController) {
+      this.currentAbortController.abort(new DOMException('The agent was rebuilt.', 'AbortError'))
+      this.currentAbortController = null
+    }
     // A close() racing an in-flight run (cancelRequest → reinitialize) must not
     // leave approval waiters pending — they would keep answer() alive forever.
     this.cancelPendingApprovals()

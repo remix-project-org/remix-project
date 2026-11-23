@@ -22,7 +22,7 @@ export interface CacheOptions {
 const profile = {
   name: 'indexedDbCache',
   displayName: 'IndexedDB Cache',
-  description: 'Generic IndexedDB caching service for Remix IDE plugins',
+  description: 'Generic IndexedDB caching service for Remix Web3 plugins',
   methods: [
     'set',
     'get',

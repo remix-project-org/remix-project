@@ -120,17 +120,20 @@ export const initListeningOnNetwork = (plugins, dispatch: React.Dispatch<any>) =
   })
   plugins.txListener.event.register(KNOWN_TRANSACTION, () => {
   })
-  plugins.txListener.event.register(NEW_CALL, (tx, receipt) => {
-    log(plugins, tx, receipt, dispatch)
+  plugins.txListener.event.register(NEW_CALL, (tx, receipt, context) => {
+    log(plugins, tx, receipt, dispatch, context)
     // log(this, tx, null)
   })
-  plugins.txListener.event.register(NEW_TRANSACTION, (tx, receipt) => {
-    log(plugins, tx, receipt, dispatch)
+  plugins.txListener.event.register(NEW_TRANSACTION, (tx, receipt, context) => {
+    log(plugins, tx, receipt, dispatch, context)
   })
 
-  const log = async (plugins, tx, receipt, dispatch: React.Dispatch<any>) => {
+  const log = async (plugins, tx, receipt, dispatch: React.Dispatch<any>, context = {
+    provider: plugins.blockchain.getProvider(), currency: plugins.blockchain.getCurrentNetworkCurrency()
+  }) => {
+    // The listener captured these before resolving the transaction on its original network.
+    const { provider, currency } = context
     const resolvedTransaction = await plugins.txListener.resolvedTransaction(tx.hash)
-    const provider = plugins.blockchain.getProvider()
 
     if (resolvedTransaction) {
       let compiledContracts = null
@@ -156,11 +159,11 @@ export const initListeningOnNetwork = (plugins, dispatch: React.Dispatch<any>) =
       }
       await plugins.eventsDecoder.parseLogs(tx, resolvedTransaction.contractName, compiledContracts, async (error, logs) => {
         if (!error) {
-          await dispatch({ type: KNOWN_TRANSACTION, payload: { message: [{ tx: tx, receipt: receipt, resolvedData: resolvedTransaction, logs: logs }], provider } })
+          await dispatch({ type: KNOWN_TRANSACTION, payload: { message: [{ tx: tx, receipt: receipt, resolvedData: resolvedTransaction, logs: logs }], provider, currency } })
         }
       })
     } else {
-      await dispatch({ type: UNKNOWN_TRANSACTION, payload: { message: [{ tx: tx, receipt: receipt }], provider } })
+      await dispatch({ type: UNKNOWN_TRANSACTION, payload: { message: [{ tx: tx, receipt: receipt }], provider, currency } })
     }
   }
 

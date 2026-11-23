@@ -4,8 +4,7 @@ import { NightwatchBrowser } from 'nightwatch'
 module.exports = {
   '@isogit': true,
   before: function (browser: NightwatchBrowser, done: VoidFunction) {
-    browser.hideToolTips()
-    done()
+    browser.hideToolTips().perform(() => done())
   },
   'clone a repo': function (browser: NightwatchBrowser) {
     browser

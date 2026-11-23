@@ -1,5 +1,6 @@
 import React, { useState, useMemo } from 'react';
-import { Button, Form, Modal } from 'react-bootstrap';
+import { Button, Modal } from 'react-bootstrap';
+import { Select } from '@remix-ui/helper';
 import { DappConfig, GenerationProgress } from '../types';
 import DappCard from './DappCard';
 
@@ -112,31 +113,31 @@ const Dashboard: React.FC<DashboardProps> = ({
         </h5>
 
         <div className="d-flex flex-wrap gap-2">
-          <Form.Select
-            size="sm"
-            className="border-secondary"
-            style={{ width: 'auto', minWidth: '120px' }}
-            value={selectedNetwork}
-            onChange={(e) => setSelectedNetwork(e.target.value)}
-            data-id="network-filter-select"
-          >
-            <option value="All Chains">All Chains</option>
-            {availableNetworks.map(network => (
-              <option key={network} value={network}>{network}</option>
-            ))}
-          </Form.Select>
+          <div style={{ minWidth: '140px' }}>
+            <Select
+              id="network-filter-select"
+              value={selectedNetwork}
+              onChange={setSelectedNetwork}
+              align="end"
+              options={[
+                { value: 'All Chains', label: 'All Chains' },
+                ...availableNetworks.map(network => ({ value: network, label: network }))
+              ]}
+            />
+          </div>
 
-          <Form.Select
-            size="sm"
-            className="border-secondary"
-            style={{ width: 'auto', minWidth: '120px' }}
-            value={sortOrder}
-            onChange={(e) => setSortOrder(e.target.value)}
-            data-id="sort-order-select"
-          >
-            <option value="newest">Newest first</option>
-            <option value="oldest">Oldest first</option>
-          </Form.Select>
+          <div style={{ minWidth: '140px' }}>
+            <Select
+              id="sort-order-select"
+              value={sortOrder}
+              onChange={setSortOrder}
+              align="end"
+              options={[
+                { value: 'newest', label: 'Newest first' },
+                { value: 'oldest', label: 'Oldest first' }
+              ]}
+            />
+          </div>
         </div>
       </div>
 

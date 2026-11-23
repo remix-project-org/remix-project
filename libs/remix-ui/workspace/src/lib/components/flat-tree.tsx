@@ -124,6 +124,13 @@ export const FlatTree = (props: FlatTreeProps) => {
   useEffect(() => {
     if (props.focusElement && props.focusElement.length > 0) {
       props.setTargetFiles(props.focusElement)
+      const focusedPath = props.focusElement[0]?.key
+      if (focusedPath && virtuoso.current) {
+        const index = flatTree.findIndex((item) => item.path === focusedPath)
+        if (index !== -1) {
+          virtuoso.current.scrollIntoView({ index, align: 'center' })
+        }
+      }
     }
   }, [props.focusElement, props.focusElement.length])
 

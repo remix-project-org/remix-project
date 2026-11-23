@@ -220,7 +220,7 @@ function registerLinuxProtocolHandler() {
   console.log('Executable path:', execPath);
 
   const desktopEntry = `[Desktop Entry]
-Name=Remix IDE
+Name=Remix Web3
 Exec=${execPath} %u
 Type=Application
 Terminal=false
@@ -311,6 +311,10 @@ ipcMain.handle('config:isPackaged', async () => {
 
 ipcMain.handle('config:isE2E', async () => {
   return isE2E
+})
+
+ipcMain.on('config:isE2E:sync', (event) => {
+  event.returnValue = !!isE2E
 })
 
 ipcMain.handle('matomo:trackEvent', async (event, data) => {

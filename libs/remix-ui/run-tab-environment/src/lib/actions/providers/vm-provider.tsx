@@ -1,3 +1,4 @@
+import type { MonadSpec } from '@remix-project/remix-monad'
 import React from 'react' // eslint-disable-line
 import * as packageJson from '../../../../../../../package.json'
 import { JsonDataRequest, RejectRequest, SuccessRequest } from '../providers/abstract-provider'
@@ -177,5 +178,14 @@ export class ForkedVMStateProvider extends BasicVMProvider {
     this.fork = fork
     this.nodeUrl = nodeUrl
     this.blockNumber = blockNumber
+  }
+}
+
+export class MonadVMProvider extends BasicVMProvider {
+  constructor(blockchain, fork: MonadSpec) {
+    const displayName = ({ 'monad-eight': 'Monad Eight', 'monad-nine': 'Monad Nine', 'monad-ten': 'Monad Ten', 'monad-next': 'Monad Next (experimental)' })[fork]
+    super({ name: 'vm-' + fork, displayName, kind: 'provider', description: displayName,
+      methods: ['sendAsync', 'init'], version: packageJson.version }, blockchain)
+    this.fork = fork
   }
 }

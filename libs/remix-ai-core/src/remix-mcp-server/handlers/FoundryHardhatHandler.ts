@@ -27,7 +27,7 @@ export class FoundryCompileHandler extends BaseToolHandler {
     properties: {
       sync: {
         type: 'boolean',
-        description: 'Whether to sync the compilation result with Remix IDE after compilation',
+        description: 'Whether to sync the compilation result with Remix Web3 after compilation',
         default: true
       }
     }
@@ -65,12 +65,12 @@ export class FoundryCompileHandler extends BaseToolHandler {
 /**
  * Foundry Sync Tool Handler
  *
- * Syncs Foundry compilation artifacts with Remix IDE.
+ * Syncs Foundry compilation artifacts with Remix Web3.
  * This reads the cache and emits compilation results for the current file.
  */
 export class FoundrySyncHandler extends BaseToolHandler {
   name = 'foundry_sync';
-  description = 'Sync Foundry compilation artifacts with Remix IDE. This updates Remix with the latest Foundry build artifacts from the out/ and cache/ directories.';
+  description = 'Sync Foundry compilation artifacts with Remix Web3. This updates Remix with the latest Foundry build artifacts from the out/ and cache/ directories.';
   inputSchema = {
     type: 'object',
     properties: {}
@@ -87,7 +87,7 @@ export class FoundrySyncHandler extends BaseToolHandler {
 
       return this.createSuccessResult({
         success: true,
-        message: 'Foundry artifacts synced successfully with Remix IDE',
+        message: 'Foundry artifacts synced successfully with Remix Web3',
         framework: 'foundry'
       });
     } catch (error) {
@@ -110,7 +110,7 @@ export class HardhatCompileHandler extends BaseToolHandler {
     properties: {
       sync: {
         type: 'boolean',
-        description: 'Whether to sync the compilation result with Remix IDE after compilation',
+        description: 'Whether to sync the compilation result with Remix Web3 after compilation',
         default: true
       }
     }
@@ -148,12 +148,12 @@ export class HardhatCompileHandler extends BaseToolHandler {
 /**
  * Hardhat Sync Tool Handler
  *
- * Syncs Hardhat compilation artifacts with Remix IDE.
+ * Syncs Hardhat compilation artifacts with Remix Web3.
  * This reads the artifacts and emits compilation results for the current file.
  */
 export class HardhatSyncHandler extends BaseToolHandler {
   name = 'hardhat_sync';
-  description = 'Sync Hardhat compilation artifacts with Remix IDE. This updates Remix with the latest Hardhat build artifacts from the artifacts/ and cache/ directories.';
+  description = 'Sync Hardhat compilation artifacts with Remix Web3. This updates Remix with the latest Hardhat build artifacts from the artifacts/ and cache/ directories.';
   inputSchema = {
     type: 'object',
     properties: {}
@@ -170,7 +170,7 @@ export class HardhatSyncHandler extends BaseToolHandler {
 
       return this.createSuccessResult({
         success: true,
-        message: 'Hardhat artifacts synced successfully with Remix IDE',
+        message: 'Hardhat artifacts synced successfully with Remix Web3',
         framework: 'hardhat'
       });
     } catch (error) {
@@ -308,7 +308,7 @@ export class HardhatRunCommandHandler extends BaseToolHandler {
  */
 export class GetFoundryHardhatInfoHandler extends BaseToolHandler {
   name = 'get_foundry_hardhat_info';
-  description = 'Get information about using Foundry and Hardhat in Remix IDE, including available commands and usage patterns.';
+  description = 'Get information about using Foundry and Hardhat in Remix Web3, including available commands and usage patterns.';
   inputSchema = {
     type: 'object',
     properties: {
@@ -349,7 +349,7 @@ export class GetFoundryHardhatInfoHandler extends BaseToolHandler {
         },
         sync: {
           tool: 'foundry_sync',
-          description: 'Syncs Foundry compilation artifacts with Remix IDE',
+          description: 'Syncs Foundry compilation artifacts with Remix Web3',
           usage: 'Use after external compilation or to refresh artifacts'
         },
         runCommand: {
@@ -400,7 +400,7 @@ export class GetFoundryHardhatInfoHandler extends BaseToolHandler {
         },
         sync: {
           tool: 'hardhat_sync',
-          description: 'Syncs Hardhat compilation artifacts with Remix IDE',
+          description: 'Syncs Hardhat compilation artifacts with Remix Web3',
           usage: 'Use after external compilation or to refresh artifacts'
         },
         runCommand: {
@@ -483,7 +483,7 @@ export function createFoundryHardhatTools(): RemixToolDefinition[] {
     },
     {
       name: 'foundry_sync',
-      description: 'Sync Foundry compilation artifacts with Remix IDE',
+      description: 'Sync Foundry compilation artifacts with Remix Web3',
       inputSchema: new FoundrySyncHandler().inputSchema,
       category: ToolCategory.COMPILATION,
       permissions: ['foundry:sync'],
@@ -507,7 +507,7 @@ export function createFoundryHardhatTools(): RemixToolDefinition[] {
     },
     {
       name: 'hardhat_sync',
-      description: 'Sync Hardhat compilation artifacts with Remix IDE',
+      description: 'Sync Hardhat compilation artifacts with Remix Web3',
       inputSchema: new HardhatSyncHandler().inputSchema,
       category: ToolCategory.COMPILATION,
       permissions: ['hardhat:sync'],
@@ -523,7 +523,7 @@ export function createFoundryHardhatTools(): RemixToolDefinition[] {
     },
     {
       name: 'get_foundry_hardhat_info',
-      description: 'Get information about using Foundry and Hardhat in Remix IDE',
+      description: 'Get information about using Foundry and Hardhat in Remix Web3',
       inputSchema: new GetFoundryHardhatInfoHandler().inputSchema,
       category: ToolCategory.COMPILATION,
       permissions: ['foundry:info', 'hardhat:info'],

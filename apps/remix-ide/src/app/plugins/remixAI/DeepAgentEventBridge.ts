@@ -35,10 +35,13 @@ export class DeepAgentEventBridge {
     'onTodoError',
     'onApiError',
     'onToolApprovalRequired',
+    'onToolApprovalCancelled',
     'onAIFileChanged',
     'onTokenUsage',
     'onModelUsed',
-    'onInactivityTimeout'
+    'onInactivityTimeout',
+    'onStreamReplace',
+    'onModelDegraded'
   ] as const
 
   setupListeners(inferencer: DeepAgentInferencer, plugin: IRemixAIPlugin): void {
@@ -128,10 +131,34 @@ export class DeepAgentEventBridge {
       plugin.emit('onModelUsed', data)
     })
 
+    // Per-model-call token counts (incl. cache) and running totals for the
+    // run. Lets tooling such as the AI cost benchmark read usage per run
+    // without debug logging.
+    eventEmitter.on('onTokenUsage', (data: Record<string, unknown>) => {
+      plugin.emit('onTokenUsage', data)
+    })
+
+    // A drift countermeasure retried a model call: the UI drops the text the
+    // first attempt already streamed.
+    eventEmitter.on('onStreamReplace', (data: { remove: string; threadId?: string }) => {
+      plugin.emit('onStreamReplace', data)
+    })
+
+    // Sustained latency / size drift of the selected model, or its recovery.
+    eventEmitter.on('onModelDegraded', (data: { modelId: string; label: string; degraded: boolean; detail: string }) => {
+      plugin.emit('onModelDegraded', data)
+    })
+
     // Human-in-the-loop: relay approval requests to UI
     eventEmitter.on('onToolApprovalRequired', (request: ToolApprovalRequest) => {
       remixAILogger.log('[Bridge] onToolApprovalRequired', request.toolName, request.requestId)
       plugin.emit('onToolApprovalRequired', request)
+    })
+
+    // Approvals settled without the user (run stopped, agent rebuilt): drop their cards
+    eventEmitter.on('onToolApprovalCancelled', (data: { requestIds: string[]; threadId?: string }) => {
+      remixAILogger.log('[Bridge] onToolApprovalCancelled', data?.requestIds)
+      plugin.emit('onToolApprovalCancelled', data)
     })
 
     // Files the agent has actually written, for the AI mode changes panel
