@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { FormattedMessage, useIntl } from 'react-intl'
 import { LoginModal, startSignInFlow } from '@remix-ui/login'
+import { gatedPlaceholder } from '@remix-ui/helper'
 import './paste-guard.css'
 
 /** A large paste into the editor, as the paste guard needs it. */
@@ -271,7 +272,10 @@ export function PasteGuard ({ plugin, request, onAskAI }: PasteGuardProps) {
       </>
     case 'exhausted':
       return <>
-        <p><FormattedMessage id="editor.pasteGuard.exhausted" values={{ reset: resetIn() || '' }} /></p>
+        <p>
+          {resetIn() && <><FormattedMessage id="editor.pasteGuard.exhaustedReset" values={{ reset: resetIn() }} />{' '}</>}
+          <FormattedMessage id="editor.pasteGuard.exhausted" />
+        </p>
         <p className="mb-0 small"><FormattedMessage id="editor.pasteGuard.reviewManually" /></p>
       </>
     case 'scanning':
@@ -301,13 +305,13 @@ export function PasteGuard ({ plugin, request, onAskAI }: PasteGuardProps) {
       return <>
         {reasons.length > 0 && (
           <div className={hasAuditor ? undefined : 'remix-paste-guard-reasons-gated'}>
-            <ul className="remix-paste-guard-reasons" data-id="pasteGuardReasons">
-              {reasons.slice(0, MAX_REASONS).map((r, i) => <li key={i}>{r}</li>)}
+            <ul className="remix-paste-guard-reasons" data-id="pasteGuardReasons" aria-hidden={!hasAuditor || undefined}>
+              {reasons.slice(0, MAX_REASONS).map((r, i) => <li key={i}>{hasAuditor ? r : gatedPlaceholder(r)}</li>)}
               {reasons.length > MAX_REASONS && <li className="text-muted list-unstyled"><FormattedMessage id="editor.pasteGuard.more" values={{ count: reasons.length - MAX_REASONS }} /></li>}
             </ul>
             {!hasAuditor && (
               <div className="remix-paste-guard-gate-overlay">
-                <button className="btn btn-sm btn-primary" data-id="pasteGuardGateCta" onClick={ctx?.signedIn ? then('getPlan', () => plugin.call('planManager', 'open')) : signIn}>
+                <button className="btn btn-sm btn-primary" data-id="pasteGuardGateCta" onClick={ctx?.signedIn ? then('getPlan', () => plugin.call('planManager', 'open', { reason: 'feature-required', requiredFeature: 'ai:auditor' })) : signIn}>
                   <FormattedMessage id="editor.pasteGuard.getPlanToView" />
                 </button>
               </div>
