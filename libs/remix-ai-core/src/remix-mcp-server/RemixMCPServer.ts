@@ -8,21 +8,7 @@ import {
   IMCPToolResult,
   IMCPResourceContent
 } from '../types/mcp';
-
-// Helper function to track events using MatomoManager instance
-function trackMatomoEvent(category: string, action: string, name: string) {
-  try {
-    if (typeof window !== 'undefined' && (window as any)._matomoManagerInstance) {
-      const matomoInstance = (window as any)._matomoManagerInstance;
-      if (typeof matomoInstance.trackEvent === 'function') {
-        matomoInstance.trackEvent(category, action, name);
-      }
-    }
-  } catch (error) {
-    // Silent fail for tracking
-    remixAILogger.debug('Matomo tracking failed:', error);
-  }
-}
+import { trackMatomoEvent } from '../helpers/matomo';
 import {
   IRemixMCPServer,
   RemixMCPServerConfig,

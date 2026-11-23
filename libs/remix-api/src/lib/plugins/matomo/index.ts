@@ -30,6 +30,9 @@ export * from './events/nudge-events';
 export * from './events/help-events';
 export * from './events/payment-events';
 
+// Fixed reasons for deploy-failure events
+export * from './deploy-failure-reason';
+
 // Import types for union
 import type { AIEvent, RemixAIAssistantEvent } from './events/ai-events';
 import type { CompilerEvent, SolidityCompilerEvent, CompilerContainerEvent } from './events/compiler-events';
