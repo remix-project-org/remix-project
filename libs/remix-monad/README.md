@@ -12,7 +12,7 @@ The package is pinned to a prebuilt distribution commit; its `build-info.json` r
 
 All Monad forks use chain ID **143**, matching Monad mainnet, while executing locally. Saved Monad VM sessions restore local accounts, contract state and debugging history for the same hardfork and chain ID.
 
-The RPC surface supports local accounts, transaction types 0/1/2/4, calls, gas estimation, saved state, debugging and EIP-712 signing. See the [access-list and delegation example](docs/transactions.md). Solidity `hardhat/console.sol` output is available through Remix's existing console-log API; see the [signing and console example](docs/signing-and-console.md).
+The RPC surface supports local accounts, transaction types 0/1/2/4, calls, gas estimation, saved state, debugging, EIP-712 signing, event queries and polling filters. Solidity `hardhat/console.sol` output is available through Remix's existing console-log API. See the [access-list and delegation example](docs/transactions.md), [signing and console example](docs/signing-and-console.md) and [event listener example](docs/events.md).
 
 The [local staking example](docs/staking.md) covers validator registration, delegation, rewards and withdrawals, with explicit funding and epoch controls, saved state and caller debugging on all four forks.
 
@@ -20,7 +20,7 @@ This is a local development VM with synthetic blocks and receipts. Remote RPC fo
 
 ## Test
 
-Run `yarn test:monad:ui` for chain IDs, typed transactions and signing, delegation and historical debugging, console output, staking and rollback, the examples, save/restore, account preferences and MON formatting. For browser regressions:
+Run `yarn test:monad:ui` for provider, example and source-debugger tests, including typed transactions, delegation, staking, rollback, event queries, polling listeners and save/restore on all four forks. For browser regressions:
 
 ```sh
 yarn nx build remix-ide --configuration=development
@@ -28,4 +28,4 @@ yarn playwright install chromium
 yarn test:monad:browser
 ```
 
-The browser tests cover fork-specific VM badges, chain IDs, account aliases, payable deployments and transaction currency on all four Monad forks and Ethereum Osaka, using the installed Solidity compiler. They also cover MON formatting in a named fork of a Monad VM and the staking script's save/reset/restore and source-debugging workflow on all four Monad forks.
+The browser tests cover fork-specific VM badges, chain IDs, account aliases, payable deployments and transaction currency on all four Monad forks and Ethereum Osaka, using the installed Solidity compiler. They also cover MON formatting in a named fork, script event listeners and staking save/reset/restore with successful/reverted transaction debugging on all four Monad forks. The script runner is pinned and checksum-verified during test setup.
