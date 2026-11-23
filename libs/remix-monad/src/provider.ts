@@ -1,4 +1,4 @@
-import { getAddress, getBytes, keccak256, toQuantity, toUtf8Bytes, Transaction, Wallet, ZeroAddress, ZeroHash } from 'ethers'
+import { accessListify, getAddress, getBigInt, getBytes, keccak256, toBeHex, toQuantity, toUtf8Bytes, Transaction, Wallet, ZeroAddress, ZeroHash } from 'ethers'
 import { signTypedData, SignTypedDataVersion } from '@metamask/eth-sig-util'
 import type { ExecuteRequest } from 'monad-evm2js'
 import type { AccountState, EngineResult, MonadEngine, MonadSpec, RpcRequest } from './types'
@@ -7,6 +7,7 @@ import { readState, RecordedExecution } from './state'
 import { MONAD_CHAIN_ID } from './constants'
 import { decodeConsoleCalls } from './console'
 import { MonadFilters } from './filters'
+import { decodeDelegatedTransaction, signDelegatedTransaction, SignedEnvelope } from './transaction'
 
 const GAS_LIMIT = 30_000_000
 const GAS_PRICE = 1_000_000_000n
@@ -199,22 +200,43 @@ export class MonadProvider {
 
   private normalize(tx: any, snapshot?: string) {
     if (!tx || typeof tx !== 'object') throw new RpcError('Expected a transaction object')
-    const type = Number(BigInt(tx.type ?? (tx.maxFeePerGas !== undefined ? 2 : 0))) as 0 | 2
-    if (type !== 0 && type !== 2) throw new RpcError('The local Monad VM supports legacy and EIP-1559 transactions')
-    if (tx.accessList?.length || tx.authorizationList?.length || tx.blobVersionedHashes?.length) {
-      throw new RpcError('Access lists, authorizations and blob transactions are not supported by this local VM')
+    const type = Number(getBigInt(tx.type ?? (tx.authorizationList != null ? 4 : tx.maxFeePerGas != null || tx.maxPriorityFeePerGas != null ? 2 : tx.accessList != null ? 1 : 0))) as 0 | 1 | 2 | 4
+    if (![0, 1, 2, 4].includes(type) || tx.blobVersionedHashes != null || tx.maxFeePerBlobGas != null || tx.blobs != null) {
+      throw new RpcError('Monad supports transaction types 0, 1, 2 and 4; blob transactions are unsupported')
     }
+    const accessList = accessListify(tx.accessList ?? [])
+    if (tx.authorizationList != null && !Array.isArray(tx.authorizationList)) throw new RpcError('Expected an authorization list')
+    const authorizationList = (tx.authorizationList ?? []).map(auth => {
+      try {
+        const signature = auth.signature ?? auth
+        const nonce = getBigInt(auth.nonce)
+        const chainId = getBigInt(auth.chainId)
+        const parity = getBigInt(signature.yParity ?? signature.v)
+        if (nonce < 0n || nonce > 0xffffffffffffffffn || chainId < 0n || chainId >= (1n << 256n) || parity < 0n || parity > 255n) throw new Error('Invalid authorization quantity')
+        return { chainId: toQuantity(chainId), address: getAddress(auth.address), nonce: toQuantity(nonce), yParity: Number(parity),
+          r: toBeHex(getBigInt(signature.r), 32), s: toBeHex(getBigInt(signature.s), 32) }
+      } catch (error) { throw new RpcError(error.message || 'Invalid authorization') }
+    })
+    if ((type === 0 && accessList.length) || (type !== 4 && authorizationList.length) ||
+        ([0, 1].includes(type) && (tx.maxFeePerGas != null || tx.maxPriorityFeePerGas != null)) ||
+        ([2, 4].includes(type) && tx.gasPrice != null && tx.maxFeePerGas == null)) {
+      throw new RpcError('Transaction fields do not match its type')
+    }
+    if (type === 4 && (!tx.to || !authorizationList.length)) throw new RpcError('EIP-7702 requires a destination and a nonempty authorization list')
     if (tx.chainId !== undefined && BigInt(tx.chainId) !== BigInt(MONAD_CHAIN_ID)) throw new RpcError('Incorrect local chain ID')
     const from = getAddress(tx.from || this.wallets.values().next().value.address)
     const gas = Number(BigInt(tx.gas ?? tx.gasLimit ?? GAS_LIMIT))
     if (!Number.isSafeInteger(gas) || gas < 0 || gas > GAS_LIMIT) throw new RpcError('Invalid gas limit; maximum is 30,000,000')
-    const gasPrice = BigInt(type === 2 ? (tx.maxFeePerGas ?? GAS_PRICE) : (tx.gasPrice ?? GAS_PRICE))
-    const priorityFee = type === 2 ? BigInt(tx.maxPriorityFeePerGas ?? (gasPrice < GAS_PRICE ? gasPrice : GAS_PRICE)) : null
+    const dynamicFee = type === 2 || type === 4
+    const gasPrice = BigInt(dynamicFee ? (tx.maxFeePerGas ?? GAS_PRICE) : (tx.gasPrice ?? GAS_PRICE))
+    const priorityFee = dynamicFee ? BigInt(tx.maxPriorityFeePerGas ?? (gasPrice < GAS_PRICE ? gasPrice : GAS_PRICE)) : null
+    const nonce = Number(getBigInt(tx.nonce ?? (snapshot ? JSON.parse(snapshot).accounts[from.toLowerCase()]?.nonce ?? 0 : this.account(from).nonce)))
+    if (!Number.isSafeInteger(nonce) || nonce < 0) throw new RpcError('Invalid transaction nonce')
     return {
       from, to: tx.to ? getAddress(tx.to) : null, data: tx.data || tx.input || '0x',
       value: toQuantity(tx.value ?? 0), gas, gasPrice: toQuantity(gasPrice),
       priorityFee: priorityFee === null ? null : toQuantity(priorityFee),
-      nonce: Number(BigInt(tx.nonce ?? (snapshot ? JSON.parse(snapshot).accounts[from.toLowerCase()]?.nonce ?? 0 : this.account(from).nonce))), type
+      nonce, type, accessList, authorizationList
     }
   }
 
@@ -239,7 +261,7 @@ export class MonadProvider {
     return JSON.parse(this.engine.execute(JSON.stringify(execution)))
   }
 
-  private async execute(input: any, commit: boolean, signed?: Transaction, selector: unknown = 'latest') {
+  private async execute(input: any, commit: boolean, signed?: SignedEnvelope, selector: unknown = 'latest') {
     const context = commit ? this.pendingBlock() : this.resolveBlock(selector)
     const before = this.snapshotAt(context)
     const tx = this.normalize(input, before)
@@ -250,10 +272,11 @@ export class MonadProvider {
       if (!signed) {
         const wallet = this.wallets.get(tx.from.toLowerCase())
         if (!wallet) throw new RpcError('Unknown local account')
-        signed = Transaction.from(await wallet.signTransaction({
+        signed = tx.type === 4 ? signDelegatedTransaction(tx, wallet.privateKey, MONAD_CHAIN_ID) : Transaction.from(await wallet.signTransaction({
           to: tx.to, data: tx.data, value: tx.value, nonce: tx.nonce, gasLimit: tx.gas,
           chainId: MONAD_CHAIN_ID, type: tx.type,
-          ...(tx.type === 2 ? { maxFeePerGas: tx.gasPrice, maxPriorityFeePerGas: tx.priorityFee } : { gasPrice: tx.gasPrice })
+          ...(tx.type === 2 ? { maxFeePerGas: tx.gasPrice, maxPriorityFeePerGas: tx.priorityFee } : { gasPrice: tx.gasPrice }),
+          ...(tx.type !== 0 ? { accessList: tx.accessList } : {})
         }))
       }
       hash = signed.hash
@@ -275,8 +298,9 @@ export class MonadProvider {
       hash, from: tx.from, to: tx.to, input: tx.data, value: tx.value,
       nonce: toQuantity(tx.nonce), gas: toQuantity(tx.gas), gasPrice: effectiveGasPrice,
       type: toQuantity(tx.type), chainId: toQuantity(MONAD_CHAIN_ID),
-      ...(tx.type === 2 ? { maxFeePerGas: tx.gasPrice, maxPriorityFeePerGas: tx.priorityFee } : {}),
-      ...(tx.type === 2 ? { accessList: []} : {}),
+      ...(tx.type === 2 || tx.type === 4 ? { maxFeePerGas: tx.gasPrice, maxPriorityFeePerGas: tx.priorityFee } : {}),
+      ...(tx.type !== 0 ? { accessList: tx.accessList } : {}),
+      ...(tx.type === 4 ? { authorizationList: tx.authorizationList.map(auth => ({ ...auth, yParity: toQuantity(auth.yParity) })) } : {}),
       blockHash: block.hash, blockNumber: block.number, transactionIndex: '0x0',
       r: signature?.r || ZeroHash, s: signature?.s || ZeroHash, v: toQuantity(v)
     }
@@ -364,6 +388,10 @@ export class MonadProvider {
       return this.estimate(params[0], params[1])
     case 'eth_sendTransaction': return this.execute(params[0], true)
     case 'eth_sendRawTransaction': {
+      if (getBytes(params[0])[0] === 4) {
+        const { input, signed } = decodeDelegatedTransaction(params[0], MONAD_CHAIN_ID)
+        return this.execute(input, true, signed)
+      }
       const tx = Transaction.from(params[0])
       if (!tx.isSigned() || !tx.from) throw new RpcError('Invalid signed transaction')
       return this.execute({ ...tx.toJSON(), from: tx.from, gas: tx.gasLimit }, true, tx)
