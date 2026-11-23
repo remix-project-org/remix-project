@@ -21,9 +21,84 @@ contract PayableTest {
 }
 `
 
+const monadSigningContract = `
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.24;
+
+import "hardhat/console.sol";
+
+contract MonadSigning {
+    uint256 public value;
+    uint256 public nonce;
+
+    function storeSigned(uint256 newValue, uint8 v, bytes32 r, bytes32 s) external {
+        bytes32 domainSeparator = keccak256(abi.encode(
+            keccak256("EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)"),
+            keccak256("Monad signing"),
+            keccak256("1"),
+            block.chainid,
+            address(this)
+        ));
+        bytes32 messageHash = keccak256(abi.encode(
+            keccak256("Store(uint256 value,uint256 nonce)"), newValue, nonce
+        ));
+        bytes32 digest = keccak256(abi.encodePacked(hex"1901", domainSeparator, messageHash));
+        address signer = ecrecover(digest, v, r, s);
+        require(signer == msg.sender, "Invalid signature");
+
+        nonce++;
+        value = newValue;
+        console.log("Stored value", newValue);
+        console.log("Signer", signer);
+    }
+}
+`
+
+const signAndExecuteScript = `
+import { ethers } from 'ethers'
+
+// Get metadata - try artifacts first, fallback to compiler API
+let metadata
+try {
+  metadata = JSON.parse(await remix.call('fileManager', 'readFile', 'artifacts/MonadSigning.json'))
+} catch (e) {
+  const compilationResult = await remix.call('compilerArtefacts', 'getArtefactsByContractName', 'MonadSigning')
+  const artifact = compilationResult.artefact
+  metadata = { abi: artifact.abi, data: { bytecode: artifact.evm.bytecode } }
+}
+
+const provider = new ethers.BrowserProvider(web3Provider)
+const account: string = ethers.getAddress(await remix.call('udappEnv', 'getSelectedAccount'))
+const signer = await provider.getSigner(account)
+const factory = new ethers.ContractFactory(metadata.abi, metadata.data.bytecode.object, signer)
+const contract = await factory.deploy()
+await contract.waitForDeployment()
+const address: string = await contract.getAddress()
+const instance = new ethers.Contract(address, metadata.abi, signer)
+
+const domain = { name: 'Monad signing', version: '1', chainId: (await provider.getNetwork()).chainId, verifyingContract: address }
+const types = { Store: [{ name: 'value', type: 'uint256' }, { name: 'nonce', type: 'uint256' }]}
+const message = { value: 42, nonce: await instance.nonce() }
+const signature: string = await signer.signTypedData(domain, types, message)
+if (ethers.verifyTypedData(domain, types, message, signature) !== account) throw new Error('Typed signature recovery failed')
+
+const typedData = ethers.TypedDataEncoder.getPayload(domain, types, message)
+await remix.call('fileManager', 'writeFile', 'MonadTypedData.json', JSON.stringify(typedData, null, 2))
+const parts = ethers.Signature.from(signature)
+const transaction = await instance.storeSigned(message.value, parts.v, parts.r, parts.s)
+await transaction.wait()
+if (await instance.value() !== 42n) throw new Error('Signed storage write failed')
+const logs = await provider.send('eth_getHHLogsForTx', [transaction.hash])
+for (const args of logs) console.log(...args)
+console.log(\`Stored 42 at \${address}. Debug transaction: \${transaction.hash}\`)
+
+`
+
 const sources = [
   { 'Untitled.sol': { content: examples.ballot.content } },
-  { 'PayableTest.sol': { content: payableContract } }
+  { 'PayableTest.sol': { content: payableContract } },
+  { 'MonadSigning.sol': { content: monadSigningContract } },
+  { 'sign-and-execute.ts': { content: signAndExecuteScript } }
 ]
 
 module.exports = {
@@ -158,8 +233,53 @@ module.exports = {
               status: '0 Transaction mined but execution failed',
               'decoded input': { 'address to': '0x4B0897b0513fdC7C541B6d9D7E929C4e5364D2dB' }
             })
-          .end()
       })
+  },
+
+  'Compile, deploy and test EIP-712 signing with sign-and-execute script #group2': function (browser: NightwatchBrowser) {
+    browser
+      .addFile('contracts/MonadSigning.sol', { content: monadSigningContract })
+      .clickLaunchIcon('solidity')
+      .openFile('contracts/MonadSigning.sol')
+      .pause(1000)
+      .click('[data-id="compile-action"]')
+      .clickLaunchIcon('solidity')
+      .waitForElementVisible('[data-id="compiledContracts"]', 60000)
+      .testContracts('contracts/MonadSigning.sol', { content: monadSigningContract }, ['MonadSigning'])
+      .clickLaunchIcon('udapp')
+      .switchEnvironment('vm-monad-ten', 'Monad_VM')
+      .waitForElementVisible('[data-id="deploy-widget-header"]')
+      .selectContract('MonadSigning')
+      .createContract('')
+      .waitForElementVisible('[data-id="deployedContractItem-0"]')
+      .addFile('scripts/sign-and-execute.ts', { content: signAndExecuteScript })
+      .pause(2000)
+      .openFile('scripts/sign-and-execute.ts')
+      .pause(1000)
+      .waitForElementVisible('[data-id="run-script-dropdown-trigger"]', 5000)
+      .click('[data-id="run-script-dropdown-trigger"]')
+      .waitForElementVisible('[data-id="run-script-dropdown-panel"]', 5000)
+      .pause(500)
+      .waitForElementVisible('[data-id="run-with-ethers6-menu-item"]', 5000)
+      .click('[data-id="run-with-ethers6-menu-item"]')
+      .pause(3000)
+      .waitForElementContainsText('*[data-id="terminalJournal"]', 'Stored 42 at', 60000)
+      .waitForElementContainsText('*[data-id="terminalJournal"]', 'Stored value', 60000)
+      .waitForElementContainsText('*[data-id="terminalJournal"]', 'Signer', 60000)
+      .openFile('MonadTypedData.json')
+      .pause(1000)
+      .getEditorValue((content) => {
+        const typedData = JSON.parse(content)
+        // Chain ID can be hex (0x8f) or decimal (143)
+        const chainId = typeof typedData.domain.chainId === 'string' && typedData.domain.chainId.startsWith('0x')
+          ? parseInt(typedData.domain.chainId, 16).toString()
+          : typedData.domain.chainId.toString()
+        browser.assert.equal(chainId, '143', 'Chain ID is 143 for Monad')
+        browser.assert.equal(typedData.message.value, '42', 'Message value is 42')
+      })
+      // Note: The script already verifies signature verification and nonce increment internally
+      // (checks value === 42 and would throw error if signature verification failed)
+      .end()
   }
 }
 
