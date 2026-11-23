@@ -7,6 +7,7 @@ test.use({ contractFile: 'libs/remix-monad/examples/StakingDemo.sol', scriptRunn
 test.describe.configure({ timeout: 420_000 })
 const source = readFileSync('libs/remix-monad/examples/StakingDemo.sol', 'utf8')
 const callLine = source.split('\n').findIndex(line => line.includes('STAKING.call{value:')) + 1
+const eventLine = source.split('\n').findIndex(line => line.includes('emit StakingCall(')) + 1
 const staking = '0x0000000000000000000000000000000000001000'
 const abi = new Interface(['function getEpoch() returns (uint64,bool)'])
 const rpc = (page: Page, method: string, ...params: any[]) => page.evaluate(
@@ -74,7 +75,20 @@ async function inspectCall(page: Page, method: string, value: number) {
   await jumpToStep(page, call)
   await expect(currentOpcode(page)).toContainText(/\bCALL\b/)
   await expect(page.locator(`#editorView .highlightLine${callLine}`).first()).toBeVisible()
-  await scope(method).locator('button').filter({ has: page.locator('i.fa-step-forward') }).click()
+  await decodedValue(page, 99)
+  await showOpcodes(page)
+  // The caller emits this event after updating its state, including before a later revert.
+  const event = await seekOpcode(page, 'LOG1')
+  await expect(page.locator(`#editorView .highlightLine${eventLine}`).first()).toBeVisible()
+  await decodedValue(page, value)
+  await showOpcodes(page)
+  await jumpToStep(page, call)
+  await expect(currentOpcode(page)).toContainText(/\bCALL\b/)
+  await decodedValue(page, 99)
+  await showOpcodes(page)
+  await jumpToStep(page, event)
+  await expect(currentOpcode(page)).toContainText(/\bLOG1\b/)
+  await expect(page.locator(`#editorView .highlightLine${eventLine}`).first()).toBeVisible()
   await decodedValue(page, value)
   await page.getByRole('button', { name: 'Stop debugging', exact: true }).click()
 }

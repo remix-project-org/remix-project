@@ -114,9 +114,64 @@ async function inspect(f: Awaited<ReturnType<typeof provider>>, hash: string, ad
   assert.equal(await slot(debug, store, address), before, 'backward navigation restores previous caller storage')
   const decoded = await debug.decodeStateAt(steps.length - 1, await debug.extractStateAt(steps.length - 1)) as any
   assert.equal(BigInt(decoded.value.value), after)
+  const event = steps.findIndex(step => step.op === 'LOG1')
+  if (after !== 99n) {
+    assert.ok(event > call, 'the caller emits StakingCall after updating its state')
+    const location = await debug.callTree.extractSourceLocation(event) as { start: number; length: number }
+    assert.match(source.slice(location.start, location.start + location.length), /^StakingCall\(bytes4\(input\), success, output\)$/)
+    for (const [index, value] of [[call, 99n], [event, after], [call, 99n], [event, after]] as const) {
+      manager.jumpTo(index)
+      assert.equal(manager.currentStepIndex, index)
+      const decoded = await debug.decodeStateAt(index, await debug.extractStateAt(index)) as any
+      assert.equal(BigInt(decoded.value.value), value, `decoded caller state at trace step ${index}`)
+    }
+  } else assert.equal(event, -1, 'a required staking failure reverts before emitting the caller event')
 }
 
 for (const fork of ['monad-eight', 'monad-nine', 'monad-ten', 'monad-next'] as const) {
+  test(`${fork}: staking transactions and system blocks preserve event filters across restore`, async () => {
+    const f = await fixture(fork)
+    let restored: Awaited<ReturnType<typeof provider>>
+    try {
+      const query = { fromBlock: toQuantity(BigInt(await f.request('eth_blockNumber')) + 1n), address: [staking, f.address]}
+      const logs = await f.request('eth_newFilter', query)
+      const blocks = await f.request('eth_newBlockFilter')
+      const staked = await f.invoke('stake', [1], parseEther('1'))
+      assert.equal(staked.receipt.logs.length, 2, 'both precompile and caller events are recorded')
+      const snapshot = await f.transition({ kind: 'snapshot' })
+      const changed = await f.transition({ kind: 'epochChange', epoch: '0x1' })
+      const reward = await f.transition({ kind: 'reward', author: f.from, amount: toQuantity(parseEther('2')) })
+      assert.ok(reward.logs.length > 0)
+      const rejected = await f.invoke('rejectAfterStake', [1], parseEther('1'))
+      assert.equal(rejected.receipt.status, '0x0')
+      assert.deepEqual(rejected.receipt.logs, [])
+      assert.deepEqual(await f.request('eth_getFilterChanges', blocks), [staked.receipt.blockHash, snapshot.blockHash, changed.blockHash, reward.blockHash, rejected.receipt.blockHash])
+      assert.deepEqual(await f.request('eth_getFilterChanges', logs), staked.receipt.logs)
+      assert.deepEqual(await f.request('eth_getFilterLogs', logs), staked.receipt.logs)
+      assert.deepEqual(await f.request('eth_getLogs', query), staked.receipt.logs)
+      for (const block of [snapshot, changed, reward]) {
+        assert.deepEqual(await f.request('eth_getLogs', { blockHash: block.blockHash }), [], 'system blocks contain no transaction receipts')
+      }
+      const saved = await f.request('eth_getStateDb')
+      await assert.rejects(f.transition({ kind: 'epochChange', epoch: '0x1' }))
+      assert.deepEqual(await f.request('eth_getStateDb'), saved)
+      for (const id of [logs, blocks]) assert.deepEqual(await f.request('eth_getFilterChanges', id), [], 'a failed transition publishes nothing')
+
+      restored = await provider(fork, saved)
+      assert.deepEqual(await restored.request('eth_getLogs', query), staked.receipt.logs)
+      for (const id of [logs, blocks]) await assert.rejects(restored.request('eth_getFilterChanges', id), /Filter not found/)
+      const restoredLogs = await restored.request('eth_newFilter', query)
+      const restoredBlocks = await restored.request('eth_newBlockFilter')
+      const nextSnapshot = await restored.transition({ kind: 'snapshot' })
+      const nextStake = await restored.send(f.address, f.contract.interface.encodeFunctionData('stake', [1]), parseEther('1'))
+      assert.equal(nextStake.receipt.status, '0x1')
+      assert.deepEqual(await restored.request('eth_getFilterChanges', restoredBlocks), [nextSnapshot.blockHash, nextStake.receipt.blockHash])
+      assert.deepEqual(await restored.request('eth_getFilterChanges', restoredLogs), nextStake.receipt.logs)
+      assert.deepEqual(await restored.request('eth_getLogs', query), [...staked.receipt.logs, ...nextStake.receipt.logs])
+      assert.deepEqual(await restored.request('eth_getFilterChanges', restoredLogs), [])
+    } finally { restored?.close(); f.close() }
+  })
+
   test(`${fork}: staking rewards, withdrawal, historical blocks and restored debugging`, { timeout: 60_000 }, async () => {
     const f = await fixture(fork)
     let restored: Awaited<ReturnType<typeof provider>>
