@@ -1,7 +1,6 @@
 import React from 'react'
 import { Registry } from "@remix-project/remix-lib"
-import { CustomMenu, CustomToggle } from "@remix-ui/helper"
-import { Dropdown } from "react-bootstrap"
+import { Select } from "@remix-ui/helper"
 
 type SelectDropdownProps = {
     value: string,
@@ -34,28 +33,17 @@ const SelectDropdown = ({ value, options, name, dispatch, onChanged }: SelectDro
     onChanged?.(value)
   }
 
+  // Show the option's label, not its stored value — a raw value
+  // reads fine for a theme name but not for codes like "ask".
   return (
-    <Dropdown>
-      <Dropdown.Toggle as={CustomToggle} className="btn-light btn-block w-100 d-inline-block border border-secondary form-control" icon="fas fa-caret-down text-secondary" useDefaultIcon={false}>
-        <div style={{ flexGrow: 1, overflow: 'hidden', display:'flex', justifyContent:'left' }} data-id={`settingsTabDropdownToggle${name}`}>
-          <div className="text-truncate text-secondary">
-            {/* Show the option's label, not its stored value — a raw value
-                reads fine for a theme name but not for codes like "ask". */}
-            {<span data-id="selectedVersion">{options.find(option => option.value === value)?.label ?? value}</span>}
-          </div>
-        </div>
-      </Dropdown.Toggle>
-
-      <Dropdown.Menu as={CustomMenu} className="w-100 custom-dropdown-items overflow-hidden bg-light p-0" data-id="custom-dropdown-items">
-        {
-          options.map((option) => (
-            <Dropdown.Item key={option.value} onClick={() => handleChange(name, option.value)} data-id={`settingsTabDropdownItem${option.value}`}>
-              <span>{option.label}</span>
-            </Dropdown.Item>
-          ))
-        }
-      </Dropdown.Menu>
-    </Dropdown>
+    <Select
+      id={`settingsTabDropdownToggle${name}`}
+      value={value}
+      options={options}
+      onChange={(value) => handleChange(name, value)}
+      itemDataId={(o) => `settingsTabDropdownItem${o.value}`}
+      placeholder={value}
+    />
   )
 }
 

@@ -18,6 +18,10 @@ export class Provider {
   }
 }
 `
+const monad = `
+export { Provider as MonadProvider } from '@remix-project/remix-simulator'
+export const isMonadSpec = fork => ['monad-eight', 'monad-nine', 'monad-ten', 'monad-next'].includes(fork)
+`
 
 let client: string
 let worker: string
@@ -28,8 +32,10 @@ test.beforeAll(async () => {
     plugins: [{
       name: 'test-simulator',
       setup(plugin) {
-        plugin.onResolve({ filter: /^@remix-project\/remix-simulator$/ }, () => ({ path: 'simulator', namespace: 'fixture' }))
-        plugin.onLoad({ filter: /.*/, namespace: 'fixture' }, () => ({ contents: simulator, loader: 'js' }))
+        plugin.onResolve({ filter: /^@remix-project\/remix-(simulator|monad)$/ }, args => ({ path: args.path, namespace: 'fixture' }))
+        plugin.onLoad({ filter: /.*/, namespace: 'fixture' }, args => ({
+          contents: args.path.endsWith('remix-monad') ? monad : simulator, loader: 'js'
+        }))
       }
     }]
   }

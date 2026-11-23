@@ -40,6 +40,22 @@ export interface CheckoutEvent extends MatomoEventBase {
     | 'cancel'            // cancelled a subscription (value = effectiveFrom)
     | 'reactivate'        // un-cancelled a pending cancellation
     | 'desktop_handoff'   // redirected to the web IDE because Paddle can't run in Electron
+    | 'signup_to_buy'     // signed-out visitor clicked "Sign up & get <plan>" (name = plan slug)
+    | 'confirmed_async'   // payment confirmed by webhook before Paddle.js emitted completed (value = method)
+    | 'confirmed_after_close' // payment completed after the checkout was closed mid-payment (value = method)
+    | 'leave_prompt' // asked before leaving a checkout with a payment in flight (value = stay|leave)
+    | 'awaiting_approval' // payment stuck waiting on the user ~45s after initiation (value = method)
+    | 'decline_reason'    // payment declined; value = Paddle error_code
+    | 'region_blocked'    // Paddle refused to price for the visitor's location (value = country)
+    | 'signup_free' // signed-out visitor clicked "Start free" on the free card
+    | 'free_welcome' // post-sign-up top-up welcome shown (name = new|returning)
+    | 'topup_upgrade' // upgrade CTA on the top-up screen (name = plan slug, value = welcome|topup)
     // low-cost-models hand-off after a starter-pack purchase (name = armed|announced)
-    | 'cheap_models';
+    | 'cheap_models'
+    // Other (unlinked) accounts share the user's email — duplicate-purchase guard
+    | 'same_email_detected' // overview loaded with other accounts (name = with_value|no_value, value = other account count)
+    | 'same_email_banner' // Plan & Credits banner shown (name = with_value|no_value, value = other account count)
+    | 'same_email_expand' // banner "Show accounts" clicked (value = other account count)
+    | 'same_email_modal' // one-time post-login modal shown (value = accounts holding credits/subscription)
+    | 'same_email_support'; // support link clicked (name = banner|modal)
 }

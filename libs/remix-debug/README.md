@@ -5,7 +5,7 @@
 [![GitHub](https://img.shields.io/github/license/mashape/apistatus.svg)](https://github.com/remix-project-org/remix-project/tree/master/libs/remix-debug)
 [![contributions welcome](https://img.shields.io/badge/contributions-welcome-brightgreen.svg?style=flat)](https://github.com/remix-project-org/remix-project/issues)
 
-`@remix-project/remix-debug` is a tool to debug Ethereum transactions on different Remix environments (VM, testnet etc.). It works underneath Remix IDE "DEBUGGER" plugin which is used to analyse step-to-step execution of a transaction to debug it.
+`@remix-project/remix-debug` is a tool to debug Ethereum transactions on different Remix environments (VM, testnet etc.). It works underneath Remix Web3 "DEBUGGER" plugin which is used to analyse step-to-step execution of a transaction to debug it.
 
 ### Installation
 `@remix-project/remix-debug` is an NPM package and can be installed using NPM as:

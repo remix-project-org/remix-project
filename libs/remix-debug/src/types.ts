@@ -58,6 +58,10 @@ export interface StructLog {
  * The full result object for the default debug_traceTransaction tracer.
  */
 export interface DebugTraceTransactionResult {
+  /** Fork supplied by the local Monad VM. */
+  fork?: string;
+  /** Runtime code retained with a local Monad execution. */
+  codeByAddress?: Record<string, string>;
   /** True if the transaction execution failed (reverted). */
   failed: boolean;
   /** The total gas consumed by the transaction (hex-encoded). */

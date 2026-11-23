@@ -1,44 +1,11 @@
 
-import React, { useState, useEffect, forwardRef, ReactNode } from 'react'
-import { Button, Dropdown, Form } from 'react-bootstrap'
+import React, { useState, useEffect } from 'react'
+import { Button, Form } from 'react-bootstrap'
 import { useAppDispatch, useAppSelector } from '../../redux/hooks'
-import { CustomTooltip } from "@remix-ui/helper"
+import { CustomTooltip, Select } from "@remix-ui/helper"
 import { trackMatomoEvent } from '@remix-api'
 import remixClient from '../../remix-client'
 import './index.css'
-
-interface CustomToggleProps {
-  children?: ReactNode
-  onClick?: (e: React.MouseEvent<HTMLButtonElement>) => void
-}
-
-const CustomToggle = forwardRef<HTMLButtonElement, { children?: ReactNode, onClick: (e: React.MouseEvent<HTMLButtonElement>) => void }>(
-  ({ children, onClick }, ref) => (
-    <button
-      ref={ref}
-      onClick={(e) => { e.preventDefault(); onClick(e) }}
-      className="btn btn-secondary d-flex justify-content-between align-items-center w-100"
-    >
-      <span>{children}</span>
-      <i className="fas fa-caret-down"></i>
-    </button>
-  )
-)
-CustomToggle.displayName = 'CustomToggle'
-
-const CustomMenu = forwardRef<HTMLDivElement, { children?: ReactNode, className?: string }>(
-  ({ children, className }, ref) => {
-    return (
-      <div  
-        ref={ref} 
-        className={className} 
-      >
-        {children}
-      </div>
-    );
-  }
-);
-CustomMenu.displayName = 'CustomMenu'
 
 function RepoImporter({ list, selectedRepo }: any): JSX.Element {
   const [open, setOpen] = useState(false)
@@ -90,24 +57,17 @@ function RepoImporter({ list, selectedRepo }: any): JSX.Element {
           <div>
             <h6 className="mb-2 panel-title">Tutorial import</h6>
             <div className="bg-light border rounded p-3">
-              <Dropdown className="w-100">
-                <Dropdown.Toggle as={CustomToggle} id="dropdown-custom-toggle">
-                  Select a repo
-                </Dropdown.Toggle>
-                <Dropdown.Menu className="w-100">
-                  {list.map((item: any) => (
-                    <Dropdown.Item
-                      key={`${item.name}/${item.branch}`}
-                      onClick={() => {
-                        selectRepo(item)
-                      }}
-                      title={`${item.name}-${item.branch}`}
-                    >
-                      {item.name}-{item.branch}
-                    </Dropdown.Item>
-                  ))}
-                </Dropdown.Menu>
-              </Dropdown>
+              <Select
+                id="dropdown-custom-toggle"
+                value=""
+                placeholder="Select a repo"
+                options={list.map((item: any) => ({
+                  value: `${item.name}/${item.branch}`,
+                  label: `${item.name}-${item.branch}`,
+                  itemProps: { title: `${item.name}-${item.branch}` }
+                }))}
+                onChange={(value) => selectRepo(list.find((item: any) => `${item.name}/${item.branch}` === value))}
+              />
 
               <div className="d-flex align-items-center my-1">
                 <hr className="w-100 hr-themed" />

@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import { Form, Modal } from 'react-bootstrap'
-import { shortenAddress } from '@remix-ui/helper'
+import { Select, shortenAddress } from '@remix-ui/helper'
 
 export interface QuickDappContractCandidate {
   address: string
@@ -220,26 +220,24 @@ export function QuickDappContractSelector({
         {primarySelectable ? (
           <Form.Group className="mb-3">
             <div className="d-flex align-items-center justify-content-between gap-2 mb-1">
-              <Form.Label className="fw-semibold mb-0">Primary contract</Form.Label>
+              <Form.Label htmlFor="quickDappPrimaryContractSelect" className="fw-semibold mb-0">Primary contract</Form.Label>
               {selectedAddresses.length > 0 && (
                 <span className="small text-secondary">+{selectedAddresses.length} more</span>
               )}
             </div>
-            <Form.Select
+            <Select
+              id="quickDappPrimaryContractSelect"
               value={primaryAddress}
-              onChange={(event) => handlePrimaryChange(event.target.value)}
-              data-id="quickDappPrimaryContractSelect"
-            >
-              {allContracts.map((contract) => {
+              onChange={handlePrimaryChange}
+              options={allContracts.map((contract) => {
                 const key = contractKey(contract)
                 const matchesCurrentFile = matchingContractAddresses.includes(key)
-                return (
-                  <option key={key} value={key}>
-                    {contract.name} · {shortenAddress(contract.address)}{matchesCurrentFile ? ' · Current file' : ''}
-                  </option>
-                )
+                return {
+                  value: key,
+                  label: `${contract.name} · ${shortenAddress(contract.address)}${matchesCurrentFile ? ' · Current file' : ''}`
+                }
               })}
-            </Form.Select>
+            />
             <Form.Text className="text-secondary">
               Used as the default contract context for AI generation and compatibility.
             </Form.Text>
@@ -322,15 +320,16 @@ export function QuickDappContractSelector({
               {fixedFrontendMode === 'inline' ? 'Inline · /frontend in the current workspace' : 'Workspace · new dedicated workspace'}
             </div>
           ) : (
-            <Form.Select
+            <Select
+              id="quickDappLocation"
               value={frontendMode}
-              onChange={(event) => setFrontendMode(event.target.value as 'inline' | 'workspace')}
-              aria-label="Frontend location"
-              data-id="quickDappLocation"
-            >
-              <option value="workspace">Workspace · new dedicated workspace</option>
-              <option value="inline">Inline · /frontend in the current workspace</option>
-            </Form.Select>
+              onChange={(value) => setFrontendMode(value as 'inline' | 'workspace')}
+              ariaLabel="Frontend location"
+              options={[
+                { value: 'workspace', label: 'Workspace · new dedicated workspace' },
+                { value: 'inline', label: 'Inline · /frontend in the current workspace' }
+              ]}
+            />
           )}
           <Form.Text className="text-secondary">
             {effectiveFrontendMode === 'inline'

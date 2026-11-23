@@ -1,6 +1,6 @@
 {
   "home.scamAlert": "Scam Alert",
-  "home.scamAlertText": "The only URL Remix uses is remix.ethereum.org",
+  "home.scamAlertText": "The only URLs Remix uses are remix.ethereum.org and app.remix.live",
   "home.scamAlertText2": "Beware of online videos promoting \"liquidity front runner bots\"",
   "home.scamAlertText3": "Additional safety tips",
   "home.learnMore": "Learn more",

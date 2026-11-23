@@ -2,7 +2,7 @@
 [![npm version](https://badge.fury.io/js/%40remix-project%2Fremix-ws-templates.svg)](https://www.npmjs.com/package/@remix-project/remix-ws-templates)
 
 
-`@remix-project/remix-ws-templates` is used to create a workspace using different templates on Remix IDE.
+`@remix-project/remix-ws-templates` is used to create a workspace using different templates on Remix Web3.
 
 ### Installation
 

@@ -52,7 +52,7 @@
   "settings.ipfs-port": "PORT",
   "settings.ipfs-project-id": "PROJECT ID",
   "settings.ipfs-project-secret": "PROJECT SECRET",
-  "settings.analyticsInRemix": "Analytics in Remix IDE",
+  "settings.analyticsInRemix": "Analytics in Remix Web3",
   "settings.enableSaveEnvState": "Save environment state",
   "settings.generalSettings": "General Settings",
   "settings.account": "Account & Authentication",

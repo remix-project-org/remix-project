@@ -1,4 +1,5 @@
 import { Provider } from '@remix-project/remix-simulator'
+import { MonadProvider, isMonadSpec } from '@remix-project/remix-monad'
 
 const rpcError = (error) => error ? {
   message: error.message || String(error),
@@ -6,13 +7,15 @@ const rpcError = (error) => error ? {
   data: error.data
 } : null
 
-let provider: Provider = null
+let provider: Provider | MonadProvider = null
 self.onmessage = (e: MessageEvent) => {
   const data = e.data
   switch (data.cmd) {
   case 'init':
   {
-    provider = new Provider({ baseBlockNumber: data.baseBlockNumer, fork: data.fork, nodeUrl: data.nodeUrl, blockNumber: data.blockNumber, stateDb: data.stateDb, blocks: data.blocks })
+    provider = isMonadSpec(data.fork)
+      ? new MonadProvider({ fork: data.fork, stateDb: data.stateDb })
+      : new Provider({ baseBlockNumber: data.baseBlockNumer, fork: data.fork, nodeUrl: data.nodeUrl, blockNumber: data.blockNumber, stateDb: data.stateDb, blocks: data.blocks })
     provider.init().then(() => {
       self.postMessage({
         cmd: 'initiateResult',

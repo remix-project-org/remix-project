@@ -17,8 +17,7 @@ function openTemplatesExplorer(browser: NightwatchBrowser) {
 
 const tests = {
   before: function (browser: NightwatchBrowser, done: VoidFunction) {
-    browser.hideToolTips()
-    done()
+    browser.hideToolTips().perform(() => done())
   },
   'open default template': function (browser: NightwatchBrowser) {
     browser
@@ -48,6 +47,7 @@ const tests = {
   },
   'connect to Wallet': function (browser: NightwatchBrowser) {
     browser
+      .hideToolTips()
       .clickLaunchIcon('udapp')
       .switchEnvironment('desktopHost') // close the dropdown
       /*

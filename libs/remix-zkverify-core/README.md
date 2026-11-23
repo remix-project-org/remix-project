@@ -1,6 +1,6 @@
 # @remix-project/remix-zkverify-core
 
-Core library for zkVerify (Kurier) integration in Remix IDE. Provides ZK proof verification services through the zkVerify network.
+Core library for zkVerify (Kurier) integration in Remix Web3. Provides ZK proof verification services through the zkVerify network.
 
 ## Features
 

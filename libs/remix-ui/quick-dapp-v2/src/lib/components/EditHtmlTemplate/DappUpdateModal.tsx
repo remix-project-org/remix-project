@@ -5,6 +5,7 @@ import {
   getQuickDappContracts,
   isQuickDappRemixVMIdentifier,
   normalizeQuickDappEnvironment,
+  Select,
   shortenAddress
 } from '@remix-ui/helper';
 import type { DappConfig } from '../../types';
@@ -262,41 +263,37 @@ export default function DappUpdateModal({
 
         {updateKind === 'replace' && (
           <Form.Group className="mb-3">
-            <Form.Label>Contract to replace</Form.Label>
-            <Form.Select
+            <Form.Label htmlFor="quickDappReplaceContract">Contract to replace</Form.Label>
+            <Select
+              id="quickDappReplaceContract"
               value={replaceContractId}
-              onChange={(event) => setReplaceContractId(event.target.value)}
-              data-id="quickDappReplaceContract"
-            >
-              {bindings.map((binding) => (
-                <option key={binding.id} value={binding.id}>
-                  {binding.alias}{binding.id === primary?.id ? ' (primary)' : ''} · {shortenAddress(binding.address)}
-                </option>
-              ))}
-            </Form.Select>
+              onChange={setReplaceContractId}
+              options={bindings.map((binding) => ({
+                value: binding.id,
+                label: `${binding.alias}${binding.id === primary?.id ? ' (primary)' : ''} · ${shortenAddress(binding.address)}`
+              }))}
+            />
           </Form.Group>
         )}
 
         {updateKind !== 'source' && (
           <Form.Group>
-            <Form.Label>{updateKind === 'add' ? 'Contract to add' : 'Replacement contract'}</Form.Label>
+            <Form.Label htmlFor="quickDappUpdateCandidate">{updateKind === 'add' ? 'Contract to add' : 'Replacement contract'}</Form.Label>
             {loadingCandidates ? (
               <div className="d-flex align-items-center gap-2 text-secondary small py-2">
                 <Spinner animation="border" size="sm" /> Loading deployed contracts...
               </div>
             ) : (
-              <Form.Select
+              <Select
+                id="quickDappUpdateCandidate"
                 value={candidateAddress}
-                onChange={(event) => setCandidateAddress(event.target.value)}
-                data-id="quickDappUpdateCandidate"
-              >
-                <option value="">Select a deployed contract</option>
-                {availableCandidates.map((candidate) => (
-                  <option key={candidateKey(candidate)} value={candidateKey(candidate)}>
-                    {candidate.name || 'Contract'} · {shortenAddress(candidate.address)}
-                  </option>
-                ))}
-              </Form.Select>
+                onChange={setCandidateAddress}
+                placeholder="Select a deployed contract"
+                options={availableCandidates.map((candidate) => ({
+                  value: candidateKey(candidate),
+                  label: `${candidate.name || 'Contract'} · ${shortenAddress(candidate.address)}`
+                }))}
+              />
             )}
             {!loadingCandidates && availableCandidates.length === 0 && (
               <div className="small text-secondary mt-2">

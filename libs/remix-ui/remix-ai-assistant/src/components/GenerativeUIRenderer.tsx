@@ -1,5 +1,6 @@
-import React, { useState } from 'react'
+import React, { useId, useState } from 'react'
 import { GenerativeUIPayload } from '@remix/remix-ai-core'
+import { Select } from '@remix-ui/helper'
 
 // ─── Error Boundary ───────────────────────────────────────────────────────────
 
@@ -95,6 +96,41 @@ function FormWrapper({ node, onAction, depth }: { node: FormNode; onAction: (act
   )
 }
 
+// ─── Select field — the shared Select keeps its value here ────────────────────
+
+function SelectField({ node, onChange }: { node: SelectNode; onChange?: (name: string, value: any) => void }) {
+  const [value, setValue] = useState('')
+  // several forms can be on screen with the same field names
+  const id = `genui-select-${node.name}-${useId().replace(/:/g, '')}`
+  return (
+    <div className="mb-1 position-relative">
+      <label htmlFor={id} className="form-label small mb-1">{node.label}{node.required && <span className="text-danger ms-1">*</span>}</label>
+      <Select
+        id={id}
+        value={value}
+        options={(node.options ?? []).map(opt => ({
+          value: optValue(opt),
+          label: optLabel(opt)
+        }))}
+        onChange={v => { setValue(v); onChange?.(node.name, v) }}
+        placeholder="Select…"
+      />
+      {/* Select is a button: this hidden field keeps the native required check that blocks the submit */}
+      {node.required && (
+        <input
+          tabIndex={-1}
+          aria-hidden="true"
+          required
+          value={value}
+          onChange={() => {}}
+          className="position-absolute bottom-0 start-0 w-100 opacity-0"
+          style={{ height: 1, padding: 0, border: 0, pointerEvents: 'none' }}
+        />
+      )}
+    </div>
+  )
+}
+
 // ─── Recursive node renderer ──────────────────────────────────────────────────
 
 function RenderNode({
@@ -118,7 +154,7 @@ function RenderNode({
     const { content, variant = 'body' } = node
     if (variant === 'heading') return <h6 className="fw-semibold mb-1">{content}</h6>
     if (variant === 'caption') return <small className="text-muted">{content}</small>
-    if (variant === 'code') return <code className="ai-inline-code">{content}</code>
+    if (variant === 'code') return <code>{content}</code>
     return <p className="mb-0">{content}</p>
   }
 
@@ -136,8 +172,8 @@ function RenderNode({
 
   case 'card': {
     return (
-      <div className="card border rounded p-2">
-        {node.title && <div className="fw-semibold mb-1 small text-uppercase text-muted">{node.title}</div>}
+      <div className="ai-ui-section">
+        {node.title && <div className="ai-ui-title">{node.title}</div>}
         <div className="d-flex flex-column gap-2">
           {(node.children ?? []).map((c, i) => (
             <RenderNode key={i} node={c as UINode} onAction={onAction} onChange={onChange} depth={depth + 1} />
@@ -177,22 +213,7 @@ function RenderNode({
   }
 
   case 'select': {
-    return (
-      <div className="mb-1">
-        <label className="form-label small mb-1">{node.label}{node.required && <span className="text-danger ms-1">*</span>}</label>
-        <select
-          className="form-select form-select-sm"
-          required={node.required}
-          onChange={e => onChange?.(node.name, e.target.value)}
-          defaultValue=""
-        >
-          <option value="" disabled>Select…</option>
-          {(node.options ?? []).map(opt => (
-            <option key={optValue(opt)} value={optValue(opt)}>{optLabel(opt)}</option>
-          ))}
-        </select>
-      </div>
-    )
+    return <SelectField node={node} onChange={onChange} />
   }
 
   case 'radio_group': {
@@ -365,9 +386,9 @@ export const GenerativeUIRenderer: React.FC<GenerativeUIRendererProps> = ({ payl
 
   return (
     <GenerativeUIErrorBoundary>
-      <div className="generative-ui-component mt-2 p-2 rounded" style={{ border: '1px solid var(--bs-border-color)' }}>
+      <div className="generative-ui-component ai-ui-card">
         {payload.title && (
-          <div className="fw-semibold small mb-2 text-ai">{payload.title}</div>
+          <div className="ai-ui-title">{payload.title}</div>
         )}
         {hasSubmitPath(node) || !hasInputs(node)
           ? <RenderNode node={node} onAction={onAction} depth={0} />

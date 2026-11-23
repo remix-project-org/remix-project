@@ -1,7 +1,7 @@
 import { remixAILogger } from '../../helpers/logger'
 import { Plugin } from '@remixproject/engine'
 import EventEmitter from 'events'
-import { AIFileChange, ToolApprovalRequest, ToolApprovalResponse } from '../../types/humanInTheLoop'
+import { AIFileChange, ToolApprovalRequest, ToolApprovalResponse, APPROVAL_CANCELLED_REASON } from '../../types/humanInTheLoop'
 import {
   getActiveQuickDappGenerationContext,
   getQuickDappGenerationContext
@@ -123,7 +123,7 @@ export class RemixFilesystemBackend {
   private plugin: Plugin
   private workspaceRoot: string = '/'
   private eventEmitter: EventEmitter | null = null
-  private pendingApprovals = new Map<string, (result: { approved: boolean; modifiedContent?: string; timedOut?: boolean }) => void>()
+  private pendingApprovals = new Map<string, (result: { approved: boolean; modifiedContent?: string; cancelled?: boolean }) => void>()
 
   private editBatches = new Map<string, {
     originalContent: string
@@ -141,8 +141,7 @@ export class RemixFilesystemBackend {
         if (resolve) {
           resolve({
             approved: response.approved,
-            modifiedContent: response.modifiedArgs?.content,
-            timedOut: response.timedOut
+            modifiedContent: response.modifiedArgs?.content
           })
           this.pendingApprovals.delete(response.requestId)
         } else {
@@ -253,7 +252,7 @@ export class RemixFilesystemBackend {
     const result = await this.requestWriteApproval(filePath, batch.originalContent, batch.virtualContent, 'edit_file')
 
     if (!result.approved) {
-      if (!result.timedOut) this.emitRejectedChange(filePath, batch.originalContent, batch.virtualContent, true)
+      if (!result.cancelled) this.emitRejectedChange(filePath, batch.originalContent, batch.virtualContent, true)
 
       // Revert: the file still has original content (we never wrote during batching)
       return
@@ -268,23 +267,29 @@ export class RemixFilesystemBackend {
     await this.writeFileInternal(filePath, finalContent, batch.originalContent, true)
   }
 
+  public hasPendingApprovals(): boolean {
+    return this.pendingApprovals.size > 0
+  }
+
   /**
-   * Settle every write approval still waiting on the user as "rejected" and
-   * drop any unflushed edit batch.
+   * Settle every write approval still waiting on the user as cancelled and
+   * drop any unflushed edit batch. Returns the cancelled request ids.
    */
-  public cancelPendingApprovals(): void {
+  public cancelPendingApprovals(): string[] {
+    const requestIds = Array.from(this.pendingApprovals.keys())
     const pending = Array.from(this.pendingApprovals.values())
     this.pendingApprovals.clear()
     this.editBatches.clear()
-    if (pending.length === 0) return
+    if (pending.length === 0) return []
     remixAILogger.log('[RemixFilesystemBackend] cancelling pending write approvals:', pending.length)
     for (const resolve of pending) {
       try {
-        resolve({ approved: false })
+        resolve({ approved: false, cancelled: true })
       } catch (e) {
         remixAILogger.warn('[RemixFilesystemBackend] failed to settle pending approval', e)
       }
     }
+    return requestIds
   }
 
   public async flushAllPendingBatches(): Promise<void> {
@@ -436,10 +441,10 @@ export class RemixFilesystemBackend {
       const result = await this.requestWriteApproval(normalizedPath, oldContent, content, 'write_file')
 
       if (!result.approved) {
-        if (!result.timedOut) this.emitRejectedChange(normalizedPath, oldContent, content, exists)
+        if (!result.cancelled) this.emitRejectedChange(normalizedPath, oldContent, content, exists)
         if (isQuickDappDocsWrite) clearQuickDappDocsContext()
-        if (result.timedOut) {
-          return { error: `TIMEOUT: No user input within 60 seconds for writing to ${path}. The user did not respond to the approval request. You may decide what to do next — retry, try a different approach, or skip this operation.` }
+        if (result.cancelled) {
+          return { error: `${APPROVAL_CANCELLED_REASON} (write to ${path})` }
         }
         return { error: `REJECTED: The user explicitly rejected writing to ${path}. Do NOT retry this operation or use alternative tools/methods to write this file. Inform the user and move on.` }
       }
@@ -531,9 +536,9 @@ export class RemixFilesystemBackend {
 
       const result = await this.requestWriteApproval(normalizedPath, originalContent, content, 'edit_file')
       if (!result.approved) {
-        if (!result.timedOut) this.emitRejectedChange(normalizedPath, originalContent, content, true)
-        if (result.timedOut) {
-          return { error: `TIMEOUT: No user input within 60 seconds for editing ${path}. The user did not respond to the approval request. You may decide what to do next — retry, try a different approach, or skip this operation.` }
+        if (!result.cancelled) this.emitRejectedChange(normalizedPath, originalContent, content, true)
+        if (result.cancelled) {
+          return { error: `${APPROVAL_CANCELLED_REASON} (edit of ${path})` }
         }
         return { error: `REJECTED: The user explicitly rejected editing ${path}. Do NOT retry this operation or use alternative tools/methods to edit this file. Inform the user and move on.` }
       }
@@ -927,7 +932,7 @@ export class RemixFilesystemBackend {
     oldContent: string,
     newContent: string,
     toolName: string = 'write_file'
-  ): Promise<{ approved: boolean; modifiedContent?: string; timedOut?: boolean }> {
+  ): Promise<{ approved: boolean; modifiedContent?: string; cancelled?: boolean }> {
     if (!this.eventEmitter) {
 
       return { approved: true }
@@ -947,7 +952,7 @@ export class RemixFilesystemBackend {
       timestamp: Date.now()
     }
 
-    return new Promise<{ approved: boolean; modifiedContent?: string; timedOut?: boolean }>((resolve) => {
+    return new Promise<{ approved: boolean; modifiedContent?: string; cancelled?: boolean }>((resolve) => {
       this.pendingApprovals.set(requestId, resolve)
       this.eventEmitter.emit('onToolApprovalRequired', request)
     })

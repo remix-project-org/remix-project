@@ -57,6 +57,9 @@ declare module 'nightwatch' {
     hideMetaMaskPopup(): NightwatchBrowser
     signMessage(msg: string, callback: (hash: {value: string}, signature: {value: string}) => void): NightwatchBrowser
     setSolidityCompilerVersion(version: string): NightwatchBrowser
+    setEvmVersion(version: string): NightwatchBrowser
+    setCompilerLanguage(language: 'Solidity' | 'Yul'): NightwatchBrowser
+    selectContractWizardType(type: string): NightwatchBrowser
     clickElementAtPosition(cssSelector: string, index: number, opt?: {forceSelectIfUnselected: boolean}): NightwatchBrowser
     notContainsText(cssSelector: string, text: string): NightwatchBrowser
     sendLowLevelTx(index: number, value: string, callData: string): NightwatchBrowser

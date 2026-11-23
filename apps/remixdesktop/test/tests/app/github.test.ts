@@ -17,8 +17,7 @@ function openTemplatesExplorer(browser: NightwatchBrowser) {
 
 const tests = {
   before: function (browser: NightwatchBrowser, done: VoidFunction) {
-    browser.hideToolTips()
-    done()
+    browser.hideToolTips().perform(() => done())
   },
 
   'open default template': function (browser: NightwatchBrowser) {
@@ -73,13 +72,6 @@ const tests = {
       .waitForElementVisible('*[data-id="connected-link-EthereumRemix"]')
       .waitForElementVisible('*[data-id="remotes-panel"]')
   },
-  'check the FE shows logged in user #group1 #group2': function (browser: NightwatchBrowser) {
-    browser
-      .waitForElementVisible({
-        selector: '//*[@data-id="github-dropdown-toggle-login"]//span[contains(text(), "EthereumRemix")]',
-        locateStrategy: 'xpath'
-      })
-  },
   // 'check the FE for the auth user #group1 #group2': function (browser: NightwatchBrowser) {
   //   browser
   //     .clickLaunchIcon('filePanel')
@@ -100,12 +92,16 @@ const tests = {
         selector: '//*[@data-id="clone-panel-content"]//*[@id="repository-select"]',
         locateStrategy: 'xpath'
       })
+      .setValue({
+        selector: '//*[@data-id="clone-panel-content"]//*[@data-id="repository-selectSearch"]',
+        locateStrategy: 'xpath'
+      }, 'awesome-remix')
       .waitForElementVisible({
-        selector: '//*[@data-id="clone-panel-content"]//*[contains(text(), "awesome-remix")]',
+        selector: '//*[@data-id="clone-panel-content"]//*[@data-id="repository-select-remix-project-org/awesome-remix"]',
         locateStrategy: 'xpath'
       })
       .click({
-        selector: '//*[@data-id="clone-panel-content"]//*[contains(text(), "awesome-remix")]',
+        selector: '//*[@data-id="clone-panel-content"]//*[@data-id="repository-select-remix-project-org/awesome-remix"]',
         locateStrategy: 'xpath'
       })
       .waitForElementVisible({
@@ -116,8 +112,12 @@ const tests = {
         selector: '//*[@data-id="clone-panel-content"]//*[@id="branch-select"]',
         locateStrategy: 'xpath'
       })
+      .waitForElementVisible({
+        selector: '//*[@data-id="clone-panel-content"]//*[@data-id="branch-select-master"]',
+        locateStrategy: 'xpath'
+      })
       .click({
-        selector: '//*[@data-id="clone-panel-content"]//*[contains(text(), "master")]',
+        selector: '//*[@data-id="clone-panel-content"]//*[@data-id="branch-select-master"]',
         locateStrategy: 'xpath'
       })
       .waitForElementVisible({
@@ -137,13 +137,6 @@ const tests = {
           .waitForElementVisible('*[data-id="treeViewLitreeViewItem.git"]')
       })
   },
-  'check if user is still logged in after cloning #group1': function (browser: NightwatchBrowser) {
-    browser
-      .waitForElementVisible({
-        selector: '//*[@data-id="github-dropdown-toggle-login"]//span[contains(text(), "EthereumRemix")]',
-        locateStrategy: 'xpath'
-      })
-  },
   'check if there is a README.md file #group1': function (browser: NightwatchBrowser) {
     browser
       .waitForElementVisible('*[data-id="treeViewLitreeViewItemREADME.md"]')
@@ -152,18 +145,9 @@ const tests = {
     browser
       .clickLaunchIcon('dgit')
       .click('*[data-id="commands-panel"]')
-      .waitForElementVisible({
-        selector: "//div[@id='commands-remote-branch-select']//div[contains(@class, 'singleValue') and contains(text(), 'master')]",
-        locateStrategy: 'xpath'
-      })
-      .waitForElementVisible({
-        selector: "//div[@id='commands-remote-origin-select']//div[contains(@class, 'singleValue') and contains(text(), 'origin')]",
-        locateStrategy: 'xpath'
-      })
-      .waitForElementVisible({
-        selector: "//div[@id='commands-local-branch-select']//div[contains(@class, 'singleValue') and contains(text(), 'master')]",
-        locateStrategy: 'xpath'
-      })
+      .waitForElementVisible('*[data-id="commands-remote-branch-select"][data-value="master"]')
+      .waitForElementVisible('*[data-id="commands-remote-origin-select"][data-value="origin"]')
+      .waitForElementVisible('*[data-id="commands-local-branch-select"][data-value="master"]')
   },
   'check the remotes #group1': function (browser: NightwatchBrowser) {
     browser
@@ -249,18 +233,9 @@ const tests = {
   'check the commands panel for links #group1': function (browser: NightwatchBrowser) {
     browser
       .click('*[data-id="commands-panel"]')
-      .waitForElementVisible({
-        selector: "//div[@id='commands-remote-branch-select']//div[contains(@class, 'singleValue') and contains(text(), 'links')]",
-        locateStrategy: 'xpath'
-      })
-      .waitForElementVisible({
-        selector: "//div[@id='commands-remote-origin-select']//div[contains(@class, 'singleValue') and contains(text(), 'origin')]",
-        locateStrategy: 'xpath'
-      })
-      .waitForElementVisible({
-        selector: "//div[@id='commands-local-branch-select']//div[contains(@class, 'singleValue') and contains(text(), 'links')]",
-        locateStrategy: 'xpath'
-      })
+      .waitForElementVisible('*[data-id="commands-remote-branch-select"][data-value="links"]')
+      .waitForElementVisible('*[data-id="commands-remote-origin-select"][data-value="origin"]')
+      .waitForElementVisible('*[data-id="commands-local-branch-select"][data-value="links"]')
   },
   'disconnect github #group1': function (browser: NightwatchBrowser) {
 

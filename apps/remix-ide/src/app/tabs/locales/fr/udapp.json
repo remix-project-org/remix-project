@@ -126,7 +126,7 @@
   "udapp.customVmForkProviderText": "Veuillez fournir des informations sur le fork personnalisé. Si l'URL du nœud n'est pas fournie, la VM commencera par un état vide.",
   "udapp.nodeUrl": "URL du noeud",
   "udapp.blockNumber": "Numéro de Block (ou \"latest\")",
-  "udapp.externalHttpProviderText1": "Remarque : Pour utiliser Geth & https://remix.ethereum.org, configurez-le pour autoriser les requêtes de Remix:(voir <a>Geth Docs on rpc server</a>)",
+  "udapp.externalHttpProviderText1": "Remarque : Pour utiliser Geth & https://app.remix.live, configurez-le pour autoriser les requêtes de Remix:(voir <a>Geth Docs on rpc server</a>)",
   "udapp.externalHttpProviderText2": "Pour exécuter Remix & un nœud de test local Geth, utilisez cette commande : (voir <a>Geth Docs on Dev mode</a>)",
   "udapp.externalHttpProviderText3": "<b> WARNING :</b> Il n'est pas sûr d'utiliser le flag --http.corsdomain avec une wildcard : <b>--http.corsdomain *</b>",
   "udapp.externalHttpProviderText4": "Pour plus d'informations: <a>Remix Docs on External HTTP Provider</a>",

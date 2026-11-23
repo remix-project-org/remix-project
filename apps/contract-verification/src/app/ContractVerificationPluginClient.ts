@@ -297,6 +297,20 @@ export class ContractVerificationPluginClient extends PluginClient {
     }
   }
 
+  /** Tells other plugins (Pre-deploy Checks) where a submission stands, each time one of its receipts gets a final status. */
+  notifyVerification(contract: SubmittedContract): void {
+    const unfinished = ['pending', 'awaiting implementation verification']
+    this.emit('verificationFinished', {
+      id: contract.id,
+      filePath: contract.filePath,
+      contractName: contract.contractName,
+      chainId: contract.chainId,
+      address: contract.address,
+      receipts: contract.receipts.map((r) => ({ verifier: r.verifierInfo.name, status: r.status, message: r.message, lookupUrl: r.lookupUrl })),
+      done: contract.receipts.every((r) => !unfinished.includes(r.status))
+    })
+  }
+
   async isVerificationSupportedForChain(chainId: string): Promise<boolean> {
     try {
       const userSettings = this.getUserSettingsFromLocalStorage()

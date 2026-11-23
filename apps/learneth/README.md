@@ -25,7 +25,7 @@ Your app is ready to be deployed!
 When testing with localhost you should use the HTTP version of either REMIX or REMIX ALPHA. Click on the plugin manager icon and
 add the plugin 'Connect to a local plugin'. Your plugin will be at http://localhost:2024/.
 
-## Setting up the REMIX IDE for working with the plugin
+## Setting up the Remix Web3 for working with the plugin
 
 The plugin only works when a compiler environment is loaded as well, for example on the home screen of the IDE you select 'Solidity' or 'Vyper'. Without this the plugin
 cannot compile and test files in the workshops.
@@ -112,7 +112,7 @@ tags:
     - solidity
 ```
 
-### How to call these functions in the REMIX IDE
+### How to call these functions in the Remix Web3
 
 ```
 (function ()  {

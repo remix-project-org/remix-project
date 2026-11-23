@@ -12,6 +12,9 @@ import { CompilerEvent, SolidityCompilerEvent } from '@remix-api'
 
 import './css/style.css'
 import { CustomTooltip, SolScanTable } from '@remix-ui/helper'
+import { MoreMenu } from './components/more-menu'
+import { ContractPicker } from './components/contract-picker'
+import { CopyLink } from './components/copy-link'
 
 export const ContractSelection = (props: ContractSelectionProps) => {
   const { api, compiledFileName, contractsDetails, contractList, compilerInput, modal } = props
@@ -245,18 +248,13 @@ export const ContractSelection = (props: ContractSelectionProps) => {
   }
 
   const copyBytecode = () => {
-    const bytecodeObj = JSON.parse(copyContractProperty('bytecode'))
-    return bytecodeObj.object
+    const bytecode = copyContractProperty('bytecode')
+    return bytecode && JSON.parse(bytecode).object
   }
 
-  const runStaticAnalysis = async () => {
-    trackMatomoEvent({ category: 'solidityCompiler', action: 'runStaticAnalysis', name: 'initiate', isClick: false })
-    const plugin = api as any
-    const isStaticAnalyzersActive = await plugin.call('manager', 'isActive', 'solidityStaticAnalysis')
-    if (!isStaticAnalyzersActive) {
-      await plugin.call('manager', 'activatePlugin', 'solidityStaticAnalysis')
-    }
-    plugin.call('menuicons', 'select', 'solidityStaticAnalysis')
+  const openPreDeployChecks = () => {
+    trackMatomoEvent({ category: 'solidityCompiler', action: 'openPreDeployChecks', isClick: true })
+    ;(api as any).call('preDeployChecks', 'open', props.compiledFileName)
   }
 
   const handleScanContinue = async () => {
@@ -269,144 +267,52 @@ export const ContractSelection = (props: ContractSelectionProps) => {
   }
 
   return (
-    // define swarm logo
     <>
       {contractList.length ? (
-        <section className="px-4 pt-3">
-          {/* Select Compiler Version */}
-          <div className="mb-3">
-            <label className="remixui_compilerLabel form-check-label" htmlFor="compiledContracts">
-              <FormattedMessage id="solidity.contract" />
-            </label>
-            <select onChange={(e) => handleContractChange(e.target.value)} value={selectedContract} data-id="compiledContracts" id="compiledContracts" className="form-select">
-              {contractList.map(({ name, file }, index) => (
-                <option value={name} key={index}>
-                  {name} ({file})
-                </option>
-              ))}
-            </select>
+        <section className="sc-section sc-bordered" data-id="compilerContractSection">
+          <div className="sc-label-row">
+            <label className="sc-label" htmlFor="compiledContracts"><FormattedMessage id="solidity.contract" /></label>
+            <MoreMenu
+              label={intl.formatMessage({ id: 'solidity.moreContractActions' })}
+              dataId="contractMoreMenu"
+              items={[
+                { icon: 'fas fa-cube', text: <FormattedMessage id="solidity.publishMetadataToIpfs" />, id: 'publishOnIpfs', onClick: () => handlePublishToStorage('ipfs') },
+                { icon: 'fas fa-cubes', text: <FormattedMessage id="solidity.publishMetadataToSwarm" />, id: 'publishOnSwarm', onClick: () => handlePublishToStorage('swarm') }
+              ]}
+            />
           </div>
-          <article className="mt-2 pb-0 d-grid gap-2">
-            <CustomTooltip
-              placement={'auto-end'}
-              tooltipId="runStaticAnalysisTooltip"
-              tooltipClasses="text-nowrap"
-              tooltipText={`${intl.formatMessage({
-                id: 'solidity.runStaticAnalysis.iconTooltip'
-              })}`}
-            >
-              <button
-                id="runStaticAnalysis"
-                className="btn border"
-                onClick={() => {
-                  runStaticAnalysis()
-                }}
-              >
-                <span>
-                  <img id="ssaLogo" className="remixui_storageLogo me-2" src="assets/img/staticAnalysisColorBlue.webp" />
-                  <span>
-                    <FormattedMessage id="solidity.runStaticAnalysis" />
-                  </span>
-                </span>
-              </button>
-            </CustomTooltip>
-            <CustomTooltip
-              placement={'auto-end'}
-              tooltipId="publishOnIpfsTooltip"
-              tooltipClasses="text-nowrap"
-              tooltipText={`${intl.formatMessage({
-                id: 'solidity.publishOn'
-              })} Ipfs`}
-            >
-              <button
-                id="publishOnIpfs"
-                className="btn border"
-                onClick={() => {
-                  handlePublishToStorage('ipfs')
-                }}
-              >
-
-                <span>
-                  <img id="ipfsLogo" className="remixui_storageLogo me-2" src="assets/img/ipfs.webp" />
-                  <span>
-                    <FormattedMessage id="solidity.publishOn" /> IPFS
-                  </span>
-                </span>
-              </button>
-            </CustomTooltip>
-            <CustomTooltip
-              placement={'auto-end'}
-              tooltipId="publishOnSwarmTooltip"
-              tooltipClasses="text-nowrap"
-              tooltipText={`${intl.formatMessage({
-                id: 'solidity.publishOn'
-              })} Swarm`}
-            >
-              <button
-                id="publishOnSwarm"
-                className="btn border"
-                onClick={() => {
-                  handlePublishToStorage('swarm')
-                }}
-              >
-                <span>
-                  <img id="swarmLogo" className="remixui_storageLogo me-2" src="assets/img/swarmColor.webp" />
-                  <span>
-                    <FormattedMessage id="solidity.publishOn" /> Swarm
-                  </span>
-                </span>
-              </button>
-            </CustomTooltip>
-            <CustomTooltip
-              placement={'auto-end'}
-              tooltipId="CompilationDetailsTooltip"
-              tooltipClasses="text-nowrap"
-              tooltipText={<FormattedMessage id="solidity.displayContractDetails" />}
-            >
+          <ContractPicker contracts={contractList} value={selectedContract} onChange={handleContractChange} />
+          <div className="sc-copy-row" role="group" aria-label={intl.formatMessage({ id: 'solidity.copyToClipboard' })}>
+            <CopyLink label="ABI" title={intl.formatMessage({ id: 'solidity.copyABI' })} dataId="compilerCopyABI" getContent={copyABI} />
+            <CopyLink label="Bytecode" title={intl.formatMessage({ id: 'solidity.copyBytecode' })} dataId="compilerCopyBytecode" getContent={copyBytecode} />
+          </div>
+          <div className="sc-two">
+            <CustomTooltip placement="auto" tooltipId="CompilationDetailsTooltip" tooltipText={<FormattedMessage id="solidity.displayContractDetails" />}>
               <button
                 data-id="compilation-details"
-                className="btn border"
+                className="btn sc-btn-quiet"
                 onClick={async () => {
                   details()
                   await (api as any).call('compilationDetails', 'showDetails', payload)
                 }}
               >
-                <span>
-                  <i className="fa-regular fa-memo-pad me-2 text-primary"></i>
-                  <span>
-                    <FormattedMessage id="solidity.compilationDetails" />
-                  </span>
-                </span>
+                <i className="fa-regular fa-memo-pad" aria-hidden="true"></i>
+                <span className="text-truncate"><FormattedMessage id="solidity.details" /></span>
               </button>
             </CustomTooltip>
-            {/* Copy to Clipboard */}
-            <div className="remixui_contractHelperButtons">
-              <div className="input-group d-block">
-                <div className="btn-group float-end" role="group" aria-label={intl.formatMessage({ id: 'solidity.copyToClipboard' })}>
-                  <CopyToClipboard tip={intl.formatMessage({ id: 'solidity.copyABI' })} getContent={copyABI} direction="top">
-                    <button className="btn remixui_copyButton">
-                      <i className="remixui_copyIcon far fa-copy" aria-hidden="true"></i>
-                      <span>ABI</span>
-                    </button>
-                  </CopyToClipboard>
-                  <CopyToClipboard tip={intl.formatMessage({ id: 'solidity.copyBytecode' })} getContent={copyBytecode} direction="top">
-                    <button className="btn remixui_copyButton">
-                      <i className="remixui_copyIcon far fa-copy" aria-hidden="true"></i>
-                      <span>Bytecode</span>
-                    </button>
-                  </CopyToClipboard>
-                </div>
-              </div>
-            </div>
-          </article>
+            <CustomTooltip placement="auto" tooltipId="openPreDeployChecksTooltip" tooltipText={intl.formatMessage({ id: 'solidity.openPreDeployChecks.tooltip' })}>
+              <button data-id="compilerOpenPreDeployChecks" className="btn sc-btn-quiet" onClick={openPreDeployChecks}>
+                <i className="fas fa-shield-check" aria-hidden="true"></i>
+                <span className="text-truncate"><FormattedMessage id="solidity.preDeployChecks" /></span>
+              </button>
+            </CustomTooltip>
+          </div>
         </section>
       ) : (
-        <section className="m-0 clearfix">
-          <article className="px-2 mt-2 pb-0 d-flex w-100">
-            <span className="mt-2 mx-3 w-100 alert alert-warning" role="alert">
-              <FormattedMessage id="solidity.noContractCompiled" />
-            </span>
-          </article>
+        <section className="sc-section sc-bordered">
+          <span className="sc-muted" role="alert">
+            <FormattedMessage id="solidity.noContractCompiled" />
+          </span>
         </section>
       )}
       <PublishToStorage api={api} storage={storage} contract={contractsDetails[selectedContract]} resetStorage={resetStorage} />

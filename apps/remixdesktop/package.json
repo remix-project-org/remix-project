@@ -1,10 +1,10 @@
 {
   "name": "remixdesktop",
-  "version": "1.3.0",
+  "version": "1.4.0",
   "main": "build/main.js",
   "license": "MIT",
   "type": "commonjs",
-  "description": "Remix IDE Desktop",
+  "description": "Remix Web3 Desktop",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/remix-project-org/remix-desktop.git"

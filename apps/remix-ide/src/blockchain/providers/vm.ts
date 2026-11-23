@@ -8,15 +8,15 @@ export class VMProvider {
   web3: BrowserProvider
   worker: Worker
   provider: {
-    sendAsync: (query: JSONRPCRequestPayload, callback: JSONRPCResponseCallback) => void
+    sendAsync: (query: JSONRPCRequestPayload, callback?: JSONRPCResponseCallback) => void | Promise<any>
     request: (query: JSONRPCRequestPayload) => Promise<any>
   }
-  newAccountCallback: {[stamp: number]: (error: Error, address: string) => void}
+  private stopWorker: () => void
+  private sendWorkerRequest: (cmd: string, payload?: object) => Promise<any>
   constructor (executionContext: ExecutionContext) {
     this.executionContext = executionContext
     this.worker = null
     this.provider = null
-    this.newAccountCallback = {}
   }
 
   getAccounts (cb) {
@@ -28,72 +28,81 @@ export class VMProvider {
   }
 
   async resetEnvironment (stringifiedState?: string) {
-    if (this.worker) this.worker.terminate()
-    this.worker = new Worker(new URL('./worker-vm', import.meta.url))
+    this.stopWorker?.()
+    const worker = new Worker(new URL('./worker-vm', import.meta.url))
+    this.worker = worker
     const provider = this.executionContext.getProviderObject()
+    const context = this.executionContext.getProvider()
 
     let incr = 0
-    const stamps = {}
+    let active = true
+    let web3: BrowserProvider
+    const resetError = new Error('VM environment was reset')
+    const pending = new Map<number, { resolve: (result: any) => void; reject: (error: any) => void }>()
+
+    // Each provider keeps its own worker and request registry, including after a reset.
+    const send = (cmd: string, payload: object = {}) => new Promise<any>((resolve, reject) => {
+      if (!active) return reject(resetError)
+      const stamp = ++incr
+      pending.set(stamp, { resolve, reject })
+      try {
+        worker.postMessage({ cmd, ...payload, stamp })
+      } catch (error) {
+        pending.delete(stamp)
+        reject(error)
+      }
+    })
+    this.sendWorkerRequest = send
 
     return new Promise((resolve, reject) => {
-      this.worker.addEventListener('message', (msg) => {
-        if (msg.data.cmd === 'requestResult' && stamps[msg.data.stamp]) {
-          if (msg.data.error) {
-            stamps[msg.data.stamp].reject(msg.data.error)
-          } else {
-            stamps[msg.data.stamp].resolve(msg.data.result)
-          }
-        } else if (msg.data.cmd === 'sendAsyncResult' && stamps[msg.data.stamp]) {
-          if (stamps[msg.data.stamp].callback) {
-            stamps[msg.data.stamp].callback(msg.data.error, msg.data.result)
-            return
-          }
-          if (msg.data.error) {
-            stamps[msg.data.stamp].reject(msg.data.error)
-          } else {
-            stamps[msg.data.stamp].resolve(msg.data.result)
+      const onMessage = (msg: MessageEvent) => {
+        if (!active) return
+        if (['requestResult', 'sendAsyncResult', 'newAccountResult'].includes(msg.data.cmd)) {
+          const request = pending.get(msg.data.stamp)
+          if (request) {
+            pending.delete(msg.data.stamp)
+            if (msg.data.error) request.reject(msg.data.error)
+            else request.resolve(msg.data.result)
           }
         } else if (msg.data.cmd === 'initiateResult') {
           if (!msg.data.error) {
             this.provider = {
               sendAsync: (query, callback) => {
-                return new Promise((resolve, reject) => {
-                  const stamp = Date.now() + incr
-                  incr++
-                  stamps[stamp] = { callback, resolve, reject }
-                  this.worker.postMessage({ cmd: 'sendAsync', query, stamp })
-                })
+                const result = send('sendAsync', { query })
+                if (!callback) return result
+                // Callback callers do not consume a second, potentially rejected promise.
+                result.then(value => callback(null, value), error => callback(error))
               },
-              request: (query) => {
-                return new Promise((resolve, reject) => {
-                  const stamp = Date.now() + incr
-                  incr++
-                  stamps[stamp] = { resolve, reject }
-                  this.worker.postMessage({ cmd: 'request', query, stamp })
-                })
-              }
+              request: (query) => send('request', { query })
             }
-            this.web3 = new ethers.BrowserProvider(this.provider)
-            extendProvider(this.web3)
-            this.executionContext.setWeb3(this.executionContext.getProvider(), this.web3)
+            web3 = new ethers.BrowserProvider(this.provider)
+            extendProvider(web3)
+            this.web3 = web3
+            this.executionContext.setWeb3(context, web3)
             resolve({})
           } else {
             reject(new Error(msg.data.error.message || msg.data.error))
           }
-        } else if (msg.data.cmd === 'newAccountResult') {
-          if (this.newAccountCallback[msg.data.stamp]) {
-            this.newAccountCallback[msg.data.stamp](msg.data.error, msg.data.result)
-            delete this.newAccountCallback[msg.data.stamp]
-          }
         }
-      })
+      }
+      worker.addEventListener('message', onMessage)
+      this.stopWorker = () => {
+        active = false
+        worker.removeEventListener('message', onMessage)
+        worker.terminate()
+        // Also settle initialization if a second switch interrupted it.
+        reject(resetError)
+        for (const request of pending.values()) request.reject(resetError)
+        pending.clear()
+        web3?.destroy()
+      }
       if (stringifiedState) {
         try {
           const blockchainState = JSON.parse(stringifiedState)
           const blockNumber = parseInt(blockchainState.latestBlockNumber, 16)
           const stateDb = blockchainState.db
 
-          this.worker.postMessage({
+          worker.postMessage({
             cmd: 'init',
             fork: this.executionContext.getCurrentFork(),
             nodeUrl: blockchainState.nodeUrl || provider?.options['nodeUrl'],
@@ -106,7 +115,7 @@ export class VMProvider {
           reject(e)
         }
       } else {
-        this.worker.postMessage({
+        worker.postMessage({
           cmd: 'init',
           fork: this.executionContext.getCurrentFork(),
           nodeUrl: provider?.options['nodeUrl'],
@@ -126,9 +135,7 @@ export class VMProvider {
   }
 
   newAccount (_passwordPromptCb, cb) {
-    const stamp = Date.now()
-    this.newAccountCallback[stamp] = cb
-    this.worker.postMessage({ cmd: 'newAccount', stamp })
+    this.sendWorkerRequest('newAccount').then(address => cb(null, address), error => cb(error))
   }
 
   async getBalanceInEther (address) {
@@ -138,15 +145,13 @@ export class VMProvider {
   }
 
   getGasPrice (cb) {
-    this.web3.getFeeData().then((result => cb(null, result.gasPrice)))
+    this.web3.getFeeData().then(result => cb(null, result.gasPrice), error => cb(error))
   }
 
   signMessage (message, account, _passphrase, cb) {
     const messageHash = hashMessage(message)
-    this.web3.getSigner(account).then((signer) => {
-      signer._legacySignMessage(toUtf8Bytes(message))
-        .then(signedData => cb(null, messageHash, signedData))
-        .catch(error => cb(error))
-    })
+    this.web3.getSigner(account)
+      .then(signer => signer._legacySignMessage(toUtf8Bytes(message)))
+      .then(signedData => cb(null, messageHash, signedData), error => cb(error))
   }
 }

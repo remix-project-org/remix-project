@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import { customScriptRunnerConfig, Dependency, ProjectConfiguration } from "../types";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faToggleOff, faToggleOn, faTrash } from "@fortawesome/free-solid-svg-icons";
-import { CustomTooltip } from "@remix-ui/helper";
+import { CustomTooltip, Select } from "@remix-ui/helper";
 
 export interface ScriptRunnerUIProps {
     publishedConfigurations: ProjectConfiguration[];
@@ -69,10 +69,6 @@ export const CustomScriptRunner = (props: ScriptRunnerUIProps) => {
     }
   }
 
-  const onSelectBaseConfig = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    setBaseConfig(e.target.value);
-  }
-
   const toggleRequire = () => {
     setUseRequire((prev) => !prev)
   }
@@ -88,15 +84,18 @@ export const CustomScriptRunner = (props: ScriptRunnerUIProps) => {
   return (
     <div style={{ padding: '20px', maxWidth: '400px', margin: 'auto' }}>
       <h5>Custom configuration</h5>
-      <label>Select a base configuration</label>
-      <select value={baseConfig} className="form-control" onChange={onSelectBaseConfig} style={{ marginBottom: '10px' }}>
-        <option value="none">Select a base configuration</option>
-        {props.publishedConfigurations.map((config: ProjectConfiguration, index) => (
-          <option key={index} value={config.name}>
-            {config.name}
-          </option>
-        ))}
-      </select>
+      <label htmlFor="customScriptRunnerBaseConfig">Select a base configuration</label>
+      <div style={{ marginBottom: '10px' }}>
+        <Select
+          id="customScriptRunnerBaseConfig"
+          value={baseConfig}
+          onChange={setBaseConfig}
+          options={[
+            { value: 'none', label: 'Select a base configuration' },
+            ...props.publishedConfigurations.map((config: ProjectConfiguration) => ({ value: config.name, label: config.name }))
+          ]}
+        />
+      </div>
       <label>Add dependencies</label>
       <div style={{ marginBottom: '10px' }}>
         <input

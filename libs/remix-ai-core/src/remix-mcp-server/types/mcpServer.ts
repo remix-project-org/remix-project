@@ -1,5 +1,5 @@
 /**
- * Types and interfaces for Remix IDE MCP Server
+ * Types and interfaces for Remix Web3 MCP Server
  */
 
 import { IMCPServer, IMCPServerCapabilities, IMCPInitializeResult } from '../../types/mcp';

@@ -79,7 +79,7 @@ module.exports = {
             .click('[data-id="compilerContainerCompileBtn"]')
             .pause(3000)
             .waitForElementPresent('*[data-id="compiledContracts"]', 10000)
-            .assert.containsText('*[data-id="compiledContracts"]', 'TestImportHandler')
+            .waitForElementPresent('*[data-id="compiledContract-TestImportHandler"]')
             .clickLaunchIcon('filePanel')
             .expandAllFolders()
             // Verify remix_tests.sol and remix_accounts.sol were auto-generated
@@ -872,7 +872,7 @@ contract CommentedImports is ERC20 {
             // Verify compilation succeeded
             .waitForElementPresent('*[data-id="compiledContracts"]', 10000)
             .clickLaunchIcon('solidity')
-            .assert.containsText('*[data-id="compiledContracts"]', 'FoundryStyleTest')
+            .waitForElementPresent('*[data-id="compiledContract-FoundryStyleTest"]')
             .clickLaunchIcon('filePanel')
             // Verify build-info reflects remapping resolution
             .verifyArtifactsBuildInfo([
@@ -924,7 +924,7 @@ contract CommentedImports is ERC20 {
             // Verify compilation succeeded
             .waitForElementPresent('*[data-id="compiledContracts"]', 10000)
             .clickLaunchIcon('solidity')
-            .assert.containsText('*[data-id="compiledContracts"]', 'NpmPrefixTest')
+            .waitForElementPresent('*[data-id="compiledContract-NpmPrefixTest"]')
             .clickLaunchIcon('filePanel')
             // Verify build-info reflects both remapped versions
             .verifyArtifactsBuildInfo([
@@ -979,7 +979,7 @@ contract CommentedImports is ERC20 {
             // Verify compilation succeeded
             .waitForElementPresent('*[data-id="compiledContracts"]', 10000)
             .clickLaunchIcon('solidity')
-            .assert.containsText('*[data-id="compiledContracts"]', 'HardhatStyleTest')
+            .waitForElementPresent('*[data-id="compiledContract-HardhatStyleTest"]')
             .clickLaunchIcon('filePanel')
             // Verify build-info reflects hardhat remapping
             .verifyArtifactsBuildInfo([
@@ -1033,7 +1033,7 @@ contract CommentedImports is ERC20 {
             // Verify compilation succeeded
             .waitForElementPresent('*[data-id="compiledContracts"]', 10000)
             .clickLaunchIcon('solidity')
-            .assert.containsText('*[data-id="compiledContracts"]', 'MultiVersionTest')
+            .waitForElementPresent('*[data-id="compiledContract-MultiVersionTest"]')
             .clickLaunchIcon('filePanel')
             // Verify build-info reflects both alias remappings
      

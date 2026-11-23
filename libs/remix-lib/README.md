@@ -5,7 +5,7 @@
 [![GitHub](https://img.shields.io/github/license/mashape/apistatus.svg)](https://github.com/remix-project-org/remix-project/tree/master/libs/remix-lib)
 [![contributions welcome](https://img.shields.io/badge/contributions-welcome-brightgreen.svg?style=flat)](https://github.com/remix-project-org/remix-project/issues)
 
-`@remix-project/remix-lib` is a common library to various remix tools. It is used in `remix-astwalker`, `remix-analyzer`, `remix-debug`, `remix-simulator`, `remix-solidity`, `remix-tests` libraries and in Remix IDE codebase.
+`@remix-project/remix-lib` is a common library to various remix tools. It is used in `remix-astwalker`, `remix-analyzer`, `remix-debug`, `remix-simulator`, `remix-solidity`, `remix-tests` libraries and in Remix Web3 codebase.
 
 ### Installation
 `@remix-project/remix-lib` is an NPM package and can be installed using NPM as:

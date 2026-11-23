@@ -3,12 +3,12 @@ import { Modal, Button, Alert, Spinner } from 'react-bootstrap';
 import { PluginClient } from '@remixproject/plugin';
 import isElectron from 'is-electron';
 import { parseEnsRegistrationError } from '../../utils/ens-utils';
-import { getEnsEndpoint, ensDappParentName, ensSepolia } from '@remix-endpoints-helper';
+import { getEnsEndpoint, ensSepolia } from '@remix-endpoints-helper';
 
 interface EnsRegistrationModalProps {
   show: boolean;
   onHide: () => void;
-  ensName: string;
+  domain: string;
   contentHash: string;
   onSuccess: (result: { txHash: string; domain: string; owner: string }) => void | Promise<void>;
   onRegistrationStateChange?: (isRegistering: boolean) => void;
@@ -18,7 +18,7 @@ interface EnsRegistrationModalProps {
 const EnsRegistrationModal: React.FC<EnsRegistrationModalProps> = ({
   show,
   onHide,
-  ensName,
+  domain,
   contentHash,
   onSuccess,
   onRegistrationStateChange,
@@ -63,7 +63,8 @@ const EnsRegistrationModal: React.FC<EnsRegistrationModalProps> = ({
           ...(authToken ? { Authorization: `Bearer ${authToken}` } : {}),
         },
         body: JSON.stringify({
-          label: ensName.toLowerCase(),
+          label: domain.split('.')[0].toLowerCase(),
+          parentName: domain.split('.').slice(1).join('.').toLowerCase(),
           owner: ownerAddress,
           contentHash,
         }),
@@ -72,6 +73,9 @@ const EnsRegistrationModal: React.FC<EnsRegistrationModalProps> = ({
       const data = await response.json();
       if (!response.ok) {
         throw { message: data.error, details: data.details };
+      }
+      if (data.domain?.toLowerCase() !== domain.toLowerCase()) {
+        throw new Error('The ENS service returned a different name. Please check the registration before retrying.');
       }
 
       await onSuccess({ txHash: data.txHash, domain: data.domain, owner: ownerAddress });
@@ -105,7 +109,7 @@ const EnsRegistrationModal: React.FC<EnsRegistrationModalProps> = ({
         {/* Domain name display */}
         <div className="text-center mb-3 py-2 bg-light border rounded">
           <code className="fw-bold" style={{ fontSize: '1.05rem' }}>
-            {ensName}.{ensDappParentName}
+            {domain}
           </code>
         </div>
 

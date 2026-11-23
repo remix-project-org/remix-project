@@ -1,7 +1,6 @@
 import React, { useState, useCallback, useEffect } from 'react';
-import Select from 'react-select';
 import { gitActionsContext } from '../../state/context';
-import { selectStyles, selectTheme } from '../../types/styles';
+import { Select, SelectOption } from '@remix-ui/helper';
 import { gitPluginContext } from '../gitui';
 
 interface BranchySelectProps {
@@ -11,9 +10,12 @@ interface BranchySelectProps {
 export const BranchSelect = (props: BranchySelectProps) => {
   const context = React.useContext(gitPluginContext)
   const actions = React.useContext(gitActionsContext)
-  const [branchOptions, setBranchOptions] = useState<any>([]);
+  const [branchOptions, setBranchOptions] = useState<SelectOption[]>([]);
+  const [selected, setSelected] = useState('')
 
   useEffect(() => {
+    // a new repository was picked, its branches replace the list
+    setSelected('')
     if (context.remoteBranches && context.remoteBranches.length > 0) {
       const options = context.remoteBranches
         && context.remoteBranches.length > 0
@@ -22,17 +24,17 @@ export const BranchSelect = (props: BranchySelectProps) => {
         })
       setBranchOptions(options)
     } else {
-      setBranchOptions(null)
+      setBranchOptions([])
     }
   }, [context.remoteBranches])
 
-  const selectRemoteBranch = async (e: any) => {
-    if (!e || !e.value) {
+  const selectRemoteBranch = async (value: string) => {
+    setSelected(value)
+    if (!value) {
       props.select(null)
       return
     }
-    const value = e && e.value
-    props.select({ name: value.toString() })
+    props.select({ name: value })
   }
 
   return (<>{branchOptions && branchOptions.length ?
@@ -40,11 +42,11 @@ export const BranchSelect = (props: BranchySelectProps) => {
       options={branchOptions}
       className="mt-2"
       id="branch-select"
-      onChange={(e: any) => selectRemoteBranch(e)}
-      theme={selectTheme}
-      styles={selectStyles}
-      isClearable={true}
-      placeholder="Type to search for a branch..."
+      value={selected}
+      onChange={selectRemoteBranch}
+      placeholder="Select a branch"
+      searchable
+      searchPlaceholder="Type to search for a branch..."
     /> : null}
   </>)
 

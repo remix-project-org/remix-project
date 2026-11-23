@@ -1,8 +1,7 @@
 import React, { useEffect, useState, useContext } from "react";
 import { gitActionsContext } from "../../../state/context";
 import { gitPluginContext } from "../../gitui";
-import { selectStyles, selectTheme } from "../../../types/styles";
-import Select, { Options, OptionsOrGroups } from 'react-select'
+import { Select, SelectOption } from "@remix-ui/helper";
 import GitUIButton from "../../buttons/gituibutton";
 import { remote, GitEvent, MatomoEvent } from "@remix-api";
 import { gitMatomoEventTypes } from "../../../types";
@@ -17,9 +16,9 @@ export const PushPull = () => {
   const intl = useIntl()
   const [remoteBranch, setRemoteBranch] = useState('')
   const [localBranch, setLocalBranch] = useState('')
-  const [localBranchOptions, setLocalBranchOptions] = useState<any>([]);
-  const [remoteBranchOptions, setRemoteBranchOptions] = useState<any>([]);
-  const [localRemotesOptions, setLocalRemotesOptions] = useState<any>([]);
+  const [localBranchOptions, setLocalBranchOptions] = useState<SelectOption[]>([]);
+  const [remoteBranchOptions, setRemoteBranchOptions] = useState<SelectOption[]>([]);
+  const [localRemotesOptions, setLocalRemotesOptions] = useState<SelectOption[]>([]);
   const [disabled, setDisabled] = useState(false)
   const [force, setForce] = useState(false)
 
@@ -139,7 +138,7 @@ export const PushPull = () => {
       .map(repo => {
         return { value: repo.name, label: repo.name }
       })
-    setLocalBranchOptions(localBranches)
+    setLocalBranchOptions(localBranches || [])
 
     if (!context.upstream){
       setRemoteBranchOptions([])
@@ -152,7 +151,7 @@ export const PushPull = () => {
         return { value: repo.name, label: repo.name }
       }
       )
-    setRemoteBranchOptions(remoteBranches)
+    setRemoteBranchOptions(remoteBranches || [])
 
   }, [context.branches, context.upstream])
 
@@ -163,9 +162,16 @@ export const PushPull = () => {
       .map(repo => {
         return { value: repo.name, label: repo.name }
       })
-    setLocalRemotesOptions(options)
+    setLocalRemotesOptions(options || [])
 
   }, [context.remotes])
+
+  const branchSearchPlaceholder = intl.formatMessage({ id: 'gitui.branchSearchPlaceholder' })
+  const upstreamName = context.upstream ? context.upstream.name : ''
+
+  // keep the chosen value visible even before it is in the list (e.g. a remote not fetched yet)
+  const withValue = (options: SelectOption[], value: string): SelectOption[] =>
+    value && !options.some((o) => o.value === value) ? [{ value, label: value }, ...options] : options
 
   const pushPullIsDisabled = () => {
     return localBranch === '' || remoteBranch === '' || !context.upstream || context.remotes.length === 0
@@ -185,40 +191,37 @@ export const PushPull = () => {
       <label className="pt-3 text-uppercase"><FormattedMessage id="gitui.localBranchLabel" /></label>
       <Select
         id='commands-local-branch-select'
-        options={localBranchOptions}
-        isDisabled={context.branches.length === 0}
-        onChange={(e: any) => e && onLocalBranchChange(e.value)}
-        theme={selectTheme}
-        styles={selectStyles}
-        isClearable={true}
-        value={{ value: localBranch, label: localBranch }}
-        placeholder={intl.formatMessage({ id: 'gitui.branchSearchPlaceholder' })}
+        options={withValue(localBranchOptions, localBranch)}
+        disabled={context.branches.length === 0}
+        onChange={onLocalBranchChange}
+        value={localBranch}
+        placeholder={branchSearchPlaceholder}
+        searchable
+        searchPlaceholder={branchSearchPlaceholder}
       />
 
       <label className="pt-3 text-uppercase"><FormattedMessage id="gitui.remoteBranchLabel" /></label>
       <Select
         id='commands-remote-branch-select'
-        options={remoteBranchOptions}
-        isDisabled={context.branches.length === 0}
-        onChange={(e: any) => e && onRemoteBranchChange(e.value)}
-        theme={selectTheme}
-        styles={selectStyles}
-        isClearable={true}
-        value={{ value: remoteBranch, label: remoteBranch }}
-        placeholder={intl.formatMessage({ id: 'gitui.branchSearchPlaceholder' })}
+        options={withValue(remoteBranchOptions, remoteBranch)}
+        disabled={context.branches.length === 0}
+        onChange={onRemoteBranchChange}
+        value={remoteBranch}
+        placeholder={branchSearchPlaceholder}
+        searchable
+        searchPlaceholder={branchSearchPlaceholder}
       />
 
       <label className="pt-3 text-uppercase"><FormattedMessage id="gitui.remoteLabel" /></label>
       <Select
         id='commands-remote-origin-select'
-        options={localRemotesOptions}
-        isDisabled={context.remotes.length === 0}
-        onChange={(e: any) => e && onRemoteChange(e.value)}
-        theme={selectTheme}
-        styles={selectStyles}
-        isClearable={true}
-        value={{ value: context.upstream && context.upstream.name, label: context.upstream && context.upstream.name }}
-        placeholder={intl.formatMessage({ id: 'gitui.branchSearchPlaceholder' })}
+        options={withValue(localRemotesOptions, upstreamName)}
+        disabled={context.remotes.length === 0}
+        onChange={onRemoteChange}
+        value={upstreamName}
+        placeholder={branchSearchPlaceholder}
+        searchable
+        searchPlaceholder={branchSearchPlaceholder}
       />
 
       <div className="pt-3 d-flex align-items-center remixui_compilerConfig form-check">

@@ -1,5 +1,5 @@
 /**
- * Types and interfaces for Remix IDE MCP Tools
+ * Types and interfaces for Remix Web3 MCP Tools
  */
 
 import { IMCPTool, IMCPToolCall, IMCPToolResult } from '../../types/mcp';
@@ -332,7 +332,7 @@ export interface DeploymentResult {
   contractAddress?: string;
   transactionHash: string;
   gasUsed: number | bigint;
-  effectiveGasPrice: string;
+  effectiveGasPrice?: string;
   blockNumber: number | bigint;
   logs: any[];
 }

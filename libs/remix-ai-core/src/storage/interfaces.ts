@@ -26,6 +26,14 @@ export interface GenerativeUIPayload {
   title?: string
 }
 
+/** One tool call of an answer, as shown in its activity lines. */
+export interface ToolStep {
+  label: string
+  status: 'running' | 'done' | 'failed'
+  /** 'decision': the user accepted or rejected a tool call; shown on its own line, not counted as a tool */
+  kind?: 'decision'
+}
+
 export interface ChatMessage {
   id: string
   role: 'user' | 'assistant' | 'editor_code_analysis'
@@ -38,6 +46,11 @@ export interface ChatMessage {
   executingToolName?: string
   executingToolArgs?: Record<string, any>
   executingToolUIString?: string
+  /**
+   * The tools this answer ran, in order. Optional: conversations saved
+   * before it was added load without it.
+   */
+  toolSteps?: ToolStep[]
   currentTask?: string
   taskStatus?: 'running' | 'completed'
   activeSubagent?: string
@@ -64,6 +77,10 @@ export interface ChatMessage {
    * past would restart a finished exchange if clicked again.
    */
   uiComponentStale?: boolean
+  /** The request failed while writing this answer; shown under the partial answer */
+  error?: string
+  /** The user stopped this answer */
+  stopped?: boolean
 }
 
 /**

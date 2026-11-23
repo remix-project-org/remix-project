@@ -92,6 +92,7 @@ let requiredModules = [
   'vyperCompilationDetails',
   'domainMigration',
   'contractflattener',
+  'preDeployChecks',
   'solidity-script',
   'home',
   'doc-viewer',
@@ -137,6 +138,8 @@ let requiredModules = [
   'udappTransactions',
   'udappEez',
   'txRunner',
+  'arkivBasic',
+  'arkivNetwork',
   'betaCornerWidget',
   'lifecycle',
   'nudgePlugin',
@@ -158,7 +161,7 @@ const partnerPlugins = ['cookbookdev']
 const sensitiveCalls = {
   fileManager: ['writeFile', 'copyFile', 'rename', 'copyDir'],
   contentImport: ['resolveAndSave'],
-  web3Provider: ['sendAsync'],
+  web3Provider: ['sendAsync']
 }
 
 const isInjectedProvider = (name) => {
@@ -224,6 +227,7 @@ export function isNative(name) {
     'udappDeployedContracts',
     'udappTransactions',
     'udappEez',
+    'preDeployChecks',
     'txRunner',
     'lifecycle',
     'skillsexplorermodal',
@@ -440,6 +444,17 @@ export class RemixAppManager extends BaseRemixAppManager {
       group: 5,
     })
     await this.call('filePanel', 'registerContextMenuItem', {
+      id: 'preDeployChecks',
+      name: 'openFromContextMenu',
+      label: 'Open in Pre-deploy Checks',
+      type: [],
+      extension: ['.sol'],
+      path: [],
+      pattern: [],
+      sticky: true,
+      group: 5,
+    })
+    await this.call('filePanel', 'registerContextMenuItem', {
       id: 'nahmii-compiler',
       name: 'compileCustomAction',
       label: 'Compile for Nahmii',
@@ -500,6 +515,17 @@ export class RemixAppManager extends BaseRemixAppManager {
       label: 'Create DApp from Subgraph Query',
       type: [],
       extension: ['.subgraph'],
+      path: [],
+      pattern: [],
+      group: 2,
+      multiselect: false
+    })
+    this.call('filePanel', 'registerContextMenuItem', {
+      id: 'arkivNetwork',
+      name: 'shareFile',
+      label: 'Share File with Arkiv',
+      type: ['file'],
+      extension: [],
       path: [],
       pattern: [],
       group: 2,

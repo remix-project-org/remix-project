@@ -76,7 +76,7 @@ export class ThemeModule extends Plugin {
   */
   currentTheme(): Theme {
     if (isElectron()) {
-      const theme = 'https://remix.ethereum.org/' + this.themes[this.active].url.replace(/\\/g, '/').replace(/\/\//g, '/').replace(/\/$/g, '')
+      const theme = 'https://app.remix.live/' + this.themes[this.active].url.replace(/\\/g, '/').replace(/\/\//g, '/').replace(/\/$/g, '')
       return { ...this.themes[this.active], url: theme }
     }
     return this.themes[this.active]
@@ -154,7 +154,7 @@ export class ThemeModule extends Plugin {
     if (themeName) this.active = themeName
     // TODO: Only keep `this.emit` (issue#2210)
     if (isElectron()) {
-      const theme = 'https://remix.ethereum.org/' + nextTheme.url.replace(/\\/g, '/').replace(/\/\//g, '/').replace(/\/$/g, '')
+      const theme = 'https://app.remix.live/' + nextTheme.url.replace(/\\/g, '/').replace(/\/\//g, '/').replace(/\/$/g, '')
       this.emit('themeChanged', { ...nextTheme, url: theme })
       this.events.emit('themeChanged', { ...nextTheme, url: theme })
       window.dispatchEvent(new CustomEvent('ideThemeChanged', { detail: { ...nextTheme, url: theme } }))
