@@ -13,7 +13,7 @@ const profile = {
   name: 'remixaiassistant',
   displayName: 'RemixAI Assistant',
   icon: 'assets/img/remixai-logoAI.svg',
-  description: 'AI code assistant for Remix IDE',
+  description: 'AI code assistant for Remix Web3',
   kind: '',
   location: 'sidePanel',
   documentation: 'https://remix-ide.readthedocs.io/en/latest/ai.html',

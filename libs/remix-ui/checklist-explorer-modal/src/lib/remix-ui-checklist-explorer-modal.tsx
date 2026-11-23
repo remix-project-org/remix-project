@@ -1,10 +1,13 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react'
 import { trackMatomoEvent } from '@remix-api'
+import { Select } from '@remix-ui/helper'
 import {
   buildAuditTaxonomy,
   categoryFileToken,
   deriveContractName,
   computeLoadedCategories,
+  latestRunFolder,
+  unfinishedRunProgress,
   AuditMatch,
   AuditMatchResult
 } from '@remix/remix-ai-core/audit-taxonomy'
@@ -83,7 +86,13 @@ export function RemixUiChecklistExplorerModal(props: RemixUiChecklistExplorerMod
    * dispatches into the current closure.
    */
   const [modelChoices, setModelChoices] = useState<any[]>([])
-  const [pendingAudit, setPendingAudit] = useState<'new' | 'existing' | null>(null)
+  const [pendingAudit, setPendingAudit] = useState<'new' | 'existing' | 'resume' | null>(null)
+  /**
+   * The contract's latest audit run, when it stopped before writing summary.md.
+   * Offered as "Resume" so a restart continues where it stopped instead of
+   * redoing (and re-paying for) every checklist already reported.
+   */
+  const [unfinishedRun, setUnfinishedRun] = useState<{ run: string; reportsDone: number } | null>(null)
   const [switchingModel, setSwitchingModel] = useState<boolean>(false)
   const [saving, setSaving] = useState<boolean>(false)
   // AI match. `aiMatchedPaths` is a provenance overlay on selectedCategories,
@@ -105,13 +114,14 @@ export function RemixUiChecklistExplorerModal(props: RemixUiChecklistExplorerMod
    */
   const [highlightTarget, setHighlightTarget] = useState<boolean>(false)
   const [contractNamesByFile, setContractNamesByFile] = useState<Record<string, string[]>>({})
+  const [existingAuditFolders, setExistingAuditFolders] = useState<string[]>([])
   const [currentSolFile, setCurrentSolFile] = useState<string>('')
   const containerRef = useRef<HTMLDivElement>(null)
   const matchRunId = useRef(0)
 
   // The contract the checklists are saved against: it names the folder, so every
   // save path and every "already saved" lookup is scoped through it.
-  const contractName = deriveContractName(matchTarget, contractNamesByFile)
+  const contractName = deriveContractName(matchTarget, contractNamesByFile, existingAuditFolders)
   const contractDir = contractName ? `audits/${contractName}` : ''
   /** Basename of the picked file — what the audit button names. */
   const selectedFileName = matchTarget ? (matchTarget.split('/').pop() ?? matchTarget) : ''
@@ -346,6 +356,9 @@ export function RemixUiChecklistExplorerModal(props: RemixUiChecklistExplorerMod
       setAiMatchedPaths(new Map())
       setMatchSummary(null)
 
+      Promise.all([fetchExistingChecklistFiles('audits'), fetchExistingChecklistFiles('audit_reports')])
+        .then(([checklistFolders, reportFolders]) => setExistingAuditFolders([...checklistFolders, ...reportFolders]))
+
       resolveSolCandidates().then(({ candidates, namesByFile, currentFile }) => {
         setSolCandidates(candidates)
         setCurrentSolFile(currentFile)
@@ -387,6 +400,20 @@ export function RemixUiChecklistExplorerModal(props: RemixUiChecklistExplorerMod
     })
     return () => { cancelled = true }
   }, [isOpen, checklistData, contractDir])
+
+  useEffect(() => {
+    setUnfinishedRun(null)
+    if (!isOpen || !isAuditMode || !contractName) return
+    let cancelled = false
+    const reportsDir = `audit_reports/${contractName}`
+    ;(async () => {
+      const run = latestRunFolder(await fetchExistingChecklistFiles(reportsDir))
+      if (!run) return
+      const progress = unfinishedRunProgress(await fetchExistingChecklistFiles(`${reportsDir}/${run}`))
+      if (!cancelled && progress) setUnfinishedRun({ run, reportsDone: progress.reportsDone })
+    })()
+    return () => { cancelled = true }
+  }, [isOpen, isAuditMode, contractName])
 
   const toggleCategory = (categoryPath: string) => {
     setSelectedCategories(prev => {
@@ -522,7 +549,7 @@ export function RemixUiChecklistExplorerModal(props: RemixUiChecklistExplorerMod
   }
 
   /** Both audit launch paths funnel through here so neither can skip the prompt. */
-  const gateAudit = async (which: 'new' | 'existing', launch: () => void | Promise<void>) => {
+  const gateAudit = async (which: 'new' | 'existing' | 'resume', launch: () => void | Promise<void>) => {
     const choices = await loadAuditModelChoices()
     if (!choices.length) {
       await launch()
@@ -542,6 +569,7 @@ export function RemixUiChecklistExplorerModal(props: RemixUiChecklistExplorerMod
   const handleAuditModelPick = async (model: any | null) => {
     if (switchingModel) return
     setSwitchingModel(true)
+    setError(null)
     if (model) {
       try {
         await plugin.call('remixAI', 'setModel', model.id, model.provider)
@@ -550,11 +578,13 @@ export function RemixUiChecklistExplorerModal(props: RemixUiChecklistExplorerMod
           value: `${model.provider}::${model.id}`, isClick: true
         })
       } catch (e) {
-        // A failed switch must not swallow the audit — carry on with Auto.
         trackMatomoEvent(plugin, {
           category: 'ai', action: 'remixAI', name: 'audit_model_switch_failed',
           value: `${model.provider}::${model.id}`, isClick: false
         })
+        setError(`Could not switch to ${model.displayName || model.id}: ${e instanceof Error ? e.message : 'unknown error'}. The audit was not started — pick a model again.`)
+        setSwitchingModel(false)
+        return
       }
     } else {
       trackMatomoEvent(plugin, {
@@ -566,6 +596,7 @@ export function RemixUiChecklistExplorerModal(props: RemixUiChecklistExplorerMod
     setSwitchingModel(false)
     if (which === 'new') await handleConfirmChecklist()
     else if (which === 'existing') await runAuditExisting()
+    else if (which === 'resume') await runAuditResume()
   }
 
   const handleLoadSelected = () => {
@@ -591,12 +622,13 @@ export function RemixUiChecklistExplorerModal(props: RemixUiChecklistExplorerMod
     return `run-${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}-${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}`
   }
 
-  const auditInstruction = (checklistLabels: string, runId: string): string =>
-    `Use the Comprehensive_Auditor subagent to audit this contract, passing it these values verbatim:\n`
+  const auditInstruction = (checklistLabels: string, runId: string, resume = false): string =>
+    `Use the Comprehensive_Auditor subagent to ${resume ? 'continue the interrupted audit of' : 'audit'} this contract, passing it these values verbatim:\n`
     + `\nCONTRACT: ${contractName}\n`
     + `\nFILE: ${matchTarget}\n`
     + `\nCHECKLISTS: ${contractDir}/ (${checklistLabels})\n`
     + `\nRUN: ${runId}`
+    + (resume ? `\n\nRESUME: yes` : '')
 
   const handleConfirmChecklist = async () => {
     if (!plugin) {
@@ -774,7 +806,7 @@ export function RemixUiChecklistExplorerModal(props: RemixUiChecklistExplorerMod
    * The compile runs here rather than in either caller so neither audit path
    * can start without it.
    */
-  const startAudit = async (instruction: string) => {
+  const startAudit = async (instruction: string, verb = 'Auditing') => {
     onClose()
 
     // The modal is already gone, so the chat is the only place left to say
@@ -801,7 +833,7 @@ export function RemixUiChecklistExplorerModal(props: RemixUiChecklistExplorerMod
       await plugin?.call('remixaiassistant', 'chatPipe', finalInstruction, false, {
         source: 'checklist-explorer',
         presetId: 'audit-contract',
-        displayText: `Auditing \`${contractName}\` (${matchTarget}) with ${auditScopeLabels.length} checklist${auditScopeLabels.length === 1 ? '' : 's'} (${auditScopeLabels.join(', ')})...`
+        displayText: `${verb} \`${contractName}\` (${matchTarget}) with ${auditScopeLabels.length} checklist${auditScopeLabels.length === 1 ? '' : 's'} (${auditScopeLabels.join(', ')})...`
       })
     } catch (e) {
       // assistant plugin unavailable — modal is already closed
@@ -839,6 +871,27 @@ export function RemixUiChecklistExplorerModal(props: RemixUiChecklistExplorerMod
     }
 
     await startAudit(auditInstruction(auditScopeLabels.join(', '), newRunId()))
+  }
+
+  /**
+   * Continue the contract's interrupted run in its own folder: the auditor
+   * skips every checklist that already has a report and writes the rest.
+   */
+  const runAuditResume = async () => {
+    if (!plugin || !contractDir || !unfinishedRun) return
+    trackMatomoEvent(plugin, {
+      category: 'ai',
+      action: 'remixAI',
+      name: 'audit_resume_run',
+      value: `${unfinishedRun.reportsDone}/${auditScopePaths.length}`,
+      isClick: true
+    })
+    try {
+      await plugin.call('remixaiassistant', 'handleExternalMessage', `Resuming \`${unfinishedRun.run}\` for \`${contractName}\` — ${unfinishedRun.reportsDone} of ${auditScopePaths.length} checklist report${auditScopePaths.length === 1 ? '' : 's'} already written; only the rest will be audited.`)
+    } catch (e) {
+      // assistant panel unavailable — still hand off below
+    }
+    await startAudit(auditInstruction(auditScopeLabels.join(', '), unfinishedRun.run, true), 'Resuming the audit of')
   }
 
   const handleBack = () => {
@@ -962,26 +1015,23 @@ export function RemixUiChecklistExplorerModal(props: RemixUiChecklistExplorerMod
                     className={`ai-match-target align-self-center${highlightTarget ? ' needs-contract' : ''}`}
                     style={{ width: '13rem' }}
                   >
-                    <select
-                      data-id="checklist-explorer-ai-match-target"
-                      className="form-select"
+                    <Select
+                      id="checklist-explorer-ai-match-target"
+                      ariaLabel="Select the contract to save the checklists for"
                       value={matchTarget}
-                      onChange={(e) => { setMatchTarget(e.target.value); setHighlightTarget(false) }}
-                      onFocus={() => setHighlightTarget(false)}
+                      onChange={(value) => { setMatchTarget(value); setHighlightTarget(false) }}
+                      onToggle={(show) => { if (show) setHighlightTarget(false) }}
                       disabled={matching}
                       title={matchTarget
                         ? `Checklists will be saved in ${contractDir}/, and AI match runs against ${matchTarget}. Pick another file to change the contract.`
                         : 'Select the contract to save the checklists for'}
-                      aria-label="Select the contract to save the checklists for"
-                    >
-                      <option value="" disabled>Select a contract…</option>
-                      {solCandidates.map(file => (
-                        <option key={file} value={file} title={file}>
-                          {candidateLabel(file, solCandidates)}{file === currentSolFile ? ' (current)' : ''}
-                        </option>
-                      ))}
-                    </select>
-                    <i className="fa-solid fa-caret-down ai-match-target-caret" aria-hidden="true"></i>
+                      placeholder="Select a contract…"
+                      options={solCandidates.map(file => ({
+                        value: file,
+                        label: `${candidateLabel(file, solCandidates)}${file === currentSolFile ? ' (current)' : ''}`,
+                        itemProps: { title: file }
+                      }))}
+                    />
                   </div>
                 )}
                 <button
@@ -1121,6 +1171,17 @@ export function RemixUiChecklistExplorerModal(props: RemixUiChecklistExplorerMod
                           <i className="fa-solid fa-shield-halved me-1"></i>
                           Audit with these {auditScopePaths.length} checklist{auditScopePaths.length === 1 ? '' : 's'}
                         </button>
+                        {unfinishedRun && (
+                          <button
+                            data-id="checklist-explorer-audit-resume"
+                            className="btn btn-sm btn-outline-primary text-nowrap"
+                            onClick={() => void gateAudit('resume', runAuditResume)}
+                            title={`Continue audit_reports/${contractName}/${unfinishedRun.run}/ — the checklists already reported there are skipped`}
+                          >
+                            <i className="fa-solid fa-rotate-right me-1"></i>
+                            Resume {unfinishedRun.run} ({unfinishedRun.reportsDone}/{auditScopePaths.length} done)
+                          </button>
+                        )}
                       </>
                     )}
                   </div>
@@ -1326,6 +1387,12 @@ export function RemixUiChecklistExplorerModal(props: RemixUiChecklistExplorerMod
                       Keep Auto
                     </button>
                   </div>
+                  {error && (
+                    <div className="alert alert-danger small mt-3 mb-0" role="alert" data-id="audit-model-switch-error">
+                      <i className="fa-solid fa-exclamation-triangle me-2"></i>
+                      {error}
+                    </div>
+                  )}
                   {switchingModel && (
                     <div className="text-muted small mt-3">
                       <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>

@@ -8,10 +8,12 @@ export interface IRemixAI {
     activated(): Promise<void>,
     onInference():void,
     onInferenceDone():void,
+    /** Why inline completion is refused, or null once it works again. */
+    completionStatusChanged(reason: 'auth-required' | 'insufficient-credits' | 'email-unverified' | 'feature-required' | null): void,
   } & StatusEvents,
   methods: {
-    code_completion(prompt: string, context: string, params?): Promise<string>
-    code_insertion(msg_pfx: string, msg_sfx: string, params?): Promise<string>,
+    code_completion(prompt: string, context: string, params?): Promise<string | null>
+    code_insertion(msg_pfx: string, msg_sfx: string, params?): Promise<string | null>,
     code_generation(prompt: string, params?): Promise<string | null>,
     code_explaining(code: string, context?: string, params?): Promise<string | null>,
     error_explaining(prompt: string, context?: string, params?): Promise<string | null>,
@@ -22,5 +24,6 @@ export interface IRemixAI {
     initialize(remoteModel?:IRemoteModel, useRemote?:boolean): Promise<void>,
     vulnerability_check(prompt: string, params?): Promise<string | null>,
     cancelRequest(): Promise<void>,
+    getCompletionStatus(): 'auth-required' | 'insufficient-credits' | 'email-unverified' | 'feature-required' | null,
   }
 }

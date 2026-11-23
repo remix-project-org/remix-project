@@ -32,7 +32,9 @@ import type {
   SubscriptionPlan,
   CreditPackage,
   PermissionsResponse,
-  PendingCheckout
+  PendingCheckout,
+  SameEmailOverviewResponse,
+  SameEmailGroup
 } from '@remix-api'
 import { Features } from '@remix-api'
 import { planManagerLogger, setPlanManagerLoggingEnabled } from './plan-manager-logger'
@@ -52,7 +54,7 @@ export type ActiveAlert =
   | null
 
 export type CheckoutResultKind = 'processing' | 'success' | 'closed' | 'error'
-export type CheckoutIntent = 'subscription' | 'topup' | 'feature' | 'cancel' | 'reactivate'
+export type CheckoutIntent = 'subscription' | 'topup' | 'feature' | 'cancel' | 'reactivate' | 'payment_method'
 
 export interface CheckoutResult {
   kind: CheckoutResultKind
@@ -107,6 +109,12 @@ export interface CheckoutBreakdown {
 export interface CheckoutNotice {
   level: 'warning' | 'error'
   message: string
+  /**
+   * Sticky notices (declined payment, waiting for wallet approval) survive
+   * Paddle's price recalculations; they clear on dismiss or the next payment
+   * attempt. Non-sticky notices clear on any successful recalculation.
+   */
+  sticky?: boolean
 }
 
 /** Snapshot the UI consumes — purely derived, never mutated outside the machine. */
@@ -141,6 +149,16 @@ export interface PlanManagerSnapshot {
   resumeCheckouts: PendingCheckout[]
   /** User dismissed the resume nudge for this session. */
   resumeNudgeDismissed: boolean
+  /**
+   * Paddle refused to price for the visitor's location
+   * (`address_location_not_allowed`) — checkout cannot work from here.
+   */
+  paymentsBlockedInRegion: boolean
+  /**
+   * Other (unlinked) accounts registered with the user's verified email —
+   * pushed by the auth plugin's `sameEmailAccountsChanged`. Informational.
+   */
+  sameEmailAccounts: SameEmailOverviewResponse | null
   errorMessage: string | null
   /**
    * Why the panel was opened. Set on the most recent OPEN_OVERLAY when a
@@ -206,6 +224,10 @@ export type OpenReason =
   | 'feature-required'
   | 'quota-exhausted'
   | 'manual'
+  /** Generic "Sign In" (top bar) — the panel closes itself once login succeeds. */
+  | 'sign-in'
+  /** Just signed up via the free card — top-up screen opens in its welcome state. */
+  | 'free-signup'
 
 /** Payload accepted by `OPEN_OVERLAY`. All fields are optional. */
 export interface OpenIntent {
@@ -214,6 +236,8 @@ export interface OpenIntent {
   requiredFeature?: string
   /** Section to focus when the panel transitions to ready. */
   initialSection?: 'plans' | 'topup' | 'usage'
+  /** 'free-signup' only: the login created a brand-new account. */
+  isNewUser?: boolean
 }
 
 // ─── Machine context + events ───────────────────────────────────────
@@ -280,6 +304,9 @@ interface MachineContext {
   // resume abandoned checkouts (out-of-band from account data)
   resumeCheckouts: PendingCheckout[]
   resumeNudgeDismissed: boolean
+  paymentsBlockedInRegion: boolean
+  // same-email accounts (out-of-band, from the auth plugin)
+  sameEmailAccounts: SameEmailOverviewResponse | null
   // overlay routing
   openIntent: OpenIntent | null
   // confirm dialog
@@ -308,7 +335,7 @@ export type PlanManagerEvent =
   | { type: 'CHECKOUT_CLOSED' }
   | { type: 'CHECKOUT_ERROR'; message?: string; transactionId?: string; meta?: Record<string, string> }
   // Recoverable, non-destructive in-frame message — checkout stays open.
-  | { type: 'CHECKOUT_NOTICE'; level: 'warning' | 'error'; message: string }
+  | { type: 'CHECKOUT_NOTICE'; level: 'warning' | 'error'; message: string; sticky?: boolean }
   | { type: 'CHECKOUT_NOTICE_DISMISS' }
   | { type: 'CHECKOUT_RESULT_DISMISS' }
   // Cart
@@ -318,6 +345,9 @@ export type PlanManagerEvent =
   // Resume abandoned checkouts
   | { type: 'RESUME_CHECKOUTS_LOADED'; checkouts: PendingCheckout[] }
   | { type: 'RESUME_NUDGE_DISMISS' }
+  | { type: 'REGION_PAYMENTS_BLOCKED' }
+  | { type: 'SAME_EMAIL_ACCOUNTS_LOADED'; overview: SameEmailOverviewResponse | null }
+  | { type: 'CHECKOUT_RESULT_META'; meta: Record<string, string> }
   // Plugin-side signal: backend confirmed the purchase + we just refreshed
   // permissions/credits/sub. Promotes 'processing' → 'success' regardless of
   // current data substate (DATA_LOADED alone only fires inside `refreshing`).
@@ -350,6 +380,8 @@ const initialContext: MachineContext = {
   cartItems: [],
   resumeCheckouts: [],
   resumeNudgeDismissed: false,
+  paymentsBlockedInRegion: false,
+  sameEmailAccounts: null,
   openIntent: null,
   confirmDialog: null,
   lastError: null
@@ -385,6 +417,7 @@ export const planManagerMachine = setup({
       // Resume nudge is per-user — drop it (and its dismissal) on sign-out.
       context.resumeCheckouts = []
       context.resumeNudgeDismissed = false
+      context.sameEmailAccounts = null
     },
     setData: ({ context, event }) => {
       if (event.type !== 'DATA_LOADED') return
@@ -424,11 +457,16 @@ export const planManagerMachine = setup({
       context.checkoutBreakdown = event.breakdown
       // A successful recalculation means the user changed something valid —
       // clear any recoverable notice so it doesn't linger after they've fixed it.
-      context.checkoutNotice = null
+      // Sticky notices (decline reason, waiting for approval) stay put.
+      if (!context.checkoutNotice?.sticky) context.checkoutNotice = null
     },
     setCheckoutNotice: ({ context, event }) => {
       if (event.type !== 'CHECKOUT_NOTICE') return
-      context.checkoutNotice = { level: event.level, message: event.message }
+      context.checkoutNotice = {
+        level: event.level,
+        message: event.message,
+        ...(event.sticky && { sticky: true })
+      }
     },
     clearCheckoutNotice: ({ context }) => {
       context.checkoutNotice = null
@@ -523,6 +561,17 @@ export const planManagerMachine = setup({
     },
     dismissResumeNudge: ({ context }) => {
       context.resumeNudgeDismissed = true
+    },
+    setPaymentsBlockedInRegion: ({ context }) => {
+      context.paymentsBlockedInRegion = true
+    },
+    setSameEmailAccounts: ({ context, event }) => {
+      if (event.type !== 'SAME_EMAIL_ACCOUNTS_LOADED') return
+      context.sameEmailAccounts = event.overview
+    },
+    mergeCheckoutResultMeta: ({ context, event }) => {
+      if (event.type !== 'CHECKOUT_RESULT_META' || !context.checkoutResult) return
+      context.checkoutResult = { ...context.checkoutResult, meta: { ...(context.checkoutResult.meta ?? {}), ...event.meta } }
     }
   }
 }).createMachine({
@@ -723,7 +772,10 @@ export const planManagerMachine = setup({
     CONFIRM_DISMISS: { actions: ['clearConfirmDialog']},
     PURCHASE_CONFIRMED: { actions: ['setCheckoutSuccess']},
     RESUME_CHECKOUTS_LOADED: { actions: ['setResumeCheckouts']},
-    RESUME_NUDGE_DISMISS: { actions: ['dismissResumeNudge']}
+    RESUME_NUDGE_DISMISS: { actions: ['dismissResumeNudge']},
+    REGION_PAYMENTS_BLOCKED: { actions: ['setPaymentsBlockedInRegion']},
+    SAME_EMAIL_ACCOUNTS_LOADED: { actions: ['setSameEmailAccounts']},
+    CHECKOUT_RESULT_META: { actions: ['mergeCheckoutResultMeta']}
   }
 })
 
@@ -763,6 +815,8 @@ export function snapshotFromActor(actor: AnyActorRef): PlanManagerSnapshot {
     cartItems: ctx.cartItems,
     resumeCheckouts: ctx.resumeCheckouts,
     resumeNudgeDismissed: ctx.resumeNudgeDismissed,
+    paymentsBlockedInRegion: ctx.paymentsBlockedInRegion,
+    sameEmailAccounts: ctx.sameEmailAccounts,
     errorMessage: ctx.lastError,
     isTrialEligible: ctx.isTrialEligible,
     openIntent: ctx.openIntent,
@@ -785,6 +839,8 @@ export interface PlanState {
   trialDaysRemaining: number | null
   trialTotalDays: number | null
   trialEndsOn: string | null
+  /** Renewal payment failed and Paddle is retrying (`status === 'past_due'`). */
+  isPastDue?: boolean
 }
 
 const MS_PER_DAY = 1000 * 60 * 60 * 24
@@ -806,6 +862,17 @@ function deriveLifecycle(daysUntilExpiry: number): PlanLifecycle {
  * Beta detection — confirmed against /permissions/ live response:
  *   { feature_groups: [{ name: 'beta', expires_at: null|string, ... }] }
  */
+/**
+ * Same-email account groups other than the one the user is signed in with
+ * (their credits/subscriptions are not usable from this account). Empty when
+ * there are none or the overview hasn't loaded.
+ */
+export function selectOtherSameEmailGroups(snap: Pick<PlanManagerSnapshot, 'sameEmailAccounts'>): SameEmailGroup[] {
+  const overview = snap.sameEmailAccounts
+  if (!overview || overview.other_account_count <= 0) return []
+  return overview.groups.filter(g => !g.is_current_group && g.accounts.length > 0)
+}
+
 export function selectBetaGroup(snap: PlanManagerSnapshot) {
   const groups = snap.permissions?.feature_groups
   if (!groups) return null
@@ -908,7 +975,8 @@ export function selectPlanState(snap: PlanManagerSnapshot, now: number = Date.no
     isInTrial,
     trialDaysRemaining,
     trialTotalDays,
-    trialEndsOn
+    trialEndsOn,
+    isPastDue: sub.status === 'past_due'
   }
 }
 

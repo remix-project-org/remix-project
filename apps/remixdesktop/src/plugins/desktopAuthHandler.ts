@@ -19,7 +19,7 @@ const clientProfile: Profile = {
 }
 
 // The base URL for the Remix web IDE used for authentication
-const REMIX_WEB_URL =  isE2ELocal ? 'http://localhost:8080' : 'https://remix.ethereum.org'
+const REMIX_WEB_URL =  isE2ELocal ? 'http://localhost:8080' : 'https://app.remix.live'
 
 // State expires after 10 minutes
 const STATE_TTL_MS = 10 * 60 * 1000

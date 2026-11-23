@@ -17,7 +17,7 @@ function verifyContracts (browser: NightwatchBrowser, compiledContractNames: str
   browser
     .closeBetaPopUp()
     .clickLaunchIcon('solidity')
-    .waitForElementPresent('*[data-id="compiledContracts"] option', 60000)
+    .waitForElementPresent('*[data-id^="compiledContract-"]', 60000)
     .perform(async (done) => {
       if (opts.version) {
         browser
@@ -53,7 +53,7 @@ function verifyContracts (browser: NightwatchBrowser, compiledContractNames: str
           })
       } else {
         for (const index in compiledContractNames) {
-          await browser.waitForElementContainsText('[data-id="compiledContracts"]', compiledContractNames[index], 60000)
+          await browser.waitForElementPresent(`*[data-id="compiledContract-${compiledContractNames[index]}"]`, 60000)
         }
         done()
         callback()

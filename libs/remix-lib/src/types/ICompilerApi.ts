@@ -28,6 +28,7 @@ export interface ICompilerApi {
     onSetWorkspace: (isLocalhost: boolean, workspaceName: string) => void
     onFileRemoved: (path: string) => void
     onNoFileSelected: () => void
+    onThemeChanged?: (quality: string) => void
     onCompilationFinished: (contractsDetails: any, contractMap: any) => void
     onSessionSwitched: () => void
     onContentChanged: () => void

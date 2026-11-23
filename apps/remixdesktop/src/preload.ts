@@ -4,6 +4,15 @@ import { contextBridge, ipcRenderer } from 'electron'
 
 console.log('preload.ts', new Date().toLocaleTimeString())
 
+/* Inject E2E flag before any page JS runs so the nudge plugin's onActivation
+   check fires before any rules are set up. Uses a synchronous IPC call so
+   contextBridge.exposeInMainWorld can be called at module load time. */
+const _isE2EMode: boolean = ipcRenderer.sendSync('config:isE2E:sync')
+if (_isE2EMode) {
+  contextBridge.exposeInMainWorld('__IS_E2E_TEST__', true)
+  contextBridge.exposeInMainWorld('REMIX_DISABLE_TOOLTIPS', true)
+}
+
 /* preload script needs statically defined API for each plugin */
 
 const exposedPLugins = ['fs', 'git', 'xterm', 'isogit', 'electronconfig', 'electronTemplates', 'ripgrep', 'compilerloader', 'appUpdater', 'slither', 'foundry', 'hardhat', 'circom', 'desktopHost', 'githubAuthHandler', 'desktopAuthHandler', 'desktopBillingHandler']

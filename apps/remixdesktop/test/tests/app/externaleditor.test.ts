@@ -2,8 +2,7 @@ import {NightwatchBrowser} from 'nightwatch'
 
 const testsBash = {
   before: function (browser: NightwatchBrowser, done: VoidFunction) {
-    browser.hideToolTips()
-    done()
+    browser.hideToolTips().perform(() => done())
   },
   open: function (browser: NightwatchBrowser) {
     browser.waitForElementVisible('*[data-id="openFolderButton"]', 10000).click('*[data-id="openFolderButton"]')

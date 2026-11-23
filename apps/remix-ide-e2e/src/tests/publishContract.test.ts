@@ -19,6 +19,8 @@ module.exports = {
       .click('[data-id="treeViewLitreeViewItemcontracts"]')
       .openFile('contracts/3_Ballot.sol')
       .verifyContracts(['Ballot'])
+      .click('*[data-id="contractMoreMenu"]')
+      .waitForElementVisible('#publishOnIpfs')
       .click('#publishOnIpfs')
       .pause(2000)
       .waitForElementVisible('[data-id="publishToStorageModalDialogModalBody-react"]', 60000)
@@ -41,6 +43,8 @@ module.exports = {
   
   'Publish on Swarm': '' + function (browser: NightwatchBrowser) {
     browser
+      .click('*[data-id="contractMoreMenu"]')
+      .waitForElementVisible('#publishOnSwarm')
       .click('#publishOnSwarm')
       .pause(8000)
       .getText('[data-id="publishToStorageModalDialogModalBody-react"]', (result) => {

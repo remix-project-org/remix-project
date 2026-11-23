@@ -4,8 +4,11 @@ import { CustomTooltipType } from '../../types/customtooltip'
 import '../css/helper.css'
 
 export function CustomTooltip({ children, placement, tooltipId, tooltipClasses, tooltipText, tooltipTextClasses, delay, hide, show }: CustomTooltipType) {
-  // Global tooltip disable flag for E2E tests
-  const [globalDisable, setGlobalDisable] = useState((window as any).REMIX_DISABLE_TOOLTIPS === true)
+  // Global tooltip disable flag for E2E tests (__IS_E2E_TEST__ is set by the
+  // Electron preload before any page JS runs; REMIX_DISABLE_TOOLTIPS is set by hideToolTips)
+  const [globalDisable, setGlobalDisable] = useState(
+    (window as any).REMIX_DISABLE_TOOLTIPS === true || !!(window as any).__IS_E2E_TEST__
+  )
 
   // Listen for custom event when tooltip disable flag changes
   useEffect(() => {

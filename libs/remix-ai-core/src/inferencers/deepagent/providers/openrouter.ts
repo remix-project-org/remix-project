@@ -46,7 +46,7 @@ export const openrouterAdapter: ProviderAdapter = {
       callbacks: modelCallbacks(label),
       plugins: OPENROUTER_PLUGINS,
       provider: OPENROUTER_PROVIDER_PREFERENCES,
-      models: fallbackModels,
+      ...(fallbackModels.length > 0 ? { models: fallbackModels } : {}),
       modelKwargs: OPENROUTER_MODEL_KWARGS
     }
 

@@ -514,7 +514,7 @@ function switchMatomoSettings(browser: NightwatchBrowser, enablePerformance: boo
         .execute(function () {
             // Check current toggle state
             const perfToggle = document.querySelector('[data-id="matomo-perf-analyticsSwitch"]');
-            const isCurrentlyOn = perfToggle?.querySelector('.fa-toggle-on');
+            const isCurrentlyOn = perfToggle?.getAttribute('aria-checked') === 'true';
             return { currentState: !!isCurrentlyOn };
         }, [], (result: any) => {
             const currentState = result.value.currentState;

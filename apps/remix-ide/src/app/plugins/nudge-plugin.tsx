@@ -10,6 +10,10 @@ import { trackMatomoEvent as baseTrackMatomoEvent, NudgeEvent, MatomoEvent, Feat
 import * as packageJson from '../../../../../package.json'
 import './nudge-widget.css'
 import axios from 'axios'
+import {
+  COMPLETION_NUDGE_KINDS, CompletionPromoModal, buildCompletionNudge, completionCta,
+  type CompletionNudge, type CompletionNudgeKind
+} from './completion-nudge'
 
 declare global {
   interface Window { __IS_E2E_TEST__?: boolean }
@@ -71,14 +75,41 @@ const MAX_CALLOUT_VIEWS = 3
 const AI_MODE_TRIED_KEY = 'remix_ai_mode_tried'
 const AI_MODE_BUTTON_ANCHOR = 'aiReviewModeBtn'
 
+/* Free plan → open plan pricing (on every load, and again during heavy AI chat use) */
+const PLANS_ON_LOAD_ID = 'free-plan-open-plans-on-load'
+const PLANS_ON_AI_USAGE_ID = 'free-plan-open-plans-ai-usage'
+const AI_HEAVY_USAGE_EVENT = 'ai:chat_heavy_usage'
+/** Free-plan users see plan pricing again after this many AI chat messages… */
+const AI_USAGE_PLANS_EVERY = 10
+/** …but never sooner than this after plan pricing was last on screen (persisted across reloads) */
+const AI_USAGE_PLANS_COOLDOWN_MS = 30 * 60_000
+const PLANS_LAST_SHOWN_AT_KEY = 'remix_plans_last_shown_at'
+
+/* AI code completion — pill next to the copilot toggle + explainer per state, repeated on a cooldown */
+const COMPLETION_PROMO_PREFIX = 'completion-promo-'
+const COMPLETION_BLOCKED_EVENT_PREFIX = 'ai:completion_blocked:'
+const TYPING_PAUSED_EVENT = 'editor:typing_paused'
+/** The explainer waits for this many separate edits in a code file… */
+const COMPLETION_PROMO_MIN_EDITS = 3
+/** …and then for the user to stop typing this long, so it never lands mid-keystroke */
+const COMPLETION_PROMO_PAUSE_MS = 3500
+/** Kinds whose pill the user hid with its ×, for this browser session */
+const COMPLETION_PILL_HIDDEN_KEY = 'remix_completion_nudge_hidden'
+/** When each kind's explainer was last on screen ({ kind: epoch ms }) */
+const COMPLETION_PROMO_LAST_SHOWN_KEY = 'remix_completion_promo_last_shown'
+/** While the problem lasts, the explainer comes back at most once per session and no sooner than this */
+const COMPLETION_PROMO_COOLDOWN_MS = 3 * 24 * 60 * 60_000
+/** Files the editor offers inline completion for (mirrors the bottom bar) */
+const COMPLETION_FILE_EXTENSIONS = ['sol', 'vy', 'circom', 'js', 'ts']
+
 /* ─── Plugin profile ─── */
 
 const profile = {
   name: 'nudgePlugin',
   displayName: 'Nudge Plugin',
   description: 'Contextual feature discovery widget — surfaces tips, CTAs, and hints based on user context',
-  methods: ['dismiss', 'dismissPermanent', 'addRule', 'addRules', 'fire', 'clearActive', 'getBanner', 'dismissBanner'],
-  events: ['nudgeTriggered', 'nudgeDismissed', 'nudgeBannerChanged'],
+  methods: ['dismiss', 'dismissPermanent', 'addRule', 'addRules', 'fire', 'clearActive', 'getBanner', 'dismissBanner', 'getCompletionNudge', 'completionNudgeAction', 'dismissCompletionNudge'],
+  events: ['nudgeTriggered', 'nudgeDismissed', 'nudgeBannerChanged', 'completionNudgeChanged'],
   icon: '',
   location: 'none',
   version: packageJson.version,
@@ -95,6 +126,8 @@ export interface NudgePluginState {
     decorations: Map<string, NudgeDecoration>
     /** Active anchored callout (type:'callout'), shown independently of the widget queue */
     callout: NudgeRule | null
+    /** AI completion explainer currently on screen */
+    completionPromo: { kind: CompletionNudgeKind; onFreePlan: boolean } | null
 }
 
 export interface NudgeDecoration {
@@ -123,10 +156,25 @@ export class NudgePlugin extends Plugin {
   // Last billing locale turned into engine facts — the plan manager replays a
   // cached locale on activation and again once a live preview lands.
   private _billingLocaleSignature = ''
+  // Latest resolved billing locale — lets plan copy quote the local price.
+  private _billingLocale: BillingLocale | null = null
   // A country-specific pricing offer is live, so the generic free-plan upsell
   // stands down (same audience, weaker copy).
   private _regionalOfferActive = false
   private _activeBanner: NudgeRule | null = null
+  // AI chat messages sent by a free-plan user since plan pricing was last auto-opened.
+  private _freePlanChatCount = 0
+  // Plan-manager panel state, so an auto-open never stacks on (or re-opens
+  // right after) a panel the user already has / just had in front of them.
+  private _planManagerOpen = false
+  private _planManagerOpenedAt = 0
+  // AI code completion nudge inputs: the copilot toggle and why remixAI
+  // refused the last completion (signed-out is read from the auth facts).
+  private _copilotOn = true
+  private _completionStatus: string | null = null
+  private _completionNudge: CompletionNudge | null = null
+  private _completionEdits = 0
+  private _typingPauseTimer: ReturnType<typeof setTimeout> | null = null
 
   // Type-safe tracker defaulting to NudgeEvent
   private trackMatomoEvent = <T extends MatomoEvent = NudgeEvent>(event: T) => {
@@ -142,7 +190,8 @@ export class NudgePlugin extends Plugin {
       queue: [],
       animateOut: false,
       decorations: new Map(),
-      callout: null
+      callout: null,
+      completionPromo: null
     }
   }
 
@@ -162,7 +211,11 @@ export class NudgePlugin extends Plugin {
 
     // Subscribe to nudge triggers from the engine
     this.engine_.onNudge((rule) => {
-      if (rule.action.autoTrigger && rule.action.actionTarget) {
+      if (rule.id.startsWith(COMPLETION_PROMO_PREFIX)) {
+        this._showCompletionPromo(rule)
+      } else if (rule.id === PLANS_ON_LOAD_ID || rule.id === PLANS_ON_AI_USAGE_ID) {
+        this._autoOpenPlans(rule)
+      } else if (rule.action.autoTrigger && rule.action.actionTarget) {
         // Announcement-style nudges that open their own rich UI instead of
         // rendering one of the built-in cards.
         this._invokeTarget(rule.action.actionTarget)
@@ -273,9 +326,31 @@ export class NudgePlugin extends Plugin {
       this.engine_.fire('ai:model_changed')
     })
 
+    // Inline completion refused / working again (see remixAI.withCompletionGate)
+    this.on('remixAI', 'completionStatusChanged', (status: string | null) => {
+      this._completionStatus = status || null
+      this._syncCompletionNudge()
+    })
+    this.call('remixAI' as any, 'getCompletionStatus')
+      .then((status: string | null) => { this._completionStatus = status || null; this._syncCompletionNudge() })
+      .catch(() => { /* remixAI not active yet — the event above catches up */ })
+
+    // Switching AI copilot off is the user saying "no completions" — no nudging either.
+    this.on('settings', 'copilotChoiceUpdated', (isOn: boolean) => {
+      this._copilotOn = !!isOn
+      this._syncCompletionNudge()
+    })
+    this.call('settings', 'getCopilotSetting')
+      .then((isOn: boolean) => { this._copilotOn = isOn ?? true; this._syncCompletionNudge() })
+      .catch(() => { })
+
+    // Typing in a code file while completion is unavailable → explainer at the next pause
+    this.on('editor', 'contentChanged', (file: string) => this._onEditorTyping(file))
+
     // User sent a chat message
     this.on('remixAI', 'chatMessageSent', () => {
       this.engine_.fire('ai:chat_message')
+      this._countFreePlanChat()
       // Fire a real-time auth check event for unauthenticated nudges
       // (can't rely on accumulated 'user:not_logged_in' — it fires on load before auth resolves)
       this.call('auth' as any, 'isAuthenticated').then((isAuth: boolean) => {
@@ -343,9 +418,16 @@ export class NudgePlugin extends Plugin {
 
     // Plan purchased — user is no longer on free plan, retire the upgrade nudge
     this.on('planManager' as any, 'purchaseConfirmed', (info?: { intent?: string; label?: string }) => {
+      if (info?.intent === 'payment_method') {
+        this.engine_.unfire('user:payment_past_due')
+        this.engine_.disableRule('payment-past-due')
+        return
+      }
       this.engine_.unfire('user:on_free_plan')
       this.engine_.disableRule('free-plan-upgrade')
       this.engine_.disableRule('regional-pricing-offer')
+      this.engine_.disableRule(PLANS_ON_LOAD_ID)
+      this.engine_.disableRule(PLANS_ON_AI_USAGE_ID)
 
       // Only celebrate / suppress for an actual plan upgrade (not top-ups,
       // cancellations or reactivations).
@@ -386,7 +468,14 @@ export class NudgePlugin extends Plugin {
 
     // …or when the user closes the plan panel outright after an upgrade.
     this.on('planManager' as any, 'closed', () => {
+      this._planManagerOpen = false
       this._openPendingPlanGuide()
+    })
+
+    this.on('planManager' as any, 'opened', () => {
+      this._planManagerOpen = true
+      this._planManagerOpenedAt = Date.now()
+      this._markPlansShown()
     })
 
     // Credits updated — check if balance is low and nudge to top up
@@ -432,6 +521,7 @@ export class NudgePlugin extends Plugin {
 
       if (getConfigValue('auth.sign_in_button_mode') !== 'hidden') {
         this.engine_.fire('config:login_enabled')
+        this._syncCompletionNudge()
       }
 
       // Domain migration — only prompt on an origin that is actually being
@@ -466,6 +556,70 @@ export class NudgePlugin extends Plugin {
     if (!topic) return
     this._pendingPlanGuide = null
     this.call('helpPlugin' as any, 'showModal', topic).catch(() => { /* help plugin unavailable */ })
+  }
+
+  private _aiUsagePlansRule(): NudgeRule {
+    return {
+      id: PLANS_ON_AI_USAGE_ID,
+      condition: all('user:logged_in', 'user:on_free_plan', 'user:can_see_plans', AI_HEAVY_USAGE_EVENT),
+      action: {
+        type: 'modal',
+        autoTrigger: true,
+        actionTarget: 'planManager::open::plans',
+        title: 'Plans',
+        message: 'Open plan pricing for free-plan users who use AI chat a lot.'
+      },
+      showOnce: false,
+      priority: 15
+    }
+  }
+
+  /**
+   * Count AI chat messages from a free-plan user and, every
+   * AI_USAGE_PLANS_EVERY messages (cooldown permitting), pulse
+   * AI_HEAVY_USAGE_EVENT so the plans screen opens again.
+   */
+  private _countFreePlanChat(): void {
+    if (!this.engine_.has('user:on_free_plan')) return
+    this._freePlanChatCount++
+    if (this._freePlanChatCount < AI_USAGE_PLANS_EVERY) return
+    if (Date.now() - this._getPlansLastShownAt() < AI_USAGE_PLANS_COOLDOWN_MS) return
+    this._freePlanChatCount = 0
+    // Guard registrations are one-shot, so re-arm the rule before each pulse.
+    this.engine_.addRule(this._aiUsagePlansRule())
+    this.engine_.fire(AI_HEAVY_USAGE_EVENT)
+    this.engine_.unfire(AI_HEAVY_USAGE_EVENT)
+  }
+
+  /** Open plan pricing for a free-plan user without trampling whatever is on screen. */
+  private async _autoOpenPlans(rule: NudgeRule): Promise<void> {
+    const onLoad = rule.id === PLANS_ON_LOAD_ID
+    // Already looking at it, or (on load) already saw it this session, e.g.
+    // by signing in through the plan manager.
+    if (this._planManagerOpen || (onLoad && this._planManagerOpenedAt > 0)) return
+    if (this._isBlockingModalOpen()) {
+      // Mid-session, don't interrupt another dialog; the next burst of chat
+      // retries. On load, wait for the welcome / migration dialogs to clear.
+      if (!onLoad) return
+      if (!(await this._waitForModalsToClose())) return
+      if (this._planManagerOpen || this._planManagerOpenedAt > 0) return
+    }
+    // The user may have upgraded or signed out while we waited.
+    if (!this.engine_.has('user:logged_in') || !this.engine_.has('user:on_free_plan')) return
+    this._markPlansShown()
+    await this._invokeTarget(rule.action.actionTarget)
+  }
+
+  private _markPlansShown(): void {
+    try { localStorage.setItem(PLANS_LAST_SHOWN_AT_KEY, String(Date.now())) } catch { }
+  }
+
+  private _getPlansLastShownAt(): number {
+    try {
+      return Number(localStorage.getItem(PLANS_LAST_SHOWN_AT_KEY)) || 0
+    } catch {
+      return 0
+    }
   }
 
   private _isBlockingModalOpen(): boolean {
@@ -522,11 +676,17 @@ export class NudgePlugin extends Plugin {
     if (isAuthenticated) {
       this.engine_.unfire('user:not_logged_in')
       this.engine_.fire('user:logged_in')
+      this._syncCompletionNudge()
       return
     }
 
     this.engine_.unfire('user:logged_in')
+    // Plan facts belong to the signed-out account; the next sign-in re-checks them.
+    this.engine_.unfire('user:on_free_plan')
+    this.engine_.unfire('user:can_see_plans')
+    this._freePlanChatCount = 0
     this.engine_.fire('user:not_logged_in')
+    this._syncCompletionNudge()
   }
 
   private async _checkBetaMembership(opts: { isNewUser?: boolean; isFreshLogin?: boolean } = {}): Promise<void> {
@@ -544,11 +704,51 @@ export class NudgePlugin extends Plugin {
         // Non-beta logged-in user — check if they're on the free plan
         // and show an upgrade nudge with live discount copy.
         this._checkFreePlanNudge().catch(() => {})
+        // Renewal failed → prompt to update the payment method (recovers
+        // involuntary churn; most failures are `not_enough_balance`).
+        this._checkPastDueNudge().catch(() => {})
         // First registration only: introduce the free features via the help guide.
         this._maybeShowFreeWelcome(opts).catch(() => {})
       }
     } catch {
       // Permissions not available — skip beta check
+    }
+  }
+
+  /**
+   * Subscribed user whose renewal failed (`past_due`): Paddle keeps retrying
+   * for a while and then cancels, so prompt them to update their payment
+   * method in-app. The action opens Paddle's update-payment-method checkout.
+   */
+  private async _checkPastDueNudge(): Promise<void> {
+    try {
+      const billingApi = await this.call('auth' as any, 'getBillingApi')
+      const resp = await billingApi.getSubscription()
+      const sub = resp?.data?.subscription
+      if (sub?.status !== 'past_due') return
+      const planName: string = sub.planName || 'your plan'
+      this.log('[NudgePlugin] subscription past_due — prompting payment method update', sub.planSlug)
+      this.engine_.addRule({
+        id: 'payment-past-due',
+        condition: 'user:payment_past_due',
+        action: {
+          type: 'widget',
+          position: 'right',
+          hidePermanentDismiss: true,
+          title: 'Your renewal payment failed',
+          message: `We couldn't charge your payment method for ${planName}. Update it to keep your monthly AI credits and paid features — we'll retry right away.`,
+          actionLabel: 'Update payment method',
+          actionTarget: 'planManager::updatePaymentMethod',
+          icon: 'fas fa-credit-card',
+          widgetColor: '#ef4444',
+          widgetBg: 'rgba(239, 68, 68, 0.1)'
+        },
+        showOnce: 'session',
+        priority: 21
+      })
+      this.engine_.fire('user:payment_past_due')
+    } catch (err) {
+      this.log('[NudgePlugin] _checkPastDueNudge failed', err)
     }
   }
 
@@ -595,49 +795,57 @@ export class NudgePlugin extends Plugin {
       }
       this.log('[NudgePlugin] _checkFreePlanNudge: no active subscription, proceeding', subData)
 
-      // 2. Fetch plan catalog to derive discount copy.
-      let title = 'Upgrade to Remix AI Pro'
-      let message = 'Upgrade to a paid plan to unlock premium AI models, MCP tools, higher credit quotas, and more.'
+      // 2. Fetch plan catalog to derive the copy. Lead with the cheapest paid
+      // plan — every paid plan has the same features, only the monthly
+      // credits differ — and quote the visitor's local price when Paddle has
+      // resolved it (USD list price otherwise).
+      let title = 'Get monthly AI credits'
+      let message = 'Every paid plan includes the Security Auditor and Gas Saver AI agents, front-end hosting for your contracts, and 70+ web3 AI skills — plus fresh AI credits every month.'
 
       try {
         const productsApi = await this.call('auth' as any, 'getProductsApi')
         this.log('[NudgePlugin] _checkFreePlanNudge: productsApi resolved')
         const catalogResp = await productsApi.getAvailableProducts({ type: 'subscription_plan' })
         this.log('[NudgePlugin] _checkFreePlanNudge: catalog response', catalogResp)
-        const plans: any[] = (catalogResp.data?.data ?? []).filter((p: any) => (p.price_cents ?? 0) > 0)
+        const plans: any[] = (catalogResp.data?.data ?? [])
+          .filter((p: any) => (p.price_cents ?? 0) > 0)
+          .sort((a: any, b: any) => a.price_cents - b.price_cents)
         this.log('[NudgePlugin] _checkFreePlanNudge: paid plans', plans)
-        const topPlan = [...plans].sort((a: any, b: any) => b.price_cents - a.price_cents)[0]
-        this.log('[NudgePlugin] _checkFreePlanNudge: top plan', topPlan)
+        const cheapest = plans[0]
 
-        if (topPlan) {
-          const planName: string = topPlan.name
-          title = `Upgrade to ${planName}`
-          const priceCents: number = topPlan.price_cents
-          const unit: string = topPlan.billing_interval === 'year' ? 'year' : 'month'
-          const introDiscount = Array.isArray(topPlan.intro_discounts) ? topPlan.intro_discounts[0] : null
-          this.log('[NudgePlugin] _checkFreePlanNudge: introDiscount', introDiscount)
+        if (cheapest) {
+          const monthlyCredits = plans
+            .map((p: any) => Number(p.display?.monthly_credits ?? p.credits_per_month) || 0)
+            .filter((n: number) => n > 0)
+          const compact = (n: number) => new Intl.NumberFormat('en', { notation: 'compact', maximumFractionDigits: 1 }).format(n)
+          const creditsLabel = monthlyCredits.length > 1
+            ? `+${compact(Math.min(...monthlyCredits))} to +${compact(Math.max(...monthlyCredits))}`
+            : monthlyCredits.length === 1 ? `+${compact(monthlyCredits[0])}` : null
 
+          const localPrice = this._billingLocale?.lowestPlanPrice ?? null
+          const isIntroOffer = !!localPrice && !!this._billingLocale?.lowestPlanIsIntroOffer
+          let priceLabel = localPrice ?? `$${(cheapest.price_cents / 100).toFixed(2)}`
+
+          // Intro discount on the cheapest plan (USD path only — the localized
+          // price already has a percentage intro offer folded in).
+          const introDiscount = !localPrice && Array.isArray(cheapest.intro_discounts) ? cheapest.intro_discounts[0] : null
+          let offerPrefix = isIntroOffer ? 'Launch offer: ' : ''
           if (introDiscount) {
             const isPct = introDiscount.discount_type === 'percentage'
             const dc = isPct
-              ? Math.max(0, Math.floor(priceCents * (1 - (Number(introDiscount.amount) || 0) / 100)))
-              : Math.max(0, priceCents - Math.round((Number(introDiscount.amount) || 0) * 100))
-            const intervals = introDiscount.max_recurring_intervals
-            const duration = !introDiscount.recur || !intervals || intervals === 1
-              ? `first ${unit}`
-              : `first ${intervals} ${unit}s`
-            const offerLabel = isPct
-              ? `${Math.round(Number(introDiscount.amount) || 0)}% off ${duration}`
-              : `$${(Number(introDiscount.amount) || 0).toFixed(2)} off ${duration}`
-            const discountedLabel = `$${(dc / 100).toFixed(2)}`
-            const regularLabel = `$${(priceCents / 100).toFixed(2)}`
-            message = `Limited offer: ${offerLabel} — get ${planName} for just ${discountedLabel}/${unit} (regular ${regularLabel}). Premium models, MCP tools, security and gas audit and initial credits included.`
-            this.log('[NudgePlugin] _checkFreePlanNudge: discount message built', { offerLabel, discountedLabel, regularLabel })
-          } else {
-            const priceLabel = `$${(priceCents / 100).toFixed(2)}`
-            message = `Upgrade to ${planName} for ${priceLabel}/${unit} — unlock premium AI models, MCP integrations, and higher credit quotas.`
-            this.log('[NudgePlugin] _checkFreePlanNudge: no discount, price message built', priceLabel)
+              ? Math.max(0, Math.floor(cheapest.price_cents * (1 - (Number(introDiscount.amount) || 0) / 100)))
+              : Math.max(0, cheapest.price_cents - Math.round((Number(introDiscount.amount) || 0) * 100))
+            if (dc < cheapest.price_cents) {
+              priceLabel = `$${(dc / 100).toFixed(2)}`
+              offerPrefix = 'Launch offer: '
+            }
           }
+
+          title = offerPrefix ? `${offerPrefix}plans from ${priceLabel}/month` : `Paid plans from ${priceLabel}/month`
+          message = creditsLabel
+            ? `Get ${creditsLabel} AI credits every month, plus the Security Auditor and Gas Saver AI agents, front-end hosting and 70+ web3 AI skills on every paid plan.`
+            : message
+          this.log('[NudgePlugin] _checkFreePlanNudge: copy built', { title, message, localPrice, introDiscount })
         }
       } catch (err) {
         this.log('[NudgePlugin] _checkFreePlanNudge: catalog fetch failed', err)
@@ -646,6 +854,8 @@ export class NudgePlugin extends Plugin {
 
       // 3. Register the rule (dynamic copy baked in) and fire the trigger.
       this.log('[NudgePlugin] _checkFreePlanNudge: registering rule and firing user:on_free_plan', { title, message })
+      // Backend switch for the plans surface — gates auto-opening plan pricing.
+      if (hasPermFeature(permissions, Features.UI_SHOW_PLANS)) this.engine_.fire('user:can_see_plans')
       this.engine_.addRule({
         id: 'free-plan-upgrade',
         condition: 'user:on_free_plan',
@@ -682,6 +892,7 @@ export class NudgePlugin extends Plugin {
   private _applyBillingLocale(locale: BillingLocale | null | undefined): void {
     const countryCode = locale?.countryCode?.toUpperCase()
     if (!locale || !countryCode) return
+    this._billingLocale = locale
 
     const signature = `${countryCode}|${locale.currencyCode}|${locale.lowestPlanPrice ?? ''}|${locale.lowestPlanIsIntroOffer}`
     if (signature === this._billingLocaleSignature) return
@@ -939,6 +1150,13 @@ export class NudgePlugin extends Plugin {
       priority: 16
     })
 
+    /* ─── AI code completion — explainer per blocked state (cooldown-paced) ─── */
+
+    // Fires at a pause in typing while completion is unavailable (signed out,
+    // out of credits, …). The persistent pill in the editor's bottom bar is
+    // driven separately by _syncCompletionNudge.
+    for (const kind of COMPLETION_NUDGE_KINDS) this.engine_.addRule(this._completionPromoRule(kind))
+
     /* ─── Unauthenticated AI nudges — show login prompt after AI engagement ─── */
 
     // User chatted but isn't logged in — nudge to sign up for better models
@@ -1006,7 +1224,7 @@ export class NudgePlugin extends Plugin {
         position: 'right',
         hidePermanentDismiss: true,
         title: `You're on ${this._upgradedPlanLabel}!`,
-        message: 'Your upgrade is live — premium AI models, higher limits, and the audit tools are unlocked. Open the AI assistant to put them to work.',
+        message: 'Your upgrade is live — your monthly AI credits, the Security Auditor and Gas Saver agents, and all AI skills are unlocked. Open the AI assistant to put them to work.',
         actionLabel: 'Open AI Assistant',
         actionTarget: 'menuicons::select::remixaiassistant',
         icon: 'fas fa-circle-check',
@@ -1026,7 +1244,7 @@ export class NudgePlugin extends Plugin {
         position: 'right',
         hidePermanentDismiss: true,
         title: 'Complete Your Upgrade',
-        message: 'You have an unfinished checkout. Complete it now to unlock premium features and higher limits.',
+        message: 'You have an unfinished checkout. Pick up right where you left off — your order is saved.',
         actionLabel: 'Complete Checkout',
         actionTarget: 'planManager::open',
         icon: 'fas fa-bag-shopping',
@@ -1058,6 +1276,27 @@ export class NudgePlugin extends Plugin {
       showOnce: false,
       priority: 20
     })
+
+    /* ─── Free plan — open plan pricing ─── */
+
+    // Every load (session restore or sign-in), land free-plan users on the
+    // plans screen. Handled by _autoOpenPlans (waits out other dialogs).
+    this.engine_.addRule({
+      id: PLANS_ON_LOAD_ID,
+      condition: all('user:logged_in', 'user:on_free_plan', 'user:can_see_plans', 'lifecycle:APP_LOADED'),
+      action: {
+        type: 'modal',
+        autoTrigger: true,
+        actionTarget: 'planManager::open::plans',
+        title: 'Plans',
+        message: 'Open plan pricing for free-plan users on load.'
+      },
+      showOnce: 'session',
+      priority: 15
+    })
+
+    // Heavy AI chat use on the free plan — pulsed by _countFreePlanChat.
+    this.engine_.addRule(this._aiUsagePlansRule())
 
     /* ─── AI / Code modes announcement ─── */
 
@@ -1194,9 +1433,188 @@ export class NudgePlugin extends Plugin {
       queue: [],
       animateOut: false,
       decorations: new Map(),
-      callout: null
+      callout: null,
+      completionPromo: null
     }
     this.renderComponent()
+  }
+
+  /* ─── AI code completion nudge ─── */
+
+  /** Pill state for the editor's bottom bar (null = nothing to show). */
+  getCompletionNudge(): CompletionNudge | null {
+    return this._completionNudge
+  }
+
+  /** Pill clicked — go straight to the fix (sign up, top up, …). */
+  async completionNudgeAction(): Promise<void> {
+    const kind = this._completionNudge?.kind
+    if (!kind) return
+    this.trackMatomoEvent({ category: 'nudge', action: 'ctaClicked', name: `completion-pill-${kind}`, isClick: true })
+    await this._runCompletionCta(kind, 'primary')
+  }
+
+  /** Pill ×: hide it for this browser session (the copilot toggle turns it off for good). */
+  dismissCompletionNudge(): void {
+    const kind = this._completionNudge?.kind
+    if (!kind) return
+    this.trackMatomoEvent({ category: 'nudge', action: 'dismissed', name: `completion-pill-${kind}`, isClick: true })
+    try {
+      const hidden: string[] = JSON.parse(sessionStorage.getItem(COMPLETION_PILL_HIDDEN_KEY) || '[]')
+      if (!hidden.includes(kind)) sessionStorage.setItem(COMPLETION_PILL_HIDDEN_KEY, JSON.stringify([...hidden, kind]))
+    } catch { }
+    this._syncCompletionNudge()
+  }
+
+  private _isCompletionPillHidden(kind: CompletionNudgeKind): boolean {
+    try {
+      return (JSON.parse(sessionStorage.getItem(COMPLETION_PILL_HIDDEN_KEY) || '[]') as string[]).includes(kind)
+    } catch {
+      return false
+    }
+  }
+
+  /** Which completion problem the user has right now, if any. */
+  private _computeCompletionKind(): CompletionNudgeKind | null {
+    if (!this._copilotOn) return null
+    // The editor never even asks for completions when signed out, so this one
+    // comes from the auth facts rather than from a refused request.
+    if (this.engine_.has('user:not_logged_in')) return this.engine_.has('config:login_enabled') ? 'signin' : null
+    if (!this.engine_.has('user:logged_in')) return null
+    switch (this._completionStatus) {
+    case 'insufficient-credits': return 'credits'
+    case 'email-unverified': return 'verify-email'
+    case 'feature-required': return 'upgrade'
+    default: return null
+    }
+  }
+
+  /** Recompute the completion nudge from its inputs and publish changes. */
+  private _syncCompletionNudge(): void {
+    const kind = this._computeCompletionKind()
+    // Engine facts follow the real state (a hidden pill doesn't make the problem go away)…
+    for (const k of COMPLETION_NUDGE_KINDS) {
+      const eventId = COMPLETION_BLOCKED_EVENT_PREFIX + k
+      if (k === kind && !this.engine_.has(eventId)) this.engine_.fire(eventId)
+      else if (k !== kind && this.engine_.has(eventId)) this.engine_.unfire(eventId)
+    }
+    // …the pill also respects the user's "hide for now".
+    const visibleKind = kind && !this._isCompletionPillHidden(kind) ? kind : null
+    if (visibleKind === (this._completionNudge?.kind ?? null)) return
+
+    this._completionNudge = visibleKind ? buildCompletionNudge(visibleKind) : null
+    this._completionEdits = 0
+    if (this._typingPauseTimer) clearTimeout(this._typingPauseTimer)
+    // Signed in / topped up / switched copilot off while the explainer was open
+    if (this.state.completionPromo && this.state.completionPromo.kind !== kind) this._closeCompletionPromo()
+    if (visibleKind) {
+      this.trackMatomoEvent({ category: 'nudge', action: 'triggered', name: `completion-pill-${visibleKind}`, isClick: false })
+    }
+    this.emit('completionNudgeChanged', this._completionNudge)
+  }
+
+  /**
+   * contentChanged is debounced by the editor (~500ms), so each call is one
+   * burst of typing. After a few of them, wait for a real pause before
+   * pulsing TYPING_PAUSED_EVENT — the explainer must never land mid-keystroke.
+   */
+  private _onEditorTyping(file: string): void {
+    if (!this._completionNudge || this.state.completionPromo) return
+    const ext = file?.split('.').pop()?.toLowerCase()
+    if (!ext || !COMPLETION_FILE_EXTENSIONS.includes(ext)) return
+    this._completionEdits++
+    if (this._typingPauseTimer) clearTimeout(this._typingPauseTimer)
+    if (this._completionEdits < COMPLETION_PROMO_MIN_EDITS) return
+    this._typingPauseTimer = setTimeout(() => {
+      this._typingPauseTimer = null
+      this.engine_.fire(TYPING_PAUSED_EVENT)
+      this.engine_.unfire(TYPING_PAUSED_EVENT)
+    }, COMPLETION_PROMO_PAUSE_MS)
+  }
+
+  private _completionPromoRule(kind: CompletionNudgeKind): NudgeRule {
+    return {
+      id: COMPLETION_PROMO_PREFIX + kind,
+      condition: all(COMPLETION_BLOCKED_EVENT_PREFIX + kind, TYPING_PAUSED_EVENT),
+      action: {
+        type: 'modal',
+        title: 'AI code completion',
+        message: `Explain AI code completion (${kind}) at a pause in typing.`
+      },
+      // Re-shown across sessions, paced by COMPLETION_PROMO_COOLDOWN_MS (see _showCompletionPromo)
+      showOnce: 'session',
+      priority: 25
+    }
+  }
+
+  private _getCompletionPromoLastShown(kind: CompletionNudgeKind): number {
+    try {
+      return Number(JSON.parse(localStorage.getItem(COMPLETION_PROMO_LAST_SHOWN_KEY) || '{}')[kind]) || 0
+    } catch {
+      return 0
+    }
+  }
+
+  private _markCompletionPromoShown(kind: CompletionNudgeKind): void {
+    try {
+      const shown = JSON.parse(localStorage.getItem(COMPLETION_PROMO_LAST_SHOWN_KEY) || '{}')
+      shown[kind] = Date.now()
+      localStorage.setItem(COMPLETION_PROMO_LAST_SHOWN_KEY, JSON.stringify(shown))
+    } catch { }
+  }
+
+  private _showCompletionPromo(rule: NudgeRule): void {
+    const kind = rule.id.slice(COMPLETION_PROMO_PREFIX.length) as CompletionNudgeKind
+    // Shown recently — skip it for the rest of this session (the pill stays).
+    if (Date.now() - this._getCompletionPromoLastShown(kind) < COMPLETION_PROMO_COOLDOWN_MS) return
+    const busy = this._planManagerOpen
+      || !!this.state.completionPromo
+      || this.state.activeNudge?.action.type === 'modal'
+      || this._isBlockingModalOpen()
+    if (busy || this._completionNudge?.kind !== kind) {
+      // Not a good moment (or the pill was hidden) — it hasn't really been
+      // seen, so re-arm it for a later pause. Deferred: the pause pulse is
+      // still fired while this callback runs and would re-trigger it at once.
+      setTimeout(() => {
+        this.engine_.resetShown(rule.id)
+        this.engine_.addRule(this._completionPromoRule(kind))
+      }, 0)
+      return
+    }
+    this.state = { ...this.state, completionPromo: { kind, onFreePlan: this.engine_.has('user:on_free_plan') } }
+    this._markCompletionPromoShown(kind)
+    this.renderComponent()
+  }
+
+  private _closeCompletionPromo(): void {
+    if (!this.state.completionPromo) return
+    this.state = { ...this.state, completionPromo: null }
+    this.renderComponent()
+  }
+
+  async handleCompletionPromoAction(which: 'primary' | 'secondary'): Promise<void> {
+    const promo = this.state.completionPromo
+    if (!promo) return
+    this.trackMatomoEvent({ category: 'nudge', action: 'ctaClicked', name: COMPLETION_PROMO_PREFIX + promo.kind, value: which, isClick: true })
+    this._closeCompletionPromo()
+    await this._runCompletionCta(promo.kind, which)
+  }
+
+  dismissCompletionPromo(): void {
+    const promo = this.state.completionPromo
+    if (!promo) return
+    this.trackMatomoEvent({ category: 'nudge', action: 'dismissed', name: COMPLETION_PROMO_PREFIX + promo.kind, isClick: true })
+    this._closeCompletionPromo()
+  }
+
+  private async _runCompletionCta(kind: CompletionNudgeKind, which: 'primary' | 'secondary'): Promise<void> {
+    const intent = completionCta(kind, which, this.engine_.has('user:on_free_plan'))
+    if (!intent) return
+    try {
+      await this.call('planManager' as any, 'open', intent)
+    } catch (e) {
+      this.warn('[NudgePlugin] Failed to open planManager for completion nudge:', e)
+    }
   }
 
   /* ─── CTA handler ─── */
@@ -1398,6 +1816,8 @@ export class NudgePlugin extends Plugin {
         onDecorationClick={(elementId) => this.removeDecoration(elementId)}
         onCalloutAction={(target) => this.handleCalloutAction(target)}
         onCalloutDismiss={() => this.dismissCallout()}
+        onCompletionPromoAction={(which) => this.handleCompletionPromoAction(which)}
+        onCompletionPromoDismiss={() => this.dismissCompletionPromo()}
       />
     )
   }
@@ -1422,9 +1842,11 @@ interface NudgeWidgetUIProps {
     onDecorationClick: (elementId: string) => void
     onCalloutAction: (target: string) => void
     onCalloutDismiss: () => void
+    onCompletionPromoAction: (which: 'primary' | 'secondary') => void
+    onCompletionPromoDismiss: () => void
 }
 
-function NudgeWidgetUI({ state, onAction, onDismiss, onDismissPermanent, onDecorationClick, onCalloutAction, onCalloutDismiss }: NudgeWidgetUIProps) {
+function NudgeWidgetUI({ state, onAction, onDismiss, onDismissPermanent, onDecorationClick, onCalloutAction, onCalloutDismiss, onCompletionPromoAction, onCompletionPromoDismiss }: NudgeWidgetUIProps) {
   const nudge = state.activeNudge
 
   return (
@@ -1507,6 +1929,16 @@ function NudgeWidgetUI({ state, onAction, onDismiss, onDismissPermanent, onDecor
       {/* Anchored callout (type:'callout') */}
       {state.callout && (
         <NudgeCallout rule={state.callout} onAction={onCalloutAction} onDismiss={onCalloutDismiss} />
+      )}
+
+      {/* AI code completion explainer */}
+      {state.completionPromo && (
+        <CompletionPromoModal
+          kind={state.completionPromo.kind}
+          onFreePlan={state.completionPromo.onFreePlan}
+          onAction={onCompletionPromoAction}
+          onClose={onCompletionPromoDismiss}
+        />
       )}
 
       {/* Decorations layer for hint-type nudges */}

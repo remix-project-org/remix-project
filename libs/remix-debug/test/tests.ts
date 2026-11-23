@@ -2,6 +2,7 @@
 require('./vmCall')
 require('./traceManager')
 require('./codeManager')
+require('./monadIsolation')
 require('./disassembler')
 require('./sourceMappingDecoder')
 require('./sourceLocationTracker')

@@ -30,10 +30,13 @@ import { TheGraphPlugin } from './app/plugins/thegraph'
 import { SolidityUmlGen } from './app/plugins/solidity-umlgen'
 import { VyperCompilationDetailsPlugin } from './app/plugins/vyper-compilation-details'
 import { ContractFlattener } from './app/plugins/contractFlattener'
+import { PreDeployChecksPlugin } from './app/plugins/pre-deploy-checks'
 
 import { WalkthroughService } from './walkthroughService'
 
 import { OffsetToLineColumnConverter, CompilerMetadata, CompilerArtefacts, FetchAndCompile, CompilerImports, GistHandler, AmpPlugin, ChartJsPlugin } from '@remix-project/core-plugin'
+import { ArkivBasicPlugin } from './app/plugins/arkiv-basic-plugin'
+import { ArkivNetworkPlugin } from './app/plugins/arkiv-network-plugin'
 
 import { Registry, AppLifecycle, LifecyclePlugin, all } from '@remix-project/remix-lib'
 import { ConfigPlugin } from './app/plugins/config'
@@ -42,7 +45,7 @@ import { StorageMonitorPlugin } from './app/plugins/storage-monitor'
 import { Layout } from './app/panels/layout'
 import { NotificationPlugin } from './app/plugins/notification'
 import { Blockchain } from './blockchain/blockchain'
-import { MergeVMProvider, LondonVMProvider, BerlinVMProvider, ShanghaiVMProvider, CancunVMProvider, PectraVMProvider, FusakaVMProvider } from '@remix-ui/run-tab-environment'
+import { MergeVMProvider, LondonVMProvider, BerlinVMProvider, ShanghaiVMProvider, CancunVMProvider, PectraVMProvider, FusakaVMProvider, MonadVMProvider } from '@remix-ui/run-tab-environment'
 import { MainnetForkVMProvider, SepoliaForkVMProvider, CustomForkVMProvider, HardhatProvider, GanacheProvider, FoundryProvider, ExternalHttpProvider, BaseProvider } from '@remix-ui/run-tab-environment'
 import { EnvironmentExplorer } from './app/providers/environment-explorer'
 import { FileDecorator } from './app/plugins/file-decorator'
@@ -435,6 +438,12 @@ class AppComponent {
     // ----------------- vega (generate visualization) ------------------------
     // const vega = new VegaPlugin()
 
+    // ----------------- arkiv (on-chain entity storage) ----
+    const arkivPlugin = new ArkivBasicPlugin()
+
+    // ----------------- arkiv network (Arkiv-specific product features) -------
+    const arkivNetworkPlugin = new ArkivNetworkPlugin()
+
     // ----------------- chart (generate visualization) ------------------------
     const chartjs = new ChartJsPlugin()
 
@@ -460,6 +469,10 @@ class AppComponent {
     const vmProviderCancun = new CancunVMProvider(blockchain)
     const vmProviderPectra = new PectraVMProvider(blockchain)
     const vmProviderFusaka = new FusakaVMProvider(blockchain)
+    const vmProviderMonadEight = new MonadVMProvider(blockchain, 'monad-eight')
+    const vmProviderMonadNine = new MonadVMProvider(blockchain, 'monad-nine')
+    const vmProviderMonadTen = new MonadVMProvider(blockchain, 'monad-ten')
+    const vmProviderMonadNext = new MonadVMProvider(blockchain, 'monad-next')
     const vmProviderMerge = new MergeVMProvider(blockchain)
     const vmProviderBerlin = new BerlinVMProvider(blockchain)
     const vmProviderLondon = new LondonVMProvider(blockchain)
@@ -520,6 +533,7 @@ class AppComponent {
 
     const udappEnvPlugin = new EnvironmentPlugin()
     const udappDeployPlugin = new DeployPlugin()
+    const preDeployChecks = new PreDeployChecksPlugin()
     const udappDeployedContractsPlugin = new DeployedContractsPlugin()
     const udappTransactionsPlugin = new TransactionsPlugin()
     const udappEezPlugin = new EezPlugin()
@@ -562,6 +576,10 @@ class AppComponent {
       vmProviderCancun,
       vmProviderPectra,
       vmProviderFusaka,
+      vmProviderMonadEight,
+      vmProviderMonadNine,
+      vmProviderMonadTen,
+      vmProviderMonadNext,
       vmProviderMerge,
       vmProviderBerlin,
       vmProviderLondon,
@@ -583,6 +601,7 @@ class AppComponent {
       domainMigration,
       remixGuide,
       contractFlattener,
+      preDeployChecks,
       solidityScript,
       templates,
       git,
@@ -595,6 +614,8 @@ class AppComponent {
       quickDappV2,
       theGraphPlugin,
       walletConnect,
+      arkivPlugin,
+      arkivNetworkPlugin,
       amp,
       // vega,
       chartjs,
@@ -814,6 +835,8 @@ class AppComponent {
     await this.appManager.activatePlugin(['feedback'])
     await this.appManager.activatePlugin(['settings'])
 
+    await this.appManager.activatePlugin(['arkivBasic'])
+    await this.appManager.activatePlugin(['arkivNetwork'])
     await this.appManager.activatePlugin(['storage', 'storageMonitor', 'search', 'compileAndRun', 'dgitApi', 'dgit', 'helpPlugin', 'planManager'])
     await this.appManager.activatePlugin(['solidity-script', 'remix-templates'])
 
@@ -990,6 +1013,8 @@ class AppComponent {
     await this.appManager.activatePlugin(['udappDeployedContracts'])
     await this.appManager.activatePlugin(['udappTransactions'])
     await this.appManager.activatePlugin(['udappEez'])
+    // listens to compile and file events from the start, so it also reflects tools run by hand
+    await this.appManager.activatePlugin(['preDeployChecks'])
   }
 }
 

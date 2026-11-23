@@ -344,6 +344,9 @@
     "7001": {
       "apiUrl": "https://zetachain-athens-3.blockscout.com"
     },
+    "7741": {
+      "apiUrl": "https://explorer.rwa-chain.io"
+    },
     "7771": {
       "apiUrl": "https://testnetscan.bit-rock.io"
     },
@@ -430,6 +433,9 @@
     },
     "70700": {
       "apiUrl": "https://explorer.apex.proofofplay.com"
+    },
+    "77410": {
+      "apiUrl": "https://sepolia-explorer.rwa-chain.io"
     },
     "78225": {
       "apiUrl": "https://explorer.stack.so"

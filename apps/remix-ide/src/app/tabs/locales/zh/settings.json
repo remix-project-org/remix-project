@@ -38,6 +38,6 @@
   "settings.ipfs-port": "端口",
   "settings.ipfs-project-id": "项目 ID",
   "settings.ipfs-project-secret": "项目密钥",
-  "settings.analyticsInRemix": "Remix IDE 中的分析功能",
+  "settings.analyticsInRemix": "Remix Web3 中的分析功能",
   "settings.enableSaveEnvState": "Save environment state"
 }

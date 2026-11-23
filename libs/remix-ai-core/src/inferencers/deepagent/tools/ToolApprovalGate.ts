@@ -14,18 +14,21 @@ import {
   getToolMetadata,
   isSafeTool,
   isConsentTool,
-  DIRECT_WRITE_TOOLS
+  DIRECT_WRITE_TOOLS,
+  APPROVAL_CANCELLED_REASON
 } from '../../../types/humanInTheLoop'
 import { screenshotConsent } from '../screenshotConsent'
 
 // MCP tools whose effect on files is reported as 'onAIFileChanged' (for the AI mode changes panel)
 const FILE_CHANGE_TOOLS = new Set(['file_create', 'file_write', 'file_replace', 'file_delete', 'file_move', 'file_copy'])
 
+type ApprovalResolver = (approved: boolean, modified?: Record<string, any>, scope?: ApprovalScope, cancelled?: boolean) => void
+
 export class ToolApprovalGate {
   private eventEmitter: EventEmitter
   private policy: ToolApprovalPolicy
   private plugin: Plugin
-  private pendingApprovals = new Map<string, { resolve: (approved: boolean, modified?: Record<string, any>, scope?: ApprovalScope) => void }>()
+  private pendingApprovals = new Map<string, { resolve: ApprovalResolver }>()
 
   constructor(plugin: Plugin, eventEmitter: EventEmitter, policy: ToolApprovalPolicy = 'ask_risky') {
     this.plugin = plugin
@@ -186,16 +189,20 @@ export class ToolApprovalGate {
       }
 
       // Wait for user decision
-      const { approved, modifiedArgs } = await new Promise<{ approved: boolean; modifiedArgs?: Record<string, any> }>(
+      const { approved, modifiedArgs, cancelled } = await new Promise<{ approved: boolean; modifiedArgs?: Record<string, any>; cancelled?: boolean }>(
         (resolve) => {
           this.pendingApprovals.set(requestId, {
-            resolve: (approved, modified) => resolve({ approved, modifiedArgs: modified })
+            resolve: (approved, modified, _scope, cancelled) => resolve({ approved, modifiedArgs: modified, cancelled })
           })
           remixAILogger.log('[ToolApprovalGate] awaiting approval', toolName, requestId, 'listeners(onToolApprovalResponse)=', this.eventEmitter.listenerCount('onToolApprovalResponse'))
           this.eventEmitter.emit('onToolApprovalRequired', request)
         }
       )
-      remixAILogger.log('[ToolApprovalGate] approval resolved', toolName, requestId, 'approved=', approved)
+      remixAILogger.log('[ToolApprovalGate] approval resolved', toolName, requestId, 'approved=', approved, 'cancelled=', !!cancelled)
+
+      if (cancelled) {
+        return JSON.stringify({ cancelled: true, reason: APPROVAL_CANCELLED_REASON })
+      }
 
       if (!approved) {
         if (FILE_CHANGE_TOOLS.has(toolName)) {
@@ -306,9 +313,9 @@ export class ToolApprovalGate {
       consent: this.describeCapture(args)
     }
 
-    const { approved, scope } = await new Promise<{ approved: boolean; scope?: ApprovalScope }>((resolve) => {
+    const { approved, scope, cancelled } = await new Promise<{ approved: boolean; scope?: ApprovalScope; cancelled?: boolean }>((resolve) => {
       this.pendingApprovals.set(requestId, {
-        resolve: (ok, _modified, chosenScope) => resolve({ approved: ok, scope: chosenScope })
+        resolve: (ok, _modified, chosenScope, wasCancelled) => resolve({ approved: ok, scope: chosenScope, cancelled: wasCancelled })
       })
       remixAILogger.log('[ToolApprovalGate] awaiting screen-capture consent', requestId)
       this.eventEmitter.emit('onToolApprovalRequired', request)
@@ -318,6 +325,11 @@ export class ToolApprovalGate {
     // "the user pressed stop" into "the user said no", so only a real
     // decision is remembered.
     if (scope) screenshotConsent.record(scope)
+
+    if (cancelled) {
+      screenshotConsent.setAllowed(false)
+      return JSON.stringify({ cancelled: true, reason: APPROVAL_CANCELLED_REASON })
+    }
 
     if (!approved) {
       screenshotConsent.setAllowed(false)
@@ -372,21 +384,28 @@ export class ToolApprovalGate {
     })
   }
 
+  hasPendingApprovals(): boolean {
+    return this.pendingApprovals.size > 0
+  }
+
   /**
-   * Settle every approval still waiting on the user as "rejected".
+   * Settle every approval still waiting on the user as cancelled. Returns the
+   * request ids, so the UI can drop cards nobody is listening to any more.
    */
-  cancelPendingApprovals(): void {
-    if (this.pendingApprovals.size === 0) return
-    remixAILogger.log('[ToolApprovalGate] cancelling pending approvals:', Array.from(this.pendingApprovals.keys()))
+  cancelPendingApprovals(): string[] {
+    if (this.pendingApprovals.size === 0) return []
+    const requestIds = Array.from(this.pendingApprovals.keys())
+    remixAILogger.log('[ToolApprovalGate] cancelling pending approvals:', requestIds)
     const pending = Array.from(this.pendingApprovals.values())
     this.pendingApprovals.clear()
     for (const entry of pending) {
       try {
-        entry.resolve(false)
+        entry.resolve(false, undefined, undefined, true)
       } catch (e) {
         remixAILogger.warn('[ToolApprovalGate] failed to settle pending approval', e)
       }
     }
+    return requestIds
   }
 
   /**

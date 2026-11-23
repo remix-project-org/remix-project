@@ -1,5 +1,6 @@
 'use strict'
 import { Ethdebugger } from '../Ethdebugger'
+import { getTransactionForDebugging } from '../init'
 import { EventManager } from '../eventManager'
 import { contractCreationToken } from '../trace/traceHelper'
 import { BreakpointManager } from '../code/breakpointManager'
@@ -156,7 +157,7 @@ export class Debugger {
     }
 
     if (txNumber.indexOf('0x') !== -1) {
-      tx = await web3.getTransaction(txNumber)
+      tx = await getTransactionForDebugging(web3, txNumber)
       if (!tx) throw new Error('cannot find transaction ' + txNumber)
     } else {
       throw new Error('only transaction hash is supported currently')

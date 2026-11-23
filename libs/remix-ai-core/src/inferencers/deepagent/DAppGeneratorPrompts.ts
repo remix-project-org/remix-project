@@ -391,7 +391,7 @@ useEffect(() => {
     return `
 **LOCAL DEVELOPMENT MODE (Remix VM)**
 This DApp targets a **Remix VM (local)** environment.
-The Remix IDE preview automatically provides \`window.ethereum\` connected to the VM - treat it like a normal Ethereum provider.
+The Remix Web3 preview automatically provides \`window.ethereum\` connected to the VM - treat it like a normal Ethereum provider.
 
 **CRITICAL RULES FOR REMIX VM:**
 1. **Use \`window.ethereum\` normally** - just do \`new ethers.BrowserProvider(window.ethereum)\` and get a signer.

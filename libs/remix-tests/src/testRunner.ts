@@ -279,7 +279,7 @@ export function runTest (testName: string, testObject: any, contractDetails: Com
         failureNum += 1
         timePassed += time
       }
-      // Remix IDE SUT plugin requires call of next
+      // Remix Web3 SUT plugin requires call of next
       // but in some node.js cases, next is not a function
       return next ? next() : undefined
     } else {

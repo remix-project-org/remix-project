@@ -725,6 +725,7 @@ export const RemixUiTerminal = (props: RemixUiTerminalProps) => {
                               txDetails={txDetails}
                               modal={modal}
                               provider={x.provider}
+                              currency={x.currency}
                             />
                           }
                         </div>
@@ -746,6 +747,7 @@ export const RemixUiTerminal = (props: RemixUiTerminalProps) => {
                               showTableHash={showTableHash}
                               txDetails={txDetails}
                               modal={modal}
+                              currency={x.currency}
                             />
                           ) : (
                             <RenderKnownTransactions
@@ -759,6 +761,7 @@ export const RemixUiTerminal = (props: RemixUiTerminalProps) => {
                               txDetails={txDetails}
                               modal={modal}
                               provider={x.provider}
+                              currency={x.currency}
                             />
                           )}
                         </div>

@@ -11,7 +11,7 @@ import { profile as quickDappProfile } from '../plugins/quick-dapp-v2'
 const profile = {
   name: 'menuicons',
   displayName: 'Vertical Icons',
-  description: 'Remix IDE vertical icons',
+  description: 'Remix Web3 vertical icons',
   version: packageJson.version,
   methods: ['select', 'unlinkContent', 'linkContent', 'activateAndSelect', 'getPluginState', 'toggle'],
   events: ['toggleContent', 'showContent']
@@ -36,7 +36,7 @@ export class VerticalIcons extends Plugin {
   renderComponent() {
     // These three icons must always appear last, in this order, no matter what.
     const lastOrder = ['helpPlugin', 'planManager']
-    const fixedOrder = ['remixaiassistant', 'filePanel', 'search', 'solidity', 'udapp', 'debugger', 'solidityStaticAnalysis', 'solidityUnitTesting', 'quick-dapp-v2']
+    const fixedOrder = ['remixaiassistant', 'filePanel', 'search', 'solidity', 'udapp', 'preDeployChecks', 'debugger', 'solidityStaticAnalysis', 'solidityUnitTesting', 'quick-dapp-v2']
 
     const divived = Object.values(this.icons)
       .map((value) => {

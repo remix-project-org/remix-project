@@ -17,6 +17,7 @@ export interface SolidityCompilerEvent extends MatomoEventBase {
   category: 'solidityCompiler';
   action: 
     | 'runStaticAnalysis'
+    | 'openPreDeployChecks'
     | 'solidityScan'
     | 'staticAnalysis'
     | 'initiate';
@@ -40,7 +41,10 @@ export interface CompilerContainerEvent extends MatomoEventBase {
     | 'advancedConfigToggle'
     | 'loadAISkills'
     | 'startAIAudit'
-    | 'startGasAudit';
+    | 'startGasAudit'
+    | 'dismissAIReviewCard'
+    | 'compileWith'
+    | 'copyDevRunScriptTag';
 }
 
 

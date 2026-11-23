@@ -113,6 +113,39 @@ const SHORT_TOOL_DESCRIPTIONS: Record<string, string> = {
   task: 'Delegate an independent piece of work to a subagent.'
 }
 
+/**
+ * How long a skills listing is reused. The listing feeds the cached prompt
+ * prefix, so re-reading it on every model call bought nothing but a plugin
+ * round-trip; a new skill shows up within this window.
+ */
+const SKILLS_CACHE_MS = 30_000
+let skillsCache: { at: number; skills: any } | null = null
+
+const listSkills = async (plugin: Plugin): Promise<any> => {
+  if (skillsCache && Date.now() - skillsCache.at < SKILLS_CACHE_MS) return skillsCache.skills
+  let skills = null
+  try {
+    skills = await plugin.call('fileManager', 'dirList', 'skills')
+  } catch (e) {
+    remixAILogger.warn('Unable to get skills folder. skills set to true', e)
+  }
+  skillsCache = { at: Date.now(), skills }
+  return skills
+}
+
+/**
+ * The system-prompt parts a provider can cache: everything up to and
+ * including the part carrying the cache breakpoint. Without a breakpoint
+ * (providers that cache on their own) it is everything except the trailing
+ * project-context part `shortenToolDescription` appends on every call — that
+ * part changes whenever a file does, and sits after the cached prefix by design.
+ */
+export const cachedPrefixParts = (parts: any[]): any[] => {
+  const marked = parts.findIndex((part) => part?.cache_control)
+  if (marked !== -1) return parts.slice(0, marked + 1)
+  return parts.slice(0, -1)
+}
+
 const shortenToolDescription = async (request: ModelRequest, plugin: Plugin, inferencer: DeepAgentInferencer) => {
   for (const tool of request.tools) {
     const short = SHORT_TOOL_DESCRIPTIONS[(tool as any).name as string]
@@ -120,13 +153,12 @@ const shortenToolDescription = async (request: ModelRequest, plugin: Plugin, inf
     tool.description = short;
     (tool as any).lc_kwargs.description = short
   }
+  // Tool definitions render before the system prompt, so their order is part
+  // of the cached prefix. Same instances, new order — langchain only rejects
+  // replaced tools.
+  request.tools = [...request.tools].sort((a: any, b: any) => String(a?.name).localeCompare(String(b?.name)))
 
-  let skills = null
-  try {
-    skills = await plugin.call('fileManager', 'dirList', 'skills')
-  } catch (e) {
-    remixAILogger.warn('Unable to get skills folder. skills set to true', e)
-  }
+  const skills = await listSkills(plugin)
   const hasSkills = skills && Object.keys(skills).length > 0;
 
   (request.systemMessage.content as any[]).map((part) => {
@@ -201,7 +233,7 @@ const shortSystemSkillsSystem = (hasSkills: boolean, dirs: any) => {
   return `## Skills System
 Skills provide specialized workflows. When a task matches a skill's domain, read its \`SKILL.md\` before proceeding.
 
-**Available Skills:** ${hasSkills ? Object.values(dirs).join('\n ') : '*(none yet — create them in \`skills/\`)*'}
+**Available Skills:** ${hasSkills ? Object.values(dirs).map(String).sort().join('\n ') : '*(none yet — create them in \`skills/\`)*'}
 
 **Usage:**
 1. Check if the task matches a skill's description

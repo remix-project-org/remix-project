@@ -27,7 +27,7 @@ app.get('/api/skills', (req, res) => {
   proxy.end()
 })
 
-// Serve static Remix IDE files
+// Serve static Remix Web3 files
 app.use(express.static(path.join(__dirname, 'dist/apps/remix-ide')))
 
 // SPA fallback
@@ -36,6 +36,6 @@ app.get('*', (req, res) => {
 })
 
 app.listen(PORT, '0.0.0.0', () => {
-  console.log(`Remix IDE running on http://0.0.0.0:${PORT}`)
+  console.log(`Remix Web3 running on http://0.0.0.0:${PORT}`)
   console.log(`Skills API proxied at http://0.0.0.0:${PORT}/api/skills`)
 })

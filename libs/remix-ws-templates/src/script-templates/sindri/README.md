@@ -16,12 +16,12 @@ We'll cover these files in more detail below.
 
 ## API Key
 
-To interact with the Sindri API, you will first need to create a Sindri account, generate an API key, and add it to your Remix IDE settings.
+To interact with the Sindri API, you will first need to create a Sindri account, generate an API key, and add it to your Remix Web3 settings.
 This only needs to be done once, your credentials will be shared across all of your current and future workspaces once you've added your API key.
 
 1. Visit [The Sindri Homepage](https://sindri.app/) and request a demo to create your account.
 2. Follow the instructions in the [Access Management](https://sindri.app/docs/topic-guides/access-management/#api-key-creation-and-management) documentation to generate an API key.
-3. Open the **Settings** panel by clicking on the gear icon at the very bottom of the icon panel on the left side of the Remix IDE (see the [Remix IDE Settings](https://remix-ide.readthedocs.io/en/latest/settings.html) documentation if you're having trouble finding it.
+3. Open the **Settings** panel by clicking on the gear icon at the very bottom of the icon panel on the left side of the Remix Web3 (see the [Remix Web3 Settings](https://remix-ide.readthedocs.io/en/latest/settings.html) documentation if you're having trouble finding it.
 4. Navigate to the **Sindri Credentials** section of the **Settings** panel, enter your Sindri API key under **Token**, and click the **Save** button.
 
 ## Customize `sindri.json` _(Optional)_
@@ -31,7 +31,7 @@ This file is the **Sindri Manifest** and is required for all projects deployed t
 It's also used by the [Sindri CLI](https://github.com/Sindri-Labs/sindri-js) for local circuit operations which don't require a Sindri account.
 
 If the automatic customization missed something, or if you'd like to make further customizations, then you'll need to edit this file yourself.
-When editing `sindri.json` in the Remix IDE, you should get in-editor diagnostics and documentation about the format of the file.
+When editing `sindri.json` in the Remix Web3, you should get in-editor diagnostics and documentation about the format of the file.
 You can mouse over the different properties and their values to view their documentation and any potential errors with the values.
 
 The fields that you're most likely to want to customize are:

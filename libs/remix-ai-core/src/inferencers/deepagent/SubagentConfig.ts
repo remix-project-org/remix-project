@@ -1,5 +1,6 @@
 import { SubAgent, CompiledSubAgent, createDeepAgent } from 'deepagents'
 import type { DynamicStructuredTool } from '@langchain/core/tools'
+import type { AgentMiddleware } from 'langchain'
 import { BaseChatModel } from '@langchain/core/language_models/chat_models'
 import {
   FRONTEND_SPECIALIST_SUBAGENT_PROMPT,
@@ -30,6 +31,7 @@ import {
   getTheGraphToolsForTheGraphSpecialist,
   getCircleToolsForCircleSpecialist,
   getFileOperationTools,
+  getFileOperationToolsForAuditor,
   getToolForClassifierSpecialist,
   getQuickDappToolsForQuickDappSpecialist,
   getToolForSolidityCompiler,
@@ -55,6 +57,8 @@ export async function buildSubagentConfigs(
   tools: DynamicStructuredTool[],
   model: BaseChatModel,
   filesystemBackend: any,
+  /** Fresh per subagent: the drift monitor keeps per-agent loop state. */
+  createMonitorMiddleware: () => AgentMiddleware[] = () => [],
 ): Promise<(SubAgent | CompiledSubAgent)[]> {
   // Check permissions
   const plugin = filesystemBackend.plugin
@@ -82,7 +86,7 @@ export async function buildSubagentConfigs(
   const basicFileTools = getBasicFileToolsForGasOptimizer(tools)
   const fileOperationTools = getFileOperationTools(tools)
   const renderUiTools = tools.filter(tool => tool.name === 'render_ui')
-  const securityTools = [...getSecurityToolsForSecurityAuditor(tools), ...fileOperationTools, ...renderUiTools]
+  const securityTools = [...getSecurityToolsForSecurityAuditor(tools), ...getFileOperationToolsForAuditor(tools), ...renderUiTools]
   const debugTools = getDebugToolsForDebugSpecialist(tools)
   const solidityTools = [...getSolidityToolsForSolidityEngineer(tools), ...fileOperationTools]
   const webSearchTools = getWebSearchToolsForWebSearchSpecialist(tools)
@@ -174,7 +178,7 @@ export async function buildSubagentConfigs(
         model,
         tools: securityTools,
         name: 'Comprehensive_Auditor',
-        description: 'Used for ALL security audit and contract review requests — any ask to audit a contract, review it against checklists, or produce an audit report MUST be delegated here, never done directly. It is the only agent with slither_scan, so an audit run without it silently skips static analysis. STATELESS: it has no memory of earlier calls, so your description must carry CONTRACT, FILE, CHECKLISTS (the audits/<Contract>/ folder) and RUN verbatim, plus the audience name when the user asks for a rewrite. An audience rewrite is also its job — never produce or decline that file yourself, and never report on it from a directory listing: delegate and let it write summary_<slug>.md.',
+        description: 'Used for ALL security audit and contract review requests — any ask to audit a contract, review it against checklists, or produce an audit report MUST be delegated here, never done directly. It is the only agent with slither_scan, so an audit run without it silently skips static analysis. STATELESS: it has no memory of earlier calls, so your description must carry CONTRACT, FILE, CHECKLISTS (the audits/<Contract>/ folder), RUN and RESUME (when given) verbatim, plus the audience name when the user asks for a rewrite. An audience rewrite is also its job — never produce or decline that file yourself, and never report on it from a directory listing: delegate and let it write summary_<slug>.md.',
       }
     )
   }
@@ -254,7 +258,7 @@ export async function buildSubagentConfigs(
   const multimodalMiddleware = [new RemixTurnAttachmentsMiddleware(), new RemixVisionMiddleware()]
   for (const agent of agents) {
     if ('runnable' in agent) continue
-    agent.middleware = [...(agent.middleware ?? []), ...multimodalMiddleware]
+    agent.middleware = [...(agent.middleware ?? []), ...multimodalMiddleware, ...createMonitorMiddleware()]
   }
 
   remixAILogger.log('[SubagentConfig] ' + agents.map((a: any) => `${a.name}=${a.model?.model ?? '?'}`).join(' '))

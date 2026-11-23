@@ -9,6 +9,7 @@ import { SolcInput, SolcOutput } from "@openzeppelin/upgrades-core"
 type FilePath = string
 
 export interface DeployAppContextType {
+  isMonad?: boolean
   plugin: DeployPlugin
   widgetState: DeployWidgetState
   dispatch: Dispatch<Actions>

@@ -13,8 +13,7 @@ let gitserver: ChildProcess
 
 const tests = {
     before: function (browser: NightwatchBrowser, done: VoidFunction) {
-        browser.hideToolTips()
-        done()
+        browser.hideToolTips().perform(() => done())
     },
     after: function (browser: NightwatchBrowser) {
         browser.perform((done) => {

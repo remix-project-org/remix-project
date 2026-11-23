@@ -1,4 +1,5 @@
 import React, { useEffect, useReducer, useState } from 'react'
+import { isMonadCurrency, isMonadSpec, monadVmLabel } from '@remix-project/remix-monad'
 import { DeployAppContext } from './contexts'
 import { deployInitialState, deployReducer } from './reducers'
 import DeployPortraitView from './widgets/deployPortraitView'
@@ -15,6 +16,7 @@ function DeployWidget({ plugin }: DeployWidgetProps) {
   const widgetInitializer = plugin.getWidgetState ? plugin.getWidgetState() : null
   const [widgetState, dispatch] = useReducer(deployReducer, widgetInitializer || deployInitialState)
   const [themeQuality, setThemeQuality] = useState<string>('dark')
+  const [isMonad, setIsMonad] = useState(false)
 
   useEffect(() => {
     if (plugin.setStateGetter) {
@@ -88,18 +90,23 @@ function DeployWidget({ plugin }: DeployWidgetProps) {
 
     plugin.on('blockchain', 'networkStatus', async ({ error, network }: any) => {
       if (error) {
+        setIsMonad(false)
         const netUI = 'can\'t detect network'
 
         return dispatch({ type: 'SET_DETECTED_NETWORK', payload: netUI })
       }
       const networkProvider = await plugin.call('udappEnv', 'getSelectedProvider')
       const isVM = networkProvider.startsWith('vm') ? true : false
+      const fork = isVM ? await plugin.call('blockchain', 'getCurrentFork') : undefined
+      const monad = isMonadSpec(fork)
+      // value units follow the native currency, which a connected Monad network reports as well.
+      setIsMonad(isMonadCurrency(network.networkNativeCurrency))
       // For forked VM states (vm-fs-*), remove the vm-fs- prefix to show just the state name
       // For regular VM states (vm-*), remove the vm- prefix to show the fork name
       const vmName = networkProvider?.startsWith('vm-fs-')
         ? networkProvider.replace('vm-fs-', '')
         : networkProvider?.replace('vm-', '')
-      const netUI = !isVM ? `${network.name} (${network.id || '-'}) network` : `Remix VM ${vmName}`
+      const netUI = !isVM ? `${network.name} (${network.id || '-'}) network` : monad ? monadVmLabel(fork) : `Remix VM ${vmName}`
 
       dispatch({ type: 'SET_DETECTED_NETWORK', payload: netUI })
     })
@@ -130,7 +137,7 @@ function DeployWidget({ plugin }: DeployWidgetProps) {
   }, [])
 
   return (
-    <DeployAppContext.Provider value={{ widgetState, dispatch, plugin, themeQuality }}>
+    <DeployAppContext.Provider value={{ widgetState, dispatch, plugin, themeQuality, isMonad }}>
       <DeployPortraitView />
     </DeployAppContext.Provider>
   )
