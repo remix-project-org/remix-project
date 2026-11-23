@@ -14,11 +14,13 @@ All Monad forks use chain ID **143**, matching Monad mainnet, while executing lo
 
 The RPC surface supports local accounts, transaction types 0/1/2/4, calls, gas estimation, saved state, debugging and EIP-712 signing. See the [access-list and delegation example](docs/transactions.md). Solidity `hardhat/console.sol` output is available through Remix's existing console-log API; see the [signing and console example](docs/signing-and-console.md).
 
+The [local staking example](docs/staking.md) covers validator registration, delegation, rewards and withdrawals, with explicit funding and epoch controls, saved state and caller debugging on all four forks.
+
 This is a local development VM with synthetic blocks and receipts. Remote RPC forking is unsupported. Each trace is limited to 100,000 steps or 32 MiB; incomplete traces report an error.
 
 ## Test
 
-Run `yarn test:monad:ui` for chain IDs, typed transactions and signing, delegation and historical debugging, console output, the examples, save/restore, account preferences and MON formatting. For browser regressions:
+Run `yarn test:monad:ui` for chain IDs, typed transactions and signing, delegation and historical debugging, console output, staking and rollback, the examples, save/restore, account preferences and MON formatting. For browser regressions:
 
 ```sh
 yarn nx build remix-ide --configuration=development
@@ -26,4 +28,4 @@ yarn playwright install chromium
 yarn test:monad:browser
 ```
 
-The browser tests cover fork-specific VM badges, chain IDs, account aliases, payable deployments and transaction currency on all four Monad forks and Ethereum Osaka, using the installed Solidity compiler. They also cover MON formatting in a named fork of a Monad VM.
+The browser tests cover fork-specific VM badges, chain IDs, account aliases, payable deployments and transaction currency on all four Monad forks and Ethereum Osaka, using the installed Solidity compiler. They also cover MON formatting in a named fork of a Monad VM and the staking script's save/reset/restore and source-debugging workflow on all four Monad forks.
