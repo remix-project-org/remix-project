@@ -45,7 +45,7 @@
   "editor.pasteGuard.issuesAdvice": "Don't deploy or interact with this code until you've reviewed these.",
   "editor.pasteGuard.more": "+ {count} more",
   "editor.pasteGuard.exhaustedTitle": "You've used today's free scans",
-  "editor.pasteGuard.exhausted": "Free scans are back {reset}. Upgrade or top up to keep RemixAI checking pasted and deployed code.",
+  "editor.pasteGuard.exhausted": "Upgrade or top up to keep RemixAI checking pasted and deployed code.",
   "editor.pasteGuard.resetsInHours": "in {hours}h",
   "editor.pasteGuard.resetsInMinutes": "in {minutes} min",
   "editor.pasteGuard.reviewManually": "Until then, make sure you understand this code before running it.",
@@ -66,5 +66,6 @@
   "editor.pasteGuard.topUp": "Top up credits",
   "editor.pasteGuard.retry": "Try again",
   "editor.pasteGuard.askAI": "Ask RemixAI",
-  "editor.pasteGuard.getPlanToView": "Get a paid plan to see the details"
+  "editor.pasteGuard.getPlanToView": "Get a paid plan to see the details",
+  "editor.pasteGuard.exhaustedReset": "Free scans are back {reset}."
 }

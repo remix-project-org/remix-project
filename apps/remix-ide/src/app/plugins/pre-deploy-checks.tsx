@@ -589,6 +589,16 @@ export class PreDeployChecksPlugin extends ViewPlugin implements CheckHost {
     await this.securityAudit(file)
   }
 
+  /** The file's checks for the report: without the Security Auditor, the free light scan's details stay a paid feature. */
+  private async reportState (file: string): Promise<FileCheckState> {
+    const state = this.store.get(file)
+    const ai = state.steps.ai
+    if (ai?.origin !== 'auto' || !ai.findings?.length) return state
+    if (await this.call('assistantState', 'hasFeature', 'ai:auditor').catch(() => false)) return state
+    const findings = ai.findings.map((f) => ({ ...f, message: 'Details are available with a paid plan.' }))
+    return { ...state, steps: { ...state.steps, ai: { ...ai, findings, data: undefined } } }
+  }
+
   async getPlan () {
     await this.call('planManager' as any, 'open', { reason: 'feature-required', requiredFeature: 'ai:auditor' })
   }
@@ -615,7 +625,7 @@ export class PreDeployChecksPlugin extends ViewPlugin implements CheckHost {
     const file = this.currentFile
     if (!file) return
     const contractName = this.contractNameOf(file)
-    const md = buildReport(this.store.get(file), { date: new Date(), contractName, compiler: this.compiler || undefined })
+    const md = buildReport(await this.reportState(file), { date: new Date(), contractName, compiler: this.compiler || undefined })
     const path = reportFileName(file, contractName)
     await this.call('fileManager', 'writeFile', path, md)
     // rendered, like a .md opened from the file explorer; this also keeps the contract as the current file

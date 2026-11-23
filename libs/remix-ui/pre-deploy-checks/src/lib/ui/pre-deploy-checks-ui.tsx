@@ -116,7 +116,7 @@ export function PreDeployChecksUI ({ plugin, view }: PreDeployChecksUIProps) {
         <>
           <StatusCard file={file} verdict={verdict} actions={actions} cancelling={view.cancelling} now={now} plugin={plugin} />
           <Deployment state={state} />
-          <Issues key={file} file={file} findings={findings} compileErrors={compileErrors} lines={lines} running={running} plugin={plugin} />
+          <Issues key={file} file={file} findings={findings} compileErrors={compileErrors} lines={lines} running={running} autoAi={state.steps.ai?.origin === 'auto'} plugin={plugin} />
           {!running && state.steps.compile && <Outputs state={state} flattenEnabled={toggles.flatten} reportPath={view.reportPath} plugin={plugin} />}
         </>
       )}
