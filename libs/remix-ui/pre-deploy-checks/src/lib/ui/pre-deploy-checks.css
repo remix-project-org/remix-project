@@ -88,6 +88,9 @@
 .pdc-issue-row:hover .pdc-issue-chevron { opacity: 1; color: var(--bs-emphasis-color); }
 .pdc-issue-body { padding: 0 12px 12px 36px; background: var(--custom-onsurface-layer-2); font-size: 12px; line-height: 16px; }
 .pdc-issue-body p { margin: 0 0 8px; color: var(--bs-body-color); white-space: pre-wrap; word-break: break-word; }
+.pdc-issue-body-gated { position: relative; min-height: 40px; }
+.pdc-issue-body-content { filter: blur(4px); user-select: none; pointer-events: none; }
+.pdc-issue-gate-overlay { position: absolute; inset: 0; z-index: 1; display: flex; align-items: center; justify-content: center; background: color-mix(in srgb, var(--custom-onsurface-layer-2, rgba(0,0,0,0.1)) 70%, transparent); }
 .pdc-tags { display: flex; flex-wrap: wrap; gap: 4px; }
 .pdc-tag { font-size: 11px; line-height: 16px; padding: 0 6px; border-radius: 4px; background: var(--pdc-layer-3); color: var(--bs-secondary-color); }
 .pdc-issue-actions { display: flex; align-items: center; gap: 8px; margin-top: 8px; font-size: 11px; color: var(--bs-secondary-color); }

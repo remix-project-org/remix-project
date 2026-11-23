@@ -1,5 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react'
 import { FormattedMessage, useIntl } from 'react-intl'
+import { useAuth } from '@remix-ui/app'
+import { Features } from '@remix-api'
 import { SOURCE_LABELS } from '../report'
 import { SEVERITIES } from '../severity'
 import { Finding, FindingSource, IgnoreReason, Severity } from '../types'
@@ -92,10 +94,14 @@ function IgnoreMenu ({ dataId, onIgnore }: { dataId: string, onIgnore: (reason: 
 
 function Issue ({ finding, index, file, ignorable, onIgnore, plugin }: IssueProps) {
   const intl = useIntl()
+  const { isAuthenticated, features } = useAuth()
   const [open, setOpen] = useState(false)
   const line = finding.range ? finding.range.start.line + 1 : null
   const otherFile = finding.file && finding.file !== file ? splitPath(finding.file).name : null
   const dataId = `preDeployChecks-issue-${index}`
+
+  const hasAuditor = isAuthenticated && features?.[Features.AI_AUDITOR]?.is_enabled === true
+  const gated = !hasAuditor && (finding.severity === 'high' || finding.severity === 'medium')
 
   const toggle = () => {
     if (!open) plugin.openFinding(finding)
@@ -115,18 +121,38 @@ function Issue ({ finding, index, file, ignorable, onIgnore, plugin }: IssueProp
       </button>
       {open && (
         <div className="pdc-issue-body">
-          {finding.message && <p>{finding.message}</p>}
-          <div className="pdc-tags">
-            {finding.items.map((item, i) => (
-              <span key={i} className="pdc-tag">{SOURCE_LABELS[item.source]}{item.nativeSeverity ? ` · ${item.nativeSeverity}` : ''}</span>
-            ))}
-          </div>
-          {finding.items.some((item) => item.source === 'ai') && (
-            <button className="btn pdc-btn pdc-btn-quiet w-100 mt-2" data-id={`${dataId}-securityAudit`} onClick={() => plugin.securityAudit()}>
-              <FormattedMessage id="preDeployChecks.action.runSecurityAudit" />
-            </button>
+          {gated ? (
+            <div className="pdc-issue-body-gated">
+              <div className="pdc-issue-body-content">
+                {finding.message && <p>{finding.message}</p>}
+                <div className="pdc-tags">
+                  {finding.items.map((item, i) => (
+                    <span key={i} className="pdc-tag">{SOURCE_LABELS[item.source]}{item.nativeSeverity ? ` · ${item.nativeSeverity}` : ''}</span>
+                  ))}
+                </div>
+              </div>
+              <div className="pdc-issue-gate-overlay">
+                <button className="btn btn-sm btn-primary" data-id={`${dataId}-gateCta`} onClick={() => plugin.getPlan()}>
+                  <FormattedMessage id="preDeployChecks.issue.getPlanToView" />
+                </button>
+              </div>
+            </div>
+          ) : (
+            <>
+              {finding.message && <p>{finding.message}</p>}
+              <div className="pdc-tags">
+                {finding.items.map((item, i) => (
+                  <span key={i} className="pdc-tag">{SOURCE_LABELS[item.source]}{item.nativeSeverity ? ` · ${item.nativeSeverity}` : ''}</span>
+                ))}
+              </div>
+              {finding.items.some((item) => item.source === 'ai') && (
+                <button className="btn pdc-btn pdc-btn-quiet w-100 mt-2" data-id={`${dataId}-securityAudit`} onClick={() => plugin.securityAudit()}>
+                  <FormattedMessage id="preDeployChecks.action.runSecurityAudit" />
+                </button>
+              )}
+              {ignorable && !finding.stale && <IgnoreMenu dataId={dataId} onIgnore={(reason) => onIgnore(finding, reason)} />}
+            </>
           )}
-          {ignorable && !finding.stale && <IgnoreMenu dataId={dataId} onIgnore={(reason) => onIgnore(finding, reason)} />}
         </div>
       )}
     </li>
