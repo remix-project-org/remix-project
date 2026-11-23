@@ -65,5 +65,6 @@
   "editor.pasteGuard.seePlans": "See plans",
   "editor.pasteGuard.topUp": "Top up credits",
   "editor.pasteGuard.retry": "Try again",
-  "editor.pasteGuard.askAI": "Ask RemixAI"
+  "editor.pasteGuard.askAI": "Ask RemixAI",
+  "editor.pasteGuard.getPlanToView": "Get a paid plan to see the details"
 }
