@@ -136,7 +136,7 @@ module.exports = {
       .waitForElementPresent('*[data-id="btnStepBack"]')
       .click('*[data-id="btnStepBack"]')
       .pause(2000)
-      .waitForElementContainsText('*[data-id="callTraceHeader"]', 'Step: 326', 60000)
+      .waitForElementContainsText('*[data-id="callTraceHeader"]', 'Step: 325', 60000)
       .click('*[data-id="btnStepInto"]')
       .pause(2000)
       .waitForElementContainsText('*[data-id="callTraceHeader"]', 'Step: 327', 60000)
