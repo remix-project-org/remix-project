@@ -140,6 +140,23 @@ import { SkillsExplorerModalPlugin } from './app/plugins/skills-explorer-modal'
 import { ChecklistExplorerModalPlugin } from './app/plugins/checklist-explorer-modal'
 import { TxRunnerPlugin } from './app/plugins/txRunnerPlugin'
 
+// Allowlist of plugin//method pairs that may be invoked via the ?call= / ?calls= URL parameters.
+// Every other combination is silently dropped.
+// Add entries here only for read-only or UI-navigation actions that carry no meaningful risk.
+const URL_CALL_ALLOWLIST: Record<string, ReadonlyArray<string>> = {
+  fileManager: ['open'],
+  terminal: ['log'],
+  menuicons: ['select'],
+  tabs: ['focus'],
+  LearnEth: ['startTutorial'],
+  notification: ['toast'],
+}
+
+function isUrlCallAllowed(plugin: string, method: string): boolean {
+  const allowed = URL_CALL_ALLOWLIST[plugin]
+  return Array.isArray(allowed) && allowed.includes(method)
+}
+
 // Tracking now handled by this.track() method using MatomoManager
 
 export class platformApi {
@@ -942,10 +959,14 @@ class AppComponent {
       if (this.params.call) {
         const callDetails = this.params.call.split('//')
         if (callDetails.length > 1) {
-          this.appManager.call('notification', 'toast', `initiating ${callDetails[0]} and calling "${callDetails[1]}" ...`)
-          this.track({ category: 'App', action: 'queryParams-calls', name: this.params.call, isClick: false })
-          //@ts-ignore
-          await this.appManager.call(...callDetails).catch(console.error)
+          if (isUrlCallAllowed(callDetails[0], callDetails[1])) {
+            this.appManager.call('notification', 'toast', `initiating ${callDetails[0]} and calling "${callDetails[1]}" ...`)
+            this.track({ category: 'App', action: 'queryParams-calls', name: this.params.call, isClick: false })
+            //@ts-ignore
+            await this.appManager.call(...callDetails).catch(console.error)
+          } else {
+            console.warn(`URL call blocked: ${callDetails[0]}//${callDetails[1]} is not on the allowlist`)
+          }
         }
       }
 
@@ -966,12 +987,16 @@ class AppComponent {
           this.track({ category: 'App', action: 'queryParams-calls', name: call, isClick: false })
           const callDetails = call.split('//')
           if (callDetails.length > 1) {
-            this.appManager.call('notification', 'toast', `initiating ${callDetails[0]} and calling "${callDetails[1]}" ...`)
-            try {
-              //@ts-ignore
-              await this.appManager.call(...callDetails)
-            } catch (e) {
-              console.error(e)
+            if (isUrlCallAllowed(callDetails[0], callDetails[1])) {
+              this.appManager.call('notification', 'toast', `initiating ${callDetails[0]} and calling "${callDetails[1]}" ...`)
+              try {
+                //@ts-ignore
+                await this.appManager.call(...callDetails)
+              } catch (e) {
+                console.error(e)
+              }
+            } else {
+              console.warn(`URL call blocked: ${callDetails[0]}//${callDetails[1]} is not on the allowlist`)
             }
           }
         }
