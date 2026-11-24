@@ -54,7 +54,7 @@ function cell (text: string): string {
 function stepLine (state: FileCheckState, id: StepId, step?: StepResult): string {
   if (!step) return `| ${STEP_LABELS[id]} | not run | | |`
   const status = isStale(state, id) ? `${step.status} (out of date)` : step.status
-  const origin = step.origin === 'manual' ? 'by hand' : step.origin === 'auto' ? 'automatic check after a paste' : 'this panel'
+  const origin = step.origin === 'manual' ? 'by hand' : step.origin === 'auto' ? 'automatic light check (after a paste or deploy)' : 'this panel'
   return `| ${STEP_LABELS[id]} | ${cell(status)}${step.note ? ` — ${cell(step.note)}` : ''} | ${origin} | ${new Date(step.at).toISOString()} |`
 }
 

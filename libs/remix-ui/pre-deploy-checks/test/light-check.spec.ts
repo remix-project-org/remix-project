@@ -1,5 +1,6 @@
 import * as assert from 'assert'
-import { LightChecker, LightCheckHost, LightCheckOutcome, LightCheckRecord, verdictFields, scanAllowance } from '../src/lib/light-check'
+import { LightChecker, LightCheckHost, LightCheckOutcome, LightCheckRecord, verdictFields, scanAllowance, deployCheckFindings } from '../src/lib/light-check'
+import { StepResult } from '../src/lib/types'
 import { contentHash } from '../src/lib/store'
 
 const FILE = 'contracts/Vault.sol'
@@ -243,5 +244,36 @@ describe('scanAllowance', () => {
 
   it('assumes a scan can run when the balance is unknown', () => {
     assert.strictEqual(scanAllowance(null).canScan, true)
+  })
+})
+
+describe('deployCheckFindings', () => {
+  const record = (contractName: string, over: Partial<LightCheckRecord> = {}): LightCheckRecord => ({
+    address: '0x1', contractName, file: FILE, status: 'issues', reasons: [`${contractName}.withdraw is reentrant`], suggestions: ['Update state first'], at: 1, contentHash: 'h1', ...over
+  })
+  const aiStep = (over: Partial<StepResult>): StepResult => ({ status: 'findings', at: 1, origin: 'auto', contentHash: 'h1', findings: [], ...over })
+
+  it('adds a finding per contract with issues, and nothing for a clean contract', () => {
+    const vault = deployCheckFindings(undefined, record('Vault'))
+    assert.strictEqual(vault.length, 1)
+    assert.strictEqual(vault[0].title, 'RemixAI flagged a possible major vulnerability in Vault')
+    assert.ok(vault[0].message.includes('Vault.withdraw is reentrant'))
+    assert.strictEqual(deployCheckFindings(undefined, record('Vault', { status: 'clear', reasons: []})), null)
+  })
+
+  it('keeps the findings of the file\'s other contracts, replacing only its own', () => {
+    const first = deployCheckFindings(undefined, record('Vault'))
+    const both = deployCheckFindings(aiStep({ findings: first }), record('Token'))
+    assert.deepStrictEqual(both.map((f) => f.rule), ['Light check: Vault', 'Light check: Token'])
+    const again = deployCheckFindings(aiStep({ findings: both }), record('Vault', { reasons: ['new reason']}))
+    assert.deepStrictEqual(again.map((f) => f.rule), ['Light check: Token', 'Light check: Vault'])
+    // a previous version of the file doesn't carry over
+    assert.strictEqual(deployCheckFindings(aiStep({ findings: both, contentHash: 'h0' }), record('Vault')).length, 1)
+  })
+
+  it('leaves a whole-file verdict alone: an AI run in the panel or a scan after a paste', () => {
+    assert.strictEqual(deployCheckFindings(aiStep({ origin: 'panel' }), record('Vault')), null)
+    assert.strictEqual(deployCheckFindings(aiStep({ data: { answer: { Answer: 'No' } } }), record('Vault')), null)
+    assert.strictEqual(deployCheckFindings(aiStep({ status: 'running', origin: 'panel', contentHash: 'h0' }), record('Vault')), null)
   })
 })

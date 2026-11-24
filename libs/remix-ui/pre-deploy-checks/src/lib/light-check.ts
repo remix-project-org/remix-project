@@ -1,6 +1,7 @@
-import { AiSecurityAnswer } from './converters'
+import { AiSecurityAnswer, aiFindings } from './converters'
 import { aiIsVulnerable } from './severity'
 import { contentHash } from './store'
+import { RawFinding, StepResult } from './types'
 
 /**
  * Light security check: a quick AI verdict on a contract right after it's
@@ -109,6 +110,25 @@ export function scanAllowance (credits: { balance?: number, quotas?: QuotaLike[]
   const canScan = freeScansLeft || coversAll || (credits.balance || 0) > 0
   const resets = scanQuotas.map((q) => q.periodResetAt).filter(Boolean).sort()
   return { canScan, freeScansLeft, resetAt: canScan ? undefined : resets[0] }
+}
+
+/**
+ * The findings a deployment's light check adds to its file's AI step, so the Checks panel and the
+ * report know about it. Null when it adds nothing: no issues (a clean contract says nothing about the
+ * file's other contracts), or the step already covers the whole file (an AI run in the panel, a scan
+ * after a paste). Each contract keeps its own finding: another contract's deployment doesn't replace it.
+ * The step keeps no structured answer, so a later deployment never reuses one contract's verdict.
+ */
+export function deployCheckFindings (ai: StepResult | undefined, record: LightCheckRecord): RawFinding[] | null {
+  if (record.status !== 'issues' || !record.contentHash) return null
+  const sameContent = !!ai && ai.contentHash === record.contentHash
+  if (ai?.status === 'running') return null
+  if (sameContent && (ai.origin !== 'auto' || ai.data?.answer)) return null
+  const rule = `Light check: ${record.contractName}`
+  const own = aiFindings({ Answer: 'Yes', Reason: record.reasons, Suggestion: record.suggestions }, record.file)
+    .map((f) => ({ ...f, rule, title: `${f.title} in ${record.contractName}` }))
+  const others = sameContent && ai.origin === 'auto' ? (ai.findings || []).filter((f) => f.rule !== rule) : []
+  return [...others, ...own]
 }
 
 /** remixAI.light_security_check's result. */

@@ -8,7 +8,7 @@ import {
   Finding, IgnoreReason, Range, CheckStepId, StepToggles, DEFAULT_TOGGLES, collectFindings, contentHash, compilerMessages, compilerSettingsKey,
   withIssueKeys, ownFindings, runPipeline, blockingFindings, buildReport, reportFileName, summarize, ChecksSummary,
   AnalysisEvent, recordManualAnalysis, recordManualFlatten, VerificationEvent, isRecordedDeployment, verificationStep,
-  LightChecker, LightCheckRecord, LightCheckOutcome, LightCheckMode, PasteCheckResult, PasteGuardContext, PasteScan, scanAllowance, verdictFields, aiFindings, getSettingsKey
+  LightChecker, LightCheckRecord, LightCheckOutcome, LightCheckMode, PasteCheckResult, PasteGuardContext, PasteScan, scanAllowance, verdictFields, deployCheckFindings, aiFindings, getSettingsKey
 } from '@remix-ui/pre-deploy-checks'
 import * as packageJson from '../../../../../package.json'
 
@@ -82,6 +82,7 @@ export class PreDeployChecksPlugin extends ViewPlugin implements CheckHost {
     check: (source: string, file: string, contractName: string, mode?: LightCheckMode): Promise<LightCheckOutcome> => this.call('remixAI', 'light_security_check', source, file, contractName, mode),
     onChange: (record: LightCheckRecord) => {
       this.emit('lightCheckChanged', record)
+      if (record.status === 'issues') this.recordDeployCheck(record).catch((e) => console.warn('Pre-deploy checks: could not record the light check', e))
       if (record.status !== 'running') this.call('matomo', 'trackEvent', 'udapp', 'lightSecurityCheck', record.status, undefined).catch(() => { /* matomo not active */ })
     }
   })
@@ -506,6 +507,24 @@ export class PreDeployChecksPlugin extends ViewPlugin implements CheckHost {
     if (this.pasteScan?.id !== id) return
     const { reasons, suggestions } = result?.answer ? verdictFields(result.answer) : base
     this.publishPasteScan({ ...base, phase: result?.status || 'error', reasons, suggestions, finishedAt: Date.now(), reused: result?.reused })
+  }
+
+  /** A deployment's issues join the file's AI step: the Checks panel, the report and the Deploy status line show them. */
+  private async recordDeployCheck (record: LightCheckRecord) {
+    const state = this.store.get(record.file)
+    // the user kept editing: the verdict is about content that's gone
+    if (state.currentHash && state.currentHash !== record.contentHash) return
+    const found = deployCheckFindings(state.steps.ai, record)
+    if (!found) return
+    const source = this.compilations.get(record.file)?.source?.sources?.[record.file]?.content ?? await this.call('fileManager', 'readFile', record.file).catch((): string => '')
+    this.store.setStep(record.file, 'ai', {
+      status: 'findings',
+      at: Date.now(),
+      origin: 'auto',
+      findings: withIssueKeys(found, { [record.file]: { content: source } }),
+      contentHash: record.contentHash,
+      settingsKey: await getSettingsKey(this)
+    })
   }
 
   /** The verdict becomes the file's AI step: Deploy & Run's status line shows it, and a deploy of the same code reuses it. */
