@@ -48,7 +48,7 @@ interface IssueProps {
   /** compile errors can't be ignored */
   ignorable: boolean
   onIgnore: (finding: Finding, reason: IgnoreReason) => void
-  /** the AI step is the automatic light scan (after a paste), not one the user ran in this panel */
+  /** the AI step is the automatic light scan (after a paste or deploy), not one the user ran in this panel */
   autoAi: boolean
   plugin: PreDeployChecksActions
 }
@@ -293,7 +293,7 @@ interface IssuesProps {
   compileErrors: Finding[]
   lines: ToolLine[]
   running: boolean
-  /** the AI step is the automatic light scan (after a paste) */
+  /** the AI step is the automatic light scan (after a paste or deploy) */
   autoAi: boolean
   plugin: PreDeployChecksActions
 }
