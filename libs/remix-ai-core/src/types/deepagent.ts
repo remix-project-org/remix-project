@@ -24,6 +24,11 @@ export interface ModelSelection {
    * so calls pinned to one model for cost or behaviour turn it off.
    */
   fallbacks?: boolean
+  /**
+   * OpenRouter only: upstream hosts to try first, in order (falling back to others when they're down).
+   * Hosts of the same model differ in how reliably they honour a forced tool call.
+   */
+  hostOrder?: string[]
 }
 
 /**

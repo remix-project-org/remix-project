@@ -47,7 +47,7 @@ export const openrouterAdapter: ProviderAdapter = {
       maxRetries: SDK_MAX_RETRIES,
       callbacks: modelCallbacks(label),
       plugins: OPENROUTER_PLUGINS,
-      provider: OPENROUTER_PROVIDER_PREFERENCES,
+      provider: selection.hostOrder?.length ? { ...OPENROUTER_PROVIDER_PREFERENCES, order: selection.hostOrder } : OPENROUTER_PROVIDER_PREFERENCES,
       ...(fallbackModels.length > 0 ? { models: fallbackModels } : {}),
       modelKwargs: OPENROUTER_MODEL_KWARGS
     }
