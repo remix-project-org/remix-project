@@ -23,8 +23,7 @@ import {
 import { Plugin } from '@remixproject/engine';
 import { getContractData } from '@remix-project/core-plugin'
 import { remixAILogger } from '../../helpers/logger'
-import { trackMatomoEvent } from '../../helpers/matomo'
-import { deployFailureReason, type AgentDeployLocalFailureReason, type DeployFailureReason } from '@remix-api'
+import { trackMatomoEvent, deployFailureReason, type AgentDeployLocalFailureReason, type DeployFailureReason } from '@remix-api'
 import type { TxResult } from '@remix-project/remix-lib';
 import { BrowserProvider, formatEther } from "ethers"
 import { toNumber } from 'ethers'
@@ -215,7 +214,7 @@ async function trackAgentDeploy(plugin: Plugin, name: string): Promise<void> {
   } catch (e) {
     remixAILogger.debug('[DeployContractHandler] chain id lookup failed', e)
   }
-  trackMatomoEvent('ai', 'remixAI', name, chainId)
+  trackMatomoEvent(plugin, { category: 'ai', action: 'remixAI', name, value: chainId })
 }
 
 /** Parse an ABI that arrived as a JSON string; returns null when it is not a usable array. */

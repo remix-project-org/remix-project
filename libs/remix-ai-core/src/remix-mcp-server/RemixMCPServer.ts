@@ -8,7 +8,7 @@ import {
   IMCPToolResult,
   IMCPResourceContent
 } from '../types/mcp';
-import { trackMatomoEvent } from '../helpers/matomo';
+import { trackMatomoEvent } from '@remix-api';
 import {
   IRemixMCPServer,
   RemixMCPServerConfig,
@@ -416,7 +416,7 @@ export class RemixMCPServer extends EventEmitter implements IRemixMCPServer {
       execution.endTime = new Date();
       this._stats.totalToolCalls++;
 
-      trackMatomoEvent('ai', 'remixAI', `mcp_tool_executed_${call.name}`);
+      trackMatomoEvent(this._plugin, { category: 'ai', action: 'remixAI', name: `mcp_tool_executed_${call.name}` });
       this.emit('tool-executed', execution);
       return result;
 
@@ -455,7 +455,7 @@ export class RemixMCPServer extends EventEmitter implements IRemixMCPServer {
 
     // Track resource read
     const resourceName = uri.replace('://', '_');
-    trackMatomoEvent('ai', 'remixAI', `mcp_resource_read_${resourceName}`);
+    trackMatomoEvent(this._plugin, { category: 'ai', action: 'remixAI', name: `mcp_resource_read_${resourceName}` });
 
     // Cache result
     if (this._config.enableResourceCache !== false) {
