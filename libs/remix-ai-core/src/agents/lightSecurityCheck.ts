@@ -3,6 +3,7 @@ import { createModelInstance } from '../inferencers/deepagent/ModelFactory'
 import { generateStructured } from '../helpers/structuredOutput'
 import { SecurityCheck, SecurityCheckSchema } from '../types/schemas'
 import { IUserApiKeyConfig } from '../types/deepagent'
+import { remixAILogger } from '../helpers/logger'
 
 /**
  * Light security check: one cheap, structured call made in the background
@@ -21,6 +22,17 @@ import { IUserApiKeyConfig } from '../types/deepagent'
  * the obvious exploits without flagging safe contracts, and costs well under 1 credit per check.
  */
 export const LIGHT_SECURITY_CHECK_DEFAULT_MODEL = 'openai/gpt-oss-120b'
+
+/**
+ * Hosts of gpt-oss-120b on OpenRouter tried first. Measured Nov 2026 on a classic reentrancy
+ * (forced tool call): Near AI and SambaNova answered "Yes" with reasons; CoreWeave often ended
+ * with finish_reason "error" and no tool call, and Venice returned an empty answer about one call
+ * in three. Others still serve the call when these are down.
+ */
+export const LIGHT_SECURITY_CHECK_HOSTS = ['near-ai', 'sambanova']
+
+/** Calls per check when the model's answer decides nothing (an empty Answer and no reasons). */
+export const LIGHT_SECURITY_CHECK_ATTEMPTS = 3
 
 /** Room for the model's reasoning plus a short structured answer. */
 export const LIGHT_SECURITY_CHECK_MAX_TOKENS = 4096
@@ -88,18 +100,37 @@ export function buildLightSecurityCheckRequest (input: Pick<LightSecurityCheckIn
   return `${header}\n\n\`\`\`solidity\n${input.source}\n\`\`\``
 }
 
-/** Runs the light check. Throws the transport error as-is so the caller can classify it (sign-in, no credits, …). */
+/**
+ * A verdict says yes or no, or lists reasons. Some hosts return an empty Answer with no reasons,
+ * which would otherwise read as "no issues".
+ */
+export function isDecisiveVerdict (result: SecurityCheck | null | undefined): boolean {
+  if (!result) return false
+  if (/^\s*(yes|no)\b/i.test(result.Answer || '')) return true
+  return (result.Reason || []).some((reason) => !!reason && !!reason.trim())
+}
+
+/**
+ * Runs the light check. Throws the transport error as-is so the caller can classify it (sign-in,
+ * no credits, …), and an error when no call gave a verdict: never a "no issues" by default.
+ */
 export async function runLightSecurityCheck (input: LightSecurityCheckInput): Promise<SecurityCheck> {
   const model = await createModelInstance(
     // no fallback list: OpenRouter would serve a fallback (often a pricier one) instead of the pinned model
-    { provider: 'openrouter', modelId: input.modelId || LIGHT_SECURITY_CHECK_DEFAULT_MODEL, fallbacks: false },
+    { provider: 'openrouter', modelId: input.modelId || LIGHT_SECURITY_CHECK_DEFAULT_MODEL, fallbacks: false, hostOrder: LIGHT_SECURITY_CHECK_HOSTS },
     LIGHT_SECURITY_CHECK_MAX_TOKENS,
     input.userApiKeys
   )
-  return generateStructured(model, SecurityCheckSchema, [
+  const messages = [
     new SystemMessage(input.mode === 'pasted' ? LIGHT_SECURITY_CHECK_PASTED_PROMPT : LIGHT_SECURITY_CHECK_PROMPT),
     new HumanMessage(buildLightSecurityCheckRequest(input))
-  // functionCalling: the forced `security_check` tool call is what the proxy recognises as the
-  // security_check operation (free allowance). Left to choose, LangChain may send response_format instead.
-  ], { name: 'security_check', method: 'functionCalling' })
+  ]
+  for (let attempt = 1; attempt <= LIGHT_SECURITY_CHECK_ATTEMPTS; attempt++) {
+    // functionCalling: the forced `security_check` tool call is what the proxy recognises as the
+    // security_check operation (free allowance). Left to choose, LangChain may send response_format instead.
+    const result = await generateStructured(model, SecurityCheckSchema, messages, { name: 'security_check', method: 'functionCalling' })
+    if (isDecisiveVerdict(result)) return result
+    remixAILogger.warn(`[light_security_check] attempt ${attempt}: the answer gave no verdict, asking again`)
+  }
+  throw new Error('RemixAI gave no verdict for this code')
 }

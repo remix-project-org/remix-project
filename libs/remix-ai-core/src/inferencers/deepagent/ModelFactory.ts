@@ -26,6 +26,7 @@ function cacheKey(selection: ModelSelection, params: ResolvedModelParams, userAp
     selection.routeProvider ?? '-',
     selection.modelId,
     selection.fallbacks === false ? 'nofb' : 'fb',
+    selection.hostOrder?.join(',') ?? '-',
     params.maxOutputTokens,
     params.temperature,
     params.topP ?? '-',
