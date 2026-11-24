@@ -76,11 +76,17 @@ export class Compiler {
     if (key === 'runs') this.state['runs'] = parseInt(value)
   }
 
-  async loadWorkerHandler() {
-    if (this.workerHandler) return
+  async loadWorkerHandler(useSandbox = false) {
+    console.log('loadWorkerHandler', useSandbox)
+    if (this.workerHandler && !useSandbox) return
     if (typeof (window) !== 'undefined' && Worker) {
-      const ESWebWorker = await import('../lib/es-web-worker/es-web-worker-handler')
-      this.workerHandler = new ESWebWorker.default()
+      if (useSandbox) {
+        const { SandboxedWorkerHandler } = await import('../lib/sandboxed-worker/sandboxed-worker-handler')
+        this.workerHandler = new SandboxedWorkerHandler()
+      } else if (!this.workerHandler) {
+        const ESWebWorker = await import('../lib/es-web-worker/es-web-worker-handler')
+        this.workerHandler = new ESWebWorker.default()
+      }
     }
   }
 
@@ -257,7 +263,8 @@ export class Compiler {
       this.state.worker = null
     }
     if (usingWorker) {
-      this.loadWorkerHandler().then(() => {
+      const useSandbox = url.startsWith('https://')
+      this.loadWorkerHandler(useSandbox).then(() => {
         this.loadWorker(url)
       })
     } else {
