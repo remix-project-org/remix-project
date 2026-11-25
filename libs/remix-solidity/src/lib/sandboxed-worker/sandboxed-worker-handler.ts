@@ -85,7 +85,7 @@ window.addEventListener('message', function(e) {
 
 // Let the parent know the worker is ready to receive messages.
 window.parent.postMessage({ cmd: 'sandbox-ready' }, '*');
-<\/script>
+</script>
 </body></html>`
 }
 
