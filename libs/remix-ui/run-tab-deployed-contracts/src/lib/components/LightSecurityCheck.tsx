@@ -62,10 +62,10 @@ export function LightSecurityCheck ({ contract }: { contract: DeployedContract }
     case 'clear': return <button className="udapp-light-check-link" data-id="lightCheckFullAudit" onClick={fullAudit}><FormattedMessage id="udapp.lightCheck.fullAudit" /></button>
     case 'issues': return count
       ? <button className="udapp-light-check-link" data-id="lightCheckToggle" aria-expanded={open} onClick={(e) => {
-          e.stopPropagation()
-          if (!open && !hasAuditorAccess) trackMatomoEvent?.({ category: 'securityScan', action: 'gated', name: 'card', isClick: false })
-          setOpen(!open)
-        }}>
+        e.stopPropagation()
+        if (!open && !hasAuditorAccess) trackMatomoEvent?.({ category: 'securityScan', action: 'gated', name: 'card', isClick: false })
+        setOpen(!open)
+      }}>
         <FormattedMessage id={open ? 'udapp.lightCheck.hide' : 'udapp.lightCheck.details'} />
       </button>
       : <button className="udapp-light-check-link" data-id="lightCheckFullAudit" onClick={fullAudit}><FormattedMessage id="udapp.lightCheck.fullAudit" /></button>
