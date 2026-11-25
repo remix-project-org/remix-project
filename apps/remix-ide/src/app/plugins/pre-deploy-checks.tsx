@@ -3,7 +3,7 @@ import { ViewPlugin } from '@remixproject/engine-web'
 import { customAction } from '@remixproject/plugin-api'
 import { PluginViewWrapper } from '@remix-ui/helper'
 import { endpointUrls } from '@remix-endpoints-helper'
-import { PreDeployChecksEvent, SecurityScanEvent } from '@remix-api'
+import { PreDeployChecksEvent, SecurityScanEvent, trackMatomoEvent } from '@remix-api'
 import {
   PreDeployChecksUI, PreDeployChecksViewState, CheckStore, CheckHost, Compilation, CompilerSummary, FileCheckState, SlitherReport, parseSlitherAnalysis,
   Finding, IgnoreReason, Range, CheckStepId, StepToggles, DEFAULT_TOGGLES, collectFindings, contentHash, compilerMessages, compilerSettingsKey,
@@ -668,14 +668,12 @@ export class PreDeployChecksPlugin extends ViewPlugin implements CheckHost {
   // ---------------------------------------------------------------- analytics
 
   private track (action: PreDeployChecksEvent['action'], name: string, value?: string | number, isClick = true) {
-    const event: PreDeployChecksEvent = { category: 'preDeployChecks', action, name, value, isClick }
-    this.call('matomo' as any, 'trackEvent', event).catch(() => { /* matomo not active */ })
+    trackMatomoEvent(this, { category: 'preDeployChecks', action, name, value, isClick })
   }
 
   /** Free light scans (after a paste or a deploy): their results and what users do with them. */
   trackScan (action: SecurityScanEvent['action'], name: string, isClick = false) {
-    const event: SecurityScanEvent = { category: 'securityScan', action, name, isClick }
-    this.call('matomo' as any, 'trackEvent', event).catch(() => { /* matomo not active */ })
+    trackMatomoEvent(this, { category: 'securityScan', action, name, isClick })
   }
 
   // ---------------------------------------------------------------- view

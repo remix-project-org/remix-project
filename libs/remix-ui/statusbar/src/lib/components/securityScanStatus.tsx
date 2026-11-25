@@ -1,8 +1,8 @@
 // eslint-disable-next-line @nrwl/nx/enforce-module-boundaries
 import { StatusBar } from 'apps/remix-ide/src/app/components/status-bar'
-import React, { useEffect, useRef, useState } from 'react'
+import React, { useContext, useEffect, useRef, useState } from 'react'
 import { useIntl } from 'react-intl'
-import type { SecurityScanEvent } from '@remix-api'
+import { TrackingContext } from '@remix-ide/tracking'
 
 /** How long a clean result stays in the status bar. */
 const CLEAR_VISIBLE_MS = 6000
@@ -47,6 +47,7 @@ function toScan (kind: Scan['kind'], event: ScanEvent): Scan | null {
 /** Shows the background AI security scans (after a paste or a deploy) while they run, and their verdict. */
 export default function SecurityScanStatus ({ plugin }: { plugin: StatusBar }) {
   const intl = useIntl()
+  const { trackMatomoEvent } = useContext(TrackingContext)
   const [scan, setScan] = useState<Scan | null>(null)
   const hideTimer = useRef<ReturnType<typeof setTimeout>>()
 
@@ -80,8 +81,7 @@ export default function SecurityScanStatus ({ plugin }: { plugin: StatusBar }) {
 
   const open = () => {
     if (scan.phase === 'scanning') return
-    const event: SecurityScanEvent = { category: 'securityScan', action: 'cta', name: `statusbar-${scan.kind}-${scan.phase}`, isClick: true }
-    plugin.call('matomo' as any, 'trackEvent', event).catch(() => { /* matomo not active */ })
+    trackMatomoEvent?.({ category: 'securityScan', action: 'cta', name: `statusbar-${scan.kind}-${scan.phase}`, isClick: true })
     if (scan.kind === 'paste') plugin.call('preDeployChecks' as any, 'open', scan.file, 'statusbar').catch(() => { /* panel not active */ })
     else plugin.call('menuicons' as any, 'select', 'udapp').catch(() => { /* panel not active */ })
     setScan(null)

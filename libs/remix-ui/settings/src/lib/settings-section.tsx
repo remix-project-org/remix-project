@@ -6,6 +6,7 @@ import SelectDropdown from './select-dropdown'
 import { ThemeContext } from '@remix-ui/home-tab'
 import type { ViewPlugin } from '@remixproject/engine-web'
 import { CustomTooltip } from '@remix-ui/helper'
+import { trackMatomoEvent } from '@remix-api'
 import { IMCPServerManager } from './mcp-server-manager'
 import { ProfileSection, CreditsBalance, ConnectedAccounts } from './account-settings'
 import { EezNetworksConfig } from './eez-networks-config'
@@ -185,7 +186,7 @@ export const SettingsSectionUI: React.FC<SettingsSectionUIProps> = ({ plugin, se
       }
       if (name === 'copilot/suggest/activate') plugin.emit('copilotChoiceUpdated', newValue)
       if (name === 'matomo-perf-analytics') plugin.call('settings', 'updateMatomoPerfAnalyticsChoice', newValue)
-      if (name === 'ai-security-checks') plugin.call('matomo', 'trackEvent', { category: 'securityScan', action: 'setting', name: `autoScan-${newValue ? 'on' : 'off'}`, isClick: true }).catch(() => {})
+      if (name === 'ai-security-checks') trackMatomoEvent(plugin, { category: 'securityScan', action: 'setting', name: `autoScan-${newValue ? 'on' : 'off'}`, isClick: true })
       if (name === 'text-wrap') plugin.emit('textWrapChoiceUpdated', newValue)
       if (name === 'editor/code-analysis-popover') plugin.emit('codeAnalysisPopoverChoiceUpdated', newValue)
       if (name === 'mcp/servers/enable') plugin.call('remixAI', newValue ? 'enableMCPEnhancement' : 'disableMCPEnhancement')

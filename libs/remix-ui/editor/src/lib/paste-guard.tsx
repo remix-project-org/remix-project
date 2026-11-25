@@ -1,9 +1,10 @@
-import React, { useEffect, useRef, useState } from 'react'
+import React, { useContext, useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { FormattedMessage, useIntl } from 'react-intl'
 import { LoginModal, startSignInFlow } from '@remix-ui/login'
 import { gatedPlaceholder } from '@remix-ui/helper'
 import type { SecurityScanEvent } from '@remix-api'
+import { TrackingContext } from '@remix-ide/tracking'
 import './paste-guard.css'
 
 /** A large paste into the editor, as the paste guard needs it. */
@@ -68,9 +69,9 @@ export function PasteGuard ({ plugin, request, onAskAI }: PasteGuardProps) {
   const activeRef = useRef(false)
   const backgroundRef = useRef(false)
 
+  const { trackMatomoEvent } = useContext(TrackingContext)
   const event = (action: SecurityScanEvent['action'], name: string, isClick: boolean) => {
-    const e: SecurityScanEvent = { category: 'securityScan', action, name, isClick }
-    plugin.call('matomo', 'trackEvent', e).catch(() => { /* matomo not active */ })
+    trackMatomoEvent?.({ category: 'securityScan', action, name, isClick })
   }
   const track = (name: string) => event('cta', `paste-${name}`, true)
   /** views (and blurred details) already counted for the current paste */
