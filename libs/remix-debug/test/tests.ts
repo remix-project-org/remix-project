@@ -2,6 +2,8 @@
 require('./vmCall')
 require('./traceManager')
 require('./codeManager')
+require('./hardfork')
+require('./localVmFork')
 require('./monadIsolation')
 require('./disassembler')
 require('./sourceMappingDecoder')

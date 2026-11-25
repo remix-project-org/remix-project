@@ -316,7 +316,7 @@ export class Ethdebugger {
     this.tx = tx
 
     await this.traceManager.resolveTrace(tx)
-    if (isMonadFork(this.traceManager.getCurrentFork()) || isMonadFork(this.codeManager.codeResolver.fork)) {
+    if (isMonadFork(this.traceManager.getCurrentFork()) || this.codeManager.codeResolver.fork !== this.traceManager.getCurrentFork()) {
       this.codeManager.clear()
       this.codeManager.codeResolver.fork = this.traceManager.getCurrentFork()
     }

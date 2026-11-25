@@ -1,6 +1,7 @@
 'use strict'
 import { isMonadFork } from '../code/monadOpcodes'
 import { util, execution } from '@remix-project/remix-lib'
+import { Hardfork } from '@ethereumjs/common'
 const { toHexPaddedString } = util
 import { TraceAnalyser } from './traceAnalyser'
 import { TraceCache } from './traceCache'
@@ -49,8 +50,10 @@ export class TraceManager {
         this.trace = result['structLogs']
 
         try {
-          this.fork = isMonadFork(result.fork)
-            ? result.fork : execution.forkAt((await this.web3.getNetwork()).chainId, tx.blockNumber)
+          // A local VM's development chain ID and block height cannot identify its configured fork.
+          const traceFork = result.fork
+          this.fork = isMonadFork(traceFork) || Object.values(Hardfork).includes(traceFork as Hardfork)
+            ? traceFork : execution.forkAt((await this.web3.getNetwork()).chainId, tx.blockNumber)
         } catch (e) {
           this.fork = 'osaka'
           console.log(`unable to detect fork, defaulting to ${this.fork}..`)

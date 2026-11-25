@@ -58,7 +58,7 @@ export interface StructLog {
  * The full result object for the default debug_traceTransaction tracer.
  */
 export interface DebugTraceTransactionResult {
-  /** Fork supplied by the local Monad VM. */
+  /** Execution hardfork supplied by a local VM trace provider. */
   fork?: string;
   /** Runtime code retained with a local Monad execution. */
   codeByAddress?: Record<string, string>;
