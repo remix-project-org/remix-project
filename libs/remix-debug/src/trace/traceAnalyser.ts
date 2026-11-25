@@ -43,7 +43,8 @@ export class TraceAnalyser {
       const size = 2 * parseInt(toHexPaddedString(step.stack[step.stack.length - 2]), 16)
       const memory = this.trace[this.traceCache.memoryChanges[this.traceCache.memoryChanges.length - 1]].memory
       const noOfReturnParams = size / 64
-      const memoryInString = memory.join('')
+      const memoryInString = Array.isArray(memory) && typeof memory[0] === 'string'
+        ? memory.join('') : util.bytesToHex(memory).replace(/^0x/, '')
       const returnParamsObj = []
       for (let i = 0; i < noOfReturnParams; i++) {
         returnParamsObj.push('0x' + memoryInString.substring(offset, offset + 64))
@@ -71,7 +72,7 @@ export class TraceAnalyser {
       calldata = tx.input || tx.data
       this.traceCache.pushCallDataChanges(index, calldata)
     } else if (!newContext) {
-      const lastCall = this.traceCache.callsData[this.traceCache.callDataChanges[this.traceCache.callDataChanges.length - 2]]
+      const lastCall = this.traceCache.callsData[this.traceCache.currentCall.call.start]
       this.traceCache.pushCallDataChanges(index + 1, lastCall)
     } else {
       const memory = this.trace[this.traceCache.memoryChanges[this.traceCache.memoryChanges.length - 1]].memory
@@ -79,7 +80,7 @@ export class TraceAnalyser {
       const stack = callStep.stack
       let offset = 0
       let size = 0
-      if (callStep.op === 'DELEGATECALL') {
+      if (callStep.op === 'DELEGATECALL' || callStep.op === 'STATICCALL') {
         offset = 2 * parseInt(toHexPaddedString(stack[stack.length - 3]), 16)
         size = 2 * parseInt(toHexPaddedString(stack[stack.length - 4]), 16)
       } else {
@@ -98,8 +99,11 @@ export class TraceAnalyser {
   }
 
   buildStorage (index, step, context) {
-    if (traceHelper.newContextStorage(step) && !traceHelper.isCallToPrecompiledContract(index, this.trace)) {
-      const calledAddress = traceHelper.resolveCalledAddress(index, this.trace)
+    if (traceHelper.isCallInstruction(step) && !traceHelper.isCallToPrecompiledContract(index, this.trace)) {
+      // Every entered frame needs a matching stack entry, even when it shares storage.
+      const calledAddress = traceHelper.newContextStorage(step) || traceHelper.isStaticCallInstruction(step)
+        ? traceHelper.resolveCalledAddress(index, this.trace)
+        : context.storageContext[context.storageContext.length - 1]
       if (calledAddress) {
         context.storageContext.push(calledAddress)
       } else {
@@ -108,11 +112,9 @@ export class TraceAnalyser {
       this.traceCache.pushStoreChanges(index + 1, context.storageContext[context.storageContext.length - 1])
     } else if (traceHelper.isSSTOREInstruction(step)) {
       this.traceCache.pushStoreChanges(index + 1, context.storageContext[context.storageContext.length - 1], toHexPaddedString(step.stack[step.stack.length - 1]), toHexPaddedString(step.stack[step.stack.length - 2]))
-    } else if (traceHelper.isReturnInstruction(step) || traceHelper.isStopInstruction(step)) {
+    } else if (traceHelper.isReturnInstruction(step) || traceHelper.isStopInstruction(step) || traceHelper.isRevertInstruction(step) || step.error || step.invalidDepthChange) {
       context.storageContext.pop()
       this.traceCache.pushStoreChanges(index + 1, context.storageContext[context.storageContext.length - 1])
-    } else if (traceHelper.isRevertInstruction(step)) {
-      context.storageContext.pop()
     }
     return context
   }
