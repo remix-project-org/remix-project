@@ -109,7 +109,10 @@ function Issue ({ finding, index, file, ignorable, onIgnore, autoAi, plugin }: I
   const message = gated ? gatedPlaceholder(finding.message) : finding.message
 
   const toggle = () => {
-    if (!open) plugin.openFinding(finding)
+    if (!open) {
+      plugin.openFinding(finding)
+      if (gated) plugin.trackScan('gated', 'checks')
+    }
     setOpen(!open)
   }
 
@@ -132,7 +135,7 @@ function Issue ({ finding, index, file, ignorable, onIgnore, autoAi, plugin }: I
                 {finding.message && <p>{message}</p>}
               </div>
               <div className="pdc-issue-gate-overlay">
-                <button className="btn btn-sm btn-primary" data-id={`${dataId}-gateCta`} onClick={() => plugin.getPlan()}>
+                <button className="btn btn-sm btn-primary" data-id={`${dataId}-gateCta`} onClick={() => plugin.getPlan('issueGate')}>
                   <FormattedMessage id="preDeployChecks.issue.getPlanToView" />
                 </button>
               </div>
@@ -148,7 +151,7 @@ function Issue ({ finding, index, file, ignorable, onIgnore, autoAi, plugin }: I
             </>
           )}
           {finding.items.some((item) => item.source === 'ai') && (
-            <button className="btn pdc-btn pdc-btn-quiet w-100 mt-2" data-id={`${dataId}-securityAudit`} onClick={() => plugin.securityAudit()}>
+            <button className="btn pdc-btn pdc-btn-quiet w-100 mt-2" data-id={`${dataId}-securityAudit`} onClick={() => plugin.securityAudit(undefined, 'issue')}>
               <FormattedMessage id="preDeployChecks.action.runSecurityAudit" />
             </button>
           )}
@@ -193,7 +196,7 @@ function ToolLineRow ({ line, plugin }: { line: ToolLine, plugin: PreDeployCheck
   const tools = toolList(intl, line.tools)
   const action = line.reason === 'sign-in'
     ? { id: 'preDeployChecks.action.openRemixAI', run: () => plugin.openPlugin('remixaiassistant') }
-    : line.kind === 'clear' ? { id: 'preDeployChecks.action.fullSecurityAudit', run: () => plugin.securityAudit() } : null
+    : line.kind === 'clear' ? { id: 'preDeployChecks.action.fullSecurityAudit', run: () => plugin.securityAudit(undefined, 'toolLine') } : null
   return (
     <div className="pdc-note" data-id={`preDeployChecks-toolLine-${line.tools.join('-')}`} data-kind={line.kind}>
       <i className={LINE_ICON[line.kind]} aria-hidden="true"></i>

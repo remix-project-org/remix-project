@@ -77,7 +77,7 @@ export function ChecksStatusLine ({ filePath }: { filePath?: string }) {
   }
 
   const openChecks = () => {
-    plugin.call('preDeployChecks', 'open', filePath).catch(() => plugin.call('menuicons', 'select', 'preDeployChecks'))
+    plugin.call('preDeployChecks', 'open', filePath, 'deployStatus').catch(() => plugin.call('menuicons', 'select', 'preDeployChecks'))
   }
 
   return (
