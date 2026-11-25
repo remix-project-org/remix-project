@@ -33,7 +33,9 @@ export const MatomoCategories = {
   STATUS_BAR: 'statusBar' as const,
   NOIR_COMPILER: 'noir-compiler' as const,
   QUICK_DAPP_V2: 'quick-dapp-v2' as const,
-  CHECKOUT: 'checkout' as const
+  CHECKOUT: 'checkout' as const,
+  PRE_DEPLOY_CHECKS: 'preDeployChecks' as const,
+  SECURITY_SCAN: 'securityScan' as const
 }
 
 // Common action constants used across multiple categories

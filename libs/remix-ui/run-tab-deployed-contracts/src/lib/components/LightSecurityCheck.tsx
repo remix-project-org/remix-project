@@ -36,10 +36,10 @@ export function LightSecurityCheck ({ contract }: { contract: DeployedContract }
 
   const cta = (name: string, run: () => Promise<any>) => (e: React.MouseEvent) => {
     e.stopPropagation()
-    trackMatomoEvent?.({ category: 'udapp', action: 'lightSecurityCheckCta', name, isClick: true })
+    trackMatomoEvent?.({ category: 'securityScan', action: 'cta', name: `card-${name}`, isClick: true })
     run().catch((err) => console.warn('Light security check action failed', err))
   }
-  const fullAudit = cta(`fullAudit-${record.status}`, () => plugin.call('preDeployChecks', 'fullAudit', record.file))
+  const fullAudit = cta(`fullAudit-${record.status}`, () => plugin.call('preDeployChecks', 'fullAudit', record.file, 'deployCard'))
   const signIn = cta('signIn', () => plugin.call('planManager' as any, 'open', { reason: 'auth-required' }))
   const topUp = cta('topUp', () => plugin.call('planManager' as any, 'open'))
   const getPlan = cta('getPlan', () => plugin.call('planManager' as any, 'open', { reason: 'feature-required', requiredFeature: 'ai:auditor' }))
@@ -61,7 +61,11 @@ export function LightSecurityCheck ({ contract }: { contract: DeployedContract }
     switch (record.status) {
     case 'clear': return <button className="udapp-light-check-link" data-id="lightCheckFullAudit" onClick={fullAudit}><FormattedMessage id="udapp.lightCheck.fullAudit" /></button>
     case 'issues': return count
-      ? <button className="udapp-light-check-link" data-id="lightCheckToggle" aria-expanded={open} onClick={(e) => { e.stopPropagation(); setOpen(!open) }}>
+      ? <button className="udapp-light-check-link" data-id="lightCheckToggle" aria-expanded={open} onClick={(e) => {
+          e.stopPropagation()
+          if (!open && !hasAuditorAccess) trackMatomoEvent?.({ category: 'securityScan', action: 'gated', name: 'card', isClick: false })
+          setOpen(!open)
+        }}>
         <FormattedMessage id={open ? 'udapp.lightCheck.hide' : 'udapp.lightCheck.details'} />
       </button>
       : <button className="udapp-light-check-link" data-id="lightCheckFullAudit" onClick={fullAudit}><FormattedMessage id="udapp.lightCheck.fullAudit" /></button>

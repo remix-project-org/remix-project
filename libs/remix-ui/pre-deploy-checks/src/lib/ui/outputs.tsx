@@ -50,7 +50,7 @@ export function Outputs ({ state, flattenEnabled, reportPath, plugin }: OutputsP
           </div>
           {canSaveReport
             ? <button className="pdc-link-btn" data-id="preDeployChecks-saveReport" onClick={() => plugin.saveReport()}><FormattedMessage id="preDeployChecks.save" /></button>
-            : <button className="pdc-link-btn" data-id="preDeployChecks-reportGateCta" title={intl.formatMessage({ id: 'preDeployChecks.reportPaidHint' })} onClick={() => plugin.getPlan()}>
+            : <button className="pdc-link-btn" data-id="preDeployChecks-reportGateCta" title={intl.formatMessage({ id: 'preDeployChecks.reportPaidHint' })} onClick={() => plugin.getPlan('reportGate')}>
               <i className="fas fa-lock me-1" aria-hidden="true"></i><FormattedMessage id="preDeployChecks.reportPaid" />
             </button>}
         </div>

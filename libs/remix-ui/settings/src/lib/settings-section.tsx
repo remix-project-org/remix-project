@@ -185,6 +185,7 @@ export const SettingsSectionUI: React.FC<SettingsSectionUIProps> = ({ plugin, se
       }
       if (name === 'copilot/suggest/activate') plugin.emit('copilotChoiceUpdated', newValue)
       if (name === 'matomo-perf-analytics') plugin.call('settings', 'updateMatomoPerfAnalyticsChoice', newValue)
+      if (name === 'ai-security-checks') plugin.call('matomo', 'trackEvent', { category: 'securityScan', action: 'setting', name: `autoScan-${newValue ? 'on' : 'off'}`, isClick: true }).catch(() => {})
       if (name === 'text-wrap') plugin.emit('textWrapChoiceUpdated', newValue)
       if (name === 'editor/code-analysis-popover') plugin.emit('codeAnalysisPopoverChoiceUpdated', newValue)
       if (name === 'mcp/servers/enable') plugin.call('remixAI', newValue ? 'enableMCPEnhancement' : 'disableMCPEnhancement')

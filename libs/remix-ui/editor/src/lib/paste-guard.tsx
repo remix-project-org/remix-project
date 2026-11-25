@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom'
 import { FormattedMessage, useIntl } from 'react-intl'
 import { LoginModal, startSignInFlow } from '@remix-ui/login'
 import { gatedPlaceholder } from '@remix-ui/helper'
+import type { SecurityScanEvent } from '@remix-api'
 import './paste-guard.css'
 
 /** A large paste into the editor, as the paste guard needs it. */
@@ -67,9 +68,13 @@ export function PasteGuard ({ plugin, request, onAskAI }: PasteGuardProps) {
   const activeRef = useRef(false)
   const backgroundRef = useRef(false)
 
-  const track = (name: string) => {
-    plugin.call('matomo', 'trackEvent', 'udapp', 'lightSecurityCheckCta', `paste-${name}`, undefined).catch(() => { /* matomo not active */ })
+  const event = (action: SecurityScanEvent['action'], name: string, isClick: boolean) => {
+    const e: SecurityScanEvent = { category: 'securityScan', action, name, isClick }
+    plugin.call('matomo', 'trackEvent', e).catch(() => { /* matomo not active */ })
   }
+  const track = (name: string) => event('cta', `paste-${name}`, true)
+  /** views (and blurred details) already counted for the current paste */
+  const seenRef = useRef(new Set<string>())
 
   const finish = () => {
     activeRef.current = false
@@ -99,7 +104,7 @@ export function PasteGuard ({ plugin, request, onAskAI }: PasteGuardProps) {
       backgroundRef.current = false
       setInBackground(false)
       setOpen(true)
-      track('reopenIssues')
+      event('cta', 'paste-reopenIssues', false)
     } else {
       finish()
     }
@@ -180,6 +185,22 @@ export function PasteGuard ({ plugin, request, onAskAI }: PasteGuardProps) {
     return () => document.removeEventListener('focusin', onFocusIn)
   }, [open, inBackground, showLogin, request?.nonce])
 
+  // one impression per view of each paste, counted once it's on screen
+  const visible = open && !inBackground && !showLogin && view !== 'loading'
+  const gatedShown = visible && view === 'issues' && reasons.length > 0 && !ctx?.hasAuditor
+  useEffect(() => {
+    if (!visible || !request) return
+    const seen = seenRef.current
+    if (!seen.has(`${request.nonce}:${view}`)) {
+      seen.add(`${request.nonce}:${view}`)
+      event('guard', view, false)
+    }
+    if (gatedShown && !seen.has(`${request.nonce}:gated`)) {
+      seen.add(`${request.nonce}:gated`)
+      event('gated', 'paste', false)
+    }
+  }, [visible, view, gatedShown, request?.nonce])
+
   if (!request || (!open && !showLogin)) return null
 
   const file = request.file.split('/').pop()
@@ -211,7 +232,7 @@ export function PasteGuard ({ plugin, request, onAskAI }: PasteGuardProps) {
   }
 
   const fullAuditButton = () => (
-    <button className="btn btn-sm btn-secondary" data-id="pasteGuardFullAudit" onClick={then('fullAudit', () => plugin.call('preDeployChecks', 'fullAudit', request.file))}>
+    <button className="btn btn-sm btn-secondary" data-id="pasteGuardFullAudit" onClick={then('fullAudit', () => plugin.call('preDeployChecks', 'fullAudit', request.file, 'pasteGuard'))}>
       {hasAuditor
         ? <FormattedMessage id="editor.pasteGuard.runFullAudit" />
         : <><FormattedMessage id="editor.pasteGuard.getFullAudit" /></>}
@@ -357,7 +378,7 @@ export function PasteGuard ({ plugin, request, onAskAI }: PasteGuardProps) {
     case 'issues': return <>
       <button className="btn btn-sm btn-link text-muted me-auto px-0" data-id="pasteGuardIgnore" onClick={() => close('ignore')}><FormattedMessage id="editor.pasteGuard.ignore" /></button>
       {fullAuditButton()}
-      <button className="btn btn-sm btn-danger" data-id="pasteGuardReview" onClick={then('review', () => plugin.call('preDeployChecks', 'open', request.file))}><FormattedMessage id="editor.pasteGuard.review" /></button>
+      <button className="btn btn-sm btn-danger" data-id="pasteGuardReview" onClick={then('review', () => plugin.call('preDeployChecks', 'open', request.file, 'pasteGuard'))}><FormattedMessage id="editor.pasteGuard.review" /></button>
     </>
     case 'error': return <>
       {secondary('editor.pasteGuard.continue', 'continue', 'pasteGuardContinue')}

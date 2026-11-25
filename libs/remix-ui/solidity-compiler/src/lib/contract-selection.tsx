@@ -254,7 +254,7 @@ export const ContractSelection = (props: ContractSelectionProps) => {
 
   const openPreDeployChecks = () => {
     trackMatomoEvent({ category: 'solidityCompiler', action: 'openPreDeployChecks', isClick: true })
-    ;(api as any).call('preDeployChecks', 'open', props.compiledFileName)
+    ;(api as any).call('preDeployChecks', 'open', props.compiledFileName, 'compiler')
   }
 
   const handleScanContinue = async () => {

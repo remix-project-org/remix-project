@@ -3,6 +3,7 @@ import { ViewPlugin } from '@remixproject/engine-web'
 import { customAction } from '@remixproject/plugin-api'
 import { PluginViewWrapper } from '@remix-ui/helper'
 import { endpointUrls } from '@remix-endpoints-helper'
+import { PreDeployChecksEvent, SecurityScanEvent } from '@remix-api'
 import {
   PreDeployChecksUI, PreDeployChecksViewState, CheckStore, CheckHost, Compilation, CompilerSummary, FileCheckState, SlitherReport, parseSlitherAnalysis,
   Finding, IgnoreReason, Range, CheckStepId, StepToggles, DEFAULT_TOGGLES, collectFindings, contentHash, compilerMessages, compilerSettingsKey,
@@ -83,7 +84,7 @@ export class PreDeployChecksPlugin extends ViewPlugin implements CheckHost {
     onChange: (record: LightCheckRecord) => {
       this.emit('lightCheckChanged', record)
       if (record.status === 'issues') this.recordDeployCheck(record).catch((e) => console.warn('Pre-deploy checks: could not record the light check', e))
-      if (record.status !== 'running') this.call('matomo', 'trackEvent', 'udapp', 'lightSecurityCheck', record.status, undefined).catch(() => { /* matomo not active */ })
+      if (record.status !== 'running') this.trackScan('result', `deploy-${record.status}`)
     }
   })
 
@@ -171,7 +172,9 @@ export class PreDeployChecksPlugin extends ViewPlugin implements CheckHost {
 
   // ---------------------------------------------------------------- public API
 
-  async open (file?: string) {
+  /** @param source where the panel was opened from, for the analytics (pasteGuard, statusbar, deployStatus, compiler…) */
+  async open (file?: string, source?: string) {
+    if (source) this.track('open', source)
     await this.call('menuicons', 'select', 'preDeployChecks')
     if (!file) return
     await this.call('fileManager', 'open', file)
@@ -182,7 +185,7 @@ export class PreDeployChecksPlugin extends ViewPlugin implements CheckHost {
 
   /** File explorer right-click on a .sol file. */
   async openFromContextMenu (action: customAction) {
-    await this.open(action.path[0])
+    await this.open(action.path[0], 'contextMenu')
   }
 
   async run (file?: string, opts: { force?: boolean } = {}): Promise<FileCheckState> {
@@ -359,6 +362,7 @@ export class PreDeployChecksPlugin extends ViewPlugin implements CheckHost {
   setToggle (stepId: CheckStepId, enabled: boolean) {
     if (stepId === 'compile') return
     this.toggles = { ...this.toggles, [stepId]: enabled }
+    this.track('toggle', `${stepId}-${enabled ? 'on' : 'off'}`)
     try {
       window.localStorage.setItem(TOGGLES_KEY, JSON.stringify(this.toggles))
     } catch (e) { /* storage unavailable */ }
@@ -373,8 +377,11 @@ export class PreDeployChecksPlugin extends ViewPlugin implements CheckHost {
     this.running = { file, cancelled: false }
     this.publishSummary(file)
     this.renderComponent()
+    const steps = (Object.keys(this.toggles) as CheckStepId[]).filter((id) => this.toggles[id]).join(',')
+    this.track('run', 'start', steps)
+    let result = 'error'
     try {
-      await runPipeline(this, {
+      const outcome = await runPipeline(this, {
         file,
         toggles: this.toggles,
         force: opts.force,
@@ -384,6 +391,7 @@ export class PreDeployChecksPlugin extends ViewPlugin implements CheckHost {
           this.renderComponent()
         }
       })
+      result = outcome.kind === 'done' ? 'done' : outcome.kind === 'compile-failed' ? 'compileFailed' : outcome.kind
     } catch (e) {
       console.error(e)
       this.call('notification', 'toast', `Pre-deploy checks stopped: ${e?.message || String(e)}`)
@@ -393,6 +401,10 @@ export class PreDeployChecksPlugin extends ViewPlugin implements CheckHost {
     }
     this.publishSummary(file)
     this.renderComponent()
+    const open = collectFindings(this.store.get(file)).filter((f) => !f.stale && !f.ignored)
+    const high = blockingFindings(open).length
+    if (result === 'done') result = high ? 'blocked' : open.length ? 'issues' : 'clear'
+    this.track('runResult', result, high, false)
   }
 
   cancelRun () {
@@ -404,6 +416,8 @@ export class PreDeployChecksPlugin extends ViewPlugin implements CheckHost {
 
   async goToDeploy () {
     const file = this.currentFile
+    const high = file ? blockingFindings(collectFindings(this.store.get(file))).length : 0
+    this.track('deploy', high ? 'deployAnyway' : 'goToDeploy', high)
     await this.call('menuicons', 'select', 'udapp')
     if (!file) return
     try {
@@ -501,7 +515,7 @@ export class PreDeployChecksPlugin extends ViewPlugin implements CheckHost {
     } catch (e) {
       console.warn('Pre-deploy checks: scan after paste failed', e)
     }
-    this.call('matomo', 'trackEvent', 'udapp', 'lightSecurityCheck', `paste-${result?.status || 'error'}`, undefined).catch(() => { /* matomo not active */ })
+    this.trackScan('result', `paste-${result?.status || 'error'}`)
     if (result?.answer && !result.reused) await this.recordPasteCheck(result, content).catch((e) => console.warn('Pre-deploy checks: could not record the scan', e))
     // a newer scan replaced this one meanwhile
     if (this.pasteScan?.id !== id) return
@@ -563,8 +577,9 @@ export class PreDeployChecksPlugin extends ViewPlugin implements CheckHost {
 
   // ---------------------------------------------------------------- findings and report
 
-  async openFinding (finding: { file?: string, range?: Range }) {
+  async openFinding (finding: { file?: string, range?: Range, sources?: string[] }) {
     if (!finding.file) return
+    this.track('issue', `open-${(finding.sources || []).join('+') || 'unknown'}`)
     if (finding.file !== this.currentFile) this.showingIssueIn = finding.file
     try {
       if (this.highlighted) await this.call('editor', 'discardHighlight')
@@ -580,10 +595,12 @@ export class PreDeployChecksPlugin extends ViewPlugin implements CheckHost {
   }
 
   ignoreFinding (finding: Finding, reason: IgnoreReason) {
+    this.track('issue', `ignore-${reason}`)
     if (this.currentFile) this.store.ignore(this.currentFile, finding.keys, reason)
   }
 
   restoreFinding (finding: Finding) {
+    this.track('issue', 'restore')
     if (this.currentFile) this.store.restore(this.currentFile, finding.keys)
   }
 
@@ -599,23 +616,23 @@ export class PreDeployChecksPlugin extends ViewPlugin implements CheckHost {
    * The full security audit offered next to a light check: a subscriber feature (ai:auditor).
    * Without it the plan manager shows what the upgrade includes.
    */
-  async fullAudit (file: string) {
+  async fullAudit (file: string, source = 'lightCheck') {
     const hasAuditor = await this.call('assistantState', 'hasFeature', 'ai:auditor').catch(() => false)
-    if (!hasAuditor) {
-      await this.call('planManager' as any, 'open', { reason: 'feature-required', requiredFeature: 'ai:auditor' })
-      return
-    }
-    await this.securityAudit(file)
+    if (!hasAuditor) return this.getPlan('fullAudit')
+    await this.securityAudit(file, source)
   }
 
-  async getPlan () {
+  /** Opens the plans with the Security Auditor highlighted. @param source the button that led here, for the analytics */
+  async getPlan (source = 'issueGate') {
+    this.track('upgrade', source)
     await this.call('planManager' as any, 'open', { reason: 'feature-required', requiredFeature: 'ai:auditor' })
   }
 
   /** Same audit as the Solidity compiler's Security Audit button, in RemixAI chat. */
-  async securityAudit (target?: string) {
+  async securityAudit (target?: string, source = 'checks') {
     const file = target || this.currentFile
     if (!file) return
+    this.track('securityAudit', source)
     const hasAuditor = await this.call('assistantState', 'hasFeature', 'ai:auditor').catch(() => false)
     const upsell = hasAuditor ? '' : ' At the end, mention that a more thorough and complete security audit with deeper analysis and detailed reporting is available in the Remix Pro plan.'
     const fileRef = ` File to analyze: ${file}.`
@@ -634,7 +651,11 @@ export class PreDeployChecksPlugin extends ViewPlugin implements CheckHost {
   async saveReport () {
     const file = this.currentFile
     if (!file) return
-    if (!(await this.call('assistantState', 'hasFeature', 'ai:auditor').catch(() => false))) return this.getPlan()
+    if (!(await this.call('assistantState', 'hasFeature', 'ai:auditor').catch(() => false))) {
+      this.track('report', 'gated')
+      return this.getPlan('reportGate')
+    }
+    this.track('report', 'save')
     const contractName = this.contractNameOf(file)
     const md = buildReport(this.store.get(file), { date: new Date(), contractName, compiler: this.compiler || undefined })
     const path = reportFileName(file, contractName)
@@ -642,6 +663,19 @@ export class PreDeployChecksPlugin extends ViewPlugin implements CheckHost {
     // rendered, like a .md opened from the file explorer; this also keeps the contract as the current file
     await this.call('doc-viewer' as any, 'viewDocs', [path])
     this.call('tabs' as any, 'focus', 'doc-viewer')
+  }
+
+  // ---------------------------------------------------------------- analytics
+
+  private track (action: PreDeployChecksEvent['action'], name: string, value?: string | number, isClick = true) {
+    const event: PreDeployChecksEvent = { category: 'preDeployChecks', action, name, value, isClick }
+    this.call('matomo' as any, 'trackEvent', event).catch(() => { /* matomo not active */ })
+  }
+
+  /** Free light scans (after a paste or a deploy): their results and what users do with them. */
+  trackScan (action: SecurityScanEvent['action'], name: string, isClick = false) {
+    const event: SecurityScanEvent = { category: 'securityScan', action, name, isClick }
+    this.call('matomo' as any, 'trackEvent', event).catch(() => { /* matomo not active */ })
   }
 
   // ---------------------------------------------------------------- view

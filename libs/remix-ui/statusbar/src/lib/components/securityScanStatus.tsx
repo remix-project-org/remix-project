@@ -2,6 +2,7 @@
 import { StatusBar } from 'apps/remix-ide/src/app/components/status-bar'
 import React, { useEffect, useRef, useState } from 'react'
 import { useIntl } from 'react-intl'
+import type { SecurityScanEvent } from '@remix-api'
 
 /** How long a clean result stays in the status bar. */
 const CLEAR_VISIBLE_MS = 6000
@@ -79,8 +80,9 @@ export default function SecurityScanStatus ({ plugin }: { plugin: StatusBar }) {
 
   const open = () => {
     if (scan.phase === 'scanning') return
-    plugin.call('matomo' as any, 'trackEvent', 'udapp', 'lightSecurityCheckCta', `statusbar-${scan.kind}-${scan.phase}`, undefined).catch(() => { /* matomo not active */ })
-    if (scan.kind === 'paste') plugin.call('preDeployChecks' as any, 'open', scan.file).catch(() => { /* panel not active */ })
+    const event: SecurityScanEvent = { category: 'securityScan', action: 'cta', name: `statusbar-${scan.kind}-${scan.phase}`, isClick: true }
+    plugin.call('matomo' as any, 'trackEvent', event).catch(() => { /* matomo not active */ })
+    if (scan.kind === 'paste') plugin.call('preDeployChecks' as any, 'open', scan.file, 'statusbar').catch(() => { /* panel not active */ })
     else plugin.call('menuicons' as any, 'select', 'udapp').catch(() => { /* panel not active */ })
     setScan(null)
   }
