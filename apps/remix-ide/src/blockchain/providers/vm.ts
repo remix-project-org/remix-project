@@ -81,7 +81,7 @@ export class VMProvider {
             this.executionContext.setWeb3(context, web3)
             resolve({})
           } else {
-            reject(new Error(msg.data.error))
+            reject(new Error(msg.data.error.message || msg.data.error))
           }
         }
       }
@@ -112,7 +112,7 @@ export class VMProvider {
             blocks: blockchainState.blocks
           })
         } catch (e) {
-          console.error(e)
+          reject(e)
         }
       } else {
         worker.postMessage({
