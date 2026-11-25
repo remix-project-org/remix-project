@@ -35,7 +35,9 @@ export const openrouterAdapter: ProviderAdapter = {
     const useDirectApi = !!(userApiKeys?.useOwnKeys && userApiKeys?.openrouterApiKey)
     remixAILogger.log(`[ModelFactory] OpenRouter ${selection.modelId}${useDirectApi ? ' (direct API)' : ' (proxy)'} maxTokens=${params.maxOutputTokens}`)
 
-    const fallbackModels = openrouterFallbackModels(selection)
+    // Observed Nov 2026: with `models` present, /chat/completions routinely serves a list entry
+    // rather than `model`, even when `model` is listed first. Pinned calls opt out.
+    const fallbackModels = selection.fallbacks === false ? [] : openrouterFallbackModels(selection)
     remixAILogger.log(`[ModelFactory] OpenRouter fallback chain: ${fallbackModels.join(' → ')}`)
 
     const common = {
@@ -45,7 +47,7 @@ export const openrouterAdapter: ProviderAdapter = {
       maxRetries: SDK_MAX_RETRIES,
       callbacks: modelCallbacks(label),
       plugins: OPENROUTER_PLUGINS,
-      provider: OPENROUTER_PROVIDER_PREFERENCES,
+      provider: selection.hostOrder?.length ? { ...OPENROUTER_PROVIDER_PREFERENCES, order: selection.hostOrder } : OPENROUTER_PROVIDER_PREFERENCES,
       ...(fallbackModels.length > 0 ? { models: fallbackModels } : {}),
       modelKwargs: OPENROUTER_MODEL_KWARGS
     }

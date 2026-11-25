@@ -128,6 +128,28 @@ export type AIPromptEventName =
   | 'conversation_count'
   | 'promptSend'
 
+/**
+ * AI-agent deploy outcome event names (deploy_contract MCP tool), emitted with
+ * `{ category: 'ai', action: 'remixAI', name: <one of these> }`. The agent
+ * deploys through the blockchain plugin directly, so the udapp deploy events
+ * (DeployContractTo, DeployOnly, DeployAndPublish, deployFailed) never fire for
+ * it. The names differ from the button's so the two can be told apart.
+ *
+ *  - 'agent_deploy_succeeded'          value = chain id (none on the Remix VM)
+ *  - 'agent_deploy_failed|<reason>'    value = chain id (none on the Remix VM)
+ *    <reason> is a DeployFailureReason, or one of AgentDeployLocalFailureReason.
+ *    Never the error text.
+ */
+export type AgentDeployLocalFailureReason =
+  | 'not-compiled' // no compilation result for the contract name
+  | 'contract-not-found' // compiled, but the name is not in that compilation
+  | 'account-selection-failed' // the requested sender could not be selected
+  | 'no-receipt' // deploy returned without a transaction receipt
+
+export type AIAgentDeployEventName =
+  | 'agent_deploy_succeeded'
+  | `agent_deploy_failed|${string}`
+
 export type AISubagentEventName =
   | 'subagent_start'
   | 'subagent_complete'

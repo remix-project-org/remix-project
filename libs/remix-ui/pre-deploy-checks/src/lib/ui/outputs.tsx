@@ -1,6 +1,8 @@
 import React from 'react'
-import { FormattedMessage } from 'react-intl'
+import { FormattedMessage, useIntl } from 'react-intl'
 import { CopyToClipboard } from '@remix-ui/clipboard'
+import { useAuth } from '@remix-ui/app'
+import { Features } from '@remix-api'
 import { isStale } from '../store'
 import { FileCheckState } from '../types'
 import { VerificationReceipt } from '../verification'
@@ -18,6 +20,10 @@ export function Outputs ({ state, flattenEnabled, reportPath, plugin }: OutputsP
   const flatten = state.steps.flatten
   const flatPath: string | undefined = flattenEnabled && flatten?.status === 'passed' ? flatten.data?.path : undefined
   const flatStale = isStale(state, 'flatten')
+  const intl = useIntl()
+  const { isAuthenticated, features } = useAuth()
+  // the report is a paid feature, like the Security Auditor
+  const canSaveReport = isAuthenticated && features?.[Features.AI_AUDITOR]?.is_enabled === true
   return (
     <section className="pdc-outputs" data-id="preDeployChecks-outputs">
       <div className="pdc-section-head"><span className="pdc-section-title"><FormattedMessage id="preDeployChecks.outputs" /></span></div>
@@ -42,7 +48,11 @@ export function Outputs ({ state, flattenEnabled, reportPath, plugin }: OutputsP
               {reportPath ? splitPath(reportPath).name : ''} · <FormattedMessage id="preDeployChecks.reportContents" />
             </div>
           </div>
-          <button className="pdc-link-btn" data-id="preDeployChecks-saveReport" onClick={() => plugin.saveReport()}><FormattedMessage id="preDeployChecks.save" /></button>
+          {canSaveReport
+            ? <button className="pdc-link-btn" data-id="preDeployChecks-saveReport" onClick={() => plugin.saveReport()}><FormattedMessage id="preDeployChecks.save" /></button>
+            : <button className="pdc-link-btn" data-id="preDeployChecks-reportGateCta" title={intl.formatMessage({ id: 'preDeployChecks.reportPaidHint' })} onClick={() => plugin.getPlan('reportGate')}>
+              <i className="fas fa-lock me-1" aria-hidden="true"></i><FormattedMessage id="preDeployChecks.reportPaid" />
+            </button>}
         </div>
       </div>
     </section>

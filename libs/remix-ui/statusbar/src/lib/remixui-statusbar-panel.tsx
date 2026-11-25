@@ -3,6 +3,7 @@ import GitStatus from './components/gitStatus'
 import AIStatus from './components/aiStatus'
 import ScamAlertStatus from './components/scamAlertStatus'
 import ScamDetails from './components/scamDetails'
+import SecurityScanStatus from './components/securityScanStatus'
 import { FloatingFocusManager, autoUpdate, flip, offset, shift, size, useClick, useDismiss, useFloating, useInteractions, useRole } from '@floating-ui/react'
 import axios from 'axios'
 // eslint-disable-next-line @nrwl/nx/enforce-module-boundaries
@@ -111,6 +112,9 @@ export function RemixUIStatusBar({ statusBarPlugin }: RemixUIStatusBarProps) {
           <div className='d-flex w-100 justify-content-between'>
             <div className="remixui_statusbar remixui_statusbar_gitstatus">
               <GitStatus plugin={statusBarPlugin} gitBranchName={gitBranchName} setGitBranchName={setGitBranchName} />
+            </div>
+            <div className="remixui_statusbar d-flex align-items-center p-0">
+              <SecurityScanStatus plugin={statusBarPlugin} />
             </div>
             {isTypeLoadingActive &&
               <div className="text-body remixui_statusbar d-flex w-100 justify-content-start p-0 ms-3 text-white">

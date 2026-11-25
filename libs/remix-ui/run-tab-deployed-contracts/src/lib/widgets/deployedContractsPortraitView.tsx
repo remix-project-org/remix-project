@@ -5,6 +5,7 @@ import { DeployedContractsAppContext } from '../contexts'
 import { DeployedContractItem } from '../components/DeployedContractItem'
 import { checkSumWarning, CustomTooltip } from '@remix-ui/helper'
 import { loadAddress } from '../actions'
+import { looksLikeEnsName, resolveEnsToAddress } from '../ens-contract-names'
 import { TrackingContext } from '@remix-ide/tracking'
 import { ArkivRetrievePanel } from '../components/ArkivRetrievePanel'
 
@@ -13,6 +14,7 @@ export default function DeployedContractsPortraitView() {
   const { trackMatomoEvent } = useContext(TrackingContext)
   const { deployedContracts, showAddDialog, addressInput, showClearAllDialog, loadType, currentFile, collapseAllSignal, highlightAddDialog } = widgetState
   const [enableAtAddress, setEnableAtAddress] = useState(false)
+  const [isResolvingEns, setIsResolvingEns] = useState(false)
   const [latestContractAddress, setLatestContractAddress] = useState<string | null>(null)
   const [showScrollButton, setShowScrollButton] = useState(false)
   const [newInstancesCount, setNewInstancesCount] = useState(0)
@@ -117,9 +119,30 @@ export default function DeployedContractsPortraitView() {
   }
 
   const handleAddContract = async () => {
-    let address = addressInput
-    if (!address || address.trim() === '') {
-      return
+    const input = addressInput.trim()
+    if (!input) return
+
+    let address = input
+
+    // Resolve ENS name to address if needed
+    if (looksLikeEnsName(input)) {
+      setIsResolvingEns(true)
+      try {
+        const network = await plugin.call('udappEnv', 'getNetwork')
+        const currentChainId = network?.chainId ?? 1
+        const resolved = await resolveEnsToAddress(input, currentChainId)
+        if (!resolved) {
+          await plugin.call('notification', 'toast', `⚠️ Could not resolve ENS name: ${input}`)
+          return
+        }
+        address = ethJSUtil.toChecksumAddress(resolved)
+      } catch (e) {
+        console.error('ENS resolution failed:', e)
+        await plugin.call('notification', 'toast', `⚠️ ENS resolution failed: ${(e as any).message}`)
+        return
+      } finally {
+        setIsResolvingEns(false)
+      }
     }
 
     // Validate address format
@@ -261,14 +284,14 @@ export default function DeployedContractsPortraitView() {
           </p>
           <div className="d-flex align-items-center mb-2">
             <label className="mb-0 me-2" style={{ color: 'var(--bs-tertiary)' }}>
-                Contract address
+              Contract address or ENS name
             </label>
           </div>
           <div className="position-relative flex-fill">
             <input
               type="text"
               value={addressInput}
-              placeholder='0x...'
+              placeholder='0x... or name.eth'
               className="form-control"
               onChange={handleAddressInputChange}
               data-id="deployedContractAddressInput"
@@ -276,14 +299,19 @@ export default function DeployedContractsPortraitView() {
             />
             <button
               className="btn btn-sm btn-primary"
-              disabled={!enableAtAddress}
+              disabled={!enableAtAddress || isResolvingEns}
               onClick={handleAddContract}
               data-id="addDeployedContractButton"
               style={{ position: 'absolute', right: '0.5rem', top: '50%', transform: 'translateY(-50%)', zIndex: 2, fontSize: '0.65rem', fontWeight: 'bold' }}
             >
-                Add
+              {isResolvingEns ? <i className="fas fa-spinner fa-spin"></i> : 'Add'}
             </button>
           </div>
+          {looksLikeEnsName(addressInput) && !isResolvingEns && (
+            <small className="text-muted mt-1 d-block" style={{ fontSize: '0.7rem' }}>
+              <i className="fas fa-info-circle me-1"></i>ENS name will be resolved on add
+            </small>
+          )}
         </div>
       )}
 

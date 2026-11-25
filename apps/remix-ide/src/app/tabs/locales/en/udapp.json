@@ -346,5 +346,21 @@
   "udapp.checks.viewProgress": "View progress",
   "udapp.checks.viewErrors": "View errors",
   "udapp.checks.viewFindings": "View issues",
-  "udapp.checks.viewChecks": "View checks"
+  "udapp.checks.viewChecks": "View checks",
+  "udapp.lightCheck.kicker": "Free AI security check",
+  "udapp.lightCheck.running": "Scanning for scams and major vulnerabilities…",
+  "udapp.lightCheck.clear": "No major vulnerabilities found",
+  "udapp.lightCheck.issues": "{count, plural, one {# possible major vulnerability} other {# possible major vulnerabilities}}",
+  "udapp.lightCheck.issuesNoDetails": "Possible major vulnerability found",
+  "udapp.lightCheck.signin": "Sign in to check this contract for vulnerabilities for free",
+  "udapp.lightCheck.signinAction": "Sign in",
+  "udapp.lightCheck.exhausted": "You've used your free security checks",
+  "udapp.lightCheck.exhaustedAction": "Upgrade or top up",
+  "udapp.lightCheck.fullAudit": "Full audit",
+  "udapp.lightCheck.details": "Details",
+  "udapp.lightCheck.hide": "Hide",
+  "udapp.lightCheck.lightNote": "This is a quick automated scan, not an audit. A full security audit reviews every function in depth and gives you a detailed report.",
+  "udapp.lightCheck.fullAuditCta": "Run a full security audit",
+  "udapp.lightCheck.signinToView": "Sign in or get a paid plan to see the details",
+  "udapp.lightCheck.upgradeToView": "Get a paid plan to see the details"
 }

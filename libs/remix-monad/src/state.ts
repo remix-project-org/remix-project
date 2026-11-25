@@ -1,4 +1,5 @@
 import { toQuantity, Wallet } from 'ethers'
+import type { StakingAction, StakingResult } from 'monad-evm2js'
 import { EngineResult, MonadSpec, RpcError } from './types'
 import { MONAD_CHAIN_ID } from './constants'
 
@@ -11,6 +12,13 @@ export interface RecordedExecution {
   after: string
 }
 
+export interface RecordedStakingTransition {
+  action: StakingAction
+  result: StakingResult
+  before: string
+  after: string
+}
+
 export interface SavedState {
   backend: 'monad-evm2'
   version: 1
@@ -19,6 +27,7 @@ export interface SavedState {
   keys: string[]
   blocks: any[]
   executions: [string, RecordedExecution][]
+  stakingTransitions: [string, RecordedStakingTransition][]
   tags: [string, string][]
   callCounter: number
 }
@@ -35,6 +44,19 @@ const hex = (value: any) => typeof value === 'string' && /^0x(?:[\da-f]{2})*$/i.
 const hash = (value: any) => typeof value === 'string' && /^0x[\da-f]{64}$/i.test(value)
 const integer = (value: any) => Number.isSafeInteger(value) && value >= 0
 const invalid = (detail: string): never => { throw new RpcError(`Invalid saved Monad state: ${detail}`) }
+
+export function isStakingAction(value: unknown): value is StakingAction {
+  if (!object(value)) return false
+  const action = value as Record<string, unknown>
+  const keys = Object.keys(action).sort().join(',')
+  const quantity = (input: unknown, limit: bigint) => typeof input === 'string' && /^0x[\da-f]+$/i.test(input) && BigInt(input) < limit
+  switch (action.kind) {
+  case 'snapshot': return keys === 'kind'
+  case 'epochChange': return keys === 'epoch,kind' && quantity(action.epoch, 0xffffffffffffffffn)
+  case 'reward': return keys === 'amount,author,kind' && typeof action.author === 'string' && /^0x[\da-f]{40}$/i.test(action.author) && quantity(action.amount, 1n << 256n)
+  default: return false
+  }
+}
 
 function blockContext(block: any) {
   const quantity = (value: any) => typeof value === 'string' && /^0x(?:0|[1-9a-f][\da-f]*)$/i.test(value)
@@ -112,8 +134,19 @@ export function readState(input: unknown, spec: MonadSpec): SavedState {
     return [id, record]
   })
   const records = new Map(executions)
+  const stakingTransitions = pairs(state.stakingTransitions === undefined ? [] : state.stakingTransitions, 'staking transitions').map(([id, record]): [string, RecordedStakingTransition] => {
+    if (!hash(id) || !object(record) || !isStakingAction(record.action)) invalid('malformed staking transition')
+    const result = record.result
+    if (!object(result) || result.success !== true || result.error !== null || !hex(result.returnValue) || !integer(result.gasSpent) || !Array.isArray(result.logs) || result.logs.some(log => !object(log) || typeof log.address !== 'string' || !/^0x[\da-f]{40}$/i.test(log.address) || !hex(log.data) || !Array.isArray(log.topics) || log.topics.some(topic => !hash(topic)))) invalid('malformed staking transition result')
+    snapshot(record.before, spec)
+    snapshot(record.after, spec)
+    const block = state.blocks.find(block => block.hash === id)
+    if (!block || block.number === '0x0' || block.transactions.length || block.gasUsed !== '0x0') invalid('staking transition references an invalid block')
+    return [id, record]
+  })
+  const transitions = new Map(stakingTransitions)
   for (const block of state.blocks) {
-    if (block.number !== '0x0' && !block.transactions.length) invalid('block references a missing transaction')
+    if (block.number !== '0x0' && !block.transactions.length && !transitions.has(block.hash)) invalid('block references a missing transaction or staking transition')
     for (const id of block.transactions) {
       const record = records.get(id)
       if (!record || record.tx.blockHash !== block.hash || record.tx.blockNumber !== block.number) invalid('block references a missing or inconsistent transaction')
@@ -125,5 +158,5 @@ export function readState(input: unknown, spec: MonadSpec): SavedState {
   const callCounter = state.callCounter
   const transactions = state.blocks.reduce((count, block) => count + block.transactions.length, 0)
   if (!integer(callCounter) || callCounter < executions.length - transactions) invalid('invalid call counter')
-  return { backend: 'monad-evm2', version: 1, spec, engine: state.engine, keys: state.keys, blocks: state.blocks, executions, tags, callCounter }
+  return { backend: 'monad-evm2', version: 1, spec, engine: state.engine, keys: state.keys, blocks: state.blocks, executions, stakingTransitions, tags, callCounter }
 }

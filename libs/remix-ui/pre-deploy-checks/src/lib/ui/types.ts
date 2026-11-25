@@ -35,6 +35,10 @@ export interface PreDeployChecksActions {
   openFile: (file: string) => Promise<void>
   openPlugin: (name: string) => Promise<void>
   saveReport: () => Promise<void>
-  /** opens RemixAI chat with a full security audit of the file */
-  securityAudit: () => Promise<void>
+  /** opens RemixAI chat with a full security audit of the file; source: the button, for the analytics */
+  securityAudit: (target?: string, source?: string) => Promise<void>
+  /** opens the plan manager to let the user upgrade; source: the button, for the analytics */
+  getPlan: (source?: string) => Promise<void>
+  /** analytics of the free light scans (category securityScan) */
+  trackScan: (action: 'result' | 'guard' | 'cta' | 'gated', name: string, isClick?: boolean) => void
 }

@@ -1,5 +1,8 @@
 import React, { useEffect, useRef, useState } from 'react'
 import { FormattedMessage, useIntl } from 'react-intl'
+import { useAuth } from '@remix-ui/app'
+import { Features } from '@remix-api'
+import { gatedPlaceholder } from '@remix-ui/helper'
 import { SOURCE_LABELS } from '../report'
 import { SEVERITIES } from '../severity'
 import { Finding, FindingSource, IgnoreReason, Severity } from '../types'
@@ -45,6 +48,8 @@ interface IssueProps {
   /** compile errors can't be ignored */
   ignorable: boolean
   onIgnore: (finding: Finding, reason: IgnoreReason) => void
+  /** the AI step is the automatic light scan (after a paste or deploy), not one the user ran in this panel */
+  autoAi: boolean
   plugin: PreDeployChecksActions
 }
 
@@ -90,15 +95,24 @@ function IgnoreMenu ({ dataId, onIgnore }: { dataId: string, onIgnore: (reason: 
   )
 }
 
-function Issue ({ finding, index, file, ignorable, onIgnore, plugin }: IssueProps) {
+function Issue ({ finding, index, file, ignorable, onIgnore, autoAi, plugin }: IssueProps) {
   const intl = useIntl()
+  const { isAuthenticated, features } = useAuth()
   const [open, setOpen] = useState(false)
   const line = finding.range ? finding.range.start.line + 1 : null
   const otherFile = finding.file && finding.file !== file ? splitPath(finding.file).name : null
   const dataId = `preDeployChecks-issue-${index}`
 
+  const hasAuditor = isAuthenticated && features?.[Features.AI_AUDITOR]?.is_enabled === true
+  // only the free light scan's details are a paid feature: results of tools the user runs stay readable
+  const gated = !hasAuditor && autoAi && finding.items.some((item) => item.source === 'ai')
+  const message = gated ? gatedPlaceholder(finding.message) : finding.message
+
   const toggle = () => {
-    if (!open) plugin.openFinding(finding)
+    if (!open) {
+      plugin.openFinding(finding)
+      if (gated) plugin.trackScan('gated', 'checks')
+    }
     setOpen(!open)
   }
 
@@ -108,21 +122,36 @@ function Issue ({ finding, index, file, ignorable, onIgnore, plugin }: IssueProp
         <i className={`${SEVERITY_ICON[finding.severity]} pdc-sev-${finding.severity} pdc-issue-icon`} aria-label={intl.formatMessage({ id: `preDeployChecks.severity.${finding.severity}` })} role="img"></i>
         <span className="pdc-issue-text">
           <span className="pdc-issue-title">{finding.title}</span>
-          {!open && finding.message && <span className="pdc-issue-preview">{finding.message}</span>}
+          {!open && finding.message && <span className={`pdc-issue-preview ${gated ? 'pdc-gated-text' : ''}`} aria-hidden={gated || undefined}>{message}</span>}
         </span>
         {(line || otherFile) && <span className="pdc-issue-line" title={otherFile ? finding.file : undefined}>{otherFile}{otherFile && line ? ':' : ''}{line && `L${line}`}</span>}
         <i className={`fas fa-chevron-${open ? 'down' : 'right'} pdc-issue-chevron`} aria-hidden="true"></i>
       </button>
       {open && (
         <div className="pdc-issue-body">
-          {finding.message && <p>{finding.message}</p>}
-          <div className="pdc-tags">
-            {finding.items.map((item, i) => (
-              <span key={i} className="pdc-tag">{SOURCE_LABELS[item.source]}{item.nativeSeverity ? ` · ${item.nativeSeverity}` : ''}</span>
-            ))}
-          </div>
+          {gated ? (
+            <div className="pdc-issue-body-gated">
+              <div className="pdc-issue-body-content" aria-hidden="true">
+                {finding.message && <p>{message}</p>}
+              </div>
+              <div className="pdc-issue-gate-overlay">
+                <button className="btn btn-sm btn-primary" data-id={`${dataId}-gateCta`} onClick={() => plugin.getPlan('issueGate')}>
+                  <FormattedMessage id="preDeployChecks.issue.getPlanToView" />
+                </button>
+              </div>
+            </div>
+          ) : (
+            <>
+              {finding.message && <p>{finding.message}</p>}
+              <div className="pdc-tags">
+                {finding.items.map((item, i) => (
+                  <span key={i} className="pdc-tag">{SOURCE_LABELS[item.source]}{item.nativeSeverity ? ` · ${item.nativeSeverity}` : ''}</span>
+                ))}
+              </div>
+            </>
+          )}
           {finding.items.some((item) => item.source === 'ai') && (
-            <button className="btn pdc-btn pdc-btn-quiet w-100 mt-2" data-id={`${dataId}-securityAudit`} onClick={() => plugin.securityAudit()}>
+            <button className="btn pdc-btn pdc-btn-quiet w-100 mt-2" data-id={`${dataId}-securityAudit`} onClick={() => plugin.securityAudit(undefined, 'issue')}>
               <FormattedMessage id="preDeployChecks.action.runSecurityAudit" />
             </button>
           )}
@@ -167,7 +196,7 @@ function ToolLineRow ({ line, plugin }: { line: ToolLine, plugin: PreDeployCheck
   const tools = toolList(intl, line.tools)
   const action = line.reason === 'sign-in'
     ? { id: 'preDeployChecks.action.openRemixAI', run: () => plugin.openPlugin('remixaiassistant') }
-    : line.kind === 'clear' ? { id: 'preDeployChecks.action.fullSecurityAudit', run: () => plugin.securityAudit() } : null
+    : line.kind === 'clear' ? { id: 'preDeployChecks.action.fullSecurityAudit', run: () => plugin.securityAudit(undefined, 'toolLine') } : null
   return (
     <div className="pdc-note" data-id={`preDeployChecks-toolLine-${line.tools.join('-')}`} data-kind={line.kind}>
       <i className={LINE_ICON[line.kind]} aria-hidden="true"></i>
@@ -267,11 +296,13 @@ interface IssuesProps {
   compileErrors: Finding[]
   lines: ToolLine[]
   running: boolean
+  /** the AI step is the automatic light scan (after a paste or deploy) */
+  autoAi: boolean
   plugin: PreDeployChecksActions
 }
 
 /** One flat list sorted by severity then line; compile errors first; ignored issues behind a toggle (design §4). */
-export function Issues ({ file, findings, compileErrors, lines, running, plugin }: IssuesProps) {
+export function Issues ({ file, findings, compileErrors, lines, running, autoAi, plugin }: IssuesProps) {
   const [showIgnored, setShowIgnored] = useState(false)
   // a shorter filtered list may drop the scrollbar: the panel reserves its gutter (CSS), so the width holds
   const [filter, setFilter] = useState<IssueFilter>(NO_FILTER)
@@ -323,7 +354,7 @@ export function Issues ({ file, findings, compileErrors, lines, running, plugin 
           <ul className="pdc-issues">
             {shown.map((finding, i) => isJust(finding)
               ? <JustIgnored key={findingKey(finding)} finding={finding} index={i} onUndo={() => { plugin.restoreFinding(finding); setJustIgnored(null) }} />
-              : <Issue key={findingKey(finding)} finding={finding} index={i} file={file} ignorable={!compileErrors.includes(finding)} onIgnore={ignore} plugin={plugin} />)}
+              : <Issue key={findingKey(finding)} finding={finding} index={i} file={file} ignorable={!compileErrors.includes(finding)} onIgnore={ignore} autoAi={autoAi} plugin={plugin} />)}
           </ul>
         ) : filtering && rows.length > 0 ? (
           <div className="pdc-empty-list" data-id="preDeployChecks-noMatch">

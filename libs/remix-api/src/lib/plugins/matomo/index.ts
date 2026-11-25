@@ -29,6 +29,10 @@ export * from './events/user-events';
 export * from './events/nudge-events';
 export * from './events/help-events';
 export * from './events/payment-events';
+export * from './events/security-events';
+
+// Fixed reasons for deploy-failure events
+export * from './deploy-failure-reason';
 
 // Import types for union
 import type { AIEvent, RemixAIAssistantEvent } from './events/ai-events';
@@ -43,6 +47,7 @@ import type { AuthEvent, UserMenuEvent, CloudWorkspaceEvent, WalkthroughEvent, N
 import type { NudgeEvent } from './events/nudge-events';
 import type { HelpEvent } from './events/help-events';
 import type { CheckoutEvent } from './events/payment-events';
+import type { PreDeployChecksEvent, SecurityScanEvent } from './events/security-events';
 
 // Union type of all Matomo events - includes base properties for compatibility
 export type MatomoEvent = (
@@ -127,6 +132,10 @@ export type MatomoEvent = (
 
   // Checkout / payment funnel events
   | CheckoutEvent
+
+  // Pre-deploy checks and the free light security scans
+  | PreDeployChecksEvent
+  | SecurityScanEvent
 ) & {
   // Ensure all events have these base properties for backward compatibility
   name?: string;

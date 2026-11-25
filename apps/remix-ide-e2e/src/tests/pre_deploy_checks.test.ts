@@ -250,6 +250,7 @@ module.exports = {
       .click('*[data-id="deployButton"]')
       .clickLaunchIcon('preDeployChecks')
       .waitForElementVisible(status('deployed'), 30000)
+      /* Paid plan
       .click('*[data-id="preDeployChecks-saveReport"]')
       // the report opens rendered in the doc viewer, and the panel stays on the contract
       .waitForElementVisible('#plugin-doc-viewer', 30000)
@@ -258,6 +259,7 @@ module.exports = {
       .assert.containsText('.aiMarkup', 'not a security audit')
       .assert.containsText('.aiMarkup', 'Deployed with 1 open high-severity issue')
       .frameParent()
+      */
       .waitForElementContainsText('*[data-id="preDeployChecks-file"]', 'Wallet.sol')
       .end()
   }

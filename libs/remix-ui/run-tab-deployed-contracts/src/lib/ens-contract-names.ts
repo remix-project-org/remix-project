@@ -1,5 +1,7 @@
 import { getEnsEndpoint, ensParentName, ensSepolia } from '@remix-endpoints-helper'
-import type { Hex } from 'viem'
+import { createPublicClient, http, type Hex } from 'viem'
+import { mainnet, sepolia } from 'viem/chains'
+import { normalize } from 'viem/ens'
 import type { DeployedContract } from './types'
 
 export const PARENT_NAME = ensParentName
@@ -324,4 +326,23 @@ export async function lookupPrimaryEnsName(params: {
 
   if (!response.ok) throw new Error(await readJsonError(response))
   return response.json()
+}
+
+export function looksLikeEnsName(input: string): boolean {
+  const trimmed = input.trim()
+  return trimmed.length > 0 && !trimmed.startsWith('0x') && trimmed.includes('.')
+}
+
+export async function resolveEnsToAddress(name: string, targetChainId = 1): Promise<string | null> {
+  // ENS records always live on mainnet (or Sepolia in test mode).
+  // Uses viem's Universal Resolver which supports CCIP-Read and ENSIP-11 coin types.
+  const ensChain = ensSepolia ? sepolia : mainnet
+  const rpcUrl = ensSepolia
+    ? 'https://shared.eu-central-1.getblock.io/7fbe62b139884d2c9c1616ca0de8b5b2'
+    : 'https://shared.eu-central-1.getblock.io/7e6ea21884124608a04c97748e7f831e'
+  const client = createPublicClient({ chain: ensChain, transport: http(rpcUrl) })
+  // ENSIP-11: EVM coin type = 0x80000000 | chainId; mainnet/Sepolia use the standard ETH coin type 60
+  const coinType = isL1EnsChain(targetChainId) ? 60 : (0x80000000 | targetChainId) >>> 0
+  const address = await client.getEnsAddress({ name: normalize(name), coinType })
+  return address ?? null
 }

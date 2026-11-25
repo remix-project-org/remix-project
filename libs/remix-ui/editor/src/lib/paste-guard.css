@@ -1,0 +1,77 @@
+.remix-paste-guard {
+  /* it answers what the user just did: above nudges and announcements (9001) */
+  z-index: 9010;
+}
+.remix-paste-guard:focus {
+  outline: none;
+}
+.remix-paste-guard .modal-dialog {
+  max-width: 460px;
+}
+.remix-paste-guard .modal-content {
+  animation: remix-paste-guard-in 0.18s ease-out;
+}
+.remix-paste-guard-backdrop {
+  z-index: 9005;
+}
+.remix-paste-guard-highlight {
+  padding: 0.5rem 0.75rem;
+  border-radius: 0.375rem;
+  background: rgba(var(--bs-primary-rgb, 13, 110, 253), 0.1);
+}
+.remix-paste-guard-step {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.2rem 0;
+  opacity: 0.55;
+  transition: opacity 0.2s;
+}
+.remix-paste-guard-step > :first-child {
+  width: 1rem;
+  text-align: center;
+  flex-shrink: 0;
+}
+.remix-paste-guard-step.active,
+.remix-paste-guard-step.done {
+  opacity: 1;
+}
+.remix-paste-guard-step.active {
+  font-weight: 600;
+}
+.remix-paste-guard-progress {
+  height: 3px;
+  border-radius: 2px;
+  overflow: hidden;
+  background: rgba(var(--bs-info-rgb, 13, 202, 240), 0.2);
+}
+.remix-paste-guard-progress > div {
+  width: 35%;
+  height: 100%;
+  background: var(--bs-info, #0dcaf0);
+  animation: remix-paste-guard-slide 1.4s ease-in-out infinite;
+}
+.remix-paste-guard-reasons {
+  padding-left: 1.1rem;
+  margin-bottom: 0.75rem;
+}
+.remix-paste-guard-reasons li {
+  margin-bottom: 0.35rem;
+}
+.remix-paste-guard-reasons-gated { position: relative; }
+.remix-paste-guard-reasons-gated > .remix-paste-guard-reasons { filter: blur(4px); user-select: none; pointer-events: none; }
+.remix-paste-guard-gate-overlay { position: absolute; inset: 0; z-index: 1; display: flex; align-items: center; justify-content: center; background: color-mix(in srgb, var(--bs-body-bg, rgba(255,255,255,0.9)) 70%, transparent); }
+.remix-paste-guard-pulse {
+  animation: remix-paste-guard-pulse 1.2s ease-in-out infinite;
+}
+@keyframes remix-paste-guard-in {
+  from { opacity: 0; transform: translateY(8px) scale(0.98); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes remix-paste-guard-slide {
+  from { transform: translateX(-100%); }
+  to { transform: translateX(300%); }
+}
+@keyframes remix-paste-guard-pulse {
+  50% { opacity: 0.45; }
+}

@@ -8,6 +8,7 @@ import { IMCPServer, IMCPConnectionStatus } from '@remix/remix-ai-core';
 import { RemixMCPServer, createRemixMCPServer } from '@remix/remix-ai-core';
 import { AIModel, isBedrockModel, BEDROCK_API_KEY_SETTING } from '@remix/remix-ai-core';
 import { aiErrorFromException, parseAIErrorEnvelope, isInsufficientCreditsError, type AIError } from '@remix/remix-ai-core';
+import { runLightSecurityCheck, LIGHT_SECURITY_CHECK_DEFAULT_MODEL, type LightSecurityCheckOutcome, type LightSecurityCheckMode } from '@remix/remix-ai-core';
 import { buildAuditMatchSchema, buildAuditMatchPrompt, filterAuditMatches, parseLooseJson, AUDIT_CATEGORY_MATCH_PROMPT } from '@remix/remix-ai-core';
 import type { AuditMatchRequest, AuditMatchResult } from '@remix/remix-ai-core';
 import axios from 'axios';
@@ -20,7 +21,7 @@ const profile = {
   displayName: 'RemixAI',
   methods: ['code_generation', 'code_completion', 'setContextFiles', 'basic_prompt',
     "answer", "code_explaining", "generateWorkspace", "fixWorspaceErrors",
-    "code_insertion", "error_explaining", "vulnerability_check", 'generate',
+    "code_insertion", "error_explaining", "vulnerability_check", 'light_security_check', 'generate',
     "initialize", 'chatPipe', 'ProcessChatRequestBuffer', 'isChatRequestPending',
     'resetChatRequestBuffer', 'setAssistantThrId',
     'getAssistantThrId', 'getAssistantProvider', 'setAssistantProvider', 'setModel', 'setOllamaModel',
@@ -1029,6 +1030,35 @@ export class RemixAIPlugin extends Plugin {
     })
     if (result && params.terminal_output) this.call('terminal', 'log', { type: 'aitypewriterwarning', value: result })
     return result
+  }
+
+  /**
+   * Background security check of a deployed contract (Pre-deploy Checks calls
+   * it after each deployment). Unlike vulnerability_check it never goes through
+   * the assistant gate: it must not open the plan manager or the top-up dialog,
+   * nor put the assistant into an error/cooldown state. Failures come back as a
+   * status the caller shows on the deployed contract instead.
+   */
+  async light_security_check(source: string, fileName: string, contractName?: string, mode: LightSecurityCheckMode = 'deployed'): Promise<LightSecurityCheckOutcome> {
+    const modelId = await this.call('auth' as any, 'getAppConfigValue', 'security_check.light_model', LIGHT_SECURITY_CHECK_DEFAULT_MODEL)
+      .catch(() => LIGHT_SECURITY_CHECK_DEFAULT_MODEL) || LIGHT_SECURITY_CHECK_DEFAULT_MODEL
+    try {
+      // No user API keys on purpose: this "free" check always goes through the Remix proxy, where the
+      // security_check allowance applies, never through the user's own OpenRouter account.
+      const result = await runLightSecurityCheck({ source, fileName, contractName, modelId, mode })
+      return { status: 'ok', result, model: modelId }
+    } catch (e: any) {
+      const aiError = this.toAIError(e)
+      const status = aiError.status === 401 || /^(UNAUTHORIZED|AUTH_REQUIRED|TOKEN_EXPIRED|INVALID_TOKEN)$/.test(aiError.code)
+        ? 'signin'
+        : isInsufficientCreditsError(aiError)
+          ? 'exhausted'
+          : aiError.code === 'FEATURE_DENIED' || aiError.code === 'PROVIDER_DENIED'
+            ? 'unavailable'
+            : 'error'
+      remixAILogger.warn(`[light_security_check] ${status} (${aiError.code}): ${aiError.message}`)
+      return { status, code: aiError.code, message: aiError.message }
+    }
   }
 
   getVulnerabilityReport(file: string): any {

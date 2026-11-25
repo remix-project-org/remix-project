@@ -444,6 +444,17 @@ describe('verdict', () => {
     assert.strictEqual(kind(input({ ...failed, steps: { ...failed.steps, analysis: done() }, currentHash: 'h2' })).kind, 'out-of-date')
   })
 
+  it('counts the automatic AI check after a paste even with the AI toggle off', () => {
+    const aiHigh: RawFinding = { source: 'ai', severity: 'high', title: 'RemixAI flagged a possible major vulnerability', message: 'm', file: FILE, key: 'k-ai' }
+    const auto: FileCheckState = { file: FILE, currentHash: 'h1', steps: { ai: done({ origin: 'auto', status: 'findings', findings: [aiHigh]}) } }
+    const toggles = { ...DEFAULT_TOGGLES, ai: false }
+    assert.strictEqual(kind(input(auto, { toggles })).kind, 'gate')
+    assert.strictEqual(kind(input({ ...auto, currentHash: 'h2' }, { toggles })).kind, 'out-of-date')
+    // the same verdict from the panel only counts while its toggle is on
+    const byPanel: FileCheckState = { ...auto, steps: { ai: { ...auto.steps.ai, origin: 'panel' } } }
+    assert.strictEqual(kind(input(byPanel, { toggles })).kind, 'not-checked')
+  })
+
   it('shows out of date when the file changed since the last check', () => {
     assert.deepStrictEqual(deriveVerdict(input({ ...checked, currentHash: 'h2' })), { verdict: { kind: 'out-of-date' }, actions: ['run']})
   })

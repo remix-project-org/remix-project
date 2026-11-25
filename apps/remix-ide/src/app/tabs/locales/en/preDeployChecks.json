@@ -111,5 +111,8 @@
   "preDeployChecks.compiler.optimizerOn": "optimizer on ({runs} runs)",
   "preDeployChecks.compiler.optimizerOff": "optimizer off",
   "preDeployChecks.compiler.evm": "EVM {version}",
-  "preDeployChecks.changeCompiler": "Change in the Solidity compiler"
+  "preDeployChecks.changeCompiler": "Change in the Solidity compiler",
+  "preDeployChecks.issue.getPlanToView": "Get a paid plan to see the details",
+  "preDeployChecks.reportPaid": "Paid plan",
+  "preDeployChecks.reportPaidHint": "Saving the report is included in every paid plan"
 }
