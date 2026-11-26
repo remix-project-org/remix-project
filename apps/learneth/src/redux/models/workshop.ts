@@ -53,7 +53,7 @@ const Model: ModelType = {
 
       const { list, detail } = yield select((state) => state.workshop)
 
-      const url = `${apiUrl}/clone/${encodeURIComponent(payload.name)}/${payload.branch}?${Math.random()}`
+      const url = `${apiUrl}/clone/${encodeURIComponent(payload.name)}/${encodeURIComponent(payload.branch)}?${Math.random()}`
 
       let data
       try {
