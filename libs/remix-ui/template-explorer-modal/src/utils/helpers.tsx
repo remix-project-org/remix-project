@@ -319,10 +319,11 @@ export const templatesRepository = [
         displayName: 'Simple Multiplier',
         description: 'A simple multiplier circuit',
       },
+      /*
       { value: "stealthDropNr", tagList: ["ZKP", "Noir"],
         displayName: 'Stealth Drop',
         description: 'Private airdrop using ECDSA, Merkle proofs and nullifiers',
-      },
+      },*/
       { value: "rangeProofNr", tagList: ["ZKP", "Noir"],
         displayName: 'Range Proof',
         description: 'Prove a private value lies within public bounds without revealing it',
