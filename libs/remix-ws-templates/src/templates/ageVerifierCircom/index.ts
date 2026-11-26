@@ -11,9 +11,9 @@ export default async (opts, plugin) => {
     // @ts-ignore
     'scripts/plonk/plonk_zkproof.ts': (await import('!!raw-loader!./scripts/plonk/plonk_zkproof.ts')).default,
     // @ts-ignore
-    'templates/groth16_verifier.sol.ejs': (await import('!!raw-loader!./templates/groth16_verifier.sol.ejs')).default,
+    'templates/groth16_verifier.sol.ejs': (await import('!!raw-loader!../_shared/groth16_verifier.sol.ejs')).default,
     // @ts-ignore
-    'templates/plonk_verifier.sol.ejs': (await import('!!raw-loader!./templates/plonk_verifier.sol.ejs')).default,
+    'templates/plonk_verifier.sol.ejs': (await import('!!raw-loader!../_shared/plonk_verifier.sol.ejs')).default,
     // @ts-ignore
     'README.md': (await import('raw-loader!./README.md')).default,
     // @ts-ignore
