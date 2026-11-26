@@ -143,10 +143,21 @@ module.exports = {
       .assert.textContains('[data-id="deploy-widget-header"] .badge', 'Monad VM (Next)')
   },
 
+  'Verify account balance displays in MON currency on Monad VM #group1': function (browser: NightwatchBrowser) {
+    browser
+      .switchEnvironment('vm-monad-ten', 'Monad_VM')
+      .waitForElementVisible('[data-id="deploy-widget-header"]')
+      .waitForElementVisible('[data-id="runTabSelectAccount"]')
+      .click('[data-id="runTabSelectAccount"]')
+      .waitForElementVisible('.custom-dropdown-items.show')
+      .waitForElementVisible('[data-id="0x5B38Da6a701c568545dCfcB03FcB875f56beddC4"]')
+      .assert.textContains('[data-id="0x5B38Da6a701c568545dCfcB03FcB875f56beddC4"] .account-balance-text', 'MON')
+  },
+
   'Deploy Ballot on Monad VM #group1': function (browser: NightwatchBrowser) {
     browser
       .clickLaunchIcon('solidity')
-      .testContracts('Untitled.sol', sources[0]['Untitled.sol'], ['Ballot'])
+      .testContracts('Untitled.sol', sources[0]['Untitled.sol']!, ['Ballot'])
       .clickLaunchIcon('udapp')
       .switchEnvironment('vm-monad-ten', 'Monad_VM')
       .createContract('["0x48656c6c6f20576f726c64210000000000000000000000000000000000000000"]')
