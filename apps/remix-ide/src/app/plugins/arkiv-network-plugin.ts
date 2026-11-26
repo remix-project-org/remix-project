@@ -4,7 +4,8 @@ import { customAction } from '@remixproject/plugin-api'
 import { bytesToHex, hexToBytes, sha256Hex } from './arkiv-utils'
 
 const SCAN_BASE_URL = 'https://rabdi.explorer.arkiv.network'
-const ARKIV_SIZE_LIMIT = 128 * 1024 // 128 KiB in bytes
+// Arkiv caps 128 KiB, so we use 120KiB as chunk size to allow headroom for its meta column.
+const ARKIV_SIZE_LIMIT = 120_000
 
 const CONTENT_TYPES: Record<string, string> = {
   sol:  'text/x-solidity',
