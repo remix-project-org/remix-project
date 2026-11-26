@@ -77,11 +77,11 @@ export const BrancheDetailsNavigation = (props: BrancheDetailsNavigationProps) =
         {allowCheckout ?
           context.currentBranch && context.currentBranch.name === branch.name ?
             <GitUIButton data-id={`branches-toggle-current-branch-${branch.name}`} className="btn btn-sm p-0 me-1" onClick={() => { }}>
-              <FontAwesomeIcon className='pointer text-success' icon={faToggleOff} ></FontAwesomeIcon>
+              <FontAwesomeIcon className='pointer text-success' icon={faToggleOn} ></FontAwesomeIcon>
             </GitUIButton>
             :
             <GitUIButton tooltip={intl.formatMessage({ id: 'gitui.checkoutBranch' })} data-id={`branches-toggle-branch-${branch.name}`} className="btn btn-sm p-0 me-1" onClick={() => checkout(branch)}>
-              <FontAwesomeIcon icon={faToggleOn}></FontAwesomeIcon>
+              <FontAwesomeIcon icon={faToggleOff}></FontAwesomeIcon>
             </GitUIButton>
           : null}
         {!branch.remote && canFetch() && <>
