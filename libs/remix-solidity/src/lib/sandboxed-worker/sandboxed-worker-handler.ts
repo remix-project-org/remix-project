@@ -1,6 +1,10 @@
 // Inline worker script — no webpack/ES module imports allowed here.
 // Runs inside an opaque-origin sandboxed iframe so importScripts() cannot
 // reach the IDE's IndexedDB regardless of what the loaded soljson does.
+// Remaining trust boundary: the compiler controls its missingInputs response,
+// so the IDE's gatherImports restricts resolution to .sol/.yul paths with no
+// dotfile segments. Any tighter constraint (e.g. verify against actual import
+// statements in the job's sources) must be enforced in compiler.ts, not here.
 const WORKER_SCRIPT = `
 var missingInputs = [];
 var compileJSON = null;

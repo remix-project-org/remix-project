@@ -137,7 +137,7 @@ export const CompilerContainer = (props: CompilerContainerProps) => {
             <p className="text-break border rounded p-2"><code>{url}</code></p>
             <p className="mb-0 text-warning">
               <i className="fas fa-exclamation-triangle me-1"></i>
-              This compiler script runs with access to your workspace files. Only proceed if you trust this source.
+              This compiler decides the bytecode Remix deploys and can request Solidity source files from your workspace during compilation. Only proceed if you trust this source.
             </p>
           </div>,
           'Load Compiler',

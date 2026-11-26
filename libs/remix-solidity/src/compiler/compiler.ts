@@ -20,6 +20,15 @@ function isCompilerDebugEnabled(): boolean {
   }
 }
 
+// Only .sol and .yul files are valid Solidity compiler imports.
+// Dotfile path segments (e.g. ".env", ".secrets/") are always rejected.
+// This guards gatherImports against a sandboxed compiler returning arbitrary
+// workspace paths in its missingInputs response.
+function isSolOrYulPath(path: string): boolean {
+  if (!path.endsWith('.sol') && !path.endsWith('.yul')) return false
+  return !path.split('/').some(segment => segment.startsWith('.'))
+}
+
 /*
   trigger compilationFinished, compilerLoaded, compilationStarted, compilationDuration
 */
@@ -391,6 +400,11 @@ export class Compiler {
     while (importHints.length > 0) {
       const m: string = importHints.pop() as string
       if (m && m in files) continue
+      // Reject non-Solidity/Yul paths and dotfiles. Legitimate solc import
+      // callbacks only ever produce .sol/.yul paths, so this filter is safe
+      // for all compilation modes and blocks sandboxed compilers from
+      // exfiltrating .env, .ts, or other workspace files via missingInputs.
+      if (!isSolOrYulPath(m)) continue
 
       if (this.handleImportCall) {
         this.handleImportCall(m, (err, content: string) => {
