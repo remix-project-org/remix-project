@@ -529,6 +529,129 @@ module.exports = {
       })
   },
 
+  'Test Monad VM state fork and restore - verify MON currency preservation #group1': function (browser: NightwatchBrowser) {
+    let contractAddress = ''
+    let originalBalance = ''
+    let forkedBalance = ''
+    browser
+      // Deploy a simple storage contract
+      .addFile('contracts/StateTest.sol', { content: payableContract })
+      .clickLaunchIcon('solidity')
+      .testContracts('contracts/StateTest.sol', { content: payableContract }, ['PayableTest'])
+
+      // Switch to Monad VM Ten
+      .clickLaunchIcon('udapp')
+      .switchEnvironment('vm-monad-ten', 'Monad_VM')
+      .waitForElementVisible('[data-id="selected-provider-vm-monad-ten"]')
+
+      // Deploy contract
+      .createContract('')
+      .clickInstance(2)
+      .perform((done: VoidFunction) => {
+        browser.getAddressAtPosition(2, (address) => {
+          contractAddress = address
+          done()
+        })
+      })
+
+      // Send 1 MON to the contract via receivePayment function
+      .waitForElementVisible('[data-id="deployedContractItem-2-function-0"]') // receivePayment
+      .waitForElementVisible('[data-id="contractItem-sendValue-2"]')
+      .clearValue('[data-id="contractItem-sendValue-2"]')
+      .setValue('[data-id="contractItem-sendValue-2"]', '1')
+      .click('#contractItem-valueUnit-2')
+      .waitForElementVisible('[data-id="contractItem-valueUnit-2-ether"]')
+      .click('[data-id="contractItem-valueUnit-2-ether"]')
+      .clickFunction(2, 0) // Click receivePayment button (instance 2, function 0)
+      .testFunction('last', {
+        status: '1 Transaction mined and execution completed',
+        value: '1.0 MON'
+      })
+
+      // Wait for balance to update and verify (1.0 MON)
+      .waitForElementContainsText('[data-id="deployedContractBal"]', '1.0 MON', 10000)
+      .getText('[data-id="deployedContractBal"]', (result) => {
+        originalBalance = typeof result.value === 'string' ? result.value : ''
+      })
+
+      // Fork the state
+      .click('*[data-id="fork-state-icon"]')
+      .waitForElementVisible('[data-id="forkInput"]')
+      .click('[data-id="forkInput"]')
+      .setValue('[data-id="forkInput"]', 'monad_forked_state')
+      .click('[data-id="btnForkState"]')
+
+      // Verify fork creation toaster
+      .waitForElementVisible('*[data-shared="tooltipPopup"]', 10000)
+      .waitForElementContainsText('*[data-shared="tooltipPopup"]', `New environment 'monad_forked_state' created with forked state.`)
+
+      // Verify forked state is selected
+      .assert.elementPresent('*[data-id="selected-provider-vm-fs-monad_forked_state"]')
+
+      // Verify forked state file contains MON currency info
+      .openFile('.states/forked_states/monad_forked_state.json')
+      .getEditorValue((content) => {
+        browser.assert.ok(content.indexOf(`"stateName": "monad_forked_state"`) !== -1, 'State name is correct')
+        browser.assert.ok(content.indexOf(`"forkName": "monad-ten"`) !== -1, 'Fork name is Monad Ten')
+        browser.assert.ok(content.indexOf(`"db":`) !== -1, 'State DB exists')
+        browser.assert.ok(content.indexOf(`"blocks":`) !== -1, 'Blocks data exists')
+        browser.assert.ok(content.indexOf(`"backend": "monad-evm2"`) !== -1, 'Backend is monad-evm2')
+      })
+
+      // Load the contract at address in forked state
+      .clickLaunchIcon('filePanel')
+      .openFile('contracts/StateTest.sol')
+      .perform((done: VoidFunction) => {
+        browser.addAtAddressInstance(contractAddress, true, true, false)
+          .perform(() => done())
+      })
+      .clickInstance(2)
+
+      // Verify balance was restored correctly (should still be 1.0 MON)
+      .waitForElementVisible('[data-id="deployedContractBal"]')
+      .pause(1000)
+      .getText('[data-id="deployedContractBal"]', (result) => {
+        const restoredBalance = typeof result.value === 'string' ? result.value : ''
+        browser.assert.ok(restoredBalance.includes('MON'), 'Restored balance shows MON currency')
+        browser.assert.ok(restoredBalance.includes('1.0'), 'Restored balance is 1.0 MON (state correctly restored)')
+      })
+
+      // Send more MON in forked state to modify it
+      .waitForElementVisible('[data-id="deployedContractItem-2-function-0"]')
+      .clearValue('[data-id="contractItem-sendValue-2"]')
+      .setValue('[data-id="contractItem-sendValue-2"]', '2')
+      .click('#contractItem-valueUnit-2')
+      .waitForElementVisible('[data-id="contractItem-valueUnit-2-ether"]')
+      .click('[data-id="contractItem-valueUnit-2-ether"]')
+      .clickFunction(2, 0) // Click receivePayment button (instance 2, function 0)
+      .testFunction('last', {
+        status: '1 Transaction mined and execution completed',
+        value: '2.0 MON'
+      })
+
+      // Wait for balance to update and verify (3.0 MON now)
+      .waitForElementContainsText('[data-id="deployedContractBal"]', '3.0 MON', 10000)
+      .getText('[data-id="deployedContractBal"]', (result) => {
+        forkedBalance = typeof result.value === 'string' ? result.value : ''
+      })
+
+      // Switch back to original Monad VM Ten
+      .switchEnvironment('vm-monad-ten', 'Monad_VM')
+      .waitForElementVisible('[data-id="selected-provider-vm-monad-ten"]')
+
+      // Load contract again in original state
+      .clickLaunchIcon('filePanel')
+      .openFile('contracts/StateTest.sol')
+      .perform((done: VoidFunction) => {
+        browser.addAtAddressInstance(contractAddress, true, true, false)
+          .perform(() => done())
+      })
+      .clickInstance(2)
+
+      // Verify original state is UNCHANGED (still 1.0 MON, not 3.0 MON)
+      .waitForElementContainsText('[data-id="deployedContractBal"]', '1.0 MON', 10000)
+  },
+
   'Deploy Ballot on Monad VM #group1': function (browser: NightwatchBrowser) {
     browser
       .clickLaunchIcon('solidity')
