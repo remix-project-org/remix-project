@@ -137,6 +137,151 @@ contract DelegatedAccount {
 }
 `
 
+const accessListContract = `
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.24;
+
+contract AccessListTest {
+    uint256 public value1;
+    uint256 public value2;
+    uint256 public value3;
+
+    constructor() {
+        value1 = 100;
+        value2 = 200;
+        value3 = 300;
+    }
+
+    function store(uint256 newValue) external {
+        value1 = newValue;
+    }
+
+    function readMultiple() external view returns (uint256, uint256, uint256) {
+        return (value1, value2, value3);
+    }
+}
+`
+
+const accessListScript = `
+/* global remix, web3Provider */
+import { ethers } from 'ethers'
+
+// Get metadata - try artifacts first, fallback to compiler API
+let metadata
+try {
+  metadata = JSON.parse(await remix.call('fileManager', 'readFile', 'artifacts/AccessListTest.json'))
+} catch (e) {
+  const compilationResult = await remix.call('compilerArtefacts', 'getArtefactsByContractName', 'AccessListTest')
+  const artifact = compilationResult.artefact
+  metadata = { abi: artifact.abi, data: { bytecode: artifact.evm.bytecode } }
+}
+
+const provider = new ethers.BrowserProvider(web3Provider, undefined, { cacheTimeout: -1 })
+const [account] = await provider.send('eth_accounts', [])
+const signer = await provider.getSigner(account)
+const wallet = new ethers.Wallet(ethers.hexlify(await provider.send('eth_getPKey', [account])))
+
+// Deploy contract
+const factory = new ethers.ContractFactory(metadata.abi, metadata.data.bytecode.object, signer)
+const contract = await factory.deploy()
+await contract.waitForDeployment()
+const address = await contract.getAddress()
+console.log(\`Contract deployed at: \${address}\`)
+
+// Store initial value
+const storeTx = await contract.store(42)
+await storeTx.wait()
+console.log(\`Stored value 42: \${storeTx.hash}\`)
+
+const chainId = (await provider.getNetwork()).chainId
+const nonce = await provider.getTransactionCount(account)
+
+// Estimate gas for transaction WITHOUT access list (Type-2)
+const gasEstimate1 = await provider.estimateGas({
+  type: 2,
+  to: address,
+  data: contract.interface.encodeFunctionData('store', [100])
+})
+
+// Transaction WITHOUT access list (Type-2)
+const tx1 = await wallet.signTransaction({
+  type: 2,
+  chainId,
+  nonce,
+  to: address,
+  data: contract.interface.encodeFunctionData('store', [100]),
+  gasLimit: gasEstimate1,
+  maxFeePerGas: 2_000_000_000,
+  maxPriorityFeePerGas: 1_000_000_000
+})
+const hash1 = await provider.send('eth_sendRawTransaction', [tx1])
+const receipt1 = await provider.getTransactionReceipt(hash1)
+console.log(\`Type-2 (no access list) gas used: \${receipt1.gasUsed.toString()}\`)
+
+// Transaction WITH access list (Type-1) - includes storage slot 0
+const accessList = [{
+  address: address,
+  storageKeys: [ethers.ZeroHash] // Slot 0 (value1)
+}]
+
+// Estimate gas for transaction WITH access list
+const gasEstimate2 = await provider.estimateGas({
+  type: 1,
+  to: address,
+  data: contract.interface.encodeFunctionData('store', [200]),
+  accessList
+})
+
+const tx2 = await wallet.signTransaction({
+  type: 1,
+  chainId,
+  nonce: nonce + 1,
+  to: address,
+  data: contract.interface.encodeFunctionData('store', [200]),
+  gasLimit: gasEstimate2,
+  gasPrice: 1_000_000_000,
+  accessList
+})
+const hash2 = await provider.send('eth_sendRawTransaction', [tx2])
+const receipt2 = await provider.getTransactionReceipt(hash2)
+console.log(\`Type-1 (with access list) gas used: \${receipt2.gasUsed.toString()}\`)
+
+// Get traces to show SSTORE gas costs
+const trace1 = await provider.send('debug_traceTransaction', [hash1])
+const trace2 = await provider.send('debug_traceTransaction', [hash2])
+
+const sstoreStep1 = trace1.structLogs.find(step => step.op === 'SSTORE')
+const sstoreStep2 = trace2.structLogs.find(step => step.op === 'SSTORE')
+
+console.log(\`\\nType-2 SSTORE gas cost: \${sstoreStep1.gasCost}\`)
+console.log(\`Type-1 SSTORE gas cost: \${sstoreStep2.gasCost}\`)
+console.log(\`Gas savings from access list: \${sstoreStep1.gasCost - sstoreStep2.gasCost}\`)
+
+// Demonstrate SLOAD gas savings with eth_call
+await provider.send('eth_registerCallId', ['access-list-read-no-list'])
+await provider.call({ to: address, data: contract.interface.encodeFunctionData('value1') })
+const callHash1 = await provider.send('eth_getHashFromTagBySimulator', ['access-list-read-no-list'])
+const callTrace1 = await provider.send('debug_traceTransaction', [callHash1])
+const sloadCost1 = callTrace1.structLogs.find(step => step.op === 'SLOAD')?.gasCost || 0
+
+await provider.send('eth_registerCallId', ['access-list-read-with-list'])
+await provider.call({ to: address, type: 1, data: contract.interface.encodeFunctionData('value1'), accessList })
+const callHash2 = await provider.send('eth_getHashFromTagBySimulator', ['access-list-read-with-list'])
+const callTrace2 = await provider.send('debug_traceTransaction', [callHash2])
+const sloadCost2 = callTrace2.structLogs.find(step => step.op === 'SLOAD')?.gasCost || 0
+
+console.log(\`\\nSLOAD without access list (cold): \${sloadCost1} gas\`)
+console.log(\`SLOAD with access list (warm): \${sloadCost2} gas\`)
+console.log(\`SLOAD gas savings: \${sloadCost1 - sloadCost2} gas\`)
+
+await remix.call('fileManager', 'writeFile', 'AccessListResults.json', JSON.stringify({
+  contractAddress: address,
+  type2Transaction: { hash: hash1, gasUsed: receipt1.gasUsed.toString(), sstoreGasCost: sstoreStep1.gasCost },
+  type1Transaction: { hash: hash2, gasUsed: receipt2.gasUsed.toString(), sstoreGasCost: sstoreStep2.gasCost },
+  sloadCosts: { cold: sloadCost1, warm: sloadCost2, savings: sloadCost1 - sloadCost2 }
+}, null, 2))
+`
+
 const delegationScript = `
 /* global remix, web3Provider */
 import { ethers } from 'ethers'
@@ -199,7 +344,9 @@ const sources = [
   { 'MonadSigning.sol': { content: monadSigningContract } },
   { 'sign-and-execute.ts': { content: signAndExecuteScript } },
   { 'DelegatedAccount.sol': { content: delegatedAccountContract } },
-  { 'delegation-script.ts': { content: delegationScript } }
+  { 'delegation-script.ts': { content: delegationScript } },
+  { 'AccessListTest.sol': { content: accessListContract } },
+  { 'access-list-script.ts': { content: accessListScript } }
 ]
 
 module.exports = {
@@ -299,6 +446,86 @@ module.exports = {
         // Verify addresses are valid Ethereum addresses
         browser.assert.ok(delegationData.authority.startsWith('0x') && delegationData.authority.length === 42, 'Authority is valid address')
         browser.assert.ok(delegationData.implementation.startsWith('0x') && delegationData.implementation.length === 42, 'Implementation is valid address')
+      })
+  },
+
+  'Test EIP-2930 Access List transactions - verify gas savings (8100 → 100 gas) #group1': function (browser: NightwatchBrowser) {
+    browser
+      // Add and compile AccessListTest contract
+      .addFile('contracts/AccessListTest.sol', { content: accessListContract })
+      .clickLaunchIcon('solidity')
+      .testContracts('contracts/AccessListTest.sol', { content: accessListContract }, ['AccessListTest'])
+
+      // Switch to Monad VM
+      .clickLaunchIcon('udapp')
+      .waitForElementVisible('[data-id="settingsSelectEnvOptions"]')
+      .switchEnvironment('vm-monad-ten', 'Monad_VM')
+      .waitForElementVisible('[data-id="selected-provider-vm-monad-ten"]', 15000)
+      .pause(500)
+
+      // Add and run access list script
+      .addFile('scripts/access-list-script.ts', { content: accessListScript })
+      .pause(2000)
+      .openFile('scripts/access-list-script.ts')
+      .pause(1000)
+      .waitForElementVisible('[data-id="run-script-dropdown-trigger"]', 5000)
+      .click('[data-id="run-script-dropdown-trigger"]')
+      .waitForElementVisible('[data-id="run-script-dropdown-panel"]', 5000)
+      .pause(500)
+      .waitForElementVisible('[data-id="run-with-ethers6-menu-item"]', 5000)
+      .click('[data-id="run-with-ethers6-menu-item"]')
+      .pause(3000)
+
+      // Verify output in terminal - contract deployment
+      .waitForElementContainsText('*[data-id="terminalJournal"]', 'Contract deployed at:', 60000)
+      .waitForElementContainsText('*[data-id="terminalJournal"]', 'Stored value 42:', 60000)
+
+      // Verify Type-2 and Type-1 transaction outputs
+      .waitForElementContainsText('*[data-id="terminalJournal"]', 'Type-2 (no access list) gas used:', 60000)
+      .waitForElementContainsText('*[data-id="terminalJournal"]', 'Type-1 (with access list) gas used:', 60000)
+
+      // Verify gas cost information for SSTORE
+      .waitForElementContainsText('*[data-id="terminalJournal"]', 'Type-2 SSTORE gas cost:', 60000)
+      .waitForElementContainsText('*[data-id="terminalJournal"]', 'Type-1 SSTORE gas cost:', 60000)
+      .waitForElementContainsText('*[data-id="terminalJournal"]', 'Gas savings from access list:', 60000)
+
+      // Verify SLOAD gas savings (8100 cold → 100 warm)
+      .waitForElementContainsText('*[data-id="terminalJournal"]', 'SLOAD without access list (cold): 8100 gas', 60000)
+      .waitForElementContainsText('*[data-id="terminalJournal"]', 'SLOAD with access list (warm): 100 gas', 60000)
+      .waitForElementContainsText('*[data-id="terminalJournal"]', 'SLOAD gas savings: 8000 gas', 60000)
+
+      // Verify AccessListResults.json was created with correct data
+      .openFile('AccessListResults.json')
+      .pause(1000)
+      .getEditorValue((content) => {
+        const results = JSON.parse(content)
+
+        // Verify contract address
+        browser.assert.ok(results.contractAddress, 'Contract address exists')
+        browser.assert.ok(results.contractAddress.startsWith('0x') && results.contractAddress.length === 42, 'Contract address is valid')
+
+        // Verify Type-2 transaction data
+        browser.assert.ok(results.type2Transaction, 'Type-2 transaction data exists')
+        browser.assert.ok(results.type2Transaction.hash, 'Type-2 transaction hash exists')
+        browser.assert.ok(results.type2Transaction.gasUsed, 'Type-2 gas used exists')
+        browser.assert.ok(results.type2Transaction.sstoreGasCost, 'Type-2 SSTORE gas cost exists')
+
+        // Verify Type-1 transaction data
+        browser.assert.ok(results.type1Transaction, 'Type-1 transaction data exists')
+        browser.assert.ok(results.type1Transaction.hash, 'Type-1 transaction hash exists')
+        browser.assert.ok(results.type1Transaction.gasUsed, 'Type-1 gas used exists')
+        browser.assert.ok(results.type1Transaction.sstoreGasCost, 'Type-1 SSTORE gas cost exists')
+
+        // Verify SLOAD costs match Monad specifications (8100 cold, 100 warm)
+        browser.assert.ok(results.sloadCosts, 'SLOAD costs data exists')
+        browser.assert.equal(results.sloadCosts.cold, 8100, 'Cold SLOAD cost is 8100 gas')
+        browser.assert.equal(results.sloadCosts.warm, 100, 'Warm SLOAD cost is 100 gas')
+        browser.assert.equal(results.sloadCosts.savings, 8000, 'SLOAD gas savings is 8000 gas')
+
+        // Verify Type-1 uses less gas than Type-2 (access list optimization)
+        const type2Gas = parseInt(results.type2Transaction.gasUsed)
+        const type1Gas = parseInt(results.type1Transaction.gasUsed)
+        browser.assert.ok(type1Gas < type2Gas, `Type-1 (${type1Gas}) uses less gas than Type-2 (${type2Gas})`)
       })
   },
 
