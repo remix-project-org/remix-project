@@ -1,25 +1,79 @@
 // Inline worker script — no webpack/ES module imports allowed here.
 // Runs inside an opaque-origin sandboxed iframe so importScripts() cannot
 // reach the IDE's IndexedDB regardless of what the loaded soljson does.
-// Remaining trust boundary: the compiler controls its missingInputs response,
-// so the IDE's gatherImports restricts resolution to .sol/.yul paths with no
-// dotfile segments. Any tighter constraint (e.g. verify against actual import
-// statements in the job's sources) must be enforced in compiler.ts, not here.
+// The deferred-import callback (missingInputs) works the same as the standard
+// ES worker; gatherImports in compiler.ts additionally filters the returned
+// paths to .sol/.yul only, so non-source files cannot be exfiltrated.
 const WORKER_SCRIPT = `
 var missingInputs = [];
-var compileJSON = null;
+var compiler = null;
 
-// Minimal setupMethods for modern WASM-based soljson files.
-// After importScripts(url) the soljson exposes cwrap on the global (self).
+// Implements the deferred-import callback for both >=0.6.0 (3-arg
+// solidity_compile with context pointer) and older 2-arg builds.
+// Returns null when the soljson does not expose cwrap.
 function setupMethods(Module) {
   if (!Module || typeof Module.cwrap !== 'function') return null;
-  var version  = Module.cwrap('solidity_version', 'string', []);
-  var license  = Module.cwrap('solidity_license', 'string', []);
-  var compile  = Module.cwrap('solidity_compile', 'string', ['string', 'number']);
+
+  var copyFromCStr = Module.UTF8ToString || Module.Pointer_stringify;
+  var addFunc      = Module.addFunction  || (Module.Runtime && Module.Runtime.addFunction);
+  var removeFunc   = Module.removeFunction || (Module.Runtime && Module.Runtime.removeFunction);
+  var allocFn;
+  try { allocFn = Module.cwrap('solidity_alloc', 'number', ['number']); }
+  catch (e) { allocFn = Module._malloc; }
+
+  function writeToCStr(str, ptr) {
+    var len = Module.lengthBytesUTF8(str) + 1;
+    var buf = allocFn(len);
+    Module.stringToUTF8(str, buf, len);
+    if (Module.setValue) Module.setValue(ptr, buf, 'i32');
+    else Module.HEAP32[ptr >> 2] = buf;
+  }
+
+  var versionFn = Module.cwrap('solidity_version', 'string', []);
+  var licenseFn = Module.cwrap('solidity_license', 'string', []);
+  var versionStr;
+  try { versionStr = versionFn(); } catch (e) { versionStr = '0.0.0'; }
+
+  // >=0.6.0 uses solidity_compile(input, cbPtr, ctxPtr) — 3 args.
+  // Older versions use solidity_compile(input, cbPtr) — 2 args.
+  var parts = versionStr.split('.');
+  var isNew = (parseInt(parts[0]) || 0) > 0 || (parseInt(parts[1]) || 0) >= 6;
+  var compileRaw = Module.cwrap('solidity_compile', 'string',
+    isNew ? ['string', 'number', 'number'] : ['string', 'number']);
+
   return {
-    version:  function() { return version(); },
-    license:  function() { try { return license(); } catch(e) { return 'No license'; } },
-    compile:  function(input) { return compile(input, 0); }
+    version: function() { return versionStr; },
+    license: function() { try { return licenseFn(); } catch (e) { return 'No license'; } },
+    compile: function(input, readCallback) {
+      var importFn = readCallback && typeof readCallback.import === 'function'
+        ? readCallback.import : null;
+      if (!importFn || !addFunc) {
+        return isNew ? compileRaw(input, 0, 0) : compileRaw(input, 0);
+      }
+      var cb;
+      if (isNew) {
+        // >=0.6.0: callback(ctx i32, kind i32, data i32, contents i32, error i32)
+        cb = addFunc(function(ctx, kind, data, contents, error) {
+          var result = copyFromCStr(kind) === 'source'
+            ? importFn(copyFromCStr(data))
+            : { error: 'Unsupported callback kind' };
+          if (typeof result.contents === 'string') writeToCStr(result.contents, contents);
+          if (typeof result.error   === 'string') writeToCStr(result.error,    error);
+        }, 'viiiii');
+      } else {
+        // <0.6.0: callback(data i32, contents i32, error i32)
+        cb = addFunc(function(data, contents, error) {
+          var result = importFn(copyFromCStr(data));
+          if (typeof result.contents === 'string') writeToCStr(result.contents, contents);
+          if (typeof result.error   === 'string') writeToCStr(result.error,    error);
+        }, 'viiii');
+      }
+      try {
+        return isNew ? compileRaw(input, cb, 0) : compileRaw(input, cb);
+      } finally {
+        if (removeFunc) removeFunc(cb);
+      }
+    }
   };
 }
 
@@ -28,14 +82,11 @@ self.onmessage = function(e) {
   switch (data.cmd) {
     case 'loadVersion': {
       missingInputs = [];
+      compiler = null;
       self.importScripts(data.data);
-      // After importScripts, the Emscripten module registers cwrap etc. on self.
-      var compiler = setupMethods(self);
-      if (compiler) {
-        compileJSON = function(input) {
-          try { return compiler.compile(input); }
-          catch (ex) { return JSON.stringify({ error: { formattedMessage: 'Uncaught exception: ' + ex } }); }
-        };
+      var loaded = setupMethods(self);
+      if (loaded) {
+        compiler = loaded;
         self.postMessage({ cmd: 'versionLoaded', data: compiler.version(), license: compiler.license() });
       } else {
         self.postMessage({ cmd: 'error', data: 'Failed to initialise compiler: cwrap not found after importScripts' });
@@ -44,12 +95,22 @@ self.onmessage = function(e) {
     }
     case 'compile': {
       missingInputs = [];
-      if (data.input && compileJSON) {
+      if (data.input && compiler) {
+        var missingInputsCallback = function(path) {
+          missingInputs.push(path);
+          return { error: 'Deferred import' };
+        };
+        var output;
+        try {
+          output = compiler.compile(data.input, { import: missingInputsCallback });
+        } catch (ex) {
+          output = JSON.stringify({ error: { formattedMessage: 'Uncaught exception: ' + ex } });
+        }
         self.postMessage({
           cmd: 'compiled',
           job: data.job,
           timestamp: data.timestamp,
-          data: compileJSON(data.input),
+          data: output,
           input: data.input,
           missingInputs: missingInputs
         });
