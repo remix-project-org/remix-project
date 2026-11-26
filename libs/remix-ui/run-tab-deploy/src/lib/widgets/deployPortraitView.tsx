@@ -210,6 +210,9 @@ function DeployPortraitView() {
   const handleDeployClick = () => {
     const deployType = deployWithProxy ? 'withProxy' : (upgradeWithProxy ? 'upgrade' : 'standard')
     trackMatomoEvent?.({ category: 'udapp', action: 'deployButtonClick', name: deployType, isClick: true })
+    // How many arguments the constructor takes (never their values), so a deploy
+    // with nothing typed can be told apart from a contract without arguments.
+    trackMatomoEvent?.({ category: 'udapp', action: 'deployConstructorArgs', name: `args_${constructorInterface?.inputs?.length ?? 0}`, isClick: false })
     const args = getMultiValsString(Object.values(inputValues))
     const deployArgs = deployWithProxy ?getMultiValsString(Object.values(proxyInputValues)) : proxyAddress
     const proxyOptions = selectedContract?.isUpgradeable

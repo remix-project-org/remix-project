@@ -4,7 +4,7 @@ import * as ethJSUtil from '@ethereumjs/util'
 import { DeployedContractsAppContext } from '../contexts'
 import { DeployedContractItem } from '../components/DeployedContractItem'
 import { checkSumWarning, CustomTooltip } from '@remix-ui/helper'
-import { loadAddress } from '../actions'
+import { loadAddress, AddContractFailReason } from '../actions'
 import { looksLikeEnsName, resolveEnsToAddress } from '../ens-contract-names'
 import { TrackingContext } from '@remix-ide/tracking'
 import { ArkivRetrievePanel } from '../components/ArkivRetrievePanel'
@@ -118,6 +118,10 @@ export default function DeployedContractsPortraitView() {
     dispatch({ type: 'SHOW_ADD_DIALOG', payload: false })
   }
 
+  const trackAddContractFailed = (reason: AddContractFailReason) => {
+    trackMatomoEvent?.({ category: 'udapp', action: 'addContractFailed', name: reason, isClick: false })
+  }
+
   const handleAddContract = async () => {
     const input = addressInput.trim()
     if (!input) return
@@ -132,12 +136,14 @@ export default function DeployedContractsPortraitView() {
         const currentChainId = network?.chainId ?? 1
         const resolved = await resolveEnsToAddress(input, currentChainId)
         if (!resolved) {
+          trackAddContractFailed('ens_failed')
           await plugin.call('notification', 'toast', `⚠️ Could not resolve ENS name: ${input}`)
           return
         }
         address = ethJSUtil.toChecksumAddress(resolved)
       } catch (e) {
         console.error('ENS resolution failed:', e)
+        trackAddContractFailed('ens_failed')
         await plugin.call('notification', 'toast', `⚠️ ENS resolution failed: ${(e as any).message}`)
         return
       } finally {
@@ -148,6 +154,7 @@ export default function DeployedContractsPortraitView() {
     // Validate address format
     try {
       if (!ethJSUtil.isValidAddress(address)) {
+        trackAddContractFailed('invalid_format')
         await plugin.call('notification', 'toast', '⚠️ Invalid address format')
         return
       }
@@ -158,15 +165,20 @@ export default function DeployedContractsPortraitView() {
       }
     } catch (e) {
       console.error('Invalid Address input:', e)
+      trackAddContractFailed('invalid_address')
       await plugin.call('notification', 'toast', '⚠️ Invalid address')
       return
     }
 
     // Load contract at address using the action
     try {
-      await loadAddress(plugin, dispatch, address, currentFile, loadType)
-      trackMatomoEvent?.({ category: 'udapp', action: 'addContractSubmit', name: address, isClick: false })
+      // Resolves once the instance is added or has failed (for an ABI file,
+      // after the confirm modal), so addContractSubmit means it was added.
+      const result = await loadAddress(plugin, dispatch, address, currentFile, loadType)
+      if (result.added) trackMatomoEvent?.({ category: 'udapp', action: 'addContractSubmit', name: address, isClick: false })
+      else trackAddContractFailed(result.reason)
     } catch (e) {
+      trackAddContractFailed('error')
       console.error('Error adding contract:', e)
       await plugin.call('notification', 'toast', `⚠️ Error adding contract: ${(e as any).message}`)
     }

@@ -210,7 +210,7 @@ export const CompilerContainer = (props: CompilerContainerProps) => {
         compilerLoaded(compilerContainer.compiler.args[1])
         break
       case 'compilationFinished':
-        compilationFinished()
+        compilationFinished(compilerContainer.compiler.args[0])
         break
       }
     }
@@ -435,7 +435,7 @@ export const CompilerContainer = (props: CompilerContainerProps) => {
     document.body.appendChild(loadedElement)
   }
 
-  const compilationFinished = () => {
+  const compilationFinished = (success: boolean) => {
     setCompiling(false)
     if (!compileIcon.current) return
     compileIcon.current.setAttribute('title', intl.formatMessage({ id: 'solidity.idleTitle' }))
@@ -445,6 +445,8 @@ export const CompilerContainer = (props: CompilerContainerProps) => {
       // trackMatomoEvent?.('compiler', 'compiled', 'solCompilationFinishedTriggeredByUser')
       trackMatomoEvent({ category: 'compiler', action: 'compiled', name: 'with_config_file_' + state.useFileConfiguration, isClick: false })
       trackMatomoEvent({ category: 'compiler', action: 'compiled', name: 'with_version_' + _retrieveVersion(), isClick: false })
+      // The compiled events above fire whether or not the compile worked; this one says which.
+      trackMatomoEvent({ category: 'compiler', action: 'compilationResult', name: success ? 'success' : 'error', isClick: false })
       if (state.autoCompile && state.matomoAutocompileOnce) {
         setState((prevState) => {
           return { ...prevState, matomoAutocompileOnce: false }
