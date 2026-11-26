@@ -477,12 +477,14 @@ export const populateWorkspace = async (
     const isActive = await plugin.call('manager', 'isActive', 'dgit')
     if (!isActive) await plugin.call('manager', 'activatePlugin', 'dgit')
   }
-  if (['semaphore', 'hashchecker', 'rln', 'ageVerifierCircom', 'sudokuCircom', 'merkleProofCircom', 'privateVotingCircom', 'tornadoCashCircom'].includes(workspaceTemplateName)) {
+  const circomTemplates = ['semaphore', 'hashchecker', 'rln', 'ageVerifierCircom', 'sudokuCircom', 'merkleProofCircom', 'privateVotingCircom', 'tornadoCashCircom']
+  const noirTemplates = ['multNr', 'stealthDropNr', 'rangeProofNr', 'votingNr', 'recursiveNr', 'sudokuNr', 'zkKYCNr']
+  if (circomTemplates.includes(workspaceTemplateName)) {
     const isCircomActive = await plugin.call('manager', 'isActive', 'circuit-compiler')
     if (!isCircomActive) await plugin.call('manager', 'activatePlugin', 'circuit-compiler')
     await trackMatomoEventAsync(plugin, { category: 'circuit-compiler', action: 'template', name: 'create', value: workspaceTemplateName, isClick: false })
   }
-  if (['multNr', 'stealthDropNr', 'rangeProofNr', 'votingNr', 'recursiveNr', 'sudokuNr', 'zkKYCNr'].includes(workspaceTemplateName)) {
+  if (noirTemplates.includes(workspaceTemplateName)) {
     const isNoirActive = await plugin.call('manager', 'isActive', 'noir-compiler')
     if (!isNoirActive) await plugin.call('manager', 'activatePlugin', 'noir-compiler')
     await trackMatomoEventAsync(plugin, { category: 'noir-compiler', action: 'template', name: 'create', value: workspaceTemplateName, isClick: false })
