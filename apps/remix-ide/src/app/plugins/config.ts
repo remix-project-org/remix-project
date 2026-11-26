@@ -2,6 +2,19 @@ import { Plugin } from '@remixproject/engine'
 import { QueryParams } from '@remix-project/remix-lib'
 import { Registry } from '@remix-project/remix-lib'
 
+// Settings that must never be sourced from URL parameters.
+// A link carrying one of these names could otherwise substitute its own
+// token/endpoint and have git, Etherscan, Swarm, etc. use it silently.
+const URL_PARAM_DENYLIST = new Set([
+  'settings/gist-access-token',
+  'settings/github-user-name',
+  'settings/github-email',
+  'settings/thegraph-access-token',
+  'settings/zkverify-api-key',
+  'settings/swarm-private-bee-address',
+  'etherscan-access-token',
+])
+
 const profile = {
   name: 'config',
   displayName: 'Config',
@@ -16,10 +29,18 @@ export class ConfigPlugin extends Plugin {
   }
 
   getAppParameter (name: string) {
-    const queryParams = new QueryParams()
-    const params = queryParams.get()
     const config = Registry.getInstance().get('config').api
-    const param = params[name] || config.get(name) || config.get('settings/' + name)
+    if (!URL_PARAM_DENYLIST.has(name)) {
+      const queryParams = new QueryParams()
+      const params = queryParams.get()
+      const urlValue = params[name]
+      if (urlValue !== undefined) {
+        if (urlValue === 'true') return true
+        if (urlValue === 'false') return false
+        return urlValue
+      }
+    }
+    const param = config.get(name) || config.get('settings/' + name)
     if (param === 'true') return true
     if (param === 'false') return false
     return param
