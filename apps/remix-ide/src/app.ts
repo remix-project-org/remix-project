@@ -140,22 +140,7 @@ import { SkillsExplorerModalPlugin } from './app/plugins/skills-explorer-modal'
 import { ChecklistExplorerModalPlugin } from './app/plugins/checklist-explorer-modal'
 import { TxRunnerPlugin } from './app/plugins/txRunnerPlugin'
 
-// Allowlist of plugin//method pairs that may be invoked via the ?call= / ?calls= URL parameters.
-// Every other combination is silently dropped.
-// Add entries here only for read-only or UI-navigation actions that carry no meaningful risk.
-const URL_CALL_ALLOWLIST: Record<string, ReadonlyArray<string>> = {
-  fileManager: ['open'],
-  terminal: ['log'],
-  menuicons: ['select'],
-  tabs: ['focus'],
-  LearnEth: ['startTutorial'],
-  notification: ['toast'],
-}
-
-function isUrlCallAllowed(plugin: string, method: string): boolean {
-  const allowed = URL_CALL_ALLOWLIST[plugin]
-  return Array.isArray(allowed) && allowed.includes(method)
-}
+import { isUrlCallAllowed } from './urlCallAllowlist'
 
 // Tracking now handled by this.track() method using MatomoManager
 
@@ -984,10 +969,10 @@ class AppComponent {
       if (this.params.calls) {
         const calls = this.params.calls.split('///')
         for (const call of calls) {
-          this.track({ category: 'App', action: 'queryParams-calls', name: call, isClick: false })
           const callDetails = call.split('//')
           if (callDetails.length > 1) {
             if (isUrlCallAllowed(callDetails[0], callDetails[1])) {
+              this.track({ category: 'App', action: 'queryParams-calls', name: call, isClick: false })
               this.appManager.call('notification', 'toast', `initiating ${callDetails[0]} and calling "${callDetails[1]}" ...`)
               try {
                 //@ts-ignore
