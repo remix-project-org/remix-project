@@ -559,16 +559,17 @@ export const PromptArea: React.FC<PromptAreaProps> = ({
           onUpgradeRequired={onUpgradeRequired}
           onPickPrompt={(text, categoryId, i) => {
             // Track which canned prompt was picked by category + index —
-            // never the prompt text (kept short and content-free).
-            trackMatomoEvent({ category: 'ai', action: 'remixAI', name: 'shortcut_selected', value: `${categoryId}:${i}`, isClick: true })
+            // never the prompt text (kept short and content-free). The ids go
+            // in the name: Matomo stores a string event value as 0.
+            trackMatomoEvent({ category: 'ai', action: 'remixAI', name: `shortcut_selected:${categoryId}:${i}`, isClick: true })
             handleShortcutSelect(text)
           }}
           onRunCommand={(cmd) => {
-            trackMatomoEvent({ category: 'ai', action: 'remixAI', name: 'tool_selected', value: cmd.name, isClick: true })
+            trackMatomoEvent({ category: 'ai', action: 'remixAI', name: `tool_selected:${cmd.name}`, isClick: true })
             onCommandUsed?.(cmd.name)
             cmd.action?.()
           }}
-          onOpenGroup={(id) => trackMatomoEvent({ category: 'ai', action: 'remixAI', name: 'command_category_open', value: id, isClick: true })}
+          onOpenGroup={(id) => trackMatomoEvent({ category: 'ai', action: 'remixAI', name: `command_category_open:${id}`, isClick: true })}
           onClose={() => setMenuOpen(false)}
           onOpenSettings={handleOpenSettings}
           attach={onAddFiles ? {

@@ -197,25 +197,40 @@ export async function traceCrossChainCall(
   }
 }
 
-export async function loadAddress (plugin: DeployedContractsPlugin, dispatch: React.Dispatch<Actions>, address: string, currentFile: string, loadType: 'abi' | 'sol' | 'vyper' | 'lexon' | 'contract' | 'other') {
+/** Why an "Add contract" (At Address) attempt did not add an instance. Fixed labels, sent to Matomo. */
+export type AddContractFailReason = 'invalid_format' | 'invalid_address' | 'ens_failed' | 'not_compiled' | 'no_abi_or_contract' | 'abi_cancelled' | 'abi_not_array' | 'abi_parse_error' | 'error'
+/** `reason` is set when `added` is false. */
+export type LoadAddressResult = { added: boolean, reason?: AddContractFailReason }
+
+/**
+ * Adds the instance at `address`. Resolves once it is added or has failed, so
+ * the caller can track the outcome; for an ABI file that is after the user
+ * answers the confirm modal. Errors are shown as toasts here, never thrown.
+ */
+export async function loadAddress (plugin: DeployedContractsPlugin, dispatch: React.Dispatch<Actions>, address: string, currentFile: string, loadType: 'abi' | 'sol' | 'vyper' | 'lexon' | 'contract' | 'other'): Promise<LoadAddressResult> {
   // Show confirmation modal for ABI files
   if (loadType === 'abi') {
-    plugin.call('notification', 'modal', {
-      id: 'deployedContractsAtAddress',
-      title: 'At Address',
-      message: `Do you really want to interact with ${address} using the current ABI definition?`,
-      okLabel: 'OK',
-      cancelLabel: 'Cancel',
-      okFn: async () => {
-        try {
-          const content = await plugin.call('fileManager', 'readFile', currentFile)
-          let abi: any[]
-
+    return new Promise<LoadAddressResult>((resolve) => {
+      plugin.call('notification', 'modal', {
+        id: 'deployedContractsAtAddress',
+        title: 'At Address',
+        message: `Do you really want to interact with ${address} using the current ABI definition?`,
+        okLabel: 'OK',
+        cancelLabel: 'Cancel',
+        okFn: async () => {
           try {
-            abi = JSON.parse(content)
+            const content = await plugin.call('fileManager', 'readFile', currentFile)
+            let abi: any[]
+
+            try {
+              abi = JSON.parse(content)
+            } catch (e) {
+              await plugin.call('notification', 'toast', '⚠️ Failed to parse ABI file')
+              return resolve({ added: false, reason: 'abi_parse_error' })
+            }
             if (!Array.isArray(abi)) {
               await plugin.call('notification', 'toast', '⚠️ ABI should be an array')
-              return
+              return resolve({ added: false, reason: 'abi_not_array' })
             }
             trackMatomoEvent(plugin, {
               category: 'udapp',
@@ -225,16 +240,20 @@ export async function loadAddress (plugin: DeployedContractsPlugin, dispatch: Re
             })
             await plugin.addInstance(address, abi, '<at address>')
             dispatch({ type: 'SET_ADDRESS_INPUT', payload: '' })
+            resolve({ added: true })
           } catch (e) {
-            await plugin.call('notification', 'toast', '⚠️ Failed to parse ABI file')
-          }
-        } catch (e) {
-          console.error('Error loading ABI:', e)
-          await plugin.call('notification', 'toast', `⚠️ Error: ${e.message}`)
-        }},
-      cancelFn: () => {
-        plugin.call('notification', 'toast', 'Cancelled by user')
-      }
+            console.error('Error loading ABI:', e)
+            await plugin.call('notification', 'toast', `⚠️ Error: ${e.message}`)
+            resolve({ added: false, reason: 'error' })
+          }},
+        cancelFn: () => {
+          plugin.call('notification', 'toast', 'Cancelled by user')
+          resolve({ added: false, reason: 'abi_cancelled' })
+        }
+      }).catch((e) => {
+        console.error('Error opening At Address modal:', e)
+        resolve({ added: false, reason: 'error' })
+      })
     })
   } else if (['sol', 'vyper', 'lexon', 'contract'].includes(loadType)) {
     try {
@@ -243,7 +262,7 @@ export async function loadAddress (plugin: DeployedContractsPlugin, dispatch: Re
 
       if (!contractData) {
         await plugin.call('notification', 'toast', '⚠️ Contract not compiled')
-        return
+        return { added: false, reason: 'not_compiled' }
       }
 
       // Add instance with contract data
@@ -255,12 +274,15 @@ export async function loadAddress (plugin: DeployedContractsPlugin, dispatch: Re
         isClick: false
       })
       dispatch({ type: 'SET_ADDRESS_INPUT', payload: '' })
+      return { added: true }
     } catch (e) {
       console.error('Error loading contract:', e)
       await plugin.call('notification', 'toast', `⚠️ Error loading contract: ${e.message}`)
+      return { added: false, reason: 'error' }
     }
   } else {
     plugin.call('notification', 'toast', '⚠️ Please open a contract ABI file or compile a contract')
+    return { added: false, reason: 'no_abi_or_contract' }
   }
 }
 

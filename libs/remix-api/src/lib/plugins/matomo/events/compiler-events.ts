@@ -10,6 +10,7 @@ export interface CompilerEvent extends MatomoEventBase {
   category: 'compiler';
   action: 
     | 'compiled'
+    | 'compilationResult'
     | 'compilerDetails';
 }
 
