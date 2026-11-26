@@ -29,6 +29,24 @@ function isSolOrYulPath(path: string): boolean {
   return !path.split('/').some(segment => segment.startsWith('.'))
 }
 
+// Origins that ship the official Solidity WASM binaries. Compilers loaded
+// from these hosts use the standard ES worker with full import-callback support.
+// Any other origin goes through the sandboxed iframe worker.
+const TRUSTED_COMPILER_ORIGINS = new Set([
+  'https://binaries.soliditylang.org',
+])
+
+function needsSandbox(url: string): boolean {
+  try {
+    const urlOrigin = new URL(url).origin
+    const pageOrigin = typeof window !== 'undefined' ? window.location.origin : ''
+    if (urlOrigin === pageOrigin) return false
+    return !TRUSTED_COMPILER_ORIGINS.has(urlOrigin)
+  } catch {
+    return false
+  }
+}
+
 /*
   trigger compilationFinished, compilerLoaded, compilationStarted, compilationDuration
 */
@@ -37,6 +55,7 @@ export class Compiler {
   state: CompilerState
   handleImportCall
   workerHandler: EsWebWorkerHandlerInterface
+  private workerHandlerIsSandboxed = false
   constructor(handleImportCall?: (fileurl: string, cb) => void) {
     this.event = new EventManager()
     this.handleImportCall = handleImportCall
@@ -86,15 +105,16 @@ export class Compiler {
   }
 
   async loadWorkerHandler(useSandbox = false) {
-    console.log('loadWorkerHandler', useSandbox)
-    if (this.workerHandler && !useSandbox) return
+    if (this.workerHandler && this.workerHandlerIsSandboxed === useSandbox) return
     if (typeof (window) !== 'undefined' && Worker) {
       if (useSandbox) {
         const { SandboxedWorkerHandler } = await import('../lib/sandboxed-worker/sandboxed-worker-handler')
         this.workerHandler = new SandboxedWorkerHandler()
-      } else if (!this.workerHandler) {
+        this.workerHandlerIsSandboxed = true
+      } else {
         const ESWebWorker = await import('../lib/es-web-worker/es-web-worker-handler')
         this.workerHandler = new ESWebWorker.default()
+        this.workerHandlerIsSandboxed = false
       }
     }
   }
@@ -272,7 +292,7 @@ export class Compiler {
       this.state.worker = null
     }
     if (usingWorker) {
-      const useSandbox = url.startsWith('https://')
+      const useSandbox = needsSandbox(url)
       this.loadWorkerHandler(useSandbox).then(() => {
         this.loadWorker(url)
       })
