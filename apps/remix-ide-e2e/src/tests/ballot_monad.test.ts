@@ -530,6 +530,7 @@ module.exports = {
   },
 
   'Test Monad VM state fork and restore - verify MON currency preservation #group1': function (browser: NightwatchBrowser) {
+    let contractAddress = ''
     browser
       // Deploy a simple storage contract
       .addFile('contracts/StateTest.sol', { content: payableContract })
@@ -543,18 +544,23 @@ module.exports = {
 
       // Deploy contract
       .createContract('')
-      .waitForElementVisible('[data-id="deployedContractItem-0"]', 80000)
-      .clickInstance(0)
+      .clickInstance(2)
+      .perform((done: VoidFunction) => {
+        browser.getAddressAtPosition(2, (address) => {
+          contractAddress = address
+          done()
+        })
+      })
 
       // Send 1 MON to the contract via receivePayment function
-      .waitForElementVisible('[data-id="deployedContractItem-0-function-0"]') // receivePayment
-      .waitForElementVisible('[data-id="contractItem-sendValue-0"]')
-      .clearValue('[data-id="contractItem-sendValue-0"]')
-      .setValue('[data-id="contractItem-sendValue-0"]', '1')
-      .click('#contractItem-valueUnit-0')
-      .waitForElementVisible('[data-id="contractItem-valueUnit-0-ether"]')
-      .click('[data-id="contractItem-valueUnit-0-ether"]')
-      .clickFunction(0, 0) // Click receivePayment button (instance 0, function 0)
+      .waitForElementVisible('[data-id="deployedContractItem-2-function-0"]') // receivePayment
+      .waitForElementVisible('[data-id="contractItem-sendValue-2"]')
+      .clearValue('[data-id="contractItem-sendValue-2"]')
+      .setValue('[data-id="contractItem-sendValue-2"]', '1')
+      .click('#contractItem-valueUnit-2')
+      .waitForElementVisible('[data-id="contractItem-valueUnit-2-ether"]')
+      .click('[data-id="contractItem-valueUnit-2-ether"]')
+      .clickFunction(2, 0) // Click receivePayment button (instance 2, function 0)
       .testFunction('last', {
         status: '1 Transaction mined and execution completed',
         value: '1.0 MON'
@@ -588,9 +594,13 @@ module.exports = {
       })
 
       // Load the contract at address in forked state
-      // Note: The original contract at instance 0 should still exist in the forked state
-      // So we don't need to add it again, just click it
-      .clickLaunchIcon('udapp')
+      .clickLaunchIcon('filePanel')
+      .openFile('contracts/StateTest.sol')
+      .perform((done: VoidFunction) => {
+        browser.addAtAddressInstance(contractAddress, true, true, false)
+          .perform(() => done())
+      })
+      .waitForElementVisible('[data-id="deployedContractItem-0"]', 10000)
       .clickInstance(0)
 
       // Verify balance was restored correctly (should still be 1.0 MON)
@@ -603,28 +613,39 @@ module.exports = {
       })
 
       // Send more MON in forked state to modify it
-      .waitForElementVisible('[data-id="deployedContractItem-0-function-0"]')
+      // Function indices are different when added via addAtAddressInstance
+      // Function 0 is getBalance (view), Function 1 should be receivePayment (payable)
+      .waitForElementVisible('[data-id="deployedContractItem-0-function-1"]')
+      .waitForElementVisible('[data-id="contractItem-sendValue-0"]')
+      .scrollAndClick('[data-id="contractItem-sendValue-0"]')
       .clearValue('[data-id="contractItem-sendValue-0"]')
       .setValue('[data-id="contractItem-sendValue-0"]', '2')
       .click('#contractItem-valueUnit-0')
       .waitForElementVisible('[data-id="contractItem-valueUnit-0-ether"]')
       .click('[data-id="contractItem-valueUnit-0-ether"]')
-      .clickFunction(0, 0) // Click receivePayment button (instance 0, function 0)
-      .testFunction('last', {
-        status: '1 Transaction mined and execution completed',
-        value: '2.0 MON'
-      })
+      .pause(500) // Let the UI update
+      .clickFunction(0, 1) // Click receivePayment button (instance 0, function 1)
 
-      // Wait for balance to update and verify (3.0 MON now)
-      .waitForElementContainsText('[data-id="deployedContractBal"]', '3.0 MON', 10000)
+      // Re-click the instance to ensure it's expanded and balance is visible
+      .clickInstance(0)
+      .waitForElementVisible('[data-id="deployedContractBal"]', 10000)
+      .getText('[data-id="deployedContractBal"]', (result) => {
+        const balance = typeof result.value === 'string' ? result.value : ''
+        browser.assert.ok(balance.includes('3.0 MON'), `Balance should be 3.0 MON after sending 2 MON, got: ${balance}`)
+      })
 
       // Switch back to original Monad VM Ten
       .switchEnvironment('vm-monad-ten', 'Monad_VM')
       .waitForElementVisible('[data-id="selected-provider-vm-monad-ten"]')
 
       // Load contract again in original state
-      // Note: The original contract should still be at instance 0
-      .clickLaunchIcon('udapp')
+      .clickLaunchIcon('filePanel')
+      .openFile('contracts/StateTest.sol')
+      .perform((done: VoidFunction) => {
+        browser.addAtAddressInstance(contractAddress, true, true, false)
+          .perform(() => done())
+      })
+      .waitForElementVisible('[data-id="deployedContractItem-0"]', 10000)
       .clickInstance(0)
 
       // Verify original state is UNCHANGED (still 1.0 MON, not 3.0 MON)
@@ -638,12 +659,13 @@ module.exports = {
       .clickLaunchIcon('udapp')
       .switchEnvironment('vm-monad-ten', 'Monad_VM')
       .createContract('["0x48656c6c6f20576f726c64210000000000000000000000000000000000000000"]')
-      .waitForElementVisible('[data-id="deployedContractItem-0"]')
-      .assert.textContains('[data-id="deployedContractItem-0"] .badge', 'Monad VM (Ten)')
-      .clickInstance(0)
+      .waitForElementVisible('[data-id="deployedContractItem-1"]')
+      .assert.textContains('[data-id="deployedContractItem-1"] .badge', 'Monad VM (Ten)')
+      .clickInstance(1)
       .waitForElementVisible('[data-id="deployedContractBal"]')
       .assert.textContains('[data-id="deployedContractBal"]', 'MON')
-      .clickFunction(0, 0, ['"0x4b0897b0513fdc7c541b6d9d7e929c4e5364d2db"'])
+      .waitForElementVisible('[data-id="deployedContractItem-1-function-0"]')
+      .clickFunction(1, 0, ['"0x4b0897b0513fdc7c541b6d9d7e929c4e5364d2db"'])
       .testFunction('last',
         {
           status: '1 Transaction mined and execution completed',
@@ -659,15 +681,15 @@ module.exports = {
       .testContracts('PayableTest.sol', { content: payableContract }, ['PayableTest'])
       .clickLaunchIcon('udapp')
       .createContract('')
-      .clickInstance(1)
-      .waitForElementVisible('[data-id="deployedContractItem-1-function-0"]')
-      .waitForElementVisible('[data-id="contractItem-sendValue-1"]')
-      .clearValue('[data-id="contractItem-sendValue-1"]')
-      .setValue('[data-id="contractItem-sendValue-1"]', '1')
-      .click('#contractItem-valueUnit-1')
-      .waitForElementVisible('[data-id="contractItem-valueUnit-1-ether"]')
-      .click('[data-id="contractItem-valueUnit-1-ether"]')
-      .clickFunction(1, 0)
+      .clickInstance(2)
+      .waitForElementVisible('[data-id="deployedContractItem-2-function-0"]')
+      .waitForElementVisible('[data-id="contractItem-sendValue-2"]')
+      .clearValue('[data-id="contractItem-sendValue-2"]')
+      .setValue('[data-id="contractItem-sendValue-2"]', '1')
+      .click('#contractItem-valueUnit-2')
+      .waitForElementVisible('[data-id="contractItem-valueUnit-2-ether"]')
+      .click('[data-id="contractItem-valueUnit-2-ether"]')
+      .clickFunction(2, 0)
       .perform((done: VoidFunction) => {
         browser.getLastTransactionHash((hash) => {
           txHash = hash
@@ -684,7 +706,7 @@ module.exports = {
 
   'Call method from Ballot to check return value on Monad VM #group1': function (browser: NightwatchBrowser) {
     browser
-      .clickFunction(0, 6)
+      .clickFunction(1, 6)
       // Test in terminal - check that it's calling Ballot.winnerName()
       .journalLastChildIncludes('Ballot.winnerName()')
       .testFunction('last',
@@ -699,7 +721,7 @@ module.exports = {
     let ballotAddress: string
     browser
       .perform((done: VoidFunction) => {
-        browser.getAddressAtPosition(0, (address) => {
+        browser.getAddressAtPosition(1, (address) => {
           ballotAddress = address
           done()
         })
