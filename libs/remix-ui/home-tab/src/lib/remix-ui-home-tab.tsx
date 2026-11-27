@@ -26,6 +26,10 @@ export const RemixUiHomeTab = (props: RemixUiHomeTabProps) => {
   const [state, setState] = useState<{ themeQuality: { filter: string; name: string } }>({
     themeQuality: themes.light
   })
+  const [copiedPlatform, setCopiedPlatform] = useState<string | null>(null)
+  const [showDesktopModal, setShowDesktopModal] = useState(false)
+  const [showWebModal, setShowWebModal] = useState(false)
+  const [showCodeModal, setShowCodeModal] = useState(false)
 
   const { features } = useAuth()
   const hasAuditorPermission = features[Features.AI_AUDITOR]?.is_enabled === true
@@ -141,28 +145,44 @@ contract HelloWorld {
     }
   }
 
+  // ─── Claude Plugin ───
+
+  const CLAUDE_CODE_STEPS = [
+    'claude plugin marketplace add remix-project-org/remix-ai-plugin',
+    'claude plugin install remix-solidity@remixlabs',
+    'claude plugin list',
+  ]
+  const copyToClipboard = (text: string, platform: string) => {
+    navigator.clipboard.writeText(text).then(() => {
+      setCopiedPlatform(platform)
+      setTimeout(() => setCopiedPlatform(null), 2000)
+    })
+  }
+
   return (
     <div className="ht-root d-flex flex-column w-100" data-id="remixUIHTAll">
       <ThemeContext.Provider value={state.themeQuality}>
         <div className="ht-layout">
+          <div className="ht-header">
+            <a className="ht-logo-container" href="https://remix.live" target="_blank" rel="noreferrer">
+              <audio id="remiAudio" muted={false} src="assets/audio/remiGuitar-single-power-chord-A-minor.mp3" ref={remiAudioRef}></audio>
+              <div className="ht-logo" onClick={() => remiAudioRef.current?.play()} style={{ cursor: 'pointer' }}>
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 105 100" style={{ height: '22px' }}>
+                  <path fill="currentColor" d="M91.84,35a.09.09,0,0,1-.1-.07,41,41,0,0,0-79.48,0,.09.09,0,0,1-.1.07C9.45,35,1,35.35,1,42.53c0,8.56,1,16,6,20.32,2.16,1.85,5.81,2.3,9.27,2.22a44.4,44.4,0,0,0,6.45-.68.09.09,0,0,0,.06-.15A34.81,34.81,0,0,1,17,45c0-.1,0-.21,0-.31a35,35,0,0,1,70,0c0,.1,0,.21,0,.31a34.81,34.81,0,0,1-5.78,19.24.09.09,0,0,0,.06.15,44.4,44.4,0,0,0,6.45.68c3.46.08,7.11-.37,9.27-2.22,5-4.27,6-11.76,6-20.32C103,35.35,94.55,35,91.84,35Z" />
+                  <path fill="currentColor" d="M52,74,25.4,65.13a.1.1,0,0,0-.1.17L51.93,91.93a.1.1,0,0,0,.14,0L78.7,65.3a.1.1,0,0,0-.1-.17L52,74A.06.06,0,0,1,52,74Z" />
+                  <path fill="currentColor" d="M75.68,46.9,82,45a.09.09,0,0,0,.08-.09,29.91,29.91,0,0,0-.87-6.94.11.11,0,0,0-.09-.08l-6.43-.58a.1.1,0,0,1-.06-.18l4.78-4.18a.13.13,0,0,0,0-.12,30.19,30.19,0,0,0-3.65-6.07.09.09,0,0,0-.11,0l-5.91,2a.1.1,0,0,1-.12-.14L72.19,23a.11.11,0,0,0,0-.12,29.86,29.86,0,0,0-5.84-4.13.09.09,0,0,0-.11,0l-4.47,4.13a.1.1,0,0,1-.17-.07l.09-6a.1.1,0,0,0-.07-.1,30.54,30.54,0,0,0-7-1.47.1.1,0,0,0-.1.07l-2.38,5.54a.1.1,0,0,1-.18,0l-2.37-5.54a.11.11,0,0,0-.11-.06,30,30,0,0,0-7,1.48.12.12,0,0,0-.07.1l.08,6.05a.09.09,0,0,1-.16.07L37.8,18.76a.11.11,0,0,0-.12,0,29.75,29.75,0,0,0-5.83,4.13.11.11,0,0,0,0,.12l2.59,5.6a.11.11,0,0,1-.13.14l-5.9-2a.11.11,0,0,0-.12,0,30.23,30.23,0,0,0-3.62,6.08.11.11,0,0,0,0,.12l4.79,4.19a.1.1,0,0,1-.06.17L23,37.91a.1.1,0,0,0-.09.07A29.9,29.9,0,0,0,22,44.92a.1.1,0,0,0,.07.1L28.4,47a.1.1,0,0,1,0,.18l-5.84,3.26a.16.16,0,0,0,0,.11,30.17,30.17,0,0,0,2.1,6.76c.32.71.67,1.4,1,2.08a.1.1,0,0,0,.06,0L52,68.16H52l26.34-8.78a.1.1,0,0,0,.06-.05,30.48,30.48,0,0,0,3.11-8.88.1.1,0,0,0-.05-.11l-5.83-3.26A.1.1,0,0,1,75.68,46.9Z" />
+                </svg>
+                <span className="ht-logo-wordmark">Remix</span>
+              </div>
+              <span className="ht-tagline">
+                <FormattedMessage id="home.projectTemplates" />{' '}
+                <span style={{ color: 'var(--ht-accent)' }}><FormattedMessage id="home.projectTemplates2" /></span>
+              </span>
+            </a>
+          </div>
+
+          <div className="ht-columns">
           <div className="ht-panel">
-            <div className="ht-header" >
-              <a className="ht-logo-container" href="https://remix.live" target="_blank" rel="noreferrer">
-                <audio id="remiAudio" muted={false} src="assets/audio/remiGuitar-single-power-chord-A-minor.mp3" ref={remiAudioRef}></audio>
-                <div className="ht-logo" onClick={() => remiAudioRef.current?.play()} style={{ cursor: 'pointer' }}>
-                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 105 100" style={{ height: '22px' }}>
-                    <path fill="currentColor" d="M91.84,35a.09.09,0,0,1-.1-.07,41,41,0,0,0-79.48,0,.09.09,0,0,1-.1.07C9.45,35,1,35.35,1,42.53c0,8.56,1,16,6,20.32,2.16,1.85,5.81,2.3,9.27,2.22a44.4,44.4,0,0,0,6.45-.68.09.09,0,0,0,.06-.15A34.81,34.81,0,0,1,17,45c0-.1,0-.21,0-.31a35,35,0,0,1,70,0c0,.1,0,.21,0,.31a34.81,34.81,0,0,1-5.78,19.24.09.09,0,0,0,.06.15,44.4,44.4,0,0,0,6.45.68c3.46.08,7.11-.37,9.27-2.22,5-4.27,6-11.76,6-20.32C103,35.35,94.55,35,91.84,35Z" />
-                    <path fill="currentColor" d="M52,74,25.4,65.13a.1.1,0,0,0-.1.17L51.93,91.93a.1.1,0,0,0,.14,0L78.7,65.3a.1.1,0,0,0-.1-.17L52,74A.06.06,0,0,1,52,74Z" />
-                    <path fill="currentColor" d="M75.68,46.9,82,45a.09.09,0,0,0,.08-.09,29.91,29.91,0,0,0-.87-6.94.11.11,0,0,0-.09-.08l-6.43-.58a.1.1,0,0,1-.06-.18l4.78-4.18a.13.13,0,0,0,0-.12,30.19,30.19,0,0,0-3.65-6.07.09.09,0,0,0-.11,0l-5.91,2a.1.1,0,0,1-.12-.14L72.19,23a.11.11,0,0,0,0-.12,29.86,29.86,0,0,0-5.84-4.13.09.09,0,0,0-.11,0l-4.47,4.13a.1.1,0,0,1-.17-.07l.09-6a.1.1,0,0,0-.07-.1,30.54,30.54,0,0,0-7-1.47.1.1,0,0,0-.1.07l-2.38,5.54a.1.1,0,0,1-.18,0l-2.37-5.54a.11.11,0,0,0-.11-.06,30,30,0,0,0-7,1.48.12.12,0,0,0-.07.1l.08,6.05a.09.09,0,0,1-.16.07L37.8,18.76a.11.11,0,0,0-.12,0,29.75,29.75,0,0,0-5.83,4.13.11.11,0,0,0,0,.12l2.59,5.6a.11.11,0,0,1-.13.14l-5.9-2a.11.11,0,0,0-.12,0,30.23,30.23,0,0,0-3.62,6.08.11.11,0,0,0,0,.12l4.79,4.19a.1.1,0,0,1-.06.17L23,37.91a.1.1,0,0,0-.09.07A29.9,29.9,0,0,0,22,44.92a.1.1,0,0,0,.07.1L28.4,47a.1.1,0,0,1,0,.18l-5.84,3.26a.16.16,0,0,0,0,.11,30.17,30.17,0,0,0,2.1,6.76c.32.71.67,1.4,1,2.08a.1.1,0,0,0,.06,0L52,68.16H52l26.34-8.78a.1.1,0,0,0,.06-.05,30.48,30.48,0,0,0,3.11-8.88.1.1,0,0,0-.05-.11l-5.83-3.26A.1.1,0,0,1,75.68,46.9Z" />
-                  </svg>
-                  <span className="ht-logo-wordmark">Remix</span>
-                </div>
-                <span className="ht-tagline">
-                  <FormattedMessage id="home.projectTemplates" />{' '}
-                  <span style={{ color: 'var(--ht-accent)' }}><FormattedMessage id="home.projectTemplates2" /></span>
-                </span>
-              </a>
-            </div>
 
             {/* Start */}
             <div className="ht-section pb-0">
@@ -277,7 +297,137 @@ contract HelloWorld {
 
           </div>
 
+          {/* Right column — Claude Plugin */}
+          <div className="ht-panel-right">
+            <div className="ht-section pb-0">
+              <div className="ht-section-header">
+                <span className="ht-section-title">Claude Plugin</span>
+                <a href="https://remix.live/docs/claude-plugin" target="_blank" rel="noreferrer" className="ht-section-link">Docs</a>
+              </div>
+              <p className="ht-section-tagline">Compile, deploy and debug contracts without leaving Claude.</p>
+              <button className="ht-cta-secondary" onClick={() => { setShowWebModal(true); trackMatomoEvent({ category: 'hometab', action: 'claudePlugin', name: 'openWebModal', isClick: true }) }}>
+                <span className="ht-cta-secondary-icon"><i className="fa-solid fa-globe"></i></span>
+                <span className="ht-cta-secondary-text">
+                  <strong>claude.ai</strong>
+                  <span>View installation steps</span>
+                </span>
+                <i className="fa-solid fa-chevron-right ht-external-icon"></i>
+              </button>
+              <button className="ht-cta-secondary" onClick={() => { setShowCodeModal(true); trackMatomoEvent({ category: 'hometab', action: 'claudePlugin', name: 'openCodeModal', isClick: true }) }}>
+                <span className="ht-cta-secondary-icon"><i className="fa-solid fa-terminal"></i></span>
+                <span className="ht-cta-secondary-text">
+                  <strong>Claude Code</strong>
+                  <span>View installation steps</span>
+                </span>
+                <i className="fa-solid fa-chevron-right ht-external-icon"></i>
+              </button>
+              <button className="ht-cta-secondary" onClick={() => { setShowDesktopModal(true); trackMatomoEvent({ category: 'hometab', action: 'claudePlugin', name: 'openDesktopModal', isClick: true }) }}>
+                <span className="ht-cta-secondary-icon"><i className="fa-solid fa-desktop"></i></span>
+                <span className="ht-cta-secondary-text">
+                  <strong>Claude Desktop</strong>
+                  <span>View installation steps</span>
+                </span>
+                <i className="fa-solid fa-chevron-right ht-external-icon"></i>
+              </button>
+            </div>
+          </div>
+          </div>{/* ht-columns */}
+
         </div>
+
+        {showCodeModal && (
+          <div className="ht-modal-overlay" onClick={() => setShowCodeModal(false)}>
+            <div className="ht-modal" onClick={e => e.stopPropagation()}>
+              <div className="ht-modal-header">
+                <span><i className="fa-solid fa-terminal" style={{ marginRight: '8px' }}></i>Install Remix Plugin on Claude Code</span>
+                <button className="ht-modal-close" onClick={() => setShowCodeModal(false)}><i className="fa-solid fa-xmark"></i></button>
+              </div>
+              <ol className="ht-modal-steps">
+                <li>
+                  Add the Remix marketplace to Claude Code.
+                  <span className="ht-step" style={{ marginTop: '8px' }}>
+                    <code className="ht-code-badge">{CLAUDE_CODE_STEPS[0]}</code>
+                    <button className="ht-copy-btn" onClick={() => copyToClipboard(CLAUDE_CODE_STEPS[0], 'code-0')} title="Copy">
+                      <i className={copiedPlatform === 'code-0' ? 'fa-solid fa-check ht-copy-icon--done' : 'fa-regular fa-copy'}></i>
+                    </button>
+                  </span>
+                </li>
+                <li>
+                  Install the Remix Solidity plugin.
+                  <span className="ht-step" style={{ marginTop: '8px' }}>
+                    <code className="ht-code-badge">{CLAUDE_CODE_STEPS[1]}</code>
+                    <button className="ht-copy-btn" onClick={() => copyToClipboard(CLAUDE_CODE_STEPS[1], 'code-1')} title="Copy">
+                      <i className={copiedPlatform === 'code-1' ? 'fa-solid fa-check ht-copy-icon--done' : 'fa-regular fa-copy'}></i>
+                    </button>
+                  </span>
+                </li>
+                <li>
+                  Verify the plugin is installed — <strong>remix-solidity</strong> should appear in the list.
+                  <span className="ht-step" style={{ marginTop: '8px' }}>
+                    <code className="ht-code-badge">{CLAUDE_CODE_STEPS[2]}</code>
+                    <button className="ht-copy-btn" onClick={() => copyToClipboard(CLAUDE_CODE_STEPS[2], 'code-2')} title="Copy">
+                      <i className={copiedPlatform === 'code-2' ? 'fa-solid fa-check ht-copy-icon--done' : 'fa-regular fa-copy'}></i>
+                    </button>
+                  </span>
+                </li>
+              </ol>
+            </div>
+          </div>
+        )}
+
+        {showWebModal && (
+          <div className="ht-modal-overlay" onClick={() => setShowWebModal(false)}>
+            <div className="ht-modal" onClick={e => e.stopPropagation()}>
+              <div className="ht-modal-header">
+                <span><i className="fa-solid fa-globe" style={{ marginRight: '8px' }}></i>Install Remix Plugin on claude.ai</span>
+                <button className="ht-modal-close" onClick={() => setShowWebModal(false)}><i className="fa-solid fa-xmark"></i></button>
+              </div>
+              <ol className="ht-modal-steps">
+                <li>Go to <strong>claude.ai</strong> and open <strong>Customize</strong> in the left sidebar.</li>
+                <li>Open the <strong>Plugins</strong> tab. In the <strong>Personal plugins</strong> section, click <strong>+</strong> and choose <strong>Add marketplace</strong>. Depending on your UI version, you may instead see <strong>Add Marketplace</strong> on an <strong>Added</strong> tab.</li>
+                <li>
+                  Choose <strong>Add from a repository</strong> and enter the GitHub repo. Both the shorthand and the full URL are accepted.
+                  <span className="ht-step" style={{ marginTop: '8px' }}>
+                    <code className="ht-code-badge">remix-project-org/remix-ai-plugin</code>
+                    <button className="ht-copy-btn" onClick={() => copyToClipboard('remix-project-org/remix-ai-plugin', 'web-repo')} title="Copy">
+                      <i className={copiedPlatform === 'web-repo' ? 'fa-solid fa-check ht-copy-icon--done' : 'fa-regular fa-copy'}></i>
+                    </button>
+                  </span>
+                </li>
+                <li>Click <strong>Sync</strong>.</li>
+                <li>Find <strong>remix-solidity</strong> in the plugin list and click <strong>Install</strong>.</li>
+                <li>In a chat, type <code className="ht-code-badge-inline">/</code> or click <strong>+</strong> to see the plugin's skills, such as <code className="ht-code-badge-inline">deploy-contract</code> and <code className="ht-code-badge-inline">call-contract</code>.</li>
+              </ol>
+            </div>
+          </div>
+        )}
+
+        {showDesktopModal && (
+          <div className="ht-modal-overlay" onClick={() => setShowDesktopModal(false)}>
+            <div className="ht-modal" onClick={e => e.stopPropagation()}>
+              <div className="ht-modal-header">
+                <span><i className="fa-solid fa-desktop" style={{ marginRight: '8px' }}></i>Install Remix Plugin on Claude Desktop</span>
+                <button className="ht-modal-close" onClick={() => setShowDesktopModal(false)}><i className="fa-solid fa-xmark"></i></button>
+              </div>
+              <ol className="ht-modal-steps">
+                <li>Open <strong>Claude Desktop</strong>, go to the <strong>Cowork</strong> tab, and click <strong>Customize</strong> in the left sidebar.</li>
+                <li>Open the <strong>Plugins</strong> tab. In the <strong>Personal plugins</strong> section, click <strong>+</strong> and choose <strong>Add marketplace</strong>.</li>
+                <li>
+                  Choose <strong>Add from repository</strong>, enter the GitHub URL below, then click <strong>Sync</strong>.
+                  <span className="ht-step" style={{ marginTop: '8px' }}>
+                    <code className="ht-code-badge">remix-project-org/remix-ai-plugin</code>
+                    <button className="ht-copy-btn" onClick={() => copyToClipboard('remix-project-org/remix-ai-plugin', 'desktop-repo')} title="Copy">
+                      <i className={copiedPlatform === 'desktop-repo' ? 'fa-solid fa-check ht-copy-icon--done' : 'fa-regular fa-copy'}></i>
+                    </button>
+                  </span>
+                </li>
+                <li>Once synced, find <strong>remix-solidity</strong> in the marketplace's plugin list and click <strong>Install</strong>.</li>
+                <li>Type <code className="ht-code-badge-inline">/</code> or click <strong>+</strong> in a chat or Cowork task to see the plugin's skills, such as <code className="ht-code-badge-inline">deploy-contract</code> and <code className="ht-code-badge-inline">call-contract</code>.</li>
+              </ol>
+            </div>
+          </div>
+        )}
+
       </ThemeContext.Provider>
     </div>
   )

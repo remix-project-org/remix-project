@@ -328,3 +328,33 @@
   [data-theme="dark"] #udappScrollableContent {
     background-color: rgba(255, 255, 255, 0.02);
   }
+
+  .udapp-claude-footer {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    padding: 4px 1rem 6px;
+    border-top: 1px solid var(--bs-border-color);
+    flex-shrink: 0;
+  }
+
+  .udapp-claude-promo {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    background: none;
+    border: none;
+    padding: 0;
+    font-size: 11px;
+    color: var(--custom-ai-color, #a855f7);
+    opacity: 0.75;
+    cursor: pointer;
+    text-decoration: none;
+    transition: opacity 0.15s;
+  }
+
+  .udapp-claude-promo:hover {
+    opacity: 1;
+    text-decoration: underline;
+    text-underline-offset: 2px;
+  }

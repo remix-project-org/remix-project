@@ -399,11 +399,205 @@
   border-radius: 8px;
 }
 
-.ai-disclaimer {
-  padding: 6px 0.5rem 6px;
-  text-align: center;
+/* ─── Claude promo pill ─── */
+
+.ai-claude-promo {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 0;
+  background: transparent;
+  border: none;
+  font-size: 11px;
+  color: var(--custom-ai-color, var(--bs-secondary-color));
+  opacity: 0.75;
+  cursor: pointer;
+  font-family: inherit;
+  transition: opacity 0.15s;
+}
+
+.ai-claude-promo:hover {
+  opacity: 1;
+  text-decoration: underline;
+}
+
+.ai-claude-promo .fa-sparkles {
+  font-size: 10px;
+}
+
+/* ─── Claude install modal ─── */
+
+.ai-install-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+}
+
+.ai-install-modal {
+  background: var(--bs-body-bg);
+  border: 1px solid var(--bs-border-color);
+  border-radius: 12px;
+  padding: 24px;
+  max-width: 500px;
+  width: calc(100% - 48px);
+  max-height: 80vh;
+  overflow-y: auto;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.35);
+}
+
+.ai-install-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--bs-emphasis-color);
+}
+
+.ai-install-modal-close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  flex-shrink: 0;
+  border: none;
+  background: transparent;
+  color: var(--bs-secondary-color);
+  cursor: pointer;
+  border-radius: 4px;
+  font-size: 14px;
+}
+
+.ai-install-modal-close:hover {
+  background: rgba(var(--bs-body-color-rgb), 0.06);
+  color: var(--bs-emphasis-color);
+}
+
+.ai-install-tab-bar {
+  display: flex;
+  border-bottom: 1px solid var(--bs-border-color);
+  margin-bottom: 16px;
+  gap: 2px;
+}
+
+.ai-install-tab-btn {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 6px 12px;
+  border: none;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+  background: transparent;
+  font-size: 12px;
+  font-family: inherit;
+  color: var(--bs-secondary-color);
+  cursor: pointer;
+}
+
+.ai-install-tab-btn.active {
+  color: var(--bs-emphasis-color);
+  border-bottom-color: var(--custom-primary, var(--bs-primary));
+  font-weight: 600;
+}
+
+.ai-install-tab-btn:hover:not(.active) {
+  color: var(--bs-emphasis-color);
+}
+
+.ai-install-steps {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding-left: 20px;
+  margin: 0;
+}
+
+.ai-install-steps li {
+  font-size: 13px;
+  color: var(--bs-body-color);
+  line-height: 1.6;
+}
+
+.ai-install-steps li strong {
+  color: var(--bs-emphasis-color);
+}
+
+.ai-install-step-cmd {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 6px;
+}
+
+.ai-install-code {
+  display: block;
+  flex: 1;
+  min-width: 0;
+  font-size: 11px;
+  font-family: 'JetBrains Mono', 'SFMono-Regular', 'Consolas', monospace;
+  color: var(--bs-emphasis-color);
+  background: rgba(var(--bs-body-color-rgb), 0.06);
+  padding: 3px 7px;
+  border-radius: 4px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ai-install-code-inline {
+  font-size: 11px;
+  font-family: 'JetBrains Mono', 'SFMono-Regular', 'Consolas', monospace;
+  color: var(--bs-emphasis-color);
+  background: rgba(var(--bs-body-color-rgb), 0.06);
+  padding: 1px 4px;
+  border-radius: 3px;
+}
+
+.ai-install-copy-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  flex-shrink: 0;
+  border: none;
+  background: transparent;
+  color: var(--bs-secondary-color);
+  cursor: pointer;
+  border-radius: 3px;
+  font-size: 11px;
+  padding: 0;
+}
+
+.ai-install-copy-btn:hover {
+  background: rgba(var(--bs-body-color-rgb), 0.08);
+  color: var(--bs-emphasis-color);
+}
+
+.ai-install-copied {
+  color: var(--bs-success, #198754);
+}
+
+.ai-bottom-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 4px 0.75rem 6px;
+}
+
+.ai-disclaimer-icon {
   font-size: 11px;
   color: var(--bs-secondary-color);
+  opacity: 0.55;
+  cursor: default;
+  flex-shrink: 0;
 }
 
 /* Tip line above the input: teaches one /command */

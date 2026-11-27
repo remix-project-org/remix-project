@@ -23,6 +23,7 @@ export interface HomeTabEvent extends MatomoEventBase {
     | 'featuredSection'
     | 'explainEthereum'
     | 'getStartedContract'
+    | 'claudePlugin'
 }
 
 export interface TopbarEvent extends MatomoEventBase {
