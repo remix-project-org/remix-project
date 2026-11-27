@@ -36,6 +36,11 @@ export interface PlanGuideModalProps {
   accent: string
   /** One-line intro under the title. */
   intro: string
+  /**
+   * Trailing sentence of the intro, rendered in bright white so the call to
+   * action stands out from the muted intro copy. Omit for a plain intro.
+   */
+  introAction?: string
   /** Feature demos to render as cards. */
   demos: PlanGuideDemo[]
   /** Optional "back to all guides" affordance. */
@@ -44,6 +49,11 @@ export interface PlanGuideModalProps {
   onSendPrompt?: (prompt: string) => void
   /** Close the modal after launching a real prompt. */
   closeOnTry?: boolean
+  /**
+   * Header of the simulated chat panel. Defaults to the assistant's full
+   * name; a guide that already names it in a card can shorten it here.
+   */
+  chatTitle?: string
 }
 
 const KEYFRAMES = `
@@ -56,7 +66,7 @@ const KEYFRAMES = `
 
 const c = {
   bg: '#1a1a2e', s1: '#222240', s2: '#2a2a4a', cy: '#2fbfb1', cyd: 'rgba(47,191,177,0.12)',
-  tx: '#e0e0ec', tm: '#8888aa', td: '#5c5c7a', pu: '#9b7dff', gn: '#6bdb8a'
+  tx: '#e0e0ec', tm: '#8888aa', td: '#5c5c7a', pu: '#9b7dff', gn: '#6bdb8a', wh: '#ffffff'
 }
 
 const TypingIndicator: React.FC = () => (
@@ -95,7 +105,7 @@ const DemoCard: React.FC<{ demo: PlanGuideDemo; active: boolean; onTry: () => vo
   )
 }
 
-const PlanGuideModal: React.FC<PlanGuideModalProps> = ({ open, onClose, planName, accent, intro, demos, onShowReel, onSendPrompt, closeOnTry = false }) => {
+const PlanGuideModal: React.FC<PlanGuideModalProps> = ({ open, onClose, planName, accent, intro, introAction, demos, onShowReel, onSendPrompt, closeOnTry = false, chatTitle = 'RemixAI Assistant' }) => {
   const [activeKey, setActiveKey] = useState<string | null>(null)
   const [messages, setMessages] = useState<{ role: 'user' | 'assistant'; content: string }[]>([])
   const [isTyping, setIsTyping] = useState(false)
@@ -162,7 +172,10 @@ const PlanGuideModal: React.FC<PlanGuideModalProps> = ({ open, onClose, planName
           </div>
 
           {/* Intro */}
-          <div style={{ padding: '8px 24px 0', fontSize: 13, color: c.tm, lineHeight: 1.6 }}>{intro}</div>
+          <div style={{ padding: '8px 24px 0', fontSize: 13, color: c.tm, lineHeight: 1.6 }}>
+            {intro}
+            {introAction && <span style={{ color: c.wh }}> {introAction}</span>}
+          </div>
 
           {/* Demo cards */}
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, padding: '20px 24px' }}>
@@ -176,11 +189,11 @@ const PlanGuideModal: React.FC<PlanGuideModalProps> = ({ open, onClose, planName
             <div ref={chatRef} style={{ margin: '0 24px 20px', borderRadius: 12, background: c.s1, border: '0.5px solid rgba(255,255,255,0.06)', overflow: 'hidden' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 14px', borderBottom: '0.5px solid rgba(255,255,255,0.04)', fontSize: 12, fontWeight: 500, color: c.tm }}>
                 <span style={{ width: 6, height: 6, borderRadius: '50%', background: c.gn, animation: 'plgDot 2s ease-in-out infinite' }} />
-                RemixAI Assistant
+                {chatTitle}
               </div>
               <div style={{ padding: 14, minHeight: 120, display: 'flex', flexDirection: 'column', gap: 10 }}>
                 {messages.length === 0 && !isTyping ? (
-                  <div style={{ fontSize: 12, color: c.td, textAlign: 'center', padding: '28px 0', fontStyle: 'italic' }}>
+                  <div style={{ fontSize: 12, color: c.wh, textAlign: 'center', padding: '28px 0', fontStyle: 'italic' }}>
                     Click on any feature above to see it in action and for more information about how it works.
                   </div>
                 ) : (
