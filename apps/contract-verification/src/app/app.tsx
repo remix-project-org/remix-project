@@ -152,9 +152,9 @@ const App = () => {
               continue
             }
 
-            if (!verifier.checkVerificationStatus) {
+            if (receipt.isProxyReceipt ? !verifier.checkProxyVerificationStatus : !verifier.checkVerificationStatus) {
               receipt.status = 'failed'
-              receipt.message = 'Status check not supported for this verifier'
+              receipt.message = receipt.isProxyReceipt ? 'Proxy link status is no longer polled. Retry the proxy verification.' : 'Status check not supported for this verifier'
               continue
             }
 
@@ -239,12 +239,25 @@ const App = () => {
           }
         }
 
+        const polledReceipts = pendingReceipts
         pendingReceipts = getPendingReceipts(changedSubmittedContracts)
         if (timer.current && pendingReceipts.length === 0) {
           clearInterval(timer.current)
           timer.current = null
         }
-        setSubmittedContracts((prev) => Object.assign({}, prev, changedSubmittedContracts))
+        // Write back only the receipts polled here. Other receipts may have changed meanwhile,
+        // for example a verifier that returned its final status from verifyOnDeploy.
+        setSubmittedContracts((prev) => {
+          const next = { ...prev }
+          for (const polled of polledReceipts) {
+            const contract = next[polled.contractId]
+            if (!contract) continue
+            const replace = (receipts?: VerificationReceipt[]) =>
+              receipts?.map((r) => (r.verifierInfo.name === polled.verifierInfo.name && r.isProxyReceipt === polled.isProxyReceipt ? { ...polled } : r))
+            next[polled.contractId] = { ...contract, receipts: replace(contract.receipts), proxyReceipts: replace(contract.proxyReceipts) }
+          }
+          return next
+        })
       }
 
       timer.current = setInterval(pollStatus, 3000)

@@ -1,0 +1,16 @@
+{
+  "extends": "./tsconfig.json",
+  "ts-node": {
+    "transpileOnly": true,
+    "compilerOptions": {
+      "module": "commonjs"
+    }
+  },
+  "compilerOptions": {
+    "module": "commonjs",
+    "moduleResolution": "node",
+    "types": ["node", "mocha"],
+    "esModuleInterop": true
+  },
+  "include": ["test/**/*.ts", "src/**/*.ts"]
+}
