@@ -70,6 +70,31 @@ export function setCheckoutTelemetryEnv(env: string | undefined): void {
   paddleEnv = env
 }
 
+let visitorContext: { subjectId: string; experiments: Record<string, string> } | null = null
+
+/**
+ * Visitor id + enrolled experiment variants, attached to `transaction.created`
+ * so checkouts can be split by product-page variant.
+ */
+export function setCheckoutTelemetryVisitor(ctx: { subjectId: string; experiments: Record<string, string> } | null): void {
+  visitorContext = ctx
+}
+
+/** Fire-and-forget POST to the billing service, authenticated when signed in. */
+export function postBillingBeacon(path: string, payload: Record<string, unknown>): void {
+  try {
+    void fetch(`${endpointUrls.billing}${path}`, {
+      method: 'POST',
+      keepalive: true,
+      headers: {
+        'Content-Type': 'application/json',
+        ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+      },
+      body: JSON.stringify(payload),
+    }).catch(() => { /* never surface */ })
+  } catch { /* never surface */ }
+}
+
 /**
  * Emit a single telemetry event. Safe to call from anywhere in the checkout
  * flow — it never throws and never blocks.
@@ -91,6 +116,10 @@ export function reportCheckoutTelemetry(
     if (fields.transactionId !== undefined) payload.transactionId = fields.transactionId
     if (fields.paddleCustomerId !== undefined) payload.paddleCustomerId = fields.paddleCustomerId
     if (fields.detail !== undefined) payload.detail = fields.detail
+    if (event === 'transaction.created' && visitorContext) {
+      const base = fields.detail && typeof fields.detail === 'object' ? fields.detail as Record<string, unknown> : {}
+      payload.detail = { ...base, subjectId: visitorContext.subjectId, experiments: visitorContext.experiments }
+    }
 
     planManagerLogger.log('[checkout-telemetry]', event, fields)
 
