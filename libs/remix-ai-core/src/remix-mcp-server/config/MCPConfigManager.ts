@@ -280,10 +280,12 @@ export class MCPConfigManager {
 
   private matchPattern(str: string, pattern: string): boolean {
     // Convert glob pattern to regex
-    const regexPattern = pattern
-      .replace(/\./g, '\\.')
-      .replace(/\*/g, '.*')
-      .replace(/\?/g, '.');
+    // 1. Escape all regex metacharacters, including backslash.
+    const escaped = pattern.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    // 2. Reintroduce glob semantics: '*' -> '.*', '?' -> '.'
+    const regexPattern = escaped
+      .replace(/\\\*/g, '.*')
+      .replace(/\\\?/g, '.');
 
     const regex = new RegExp(`^${regexPattern}$`);
     return regex.test(str);
