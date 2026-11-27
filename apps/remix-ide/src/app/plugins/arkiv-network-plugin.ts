@@ -4,6 +4,8 @@ import { customAction } from '@remixproject/plugin-api'
 import { bytesToHex, hexToBytes, sha256Hex } from './arkiv-utils'
 
 const SCAN_BASE_URL = 'https://rabdi.explorer.arkiv.network'
+// Arkiv caps 128 KiB, so we use 120KiB as chunk size to allow headroom for its meta column.
+const ARKIV_SIZE_LIMIT = 120_000
 
 const CONTENT_TYPES: Record<string, string> = {
   sol:  'text/x-solidity',
@@ -39,7 +41,7 @@ const profile = {
   name: 'arkivNetwork',
   displayName: 'Arkiv Network',
   description: 'Arkiv Network integration — stores and retrieves Remix artefacts on the Arkiv chain',
-  methods: ['shareFile', 'saveDeployedContract', 'retrieveDeployedContracts'],
+  methods: ['shareFile', 'saveDeployedContract', 'retrieveDeployedContracts', 'retrieveFile'],
   events: ['fileSaved', 'contractSaved'],
   version: '1.0.0',
 }
@@ -168,9 +170,55 @@ export class ArkivNetworkPlugin extends Plugin {
     const ext = filePath.split('.').pop()?.toLowerCase() ?? ''
     const contentType = CONTENT_TYPES[ext] ?? 'application/octet-stream'
 
-    const payload = bytesToHex(new TextEncoder().encode(fileContent))
+    const fileBytes = new TextEncoder().encode(fileContent)
+    const fileSize = fileBytes.length
 
-    // ── 3. Ensure the arkiv signing session is open ─────────────────────────
+    // ── 3. Check if file is large and needs chunking ────────────────────────
+    if (fileSize > ARKIV_SIZE_LIMIT) {
+      await (this as any).call('terminal', 'logHtml', {
+        value: `<span>[Arkiv] File size (${(fileSize / 1024).toFixed(2)} KB) exceeds limit. Using chunking…</span>`,
+      })
+
+      try {
+        // Ensure the arkiv signing session is open
+        await (this as any).call('arkivBasic', 'unlock')
+
+        await (this as any).call('terminal', 'logHtml', {
+          value: `<span>[Arkiv] Uploading file in chunks (${choice.label})…</span>`,
+        })
+
+        const payload = bytesToHex(fileBytes)
+        const uploadResult = await (this as any).call('arkivBasic', 'uploadChunkedFile', {
+          payload,
+          filename: fileName,
+          contentType,
+          attributes: {
+            app:  { type: 'str', value: 'remix' },
+            name: { type: 'str', value: fileName },
+            path: { type: 'str', value: filePath },
+          },
+          expires: choice.expires,
+        })
+
+        const shareUrl = `${window.location.origin}?arkiv=${uploadResult.manifestKey}`
+        const html =
+          `<span>[Arkiv] "${fileName}" published using chunking (${choice.label}, ${uploadResult.chunkCount} chunks)` +
+          `<br />[Arkiv] Share link: <a href="${shareUrl}" target="_blank" rel="noopener noreferrer">${shareUrl}</a></span>`
+        await (this as any).call('terminal', 'logHtml', { value: html })
+
+        this.emit('fileSaved', filePath, uploadResult.manifestKey)
+        return uploadResult.manifestKey
+      } catch (e: unknown) {
+        const msg = e instanceof Error ? e.message : String(e)
+        await this._logError(`Chunked upload failed for "${filePath}": ${msg}`)
+        throw e
+      }
+    }
+
+    // ── 4. Small file: use proxy-based approach ─────────────────────────────
+    const payload = bytesToHex(fileBytes)
+
+    // ── 5. Ensure the arkiv signing session is open ─────────────────────────
     try {
       await (this as any).call('arkivBasic', 'unlock')
     } catch (e: unknown) {
@@ -179,7 +227,7 @@ export class ArkivNetworkPlugin extends Plugin {
       throw e
     }
 
-    // ── 4. Write the entity to the Arkiv chain ──────────────────────────────
+    // ── 6. Write the entity to the Arkiv chain ──────────────────────────────
     await (this as any).call('terminal', 'logHtml', {
       value: `<span>[Arkiv] Publishing "${fileName}" (${choice.label})…</span>`,
     })
@@ -201,7 +249,7 @@ export class ArkivNetworkPlugin extends Plugin {
       throw e
     }
 
-    // ── 5. Log transaction and share link to terminal ────────────────────────
+    // ── 7. Log transaction and share link to terminal ────────────────────────
     const shareUrl = `${window.location.origin}?arkiv=${result.entityKey}`
     const scanUrl = `${SCAN_BASE_URL}/tx/${result.txHash}`
     const html =
@@ -327,6 +375,55 @@ export class ArkivNetworkPlugin extends Plugin {
 
     this.emit('contractSaved', address, chainId, result.entityKey)
     return result
+  }
+
+  // ── retrieveFile (supports both regular and chunked files) ───────────────
+
+  async retrieveFile(entityKey: string): Promise<{ content: string; contentType?: string; isChunked: boolean }> {
+    try {
+      // First, try to get it as a regular entity
+      const entity = await (this as any).call('arkivBasic', 'getEntity', entityKey)
+
+      if (entity && entity.payload) {
+        // Regular entity - decode the payload
+        const content = new TextDecoder().decode(hexToBytes(entity.payload))
+        return {
+          content,
+          contentType: entity.contentType,
+          isChunked: false,
+        }
+      }
+    } catch (e) {
+      // If regular entity fetch fails, it might be a chunked file
+      console.log('[Arkiv] Entity not found as regular entity, trying chunked download...', e)
+    }
+
+    // Try to download as a chunked file
+    try {
+      // Ensure the arkiv session is ready
+      await (this as any).call('arkivBasic', 'unlock')
+
+      await (this as any).call('terminal', 'logHtml', {
+        value: `<span>[Arkiv] Downloading chunked file…</span>`,
+      })
+
+      const downloadResult = await (this as any).call('arkivBasic', 'downloadChunkedFile', {
+        manifestKey: entityKey,
+      })
+
+      // Decode the hex payload
+      const content = new TextDecoder().decode(hexToBytes(downloadResult.payload))
+
+      return {
+        content,
+        contentType: downloadResult.contentType,
+        isChunked: true,
+      }
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : String(e)
+      await this._logError(`Failed to retrieve file with key "${entityKey}": ${msg}`)
+      throw new Error(`Could not retrieve file: ${msg}`)
+    }
   }
 
   // ── retrieveDeployedContracts ─────────────────────────────────────────────
