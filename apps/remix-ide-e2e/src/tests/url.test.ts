@@ -401,6 +401,15 @@ module.exports = {
       .waitForElementContainsText('*[data-shared="tooltipPopup"]', 'initiating terminal and calling "log" ...')
   },
 
+  'Should block disallowed URL call and produce no toast #group3': function (browser: NightwatchBrowser) {
+    browser
+      .url('http://127.0.0.1:8080?call=scriptRunnerBridge//execute//console.log(1)')
+      .refreshPage()
+      .waitForElementVisible('[data-id="remixIDE"]', 15000)
+      .pause(2000)
+      .assert.not.elementPresent('*[data-shared="tooltipPopup"]')
+  },
+
   'Import Github folder from URL params #group4': function (browser: NightwatchBrowser) {
     browser
       .url('http://127.0.0.1:8080/#ghfolder=https://github.com/ethereum/remix-project/tree/master/apps/remix-ide/contracts/hardhat')

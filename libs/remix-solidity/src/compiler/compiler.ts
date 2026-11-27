@@ -20,6 +20,33 @@ function isCompilerDebugEnabled(): boolean {
   }
 }
 
+// Only .sol and .yul files are valid Solidity compiler imports.
+// Dotfile path segments (e.g. ".env", ".secrets/") are always rejected.
+// This guards gatherImports against a sandboxed compiler returning arbitrary
+// workspace paths in its missingInputs response.
+function isSolOrYulPath(path: string): boolean {
+  if (!path.endsWith('.sol') && !path.endsWith('.yul')) return false
+  return !path.split('/').some(segment => segment.startsWith('.'))
+}
+
+// Origins that ship the official Solidity WASM binaries. Compilers loaded
+// from these hosts use the standard ES worker with full import-callback support.
+// Any other origin goes through the sandboxed iframe worker.
+const TRUSTED_COMPILER_ORIGINS = new Set([
+  'https://binaries.soliditylang.org',
+])
+
+function needsSandbox(url: string): boolean {
+  try {
+    const urlOrigin = new URL(url).origin
+    const pageOrigin = typeof window !== 'undefined' ? window.location.origin : ''
+    if (urlOrigin === pageOrigin) return false
+    return !TRUSTED_COMPILER_ORIGINS.has(urlOrigin)
+  } catch {
+    return false
+  }
+}
+
 /*
   trigger compilationFinished, compilerLoaded, compilationStarted, compilationDuration
 */
@@ -28,6 +55,7 @@ export class Compiler {
   state: CompilerState
   handleImportCall
   workerHandler: EsWebWorkerHandlerInterface
+  private workerHandlerIsSandboxed = false
   constructor(handleImportCall?: (fileurl: string, cb) => void) {
     this.event = new EventManager()
     this.handleImportCall = handleImportCall
@@ -76,11 +104,18 @@ export class Compiler {
     if (key === 'runs') this.state['runs'] = parseInt(value)
   }
 
-  async loadWorkerHandler() {
-    if (this.workerHandler) return
+  async loadWorkerHandler(useSandbox = false) {
+    if (this.workerHandler && this.workerHandlerIsSandboxed === useSandbox) return
     if (typeof (window) !== 'undefined' && Worker) {
-      const ESWebWorker = await import('../lib/es-web-worker/es-web-worker-handler')
-      this.workerHandler = new ESWebWorker.default()
+      if (useSandbox) {
+        const { SandboxedWorkerHandler } = await import('../lib/sandboxed-worker/sandboxed-worker-handler')
+        this.workerHandler = new SandboxedWorkerHandler()
+        this.workerHandlerIsSandboxed = true
+      } else {
+        const ESWebWorker = await import('../lib/es-web-worker/es-web-worker-handler')
+        this.workerHandler = new ESWebWorker.default()
+        this.workerHandlerIsSandboxed = false
+      }
     }
   }
 
@@ -257,7 +292,8 @@ export class Compiler {
       this.state.worker = null
     }
     if (usingWorker) {
-      this.loadWorkerHandler().then(() => {
+      const useSandbox = needsSandbox(url)
+      this.loadWorkerHandler(useSandbox).then(() => {
         this.loadWorker(url)
       })
     } else {
@@ -384,6 +420,11 @@ export class Compiler {
     while (importHints.length > 0) {
       const m: string = importHints.pop() as string
       if (m && m in files) continue
+      // Reject non-Solidity/Yul paths and dotfiles. Legitimate solc import
+      // callbacks only ever produce .sol/.yul paths, so this filter is safe
+      // for all compilation modes and blocks sandboxed compilers from
+      // exfiltrating .env, .ts, or other workspace files via missingInputs.
+      if (!isSolOrYulPath(m)) continue
 
       if (this.handleImportCall) {
         this.handleImportCall(m, (err, content: string) => {

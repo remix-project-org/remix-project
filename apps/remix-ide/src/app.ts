@@ -140,6 +140,8 @@ import { SkillsExplorerModalPlugin } from './app/plugins/skills-explorer-modal'
 import { ChecklistExplorerModalPlugin } from './app/plugins/checklist-explorer-modal'
 import { TxRunnerPlugin } from './app/plugins/txRunnerPlugin'
 
+import { isUrlCallAllowed } from './urlCallAllowlist'
+
 // Tracking now handled by this.track() method using MatomoManager
 
 export class platformApi {
@@ -942,10 +944,14 @@ class AppComponent {
       if (this.params.call) {
         const callDetails = this.params.call.split('//')
         if (callDetails.length > 1) {
-          this.appManager.call('notification', 'toast', `initiating ${callDetails[0]} and calling "${callDetails[1]}" ...`)
-          this.track({ category: 'App', action: 'queryParams-calls', name: this.params.call, isClick: false })
-          //@ts-ignore
-          await this.appManager.call(...callDetails).catch(console.error)
+          if (isUrlCallAllowed(callDetails[0], callDetails[1])) {
+            this.appManager.call('notification', 'toast', `initiating ${callDetails[0]} and calling "${callDetails[1]}" ...`)
+            this.track({ category: 'App', action: 'queryParams-calls', name: this.params.call, isClick: false })
+            //@ts-ignore
+            await this.appManager.call(...callDetails).catch(console.error)
+          } else {
+            console.warn(`URL call blocked: ${callDetails[0]}//${callDetails[1]} is not on the allowlist`)
+          }
         }
       }
 
@@ -963,15 +969,19 @@ class AppComponent {
       if (this.params.calls) {
         const calls = this.params.calls.split('///')
         for (const call of calls) {
-          this.track({ category: 'App', action: 'queryParams-calls', name: call, isClick: false })
           const callDetails = call.split('//')
           if (callDetails.length > 1) {
-            this.appManager.call('notification', 'toast', `initiating ${callDetails[0]} and calling "${callDetails[1]}" ...`)
-            try {
-              //@ts-ignore
-              await this.appManager.call(...callDetails)
-            } catch (e) {
-              console.error(e)
+            if (isUrlCallAllowed(callDetails[0], callDetails[1])) {
+              this.track({ category: 'App', action: 'queryParams-calls', name: call, isClick: false })
+              this.appManager.call('notification', 'toast', `initiating ${callDetails[0]} and calling "${callDetails[1]}" ...`)
+              try {
+                //@ts-ignore
+                await this.appManager.call(...callDetails)
+              } catch (e) {
+                console.error(e)
+              }
+            } else {
+              console.warn(`URL call blocked: ${callDetails[0]}//${callDetails[1]} is not on the allowlist`)
             }
           }
         }

@@ -128,8 +128,25 @@ export const CompilerContainer = (props: CompilerContainerProps) => {
     if (!solJsonBinData) return
     if (!state.updatedVersionSelectorFromUrlQuery && solJsonBinData.binList && solJsonBinData.binList.length) {
       const versionFromQueryParameter = getSelectVersionFromQueryParam()
-      if (versionFromQueryParameter.isURL) _updateVersionSelector(state.defaultVersion, versionFromQueryParameter.selectedVersion)
-      else {
+      if (versionFromQueryParameter.isURL) {
+        const url = versionFromQueryParameter.selectedVersion
+        modal(
+          'Load External Compiler?',
+          <div>
+            <p>A link is requesting to load a Solidity compiler from an external URL:</p>
+            <p className="text-break border rounded p-2"><code>{url}</code></p>
+            <p className="mb-0 text-warning">
+              <i className="fas fa-exclamation-triangle me-1"></i>
+              This compiler decides the bytecode Remix deploys and can request Solidity source files from your workspace during compilation. Only proceed if you trust this source.
+            </p>
+          </div>,
+          'Load Compiler',
+          () => _updateVersionSelector(state.defaultVersion, url),
+          false,
+          'Cancel',
+          () => {}
+        )
+      } else {
         setState((prevState) => {
           return { ...prevState, selectedVersion: versionFromQueryParameter.selectedVersion }
         })
@@ -834,6 +851,13 @@ export const CompilerContainer = (props: CompilerContainerProps) => {
               onlyDownloaded={state.onlyDownloaded}
               disabled={false}
             />
+          )}
+          {state.selectedVersion && state.selectedVersion.startsWith('https://') && (
+            <div className="alert alert-warning m-2 mb-0 py-1 px-2" data-id="customCompilerWarning" role="alert">
+              <i className="fas fa-exclamation-triangle me-1"></i>
+              <strong>Custom compiler active.</strong>
+              <div className="text-break mt-1" style={{ fontSize: '0.8em' }}>{state.selectedVersion}</div>
+            </div>
           )}
           <CompilerSettings
             open={toggleExpander}
