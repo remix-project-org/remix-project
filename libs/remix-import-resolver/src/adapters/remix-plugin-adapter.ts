@@ -3,6 +3,7 @@ import { toHttpUrls } from '../utils/to-http-url'
 import {
   isHttpUrl,
   isDepsPath,
+  jailDepsPath,
   DEPS_DIR,
   DEPS_HTTP_DIR,
   DEPS_NPM_DIR,
@@ -46,7 +47,7 @@ export class RemixPluginAdapter implements IOAdapter {
   }
 
   async setFile(path: string, content: string): Promise<void> {
-    await this.plugin.call('fileManager', 'setFile', path, content)
+    await this.plugin.call('fileManager', 'setFile', jailDepsPath(path), content)
   }
 
   async exists(path: string): Promise<boolean> {
@@ -107,6 +108,7 @@ export class RemixPluginAdapter implements IOAdapter {
     } else if (!isDepsPath(dest)) {
       dest = `${DEPS_DIR}${dest}`
     }
+    dest = jailDepsPath(dest)
 
     // Update .raw_paths.json mapping regardless of cache hit/miss
     await this.updateRawPathsMapping(url, dest)
@@ -126,7 +128,7 @@ export class RemixPluginAdapter implements IOAdapter {
     // Fetch content directly using our simple translator
     const content: string = await this.fetch(url)
     console.log(`Fetched content from ${url}, saving to ${dest}`)
-    await this.plugin.call('fileManager', 'setFile', dest, content)
+    await this.setFile(dest, content)
 
     // Return content to the resolver (it expects the fetched file contents, not a path)
     return content
